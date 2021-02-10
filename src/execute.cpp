@@ -64,8 +64,6 @@ void estimator::compute(std::vector<model *>& models, const input_parameters &my
     auto longest_branch = *max_element(lengths.begin(), lengths.end());
     auto max_lambda = 1 / longest_branch;
 
-    LOG(INFO) << "Maximum possible lambda for this topology: " << max_lambda;
-
     if (model_likelihoods.size() == 2)
     {
         LOG(INFO) << "PValue = " << (1.0 - chi2cdf(2 * (model_likelihoods[1] - model_likelihoods[0]), 1.0));
@@ -84,14 +82,14 @@ void estimator::estimate_missing_variables(std::vector<model *>& models, user_da
         throw runtime_error("No tree specified for lambda estimation");
     }
     for (model* p_model : models) {
-        unique_ptr<inference_optimizer_scorer> scorer(p_model->get_lambda_optimizer(data));
+        unique_ptr<optimizer_scorer> scorer(p_model->get_sigma_optimizer(data));
         if (scorer.get() == nullptr)
             continue;   // nothing to be optimized
 
         optimizer opt(scorer.get());
 
         auto result = opt.optimize(_user_input.optimizer_params);
-        scorer->finalize(&result.values[0]);
+        //scorer->finalize(&result.values[0]);
 
         LOG(INFO) << p_model->get_monitor();
     }
@@ -148,37 +146,6 @@ void estimator::execute(std::vector<model *>& models)
 
             compute(models, _user_input);
 
-            matrix_cache cache(data.max_family_size + 1);
-            for (model* p_model : models) {
-
-                /// For Gamma models, we tried using the most rapidly changing lambda multiplier here, but that
-                /// caused issues in the pvalue calculation. It should be best to use the original lambda
-                /// instead
-                matrix_cache cache(max(data.max_family_size, data.max_root_family_size) + 100);
-                cache.precalculate_matrices(get_lambda_values(p_model->get_lambda()), data.p_tree->get_branch_lengths());
-
-                pvalue_parameters p = { data.p_tree, p_model->get_lambda(), data.max_family_size, data.max_root_family_size, cache };
-                auto pvalues = compute_pvalues(p, data.gene_families, 1000 );
-
-                std::unique_ptr<reconstruction> rec(p_model->reconstruct_ancestral_states(data.gene_families, &cache, &data.prior));
-
-                branch_probabilities probs;
-
-                for (size_t i = 0; i<data.gene_families.size(); ++i)
-                {
-                    if (pvalues[i] < _user_input.pvalue)
-                    {
-                        for_each(data.p_tree->reverse_level_begin(), data.p_tree->reverse_level_end(), [&](const clade* c) {
-                            probs.set(data.gene_families[i], c, compute_viterbi_sum(c, data.gene_families[i], rec.get(), data.max_family_size, cache, p_model->get_lambda()));
-                            });
-                    }
-                }
-
-#ifdef RUN_LHRTEST
-                LikelihoodRatioTest::lhr_for_diff_lambdas(data, p_model);
-#endif
-                rec->write_results(p_model->name(), _user_input.output_prefix, data.p_tree, data.gene_families, pvalues, _user_input.pvalue, probs);
-            }
         }
         catch (const OptimizerInitializationFailure& e )
         {
