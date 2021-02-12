@@ -60,10 +60,6 @@ void estimator::compute(std::vector<model *>& models, const input_parameters &my
         model_likelihoods[i] = result;
     }
 
-    auto lengths = data.p_tree->get_branch_lengths();
-    auto longest_branch = *max_element(lengths.begin(), lengths.end());
-    auto max_lambda = 1 / longest_branch;
-
     if (model_likelihoods.size() == 2)
     {
         LOG(INFO) << "PValue = " << (1.0 - chi2cdf(2 * (model_likelihoods[1] - model_likelihoods[0]), 1.0));

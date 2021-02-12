@@ -1,4 +1,5 @@
 #include <vector>
+#include <Eigen/Dense>
 
 #include "bounded_brownian_motion_model.h"
 #include "optimizer_scorer.h"
@@ -6,6 +7,7 @@
 #include "matrix_cache.h"
 
 using namespace std;
+using namespace Eigen;
 
 //! @brief Scorer that optimizes for sigma
 //! \ingroup optimizer
@@ -59,41 +61,58 @@ optimizer_scorer* bounded_brownian_motion_model::get_sigma_optimizer(const user_
 
 std::vector<double> sigma_optimizer_scorer::initial_guesses()
 {
-    return vector<double> { 0.5};
+    return vector<double> { 0.0000001 };
 }
 
-void ConvProp_bounds(double X, double t, double dCoeff, const matrix& dMat, vector<double> bounds) {
-#if 0
-    vDiag = dMat$diag; P = dMat$passage; tP = t(P);
-    Npts = dim(dMat$diag)[1];
-    tau = ((bounds[2] - bounds[1]) / (Npts - 1)) ^ 2;
-    expD = matrix(0, Npts, Npts);
-    for (i in 1 : Npts) { expD[i, i] = exp(exp(dCoeff) * (t / tau) * diag(vDiag)[i]) }
-    a = P % *%expD % *%tP % *%X;
-    return(apply(a, 1, function(x) max(x, 0)));
-#endif
-}
+class DiffMat {
+public:
+    Matrix<double,Dynamic,Dynamic> Diff;
+    DiagonalMatrix<double, Dynamic> diag;
+    Matrix<double, Dynamic, Dynamic> passage;
 
-void DiffMat(int Npts) {
-#if 0
-    // Npts is the number of points in which the interval is discretized
-    A = matrix(0, Npts, Npts);
-    for (i in 1 : (Npts - 1)) {
-        A[i, i] = -2;
-        A[i, i + 1] = 1;
-        A[i + 1, i] = 1;
+    void Create(int Npts);
+};
+
+void ConvProp_bounds(double X, double t, double cCoeff, const DiffMat& dMat, pair<double, double> bounds) {
+    auto vDiag = dMat.diag;
+    auto P = dMat.passage; 
+    auto tP = P.transpose();
+    int Npts = dMat.diag.size();
+    double tau = pow((bounds.second - bounds.first) / (Npts - 1), 2);
+    Matrix<double, Dynamic, Dynamic> expD(Npts, Npts);
+    for (int i = 1; i < Npts; ++i)
+    { 
+        expD(i, i) = exp(cCoeff * (t / tau) * vDiag.diagonal()[i]);
     }
-    A[1, 1] = A[Npts, Npts] = -1;
-    double eig = eigen(A)
-    return (list(Diff = A, diag = diag(eig$values), passage = eig$vectors))
-#endif
+    auto a = P * expD * tP * X;
+    a.unaryExpr([](double x) {return max(x, 0.0); });
+}
+
+void DiffMat::Create(int Npts) {
+    // Npts is the number of points in which the interval is discretized
+    auto A = Matrix<double, Dynamic, Dynamic>(Npts, Npts);
+    for (int i = 0; i < Npts; ++i) {
+        A(i, i) = -2;
+        A(i, i + 1) = 1;
+        A(i + 1, i) = 1;
+    }
+    A(0, 0) = -1;
+    A(Npts-1, Npts-1) = -1;
+    auto eig = A.eigenvalues();
+    Diff = A;
+    auto diag = eig.asDiagonal();
+    diag.diagonal();
+    EigenSolver< Matrix<double, Dynamic, Dynamic>> es(A);
+    //passage = es.eigenvectors();
 }
 
 double sigma_optimizer_scorer::calculate_score(const double* values)
 {
-    double candidate_sigma = values[0];
+    DiffMat dMat;
+    dMat.Create(200);
+    double sigma = values[0];
 
-    LOG(INFO) << "Sigma: " << candidate_sigma;
+    LOG(INFO) << "Sigma: " << sigma;
 
     for (auto& family : _families)
         for (auto it = _p_tree->reverse_level_begin(); it != _p_tree->reverse_level_end(); ++it)
@@ -102,8 +121,7 @@ double sigma_optimizer_scorer::calculate_score(const double* values)
             {
                 double t = (*it)->get_branch_length();
                 double X = family.get_species_size((*it)->get_taxon_name());
-
-                ConvProp_bounds(X, t, 1.0, matrix(10), vector<double>());
+                ConvProp_bounds(X, t, sigma*sigma/2, dMat, pair<double, double>(0,200));
             }
         }
 
