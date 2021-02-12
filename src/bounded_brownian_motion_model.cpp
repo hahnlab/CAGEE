@@ -1,6 +1,8 @@
 #include <vector>
 #include <Eigen/Dense>
 
+#include "doctest.h"
+
 #include "bounded_brownian_motion_model.h"
 #include "optimizer_scorer.h"
 #include "user_data.h"
@@ -75,7 +77,7 @@ void ConvProp_bounds(double X, double t, double cCoeff, const DiffMat& dMat, pai
 void DiffMat::Create(int Npts) {
     // Npts is the number of points in which the interval is discretized
     auto A = Matrix<double, Dynamic, Dynamic>(Npts, Npts);
-    for (int i = 0; i < Npts; ++i) {
+    for (int i = 0; i < Npts-1; ++i) {
         A(i, i) = -2;
         A(i, i + 1) = 1;
         A(i + 1, i) = 1;
@@ -110,4 +112,10 @@ double sigma_optimizer_scorer::calculate_score(const double* values)
         }
 
     return 0.1;
+}
+
+TEST_CASE("DiffMat")
+{
+    DiffMat dMat;
+    dMat.Create(3);
 }
