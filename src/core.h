@@ -98,19 +98,6 @@ private:
 
 };
 
-class event_monitor : public el::Loggable
-{
-    std::map<string, int> failure_count;
-    int attempts = 0;
-    int rejects = 0;
-public:
-    virtual void log(el::base::type::ostream_t& os) const;
-
-    void Event_InferenceAttempt_Started();
-    void Event_InferenceAttempt_InvalidValues() { rejects++; }
-    void Event_InferenceAttempt_Saturation(std::string family) { failure_count[family]++; }
-};
-
 /*! @brief Describes the actions that are taken when estimating or simulating data
 
     A Model represents a way to calculate or simulate values in the data.
@@ -130,8 +117,6 @@ protected:
     std::vector<size_t> references;
 
     std::vector<family_info_stash> results;
-
-    event_monitor _monitor;
 
     //! Create a lambda based on the lambda tree model the user passed.
     /// Called when the user has provided no lambda value and one must
@@ -168,7 +153,6 @@ public:
     
     virtual std::string name() const = 0;
     virtual void write_family_likelihoods(std::ostream& ost) = 0;
-    virtual void write_vital_statistics(std::ostream& ost, double final_likelihood);
     void write_error_model(std::ostream& ost) const;
 
     //! Based on the model parameters, attempts to reconstruct the most likely counts of each family at each node
@@ -177,8 +161,6 @@ public:
     virtual optimizer_scorer *get_sigma_optimizer(const user_data& data) = 0;
 
     std::size_t get_gene_family_count() const;
-
-    const event_monitor& get_monitor() { return _monitor;  }
 };
 
 //! @brief Creates a list of families that are identical in all values

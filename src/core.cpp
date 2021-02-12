@@ -66,23 +66,6 @@ void model::initialize_lambda(clade *p_lambda_tree)
     _p_lambda = p_lambda;
 }
 
-void model::write_vital_statistics(std::ostream& ost, double final_likelihood)
-{
-    ost << "Model " << name() << " Final Likelihood (-lnL): " << final_likelihood << endl;
-    ost << "Lambda: " << *get_lambda() << endl;
-    if (_p_error_model)
-        ost << "Epsilon: " << _p_error_model->get_epsilons()[0] << endl;
-
-    auto lengths = _p_tree->get_branch_lengths();
-    auto longest_branch = *max_element(lengths.begin(), lengths.end());
-    auto max_lambda = 1 / longest_branch;
-
-    ost << "Maximum possible lambda for this topology: " << max_lambda << endl;
-
-    get_monitor().log(ost);
-
-}
-
 lambda* model::get_simulation_lambda()
 {
     return _p_lambda->clone();
@@ -114,15 +97,6 @@ std::vector<double> inference_prune(const gene_family& gf, matrix_cache& calc, c
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), compute_func);
 
     return probabilities.at(p_tree); // likelihood of the whole tree = multiplication of likelihood of all nodes
-}
-
-void event_monitor::Event_InferenceAttempt_Started() 
-{ 
-    attempts++;
-}
-
-void event_monitor::log(el::base::type::ostream_t& ost) const
-{
 }
 
 bool branch_probabilities::contains(const gene_family& fam) const { 

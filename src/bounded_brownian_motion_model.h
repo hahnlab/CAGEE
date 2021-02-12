@@ -2,6 +2,24 @@
 #define BOUNDED_BROWNIAN_MOTION_MODEL_H
 
 #include "core.h"
+#include "optimizer_scorer.h"
+
+//! @brief Scorer that optimizes for sigma
+//! \ingroup optimizer
+class sigma_optimizer_scorer : public optimizer_scorer
+{
+    const clade* _p_tree;
+    const vector<gene_family>& _families;
+
+public:
+    sigma_optimizer_scorer(const clade* p_tree, const vector<gene_family>& families) : _p_tree(p_tree), _families(families)
+    {
+    }
+
+    virtual std::vector<double> initial_guesses() override;
+
+    virtual double calculate_score(const double* values) override;
+};
 
 class bounded_brownian_motion_model : public model
 {
@@ -19,7 +37,6 @@ private:
 
     virtual std::string name() const { return "Bounded Brownian Motion"; }
     virtual void write_family_likelihoods(std::ostream& ost) {}
-    virtual void write_vital_statistics(std::ostream& ost, double final_likelihood) {}
 
     //! Based on the model parameters, attempts to reconstruct the most likely counts of each family at each node
     virtual reconstruction* reconstruct_ancestral_states(const vector<gene_family>& families, matrix_cache* p_calc, root_equilibrium_distribution* p_prior) { return nullptr; }

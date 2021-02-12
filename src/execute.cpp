@@ -50,7 +50,6 @@ void estimator::compute(std::vector<model *>& models, const input_parameters &my
 
         double result = models[i]->infer_family_likelihoods(data.prior, models[i]->get_lambda());
         std::ofstream results_file(filename(models[i]->name() + "_results", my_input_parameters.output_prefix));
-        models[i]->write_vital_statistics(results_file, result);
 
         std::ofstream likelihoods_file(filename(models[i]->name() + "_family_likelihoods", my_input_parameters.output_prefix));
         models[i]->write_family_likelihoods(likelihoods_file);
@@ -86,37 +85,9 @@ void estimator::estimate_missing_variables(std::vector<model *>& models, user_da
 
         auto result = opt.optimize(_user_input.optimizer_params);
         //scorer->finalize(&result.values[0]);
-
-        LOG(INFO) << p_model->get_monitor();
     }
     if (data.p_lambda == nullptr)
         data.p_lambda = models[0]->get_lambda();
-
-}
-
-void estimator::estimate_lambda_per_family(model *p_model, ostream& ost)
-{
-    vector<lambda*> result(data.gene_families.size());
-    std::transform(data.gene_families.begin(), data.gene_families.end(), result.begin(),
-        [this, p_model](gene_family& fam)
-    {
-#ifndef SILENT
-            LOG(INFO) << "Estimating for " << fam.id() << endl;
-#endif
-        vector<gene_family> v({ fam });
-        vector<model *> models{ p_model };
-        p_model->set_families(&v);
-        data.p_lambda = nullptr;
-        estimate_missing_variables(models, data);
-        return p_model->get_lambda();
-    });
-    std::transform(data.gene_families.begin(), data.gene_families.end(), result.begin(),
-        ostream_iterator<string>(ost, "\n"),
-        [](const gene_family& fam, lambda* lambda)
-    {
-        return fam.id() + '\t' + lambda->to_string();
-    });
-    for (auto r : result) delete r; // TODO: use unique_ptrs in result for exception safety
 
 }
 
@@ -128,26 +99,17 @@ void estimator::execute(std::vector<model *>& models)
     if (dir.empty()) dir = "results";
     create_directory(dir);
     
-    if (_user_input.lambda_per_family)
+    try
     {
-        auto p_model = models[0];   // no support for multiple models
-        std::ofstream results_file(filename(p_model->name() + "_lambda_per_family", _user_input.output_prefix));
-        estimate_lambda_per_family(p_model, results_file);
+        estimate_missing_variables(models, data);
+
+        compute(models, _user_input);
+
     }
-    else
+    catch (const OptimizerInitializationFailure& e )
     {
-        try
-        {
-            estimate_missing_variables(models, data);
-
-            compute(models, _user_input);
-
-        }
-        catch (const OptimizerInitializationFailure& e )
-        {
-            initialization_failure_advice(cerr, data.gene_families);
-            throw;
-        }
+        initialization_failure_advice(cerr, data.gene_families);
+        throw;
     }
 }
 

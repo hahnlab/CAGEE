@@ -9,22 +9,6 @@
 using namespace std;
 using namespace Eigen;
 
-//! @brief Scorer that optimizes for sigma
-//! \ingroup optimizer
-class sigma_optimizer_scorer : public optimizer_scorer
-{
-    const clade* _p_tree;
-    const vector<gene_family>& _families;
-
-public:
-    sigma_optimizer_scorer(const clade *p_tree, const vector<gene_family>& families) : _p_tree(p_tree), _families(families)
-    {
-    }
-
-    virtual std::vector<double> initial_guesses() override;
-
-    virtual double calculate_score(const double* values) override;
-};
 
 vector<size_t> build_reference_list(const vector<gene_family>& families)
 {
