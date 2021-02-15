@@ -52,31 +52,32 @@ std::vector<double> sigma_optimizer_scorer::initial_guesses()
 
 class DiffMat {
 public:
-    Matrix<double,Dynamic,Dynamic> Diff;
-    DiagonalMatrix<double, Dynamic> diag;
-    Matrix<double, Dynamic, Dynamic> passage;
+    MatrixXd Diff;
+    MatrixXcd passage;
 
     void Create(int Npts);
 };
 
-void ConvProp_bounds(double X, double t, double cCoeff, const DiffMat& dMat, pair<double, double> bounds) {
-    auto vDiag = dMat.diag;
-    auto P = dMat.passage; 
-    auto tP = P.transpose();
-    int Npts = dMat.diag.size();
+MatrixXd ConvProp_bounds(double X, double t, double cCoeff, const DiffMat& dMat, pair<double, double> bounds) {
+    VectorXcd eig = dMat.Diff.eigenvalues();
+
+    auto tP = dMat.passage.transpose();
+
+    int Npts = dMat.Diff.cols();
     double tau = pow((bounds.second - bounds.first) / (Npts - 1), 2);
-    Matrix<double, Dynamic, Dynamic> expD(Npts, Npts);
-    for (int i = 1; i < Npts; ++i)
+    MatrixXd expD(Npts, Npts);
+    for (int i = 0; i < Npts; ++i)
     { 
-        expD(i, i) = exp(cCoeff * (t / tau) * vDiag.diagonal()[i]);
+        expD(i, i) = exp(cCoeff * (t / tau) * eig[i].real());
     }
-    auto a = P * expD * tP * X;
-    a.unaryExpr([](double x) {return max(x, 0.0); });
+    MatrixXcd a = dMat.passage * expD * tP * X;
+    return a.unaryExpr([](complex<double> x) {return max(x.real(), 0.0); });
 }
 
 void DiffMat::Create(int Npts) {
     // Npts is the number of points in which the interval is discretized
-    auto A = Matrix<double, Dynamic, Dynamic>(Npts, Npts);
+    MatrixXd A(Npts, Npts);
+    A.setZero();
     for (int i = 0; i < Npts-1; ++i) {
         A(i, i) = -2;
         A(i, i + 1) = 1;
@@ -84,12 +85,10 @@ void DiffMat::Create(int Npts) {
     }
     A(0, 0) = -1;
     A(Npts-1, Npts-1) = -1;
-    auto eig = A.eigenvalues();
+    
     Diff = A;
-    auto diag = eig.asDiagonal();
-    diag.diagonal();
-    EigenSolver< Matrix<double, Dynamic, Dynamic>> es(A);
-    //passage = es.eigenvectors();
+    EigenSolver<MatrixXd> es(Diff);
+    passage = es.eigenvectors();
 }
 
 double sigma_optimizer_scorer::calculate_score(const double* values)
@@ -114,8 +113,32 @@ double sigma_optimizer_scorer::calculate_score(const double* values)
     return 0.1;
 }
 
-TEST_CASE("DiffMat")
+TEST_CASE("DiffMat creates the expected matrix")
 {
     DiffMat dMat;
     dMat.Create(3);
+
+    Matrix3d expected;
+    expected << 
+        -1, 1, 0,
+        1, -2, 1,
+        0, 1, -1;
+
+    CHECK(dMat.Diff == expected);
+}
+
+TEST_CASE("ConvProp_bounds")
+{
+    DiffMat dMat;
+    dMat.Create(3);
+    MatrixXd actual = ConvProp_bounds(1.0, 2.0, 3.0, dMat, pair<double, double>(0.0, 3.0));
+    Matrix3d expected;
+    expected <<
+        0, 0.502323, 0.298648,
+        0.502323, 0.333557,  0.16412,
+        0.298648,  0.16412,  1.76198;
+
+    for (int i = 0; i<3; ++i)
+        for (int j = 0; j < 3; ++j)
+            CHECK(actual(i,j) == doctest::Approx(expected(i,j)));
 }
