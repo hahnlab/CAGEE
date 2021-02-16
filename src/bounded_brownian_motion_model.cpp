@@ -66,6 +66,7 @@ MatrixXd ConvProp_bounds(double X, double t, double cCoeff, const DiffMat& dMat,
     int Npts = dMat.Diff.cols();
     double tau = pow((bounds.second - bounds.first) / (Npts - 1), 2);
     MatrixXd expD(Npts, Npts);
+    expD.setZero();
     for (int i = 0; i < Npts; ++i)
     { 
         expD(i, i) = exp(cCoeff * (t / tau) * eig[i].real());
@@ -132,11 +133,14 @@ TEST_CASE("ConvProp_bounds")
     DiffMat dMat;
     dMat.Create(3);
     MatrixXd actual = ConvProp_bounds(1.0, 2.0, 3.0, dMat, pair<double, double>(0.0, 3.0));
+
+    cout << actual;
+
     Matrix3d expected;
     expected <<
-        0, 0.502323, 0.298648,
-        0.502323, 0.333557,  0.16412,
-        0.298648,  0.16412,  1.76198;
+        0.368131, 0.333222, 0.298648,
+        0.333222, 0.333557, 0.333222,
+        0.298648, 0.333222, 0.368131;
 
     for (int i = 0; i<3; ++i)
         for (int j = 0; j < 3; ++j)
