@@ -28,7 +28,7 @@ double inference_optimizer_scorer::calculate_score(const double *values)
         report_precalculation();
     }
 
-    double score = _p_model->infer_family_likelihoods(*_p_distribution, _p_lambda);
+    double score = _p_model->infer_family_likelihoods(*_p_distribution, _p_sigma);
 
     if (std::isnan(score)) score = -log(0);
 
@@ -37,10 +37,10 @@ double inference_optimizer_scorer::calculate_score(const double *values)
 
 //Inititial Guess multiplies the 1/longest branch by a random draw from a normal 
 //distribution centered such that it will start around a value for lambda of 0.002
-std::vector<double> lambda_optimizer::initial_guesses()
+std::vector<double> sigma_optimizer_scorer::initial_guesses()
 {
     double distmean = 0.002/(1.0 / _longest_branch);
-    std::vector<double> result(_p_lambda->count());
+    std::vector<double> result(_p_sigma->count());
     //std::uniform_real_distribution<double> distribution(0.0, 1.0); Insert a prior distribution (above to start from a biologically realistic rate)
     std::normal_distribution<double> distribution(distmean,0.2);
     for (auto& i : result)
@@ -54,19 +54,19 @@ std::vector<double> lambda_optimizer::initial_guesses()
     return result;
 }
 
-void lambda_optimizer::prepare_calculation(const double *values)
+void sigma_optimizer_scorer::prepare_calculation(const double *values)
 {
-    _p_lambda->update(values);
+    _p_sigma->update(values);
 }
 
-void lambda_optimizer::report_precalculation()
+void sigma_optimizer_scorer::report_precalculation()
 {
-    LOG(INFO) << "Lambda: " << *_p_lambda;
+    LOG(INFO) << "Sigma: " << *_p_sigma;
 }
 
-void lambda_optimizer::finalize(double *results)
+void sigma_optimizer_scorer::finalize(double *results)
 {
-    _p_lambda->update(results);
+    _p_sigma->update(results);
 }
 
 std::vector<double> lambda_epsilon_optimizer::initial_guesses()
@@ -83,7 +83,7 @@ std::vector<double> lambda_epsilon_optimizer::initial_guesses()
 void lambda_epsilon_optimizer::prepare_calculation(const double *values)
 {
     auto lambdas = values;
-    auto epsilons = values + _p_lambda->count();
+    auto epsilons = values + _p_sigma->count();
 
     _lambda_optimizer.prepare_calculation(lambdas);
 
@@ -99,13 +99,13 @@ void lambda_epsilon_optimizer::prepare_calculation(const double *values)
 
 void lambda_epsilon_optimizer::report_precalculation()
 {
-    LOG(INFO) << "Calculating probability: epsilon=" << _p_error_model->get_epsilons().back()*2.0 << ", " << "lambda=" << *_p_lambda;
+    LOG(INFO) << "Calculating probability: epsilon=" << _p_error_model->get_epsilons().back()*2.0 << ", " << "lambda=" << *_p_sigma;
 }
 
 void lambda_epsilon_optimizer::finalize(double *results)
 {
     _lambda_optimizer.finalize(results);
-    _p_error_model->update_single_epsilon(results[_p_lambda->count()]);
+    _p_error_model->update_single_epsilon(results[_p_sigma->count()]);
 }
 
 gamma_optimizer::gamma_optimizer(gamma_model* p_model, const root_equilibrium_distribution* prior) :
@@ -164,18 +164,18 @@ std::vector<double> gamma_lambda_optimizer::initial_guesses()
 void gamma_lambda_optimizer::prepare_calculation(const double *values)
 {
     _lambda_optimizer.prepare_calculation(values);
-    _gamma_optimizer.prepare_calculation(values + _p_lambda->count());
+    _gamma_optimizer.prepare_calculation(values + _p_sigma->count());
 
 }
 
 void gamma_lambda_optimizer::report_precalculation()
 {
-    LOG(INFO) << "Attempting lambda: " << *_p_lambda << ", alpha: " << _gamma_optimizer.get_alpha();
+    LOG(INFO) << "Attempting lambda: " << *_p_sigma << ", alpha: " << _gamma_optimizer.get_alpha();
 }
 
 /// results consists of the desired number of lambdas and one alpha value
 void gamma_lambda_optimizer::finalize(double *results) {
     _lambda_optimizer.finalize(results);
-    _gamma_optimizer.finalize(results + _p_lambda->count());
+    _gamma_optimizer.finalize(results + _p_sigma->count());
 }
 

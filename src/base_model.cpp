@@ -124,7 +124,7 @@ inference_optimizer_scorer *base_model::get_lambda_optimizer(const user_data& da
     }
     else
     {
-        return new lambda_optimizer(_p_lambda, this, &data.prior, longest_branch);
+        return new sigma_optimizer_scorer(_p_lambda, this, &data.prior, longest_branch);
     }
 }
 

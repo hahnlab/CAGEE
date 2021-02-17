@@ -30,13 +30,13 @@ protected:
     virtual void prepare_calculation(const double *values) = 0;
     virtual void report_precalculation() = 0;
 
-    lambda *_p_lambda;
+    lambda *_p_sigma;
     model *_p_model;
     const root_equilibrium_distribution *_p_distribution;
 
 public:
     inference_optimizer_scorer(lambda *p_lambda, model* p_model, const root_equilibrium_distribution *p_distribution) :
-        _p_lambda(p_lambda),
+        _p_sigma(p_lambda),
         _p_model(p_model),
         _p_distribution(p_distribution),
         quiet(false)
@@ -55,14 +55,14 @@ public:
     bool quiet;
 };
 
-//! @brief Scorer that optimizes for lambda
+//! @brief Scorer that optimizes for sigma
 //! \ingroup optimizer
-class lambda_optimizer : public inference_optimizer_scorer
+class sigma_optimizer_scorer : public inference_optimizer_scorer
 {
     double _longest_branch;
 
 public:
-    lambda_optimizer(lambda *p_lambda, model* p_model, const root_equilibrium_distribution *p_distribution, double longest_branch) :
+    sigma_optimizer_scorer(lambda *p_lambda, model* p_model, const root_equilibrium_distribution *p_distribution, double longest_branch) :
         inference_optimizer_scorer(p_lambda, p_model, p_distribution),
         _longest_branch(longest_branch)
     {
@@ -81,7 +81,7 @@ public:
 //! \ingroup optimizer
 class lambda_epsilon_optimizer : public inference_optimizer_scorer
 {
-    lambda_optimizer _lambda_optimizer;
+    sigma_optimizer_scorer _lambda_optimizer;
     error_model* _p_error_model;
     std::vector<double> current_guesses;
 public:
@@ -132,7 +132,7 @@ class gamma_lambda_optimizer : public inference_optimizer_scorer
 {
     virtual void prepare_calculation(const double *values) override;
     virtual void report_precalculation() override;
-    lambda_optimizer _lambda_optimizer;
+    sigma_optimizer_scorer _lambda_optimizer;
     gamma_optimizer _gamma_optimizer;
 public:
     gamma_lambda_optimizer(lambda *p_lambda, gamma_model * p_model, const root_equilibrium_distribution *p_distribution, double longest_branch);

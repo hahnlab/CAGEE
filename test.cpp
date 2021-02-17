@@ -57,7 +57,7 @@ class mock_model : public model {
         auto longest_branch = *max_element(lengths.begin(), lengths.end());
 
         initialize_lambda(data.p_lambda_tree);
-        auto result = new lambda_optimizer(_p_lambda, this, &data.prior, longest_branch);
+        auto result = new sigma_optimizer_scorer(_p_lambda, this, &data.prior, longest_branch);
         result->quiet = true;
         return result;
     }
@@ -721,7 +721,7 @@ TEST_CASE("Inference: gamma_model__creates__lambda_optimizer__if_alpha_provided"
     unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(data));
 
     CHECK(opt);
-    CHECK(dynamic_cast<lambda_optimizer*>(opt.get()));
+    CHECK(dynamic_cast<sigma_optimizer_scorer*>(opt.get()));
     delete model.get_lambda();
 }
 
@@ -2256,7 +2256,7 @@ TEST_CASE("Inference: inference_optimizer_scorer__calculate_score__translates_na
     mock_model m;
     m.set_invalid_likelihood();
     double val;
-    lambda_optimizer opt(&lam, &m, NULL, 0);
+    sigma_optimizer_scorer opt(&lam, &m, NULL, 0);
     CHECK(std::isinf(opt.calculate_score(&val)));
 }
 
