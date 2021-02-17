@@ -5,8 +5,11 @@
 #include <sstream>
 #include <random>
 
+#include <Eigen/Dense>
+
 #include "matrix_cache.h"
 #include "probability.h"
+#include "doctest.h"
 
 #ifdef HAVE_BLAS
 #ifdef HAVE_OPENBLAS
@@ -17,6 +20,49 @@
 #endif
 
 extern std::mt19937 randomizer_engine;
+using namespace Eigen;
+
+class DiffMat {
+public:
+    MatrixXd Diff;
+    MatrixXcd passage;
+
+    void Create(int Npts);
+};
+
+MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, pair<double, double> bounds) {
+    VectorXcd eig = dMat.Diff.eigenvalues();
+
+    auto tP = dMat.passage.transpose();
+
+    int Npts = dMat.Diff.cols();
+    double tau = pow((bounds.second - bounds.first) / (Npts - 1), 2);
+    MatrixXd expD(Npts, Npts);
+    expD.setZero();
+    for (int i = 0; i < Npts; ++i)
+    {
+        expD(i, i) = exp(cCoeff * (t / tau) * eig[i].real());
+    }
+    MatrixXcd a = dMat.passage * expD * tP;
+    return a.unaryExpr([](complex<double> x) {return max(x.real(), 0.0); });
+}
+
+void DiffMat::Create(int Npts) {
+    // Npts is the number of points in which the interval is discretized
+    MatrixXd A(Npts, Npts);
+    A.setZero();
+    for (int i = 0; i < Npts - 1; ++i) {
+        A(i, i) = -2;
+        A(i, i + 1) = 1;
+        A(i + 1, i) = 1;
+    }
+    A(0, 0) = -1;
+    A(Npts - 1, Npts - 1) = -1;
+
+    Diff = A;
+    EigenSolver<MatrixXd> es(Diff);
+    passage = es.eigenvectors();
+}
 
 bool matrix::is_zero() const
 {
@@ -72,18 +118,6 @@ matrix_cache::~matrix_cache()
     }
 }
 
-/* START: Likelihood computation ---------------------- */
-//! Calls BD formulas, but checks/populates cache
-double matrix_cache::get_from_parent_fam_size_to_c(double lambda, double branch_length, int parent_size, int child_size) const {
-    // The probability of 0 remaining 0 is 1
-    // The probability of 0 going to any other count is 0 (if you lose the gene family, you do not regain it)
-    if (parent_size == 0.0)
-        return child_size == 0.0 ? 1.0 : 0.0;
-
-    return the_probability_of_going_from_parent_fam_size_to_c(lambda, branch_length, parent_size, child_size);
-}
-
-//! Compute transition probability matrix for all gene family sizes from 0 to size-1 (=_max_root_family_size-1)
 const matrix* matrix_cache::get_matrix(double branch_length, double lambda) const {
     // cout << "Matrix request " << size << "," << branch_length << "," << lambda << endl;
 
@@ -145,29 +179,22 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& lambdas, con
     vector<matrix*> matrices(keys.size());
     generate(matrices.begin(), matrices.end(), [this] { return new matrix(this->_matrix_size); });
 
-    int s = 0;
+    DiffMat dMat;
+    dMat.Create(_matrix_size);
+
     size_t i = 0;
     size_t num_keys = keys.size();
-#pragma omp parallel for private(s) collapse(2)
+
     for (i = 0; i < num_keys; ++i)
     {
-        for (s = 1; s < _matrix_size; s++) {
-            double lambda = keys[i].lambda();
-            double branch_length = keys[i].branch_length();
+        double lambda = keys[i].lambda();
+        double branch_length = keys[i].branch_length();
+        MatrixXd mxd = ConvProp_bounds(branch_length, lambda*lambda/2, dMat, pair<double, double>(0.0, _matrix_size));
 
-            matrix* m = matrices[i];
-            m->set(0, 0, get_from_parent_fam_size_to_c(lambda, branch_length, 0, 0));
-            if (!is_saturated(branch_length, lambda))
-            {
-                for (int j = 0; j < m->size(); ++j)
-                {
-                    m->set(0, j, get_from_parent_fam_size_to_c(lambda, branch_length, 0, j));
-                }
-                for (int c = 0; c < _matrix_size; c++) {
-                    m->set(s, c, get_from_parent_fam_size_to_c(lambda, branch_length, s, c));
-                }
-            }
-        }
+        matrix* m = matrices[i];
+        for (int j = 0; j < _matrix_size; ++j)
+            for (int k = 0; k < _matrix_size; ++k)
+                m->set(j, k, mxd(j, k));
     }
 
     // copy matrices to our internal map
@@ -196,3 +223,33 @@ std::ostream& operator<<(std::ostream& ost, matrix_cache& c)
     return ost;
 }
 
+TEST_CASE("DiffMat creates the expected matrix")
+{
+    DiffMat dMat;
+    dMat.Create(3);
+
+    Matrix3d expected;
+    expected <<
+        -1, 1, 0,
+        1, -2, 1,
+        0, 1, -1;
+
+    CHECK(dMat.Diff == expected);
+}
+
+TEST_CASE("ConvProp_bounds")
+{
+    DiffMat dMat;
+    dMat.Create(3);
+    MatrixXd actual = ConvProp_bounds(2.0, 3.0, dMat, pair<double, double>(0.0, 3.0));
+
+    Matrix3d expected;
+    expected <<
+        0.368131, 0.333222, 0.298648,
+        0.333222, 0.333557, 0.333222,
+        0.298648, 0.333222, 0.368131;
+
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j)
+            CHECK(actual(i, j) == doctest::Approx(expected(i, j)));
+}
