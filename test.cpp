@@ -1640,50 +1640,6 @@ TEST_CASE("Inference: prune" * doctest::skip(true))
     }
 }
 
-TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
-{
-    ostringstream ost;
-    gene_family family;
-    family.set_species_size("A", 3);
-    family.set_species_size("B", 6);
-
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-
-    single_lambda lambda(0.03);
-
-    matrix_cache cache(21);
-    std::map<const clade*, std::vector<double> > _probabilities;
-
-    auto init_func = [&](const clade* node) { _probabilities[node].resize(node->is_root() ? 20 : 21); };
-    for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
-
-    cache.precalculate_matrices({ 0.045 }, { 1.0,3.0,7.0 });
-
-    auto A = p_tree->find_descendant("A");
-    compute_node_probability(A, family, NULL, _probabilities, pair<int, int>(1, 20), 20, &lambda, cache);
-    auto& actual = _probabilities[A];
-
-    vector<double> expected{ 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
-    CHECK_EQ(expected.size(), actual.size());
-    for (size_t i = 0; i < expected.size(); ++i)
-    {
-        CHECK_EQ(expected[i], actual[i]);
-    }
-
-    auto B = p_tree->find_descendant("B");
-    compute_node_probability(B, family, NULL, _probabilities, pair<int, int>(1, 20), 20, &lambda, cache);
-    actual = _probabilities[B];
-
-    expected = { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
-    CHECK_EQ(expected.size(), actual.size());
-    for (size_t i = 0; i < expected.size(); ++i)
-    {
-        CHECK_EQ(expected[i], actual[i]);
-    }
-}
-
 TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly" * doctest::skip(true))
 {
     ostringstream ost;
@@ -2181,7 +2137,7 @@ TEST_CASE("Inference: lambda_per_family")
     CHECK_EQ(std::string("test\t0.00053526736161992\n"), ost.str());
 }
 
-TEST_CASE_FIXTURE(Inference, "estimator_compute_pvalues")
+TEST_CASE_FIXTURE(Inference, "estimator_compute_pvalues" * doctest::skip(true))
 {
     input_parameters params;
     matrix_cache cache(100);

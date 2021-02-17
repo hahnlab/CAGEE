@@ -7,8 +7,8 @@
 #include <cmath>
 #include <memory>
 
+#include "doctest.h"
 #include "easylogging++.h"
-
 
 #ifdef HAVE_VECTOR_EXP
 #include "mkl.h"
@@ -92,6 +92,25 @@ double chooseln(double n, double r)
 
 /* END: Math tools ----------------------- */
 
+vector<double> VectorPos_bounds(int x, int Npts, pair<int, int> bounds) {
+    vector<double> X(Npts);
+    if (x == bounds.second)
+    {
+        X[Npts] = 1;
+    }
+    else
+    {
+        double nx = (Npts - 1) * (x - bounds.first) / double(bounds.second - bounds.first);
+        int ix = floor(nx);
+        double ux = nx - ix;
+        X[ix + 2] = ux;
+        X[ix + 1] = 1 - ux;
+    }
+    vector<double> result(Npts);
+    transform(X.begin(), X.end(), result.begin(), [Npts, bounds](double x) { return x * (Npts - 1) / double(bounds.second - bounds.first); });
+    return result;
+}
+
 
 /// <summary>
 /// Call this method if there are less than MAX_POSSIBLE_FAMILY_SIZE sizes. Uses strictly stack memory 
@@ -123,7 +142,7 @@ void compute_node_probability_small_families(const clade *node, const gene_famil
         else
         {
             // cout << "Leaf node " << node->get_taxon_name() << " has " << _probabilities[node].size() << " probabilities" << endl;
-            probabilities[node][species_size] = 1.0;
+            probabilities[node] = VectorPos_bounds(species_size, probabilities[node].size(), std::pair<int, int>(0,200));
         }
     }
 
@@ -184,7 +203,7 @@ void compute_node_probability_large_families(const clade* node, const gene_famil
         else
         {
             // cout << "Leaf node " << node->get_taxon_name() << " has " << _probabilities[node].size() << " probabilities" << endl;
-            probabilities[node][species_size] = 1.0;
+            probabilities[node] = VectorPos_bounds(species_size, probabilities[node].size(), std::pair<int, int>(0, 200));
         }
     }
 
@@ -492,3 +511,59 @@ vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_famil
 
     return result;
 }
+
+TEST_CASE("VectorPos_bounds")
+{
+    auto actual = VectorPos_bounds(7, 20, pair<int, int>(0, 10));
+    vector<double> expected{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.33, 0.57, 0, 0, 0, 0 };
+    CHECK_EQ(expected.size(), actual.size());
+    for (size_t i = 0; i < expected.size(); ++i)
+    {
+        CHECK_EQ(doctest::Approx(expected[i]), actual[i]);
+    }
+}
+
+TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
+{
+    ostringstream ost;
+    gene_family family;
+    family.set_species_size("A", 3);
+    family.set_species_size("B", 6);
+
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    single_lambda lambda(0.03);
+
+    matrix_cache cache(21);
+    std::map<const clade*, std::vector<double> > _probabilities;
+
+    auto init_func = [&](const clade* node) { _probabilities[node].resize(node->is_root() ? 20 : 21); };
+    for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
+
+    cache.precalculate_matrices({ 0.045 }, { 1.0,3.0,7.0 });
+
+    auto A = p_tree->find_descendant("A");
+    compute_node_probability(A, family, NULL, _probabilities, pair<int, int>(1, 20), 20, &lambda, cache);
+    auto& actual = _probabilities[A];
+
+    vector<double> expected{ 0, 0.07, 0.03, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+    CHECK_EQ(expected.size(), actual.size());
+    for (size_t i = 0; i < expected.size(); ++i)
+    {
+        CHECK_EQ(expected[i], actual[i]);
+    }
+
+    auto B = p_tree->find_descendant("B");
+    compute_node_probability(B, family, NULL, _probabilities, pair<int, int>(1, 20), 20, &lambda, cache);
+    actual = _probabilities[B];
+
+    expected = { 0, 0.04, 0.06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+    CHECK_EQ(expected.size(), actual.size());
+    for (size_t i = 0; i < expected.size(); ++i)
+    {
+        CHECK_EQ(expected[i], actual[i]);
+    }
+}
+
