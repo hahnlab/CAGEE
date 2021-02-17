@@ -90,13 +90,7 @@ void simulator::simulate_processes(model *p_model, std::vector<simulated_family>
     }
 }
 
-std::vector<double> multipliers;
-
-void write_average_multiplier(std::ostream& ost)
-{
-    double average = std::accumulate(multipliers.begin(), multipliers.end(), 0.0) / multipliers.size();
-    ost << "Average multiplier for simulated values: " << average << endl;
-}
+extern void write_average_multiplier(std::ostream& ost);
 
 /// Simulate
 /// \callgraph

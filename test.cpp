@@ -19,7 +19,9 @@ INITIALIZE_EASYLOGGINGPP
 
 #include "src/io.h"
 #include "src/core.h"
+#include "src/gamma_core.h"
 #include "src/root_equilibrium_distribution.h"
+#include "src/base_model.h"
 #include "src/gene_family_reconstructor.h"
 #include "src/matrix_cache.h"
 #include "src/probability.h"
@@ -31,7 +33,6 @@ INITIALIZE_EASYLOGGINGPP
 #include "src/optimizer.h"
 #include "src/error_model.h"
 #include "src/likelihood_ratio.h"
-#include "src/bounded_brownian_motion_model.h"
 
 std::mt19937 randomizer_engine(10); // seeding random number engine
 
@@ -48,16 +49,15 @@ class mock_model : public model {
     {
         return nullptr;
     }
-    virtual optimizer_scorer* get_sigma_optimizer(const user_data& data) override
+    virtual inference_optimizer_scorer* get_lambda_optimizer(const user_data& data) override
     {
-       // auto lengths = _p_tree->get_branch_lengths();
-       // auto longest_branch = *max_element(lengths.begin(), lengths.end());
+        auto lengths = _p_tree->get_branch_lengths();
+        auto longest_branch = *max_element(lengths.begin(), lengths.end());
 
         initialize_lambda(data.p_lambda_tree);
-        //auto result = new sigma_optimizer_scorer(_p_lambda, this, &data.prior, longest_branch);
-        //result->quiet = true;
-        //return result;
-        return nullptr;
+        auto result = new lambda_optimizer(_p_lambda, this, &data.prior, longest_branch);
+        result->quiet = true;
+        return result;
     }
     bool _invalid_likelihood = false;
 public:
@@ -459,6 +459,35 @@ TEST_CASE("GeneFamilies: species_size_differential")
     CHECK_EQ(11, gf.species_size_differential());
 }
 
+TEST_CASE_FIXTURE(Inference, "infer_processes")
+{
+    vector<gene_family> families;
+    gene_family fam;
+    fam.set_species_size("A", 1);
+    fam.set_species_size("B", 2);
+    families.push_back(fam);
+    gene_family fam2;
+    fam2.set_species_size("A", 2);
+    fam2.set_species_size("B", 1);
+    families.push_back(fam2);
+    gene_family fam3;
+    fam3.set_species_size("A", 3);
+    fam3.set_species_size("B", 6);
+    families.push_back(fam3);
+    gene_family fam4;
+    fam4.set_species_size("A", 6);
+    fam4.set_species_size("B", 3);
+    families.push_back(fam4);
+
+    single_lambda lambda(0.01);
+
+    base_model core(&lambda, _user_data.p_tree, &families, 56, _user_data.max_root_family_size, NULL);
+
+    double multi = core.infer_family_likelihoods(_user_data.prior, &lambda);
+
+    CHECK_EQ(doctest::Approx(46.56632), multi);
+}
+
 TEST_CASE("Inference: root_equilibrium_distribution__with_no_rootdist_is_uniform")
 {
     root_equilibrium_distribution ef(10);
@@ -474,6 +503,34 @@ TEST_CASE_FIXTURE(Inference, "root_equilibrium_distribution__with_rootdist_uses_
     root_equilibrium_distribution ef(_user_data.rootdist);
 
     CHECK_EQ(0.375, ef.compute(1));
+}
+
+TEST_CASE("Inference: gamma_set_alpha")
+{
+    gamma_model model(NULL, NULL, NULL, 0, 5, 0, 0, NULL);
+    model.set_alpha(0.5);
+    CHECK(true);
+}
+
+TEST_CASE( "Inference: gamma_adjust_family_gamma_membership")
+{
+    std::string str = "Desc\tFamily ID\tA\tB\tC\tD\n\t (null)1\t5\t10\t2\t6\n\t (null)2\t5\t10\t2\t6\n\t (null)3\t5\t10\t2\t6\n\t (null)4\t5\t10\t2\t6";
+    std::istringstream ist(str);
+    std::vector<gene_family> families;
+    read_gene_families(ist, NULL, families);
+
+    gamma_model model(NULL, NULL, NULL, 0, 5, 0, 0, NULL);
+    CHECK(true);
+}
+
+TEST_CASE_FIXTURE(Inference, "gamma_model_infers_processes_without_crashing")
+{
+    gamma_model core(_user_data.p_lambda, _user_data.p_tree, &_user_data.gene_families, 148, 122, 1, 0, NULL);
+
+    // TODO: make this return a non-infinite value and add a check for it
+    core.infer_family_likelihoods(_user_data.prior, _user_data.p_lambda);
+    CHECK(true);
+
 }
 
 TEST_CASE("Inference: stash_stream")
@@ -618,12 +675,181 @@ TEST_CASE("Matrix__get_random_y")
     CHECK_EQ(5, m.select_random_y(5, 9));
 }
 
+TEST_CASE_FIXTURE(Inference, "base_optimizer_guesses_lambda_only")
+{
+    _user_data.p_lambda = NULL;
+
+    base_model model(_user_data.p_lambda, _user_data.p_tree, NULL, 0, 5, NULL);
+
+    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data));
+    auto guesses = opt->initial_guesses();
+    CHECK_EQ(1, guesses.size());
+    CHECK_EQ(doctest::Approx(0.2498383).epsilon(0.00001), guesses[0]);
+    delete model.get_lambda();
+}
+
+TEST_CASE_FIXTURE(Inference, "base_optimizer_guesses_lambda_and_unique_epsilons")
+{
+    error_model err;
+    err.set_probabilities(0, { .0, .7, .3 });
+    err.set_probabilities(1, { .4, .2, .4 });
+
+    base_model model(_user_data.p_lambda, _user_data.p_tree, &_user_data.gene_families, 10, 10, &err);
+
+    _user_data.p_error_model = nullptr;
+    _user_data.p_lambda = nullptr;
+
+    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data));
+
+    CHECK(opt);
+    CHECK(dynamic_cast<lambda_epsilon_optimizer*>(opt.get()) != nullptr);
+    auto guesses = opt->initial_guesses();
+    CHECK_EQ(3, guesses.size());
+    CHECK_EQ(doctest::Approx(0.2498383).epsilon(0.00001), guesses[0]);
+    CHECK_EQ(0.3, guesses[1]);
+    CHECK_EQ(0.4, guesses[2]);
+
+    delete model.get_lambda();
+}
+
+
+TEST_CASE_FIXTURE(Inference, "gamma_model_creates__gamma_lambda_optimizer_if_nothing_provided")
+{
+    unique_ptr<clade> p_tree(parse_newick("((A:1,B:1):1,(C:1,D:1):1);"));
+
+    gamma_model model(NULL, p_tree.get(), NULL, 0, 5, 4, -1, NULL);
+    user_data data;
+
+    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(data));
+    CHECK(opt);
+    CHECK(dynamic_cast<gamma_lambda_optimizer*>(opt.get()));
+
+    delete model.get_lambda();
+}
+
+TEST_CASE("Inference: gamma_model__creates__lambda_optimizer__if_alpha_provided")
+{
+    unique_ptr<clade> p_tree(parse_newick("((A:1,B:1):1,(C:1,D:1):1);"));
+
+    gamma_model model(NULL, p_tree.get(), NULL, 0, 5, 4, 0.25, NULL);
+
+    user_data data;
+
+    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(data));
+
+    CHECK(opt);
+    CHECK(dynamic_cast<lambda_optimizer*>(opt.get()));
+    delete model.get_lambda();
+}
+
+TEST_CASE("Inference: gamma_model__creates__gamma_optimizer__if_lambda_provided")
+{
+    unique_ptr<clade> p_tree(parse_newick("((A:1,B:1):1,(C:1,D:1):1);"));
+
+    gamma_model model(NULL, p_tree.get(), NULL, 0, 5, 4, -1, NULL);
+
+    user_data data;
+
+    single_lambda sl(0.05);
+    data.p_lambda = &sl;
+
+    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(data));
+
+    CHECK(opt);
+    CHECK(dynamic_cast<gamma_optimizer*>(opt.get()));
+
+    delete model.get_lambda();
+}
+
+TEST_CASE("Inference: gamma_model_creates_nothing_if_lambda_and_alpha_provided")
+{
+    unique_ptr<clade> p_tree(parse_newick("((A:1,B:1):1,(C:1,D:1):1);"));
+
+    gamma_model model(NULL, p_tree.get(), NULL, 0, 5, 4, .25, NULL);
+
+    user_data data;
+
+    single_lambda sl(0.05);
+    data.p_lambda = &sl;
+
+    CHECK(model.get_lambda_optimizer(data) == nullptr);
+}
+
+TEST_CASE("Inference: gamma_lambda_optimizer__provides_two_guesses")
+{
+    single_lambda sl(0.05);
+    gamma_model model(NULL, NULL, NULL, 0, 5, 4, .25, NULL);
+    gamma_lambda_optimizer glo(&sl, &model, NULL, 5);
+    auto guesses = glo.initial_guesses();
+    CHECK_EQ(2, guesses.size());
+
+    double lambda = guesses[0];
+    CHECK_GT(lambda, 0);
+    CHECK_LT(lambda, 1);
+
+    double alpha = guesses[1];
+    CHECK_GT(alpha, 0);
+    CHECK_LT(alpha, 10);
+}
+
+TEST_CASE("Inference: gamma_optimizer__creates_single_initial_guess")
+{
+    gamma_model m(NULL, NULL, NULL, 0, 0, 0, 0, NULL);
+    gamma_optimizer optimizer(&m, NULL);
+    auto initial = optimizer.initial_guesses();
+    CHECK_EQ(1, initial.size());
+}
+
+TEST_CASE_FIXTURE(Inference, "base_model_reconstruction")
+{
+    unique_ptr<clade> p_tree(parse_newick("((A:1,B:1):1"));
+    single_lambda sl(0.05);
+
+    std::vector<gene_family> families(1);
+    families[0].set_species_size("A", 3);
+    families[0].set_species_size("B", 4);
+
+    base_model model(&sl, p_tree.get(), &families, 5, 5, NULL);
+
+    matrix_cache calc(6);
+    calc.precalculate_matrices(get_lambda_values(&sl), set<double>({ 1 }));
+    root_equilibrium_distribution dist(_user_data.max_root_family_size);
+
+    std::unique_ptr<base_model_reconstruction> rec(dynamic_cast<base_model_reconstruction*>(model.reconstruct_ancestral_states(families, &calc, &dist)));
+
+    CHECK_EQ(1, rec->_reconstructions.size());
+
+}
+
 TEST_CASE("Inference: branch_length_finder")
 {
     unique_ptr<clade> p_tree(parse_newick("((A:1,B:3):7,(C:11,D:17):23);"));
     auto actual = p_tree->get_branch_lengths();
     auto expected = set<double>{ 1, 3, 7, 11, 17, 23 };
     CHECK(actual == expected);
+}
+
+TEST_CASE("Inference: increase_decrease")
+{
+    base_model_reconstruction bmr;
+    gene_family gf;
+
+    unique_ptr<clade> p_tree(parse_newick("((A:1,B:3):7,(C:11,D:17):23);"));
+
+    auto a = p_tree->find_descendant("A");
+    auto b = p_tree->find_descendant("B");
+    auto ab = p_tree->find_descendant("AB");
+    auto abcd = p_tree->find_descendant("ABCD");
+
+    gf.set_id("myid");
+    gf.set_species_size("A", 4);
+    gf.set_species_size("B", 2);
+    bmr._reconstructions["myid"][ab] = 3;
+    bmr._reconstructions["myid"][abcd] = 3;
+
+    CHECK_EQ(1, bmr.get_difference_from_parent(gf, a));
+    CHECK_EQ(-1, bmr.get_difference_from_parent(gf, b));
+    CHECK_EQ(0, bmr.get_difference_from_parent(gf, ab));
 }
 
 TEST_CASE( "Inference: precalculate_matrices_calculates_all_lambdas_all_branchlengths")
@@ -684,6 +910,108 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_leaf_node")
     CHECK_EQ(doctest::Approx(0.0586679), L[1]);
     CHECK_EQ(doctest::Approx(0.146916), L[2]);
     CHECK_EQ(doctest::Approx(0.193072), L[3]);
+}
+
+TEST_CASE_FIXTURE(Reconstruction, "print_reconstructed_states__prints_star_for_significant_values")
+{
+    gene_family gf;
+    gf.set_id("Family5");
+    base_model_reconstruction bmr;
+    auto& values = bmr._reconstructions[gf.id()];
+
+    values[p_tree.get()] = 7;
+    values[p_tree->find_descendant("AB")] = 8;
+    values[p_tree->find_descendant("CD")] = 6;
+
+    branch_probabilities branch_probs;
+    for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), [&branch_probs, &gf](const clade* c) {branch_probs.set(gf, c, branch_probabilities::branch_probability(.5)); });
+
+    branch_probs.set(gf, p_tree->find_descendant("AB"), 0.02);
+    branch_probs.set(gf, p_tree.get(), branch_probabilities::invalid());  /// root is never significant regardless of the value
+
+    ostringstream sig;
+    bmr.print_reconstructed_states(sig, order, { fam }, p_tree.get(), 0.05, branch_probs);
+    STRCMP_CONTAINS("  TREE Family5 = ((A<0>_11:1,B<1>_2:3)<4>*_8:7,(C<2>_5:11,D<3>_6:17)<5>_6:23)<6>_7;", sig.str().c_str());
+
+    ostringstream insig;
+    bmr.print_reconstructed_states(insig, order, { fam }, p_tree.get(), 0.01, branch_probs);
+    STRCMP_CONTAINS("  TREE Family5 = ((A<0>_11:1,B<1>_2:3)<4>_8:7,(C<2>_5:11,D<3>_6:17)<5>_6:23)<6>_7;", insig.str().c_str());
+}
+
+TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__print_reconstructed_states__prints_value_for_each_category_and_a_summation")
+{
+    gamma_model_reconstruction gmr(vector<double>({ 1.0 }));
+
+    auto& rec = gmr._reconstructions["Family5"];
+    rec.category_reconstruction.resize(1);
+    rec.category_reconstruction[0][p_tree.get()] = 7;
+    rec.category_reconstruction[0][p_tree->find_descendant("AB")] = 0;
+    rec.category_reconstruction[0][p_tree->find_descendant("CD")] = 0;
+
+    rec.reconstruction[p_tree.get()] = 7;
+    rec.reconstruction[p_tree->find_descendant("AB")] = 8;
+    rec.reconstruction[p_tree->find_descendant("CD")] = 6;
+
+    ostringstream ost;
+    branch_probabilities branch_probs;
+    gmr.print_reconstructed_states(ost, order, { fam }, p_tree.get(), 0.05, branch_probs);
+    STRCMP_CONTAINS("  TREE Family5 = ((A<0>_11:1,B<1>_2:3)<4>_8:7,(C<2>_5:11,D<3>_6:17)<5>_6:23)<6>_7;", ost.str().c_str());
+}
+
+TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__print_additional_data__prints_likelihoods")
+{
+    gamma_model_reconstruction gmr(vector<double>({ 0.3, 0.9, 1.4, 2.0 }));
+    gmr._reconstructions["Family5"]._category_likelihoods = { 0.01, 0.03, 0.09, 0.07 };
+    ostringstream ost;
+    gmr.print_category_likelihoods(ost, order, { fam });
+    STRCMP_CONTAINS("Family ID\t0.3\t0.9\t1.4\t2\t\n", ost.str().c_str());
+    STRCMP_CONTAINS("Family5\t0.01\t0.03\0.09\t0.07", ost.str().c_str());
+}
+
+TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__prints_lambda_multipiers")
+{
+    vector<double> multipliers{ 0.13, 1.4 };
+    gamma_model_reconstruction gmr(multipliers);
+
+    auto& rec = gmr._reconstructions["Family5"];
+    rec.category_reconstruction.resize(1);
+    rec.category_reconstruction[0][p_tree.get()] = 7;
+    rec.category_reconstruction[0][p_tree->find_descendant("AB")] = 8;
+    rec.category_reconstruction[0][p_tree->find_descendant("CD")] = 6;
+
+    rec.reconstruction[p_tree.get()] = 7;
+    rec.reconstruction[p_tree->find_descendant("AB")] = 8;
+    rec.reconstruction[p_tree->find_descendant("CD")] = 6;
+
+    branch_probabilities branch_probs;
+
+    std::ostringstream ost;
+    gmr.print_reconstructed_states(ost, order, { fam }, p_tree.get(), 0.05, branch_probs);
+
+    STRCMP_CONTAINS("BEGIN LAMBDA_MULTIPLIERS;", ost.str().c_str());
+    STRCMP_CONTAINS("  0.13;", ost.str().c_str());
+    STRCMP_CONTAINS("  1.4;", ost.str().c_str());
+    STRCMP_CONTAINS("END;", ost.str().c_str());
+}
+
+TEST_CASE_FIXTURE(Reconstruction, "base_model_reconstruction__print_reconstructed_states")
+{
+    base_model_reconstruction bmr;
+    auto& values = bmr._reconstructions["Family5"];
+
+    values[p_tree.get()] = 7;
+    values[p_tree->find_descendant("AB")] = 8;
+    values[p_tree->find_descendant("CD")] = 6;
+
+    branch_probabilities branch_probs;
+
+    ostringstream ost;
+
+    bmr.print_reconstructed_states(ost, order, { fam }, p_tree.get(), 0.05, branch_probs);
+    STRCMP_CONTAINS("#nexus", ost.str().c_str());
+    STRCMP_CONTAINS("BEGIN TREES;", ost.str().c_str());
+    STRCMP_CONTAINS("  TREE Family5 = ((A<0>_11:1,B<1>_2:3)<4>_8:7,(C<2>_5:11,D<3>_6:17)<5>_6:23)<6>_7;", ost.str().c_str());
+    STRCMP_CONTAINS("END;", ost.str().c_str());
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "reconstruction_process_internal_node")
@@ -782,6 +1110,54 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_family")
     CHECK_EQ(4, result[AB]);
 }
 
+TEST_CASE_FIXTURE(Reconstruction, "get_weighted_averages")
+{
+    clade c1;
+    clade c2;
+
+    clademap<int> rc1;
+    rc1[&c1] = 10;
+    rc1[&c2] = 2;
+
+    clademap<int> rc2;
+    rc2[&c1] = 20;
+    rc2[&c2] = 8;
+
+    auto avg = get_weighted_averages({ rc1, rc2 }, { .25, .75 });
+    CHECK_EQ(17.5, avg[&c1]);
+    CHECK_EQ(6.5, avg[&c2]);
+}
+
+TEST_CASE_FIXTURE(Reconstruction, "print_node_counts")
+{
+    gamma_model_reconstruction gmr({ .5 });
+    ostringstream ost;
+
+    auto initializer = [&gmr](const clade* c) { gmr._reconstructions["Family5"].reconstruction[c] = 5;  };
+    p_tree->apply_prefix_order(initializer);
+
+    gmr.print_node_counts(ost, order, { fam }, p_tree.get());
+    STRCMP_CONTAINS("FamilyID\tA<0>\tB<1>\tC<2>\tD<3>\t<4>\t<5>\t<6>", ost.str().c_str());
+    STRCMP_CONTAINS("Family5\t11\t2\t5\t6\t5\t5\t5", ost.str().c_str());
+}
+
+TEST_CASE_FIXTURE(Reconstruction, "print_node_change")
+{
+    gamma_model_reconstruction gmr({ .5 });
+    ostringstream ost;
+
+    std::normal_distribution<float> dist(0, 10);
+    clademap<int> size_deltas;
+    p_tree->apply_prefix_order([&gmr, &dist](const clade* c) {
+        if (!c->is_leaf())
+            gmr._reconstructions["Family5"].reconstruction[c] = dist(randomizer_engine);
+        });
+
+    gmr.print_node_change(ost, order, { fam }, p_tree.get());
+    CHECK_MESSAGE(ost.str().find("FamilyID\tA<0>\tB<1>\tC<2>\tD<3>\t<4>\t<5>\t<6>") != string::npos, ost.str());
+    CHECK_MESSAGE(ost.str().find("Family5\t+1\t-8\t+5\t+6\t+17\t+7\t+0") != string::npos, ost.str());
+}
+
 TEST_CASE_FIXTURE(Reconstruction, "clade_index_or_name__returns_node_index_in_angle_brackets_for_non_leaf")
 {
     STRCMP_EQUAL("<0>", clade_index_or_name(p_tree.get(), { p_tree.get() }).c_str());
@@ -816,6 +1192,27 @@ TEST_CASE_FIXTURE(Reconstruction, "print_branch_probabilities__skips_families_wi
 
     print_branch_probabilities(ost, order, { fam }, probs);
     CHECK(ost.str().find("Family5") == string::npos);
+}
+
+TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities")
+{
+    matrix_cache cache(25);
+    cache.precalculate_matrices({ 0.05 }, { 1,3,7 });
+    base_model_reconstruction rec;
+    rec._reconstructions[fam.id()][p_tree->find_descendant("AB")] = 10;
+    rec._reconstructions[fam.id()][p_tree->find_descendant("ABCD")] = 12;
+    single_lambda lm(0.05);
+    CHECK_EQ(doctest::Approx(0.537681), compute_viterbi_sum(p_tree->find_descendant("AB"), fam, &rec, 24, cache, &lm)._value);
+}
+
+TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities_returns_invalid_if_root")
+{
+    matrix_cache cache(25);
+    cache.precalculate_matrices({ 0.05 }, { 1,3,7 });
+    base_model_reconstruction rec;
+    rec._reconstructions[fam.id()][p_tree.get()] = 11;
+    single_lambda lm(0.05);
+    CHECK_FALSE(compute_viterbi_sum(p_tree.get(), fam, &rec, 24, cache, &lm)._is_valid);
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "pvalues")
@@ -860,6 +1257,50 @@ TEST_CASE_FIXTURE(Reconstruction, "compute_family_probabilities")
     CHECK_EQ(doctest::Approx(0.0000000001), result[0]);
 }
 
+TEST_CASE_FIXTURE(Inference, "gamma_model_prune")
+{
+    vector<gene_family> families(1);
+    families[0].set_species_size("A", 3);
+    families[0].set_species_size("B", 6);
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    single_lambda lambda(0.005);
+
+    _user_data.rootdist[1] = 2;
+    _user_data.rootdist[2] = 2;
+    _user_data.rootdist[3] = 2;
+    _user_data.rootdist[4] = 2;
+    _user_data.rootdist[5] = 1;
+    root_equilibrium_distribution dist(_user_data.rootdist);
+    matrix_cache cache(11);
+    cache.precalculate_matrices({ 0.0005, 0.0025 }, set<double>{1, 3, 7});
+
+    gamma_model model(&lambda, p_tree.get(), &families, 10, 8, { 0.01, 0.05 }, { 0.1, 0.5 }, NULL);
+
+    vector<double> cat_likelihoods;
+    CHECK(model.prune(families[0], dist, cache, &lambda, cat_likelihoods));
+
+    CHECK_EQ(2, cat_likelihoods.size());
+    CHECK_EQ(doctest::Approx(-23.04433), log(cat_likelihoods[0]));
+    CHECK_EQ(doctest::Approx(-16.68005), log(cat_likelihoods[1]));
+}
+
+TEST_CASE_FIXTURE(Inference, "gamma_model_prune_returns_false_if_saturated")
+{
+    vector<gene_family> families(1);
+    families[0].set_species_size("A", 3);
+    families[0].set_species_size("B", 6);
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    single_lambda lambda(0.9);
+
+    matrix_cache cache(11);
+    cache.precalculate_matrices({ 0.09, 0.45 }, set<double>{1, 3, 7});
+    vector<double> cat_likelihoods;
+
+    gamma_model model(&lambda, p_tree.get(), &families, 10, 8, { 1.0,1.0 }, { 0.1, 0.5 }, NULL);
+
+    CHECK(!model.prune(families[0], _user_data.prior, cache, &lambda, cat_likelihoods));
+}
+
 TEST_CASE("Inference: matrix_cache_key_handles_floating_point_imprecision")
 {
     set<matrix_cache_key> keys;
@@ -899,10 +1340,72 @@ TEST_CASE("Inference: create_one_model_if_lambda_is_null")
     user_data data;
     auto models = build_models(params, data);
     CHECK_EQ(1, models.size());
-    CHECK(dynamic_cast<bounded_brownian_motion_model*>(models[0]));
+    CHECK(dynamic_cast<base_model*>(models[0]));
     for (auto m : models)
         delete m;
 }
+
+TEST_CASE("Inference: create_gamma_model_if_alpha_provided")
+{
+    input_parameters params;
+    params.input_file_path = "foo";
+    params.fixed_alpha = 0.7;
+    user_data data;
+    auto models = build_models(params, data);
+    CHECK_EQ(1, models.size());
+    CHECK(dynamic_cast<gamma_model*>(models[0]));
+    for (auto m : models)
+        delete m;
+}
+
+TEST_CASE("Inference: create_gamma_model_if__n_gamma_cats__provided")
+{
+    input_parameters params;
+    params.input_file_path = "foo";
+    params.n_gamma_cats = 3;
+    user_data data;
+    auto models = build_models(params, data);
+    CHECK_EQ(1, models.size());
+    CHECK(dynamic_cast<gamma_model*>(models[0]));
+    for (auto m : models)
+        delete m;
+}
+
+TEST_CASE("Inference: build_models__uses_error_model_if_provided")
+{
+    input_parameters params;
+    params.use_error_model = true;
+    error_model em;
+    em.set_probabilities(0, { 0, 0.99, 0.01 });
+    user_data data;
+    data.p_error_model = &em;
+    data.p_tree = new clade("A", 5);
+    data.max_family_size = 5;
+    single_lambda lambda(0.05);
+    data.p_lambda = &lambda;
+    auto model = build_models(params, data)[0];
+    std::ostringstream ost;
+    model->write_vital_statistics(ost, 0.07);
+    STRCMP_CONTAINS("Epsilon: 0.01\n", ost.str().c_str());
+    delete model;
+}
+
+TEST_CASE("Inference: build_models__creates_default_error_model_if_needed")
+{
+    input_parameters params;
+    params.use_error_model = true;
+    user_data data;
+    data.p_tree = new clade("A", 5);
+    data.max_family_size = 5;
+    single_lambda lambda(0.05);
+    data.p_lambda = &lambda;
+    auto model = build_models(params, data)[0];
+    std::ostringstream ost;
+    model->write_vital_statistics(ost, 0.01);
+    STRCMP_CONTAINS("Epsilon: 0.05\n", ost.str().c_str());
+    delete model;
+}
+
 
 void build_matrix(matrix& m)
 {
@@ -1453,6 +1956,22 @@ TEST_CASE("Simulation: print_process_can_print_without_internal_nodes")
 
 }
 
+TEST_CASE("Simulation: gamma_model_get_simulation_lambda_uses_multiplier_based_on_category_probability")
+{
+    vector<double> gamma_categories{ 0.3, 0.7 };
+    vector<double> multipliers{ 0.5, 1.5 };
+    single_lambda lam(0.05);
+    gamma_model m(&lam, NULL, NULL, 0, 5, gamma_categories, multipliers, NULL);
+    vector<double> results(100);
+    generate(results.begin(), results.end(), [&m]() {
+        unique_ptr<single_lambda> new_lam(dynamic_cast<single_lambda*>(m.get_simulation_lambda()));
+        return new_lam->get_single_lambda();
+        });
+
+    CHECK_EQ(doctest::Approx(0.057), accumulate(results.begin(), results.end(), 0.0) / 100.0);
+
+}
+
 TEST_CASE("Simulation: create_trial")
 {
     randomizer_engine.seed(10);
@@ -1480,6 +1999,219 @@ TEST_CASE("Simulation: create_trial")
     CHECK_EQ(5, actual.values.at(p_tree.get()));
     CHECK_EQ(4, actual.values.at(p_tree->find_descendant("A")));
     CHECK_EQ(4, actual.values.at(p_tree->find_descendant("B")));
+}
+
+TEST_CASE("Inference: model_vitals")
+{
+    mock_model model;
+    model.set_tree(new clade("A", 5));
+    single_lambda lambda(0.05);
+    model.set_lambda(&lambda);
+    std::ostringstream ost;
+    model.write_vital_statistics(ost, 0.01);
+    STRCMP_CONTAINS("Model mockmodel Final Likelihood (-lnL): 0.01", ost.str().c_str());
+    STRCMP_CONTAINS("Lambda:            0.05", ost.str().c_str());
+    STRCMP_CONTAINS("Maximum possible lambda for this topology: 0.2", ost.str().c_str());
+    STRCMP_CONTAINS("No attempts made", ost.str().c_str());
+}
+
+TEST_CASE_FIXTURE(Reconstruction, "gene_family_reconstrctor__print_increases_decreases_by_family__adds_flag_for_significance")
+{
+    ostringstream insignificant;
+    base_model_reconstruction bmr;
+    bmr._reconstructions["myid"][p_tree->find_descendant("AB")] = 5;
+    gene_family gf;
+    gf.set_id("myid");
+    gf.set_species_size("A", 7);
+    order.clear();
+    bmr.print_increases_decreases_by_family(insignificant, order, { gf }, { 0.03 }, 0.01);
+    STRCMP_CONTAINS("myid\t0.03\tn", insignificant.str().c_str());
+
+    ostringstream significant;
+    bmr.print_increases_decreases_by_family(insignificant, order, { gf }, { 0.03 }, 0.05);
+    STRCMP_CONTAINS("myid\t0.03\ty", insignificant.str().c_str());
+}
+
+TEST_CASE_FIXTURE(Reconstruction, "print_increases_decreases_by_family__prints_significance_level_in_header")
+{
+    ostringstream ost;
+    base_model_reconstruction bmr;
+    gene_family gf;
+
+    bmr.print_increases_decreases_by_family(ost, order, { gf }, { 0.07 }, 0.00001);
+    STRCMP_CONTAINS("#FamilyID\tpvalue\tSignificant at 1e-05\n", ost.str().c_str());
+}
+
+TEST_CASE("Reconstruction: base_model_print_increases_decreases_by_family")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    ostringstream empty;
+    cladevector order{ p_tree->find_descendant("A"),
+        p_tree->find_descendant("B"),
+        p_tree->find_descendant("AB") };
+
+    base_model_reconstruction bmr;
+    bmr.print_increases_decreases_by_family(empty, order, {}, {}, 0.05);
+    STRCMP_CONTAINS("No increases or decreases recorded", empty.str().c_str());
+
+    bmr._reconstructions["myid"][p_tree->find_descendant("AB")] = 5;
+
+    gene_family gf;
+    gf.set_id("myid");
+    gf.set_species_size("A", 7);
+    gf.set_species_size("B", 2);
+
+    ostringstream ost;
+    bmr.print_increases_decreases_by_family(ost, order, { gf }, { 0.07 }, 0.05);
+    STRCMP_CONTAINS("#FamilyID\tpvalue\tSignificant at 0.05\n", ost.str().c_str());
+    STRCMP_CONTAINS("myid\t0.07\tn\n", ost.str().c_str());
+}
+
+TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_family")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    ostringstream empty;
+    cladevector order{ p_tree->find_descendant("A"),
+        p_tree->find_descendant("B"),
+        p_tree->find_descendant("AB") };
+
+    vector<double> multipliers({ .2, .75 });
+    vector<gamma_bundle*> bundles; //  ({ &bundle });
+    vector<double> em;
+    gamma_model_reconstruction gmr(em);
+    gmr.print_increases_decreases_by_family(empty, order, {}, {}, 0.05);
+    STRCMP_CONTAINS("No increases or decreases recorded", empty.str().c_str());
+
+    gmr._reconstructions["myid"].reconstruction[p_tree->find_descendant("AB")] = 5;
+
+    gene_family gf;
+    gf.set_id("myid");
+    gf.set_species_size("A", 7);
+    gf.set_species_size("B", 2);
+
+    ostringstream ost;
+    gmr.print_increases_decreases_by_family(ost, order, { gf }, { 0.07 }, 0.05);
+    STRCMP_CONTAINS("#FamilyID\tpvalue\tSignificant at 0.05", ost.str().c_str());
+    STRCMP_CONTAINS("myid\t0.07\tn", ost.str().c_str());
+}
+
+TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    cladevector order{ p_tree->find_descendant("A"),
+        p_tree->find_descendant("B"),
+        p_tree->find_descendant("AB") };
+
+    ostringstream empty;
+
+    vector<double> multipliers({ .2, .75 });
+    vector<gamma_bundle*> bundles; //  ({ &bundle });
+    vector<double> em;
+    gamma_model_reconstruction gmr(em);
+
+    gmr.print_increases_decreases_by_clade(empty, order, {});
+    STRCMP_EQUAL("#Taxon_ID\tIncrease\tDecrease\n", empty.str().c_str());
+
+    gmr._reconstructions["myid"].reconstruction[p_tree->find_descendant("AB")] = 5;
+
+    gene_family gf;
+    gf.set_id("myid");
+    gf.set_species_size("A", 7);
+    gf.set_species_size("B", 2);
+
+    ostringstream ost;
+    gmr.print_increases_decreases_by_clade(ost, order, { gf });
+    STRCMP_CONTAINS("#Taxon_ID\tIncrease\tDecrease", ost.str().c_str());
+    STRCMP_CONTAINS("A<0>\t1\t0", ost.str().c_str());
+    STRCMP_CONTAINS("B<1>\t0\t1", ost.str().c_str());
+}
+
+TEST_CASE("Reconstruction: base_model_print_increases_decreases_by_clade")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    clade invalid;
+    cladevector order{ p_tree->find_descendant("A"),
+        p_tree->find_descendant("B"),
+        p_tree->find_descendant("AB") };
+
+    ostringstream empty;
+
+    base_model_reconstruction bmr;
+
+    bmr.print_increases_decreases_by_clade(empty, order, {});
+    STRCMP_EQUAL("#Taxon_ID\tIncrease\tDecrease\n", empty.str().c_str());
+
+    //    bmr._reconstructions["myid"][p_tree->find_descendant("A")] = 4;
+    //    bmr._reconstructions["myid"][p_tree->find_descendant("B")] = -3;
+    bmr._reconstructions["myid"][p_tree->find_descendant("AB")] = 5;
+
+    gene_family gf;
+    gf.set_id("myid");
+    gf.set_species_size("A", 7);
+    gf.set_species_size("B", 2);
+
+    ostringstream ost;
+    bmr.print_increases_decreases_by_clade(ost, order, { gf });
+    STRCMP_CONTAINS("#Taxon_ID\tIncrease\tDecrease", ost.str().c_str());
+    STRCMP_CONTAINS("A<0>\t1\t0", ost.str().c_str());
+    STRCMP_CONTAINS("B<1>\t0\t1", ost.str().c_str());
+}
+
+TEST_CASE("Inference: lambda_epsilon_optimizer")
+{
+    const double initial_epsilon = 0.01;
+    error_model err;
+    err.set_probabilities(0, { .0, .99, initial_epsilon });
+    err.set_probabilities(1, { initial_epsilon, .98, initial_epsilon });
+
+    mock_model model;
+
+    single_lambda lambda(0.05);
+    lambda_epsilon_optimizer optimizer(&model, &err, NULL, std::map<int, int>(), &lambda, 10);
+    optimizer.initial_guesses();
+    vector<double> values = { 0.05, 0.06 };
+    optimizer.calculate_score(&values[0]);
+    auto actual = err.get_probs(0);
+    vector<double> expected{ 0, .94, .06 };
+    CHECK(expected == actual);
+
+    values[1] = 0.04;
+    optimizer.calculate_score(&values[0]);
+    actual = err.get_probs(0);
+    expected = { 0, .96, .04 };
+    CHECK(expected == actual);
+}
+
+TEST_CASE("Inference: lambda_per_family")
+{
+    randomizer_engine.seed(10);
+    user_data ud;
+
+    ud.max_root_family_size = 10;
+    ud.max_family_size = 10;
+    ud.gene_families.resize(1);
+    ud.prior = root_equilibrium_distribution(ud.max_root_family_size);
+
+    gene_family& family = ud.gene_families[0];
+    family.set_id("test");
+    family.set_species_size("A", 3);
+    family.set_species_size("B", 6);
+    input_parameters params;
+    params.lambda_per_family = true;
+
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    ud.p_tree = p_tree.get();
+    estimator v(ud, params);
+
+    mock_model m;
+    m.set_tree(ud.p_tree);
+    ostringstream ost;
+    v.estimate_lambda_per_family(&m, ost);
+    CHECK_EQ(std::string("test\t0.00053526736161992\n"), ost.str());
 }
 
 TEST_CASE_FIXTURE(Inference, "estimator_compute_pvalues")
@@ -1532,6 +2264,33 @@ TEST_CASE_FIXTURE(Inference, "find_best_pvalue_selects_largest_value_in_range")
     root_probabilities[1] = .25;
     auto value = find_best_pvalue(_user_data.gene_families[0], root_probabilities, conditional_distribution);
     CHECK_EQ(doctest::Approx(0.5), value);
+}
+
+TEST_CASE_FIXTURE(Inference, "gamma_lambda_optimizer updates model alpha and lambda")
+{
+    _user_data.max_root_family_size = 10;
+    _user_data.prior = root_equilibrium_distribution(_user_data.max_root_family_size);
+
+//    gamma_model m(_user_data.p_lambda, _user_data.p_tree, &_user_data.gene_families, 10, _user_data.max_root_family_size, 4, 0.25, NULL);
+    vector<double> gamma_categories{ 0.3, 0.7 };
+    vector<double> multipliers{ 0.5, 1.5 };
+    gamma_model m(_user_data.p_lambda, _user_data.p_tree, &_user_data.gene_families, 10, _user_data.max_root_family_size, gamma_categories, multipliers, NULL);
+
+    gamma_lambda_optimizer optimizer(_user_data.p_lambda, &m, &_user_data.prior, 7);
+    vector<double> values{ 0.01, 0.25 };
+    optimizer.calculate_score(&values[0]);
+    CHECK_EQ(doctest::Approx(0.25), m.get_alpha());
+    CHECK_EQ(doctest::Approx(0.01), dynamic_cast<single_lambda *>(m.get_lambda())->get_single_lambda());
+}
+
+TEST_CASE("Inference: inference_optimizer_scorer__calculate_score__translates_nan_to_inf")
+{
+    single_lambda lam(0.05);
+    mock_model m;
+    m.set_invalid_likelihood();
+    double val;
+    lambda_optimizer opt(&lam, &m, NULL, 0);
+    CHECK(std::isinf(opt.calculate_score(&val)));
 }
 
 TEST_CASE_FIXTURE(Inference, "poisson_scorer_optimizes_correct_value")
@@ -1624,6 +2383,70 @@ TEST_CASE("Inference, optimizer_result_stream")
     STRCMP_CONTAINS("Final -lnL: 5", ost.str().c_str());
 }
 
+TEST_CASE("Inference, event_monitor_shows_no_attempts")
+{
+    event_monitor evm;
+
+    ostringstream ost;
+    evm.log(ost);
+    STRCMP_EQUAL("No attempts made\n", ost.str().c_str());
+}
+
+TEST_CASE("Inference, event_monitor_shows_one_attempt")
+{
+    event_monitor evm;
+
+    evm.Event_InferenceAttempt_Started();
+    ostringstream ost;
+
+    evm.log(ost);
+    STRCMP_EQUAL("1 values were attempted (0% rejected)\n", ost.str().c_str());
+}
+
+TEST_CASE("Inference, event_monitor_shows_rejected_attempts")
+{
+    event_monitor evm;
+
+    evm.Event_InferenceAttempt_Started();
+    evm.Event_InferenceAttempt_Started();
+    evm.Event_InferenceAttempt_InvalidValues();
+    ostringstream ost;
+
+    evm.log(ost);
+    STRCMP_EQUAL("2 values were attempted (50% rejected)\n", ost.str().c_str());
+}
+
+TEST_CASE("Inference, event_monitor_shows_poor_performing_families")
+{
+    event_monitor evm;
+
+    evm.Event_InferenceAttempt_Started();
+    evm.Event_InferenceAttempt_Started();
+    evm.Event_InferenceAttempt_Saturation("test");
+    ostringstream ost;
+
+    evm.log(ost);
+    STRCMP_CONTAINS("2 values were attempted (0% rejected)", ost.str().c_str());
+    STRCMP_CONTAINS("The following families had failure rates >20% of the time:", ost.str().c_str());
+    STRCMP_CONTAINS("test had 1 failures", ost.str().c_str());
+}
+
+TEST_CASE("Inference, event_monitor_does_not_show_decent_performing_families")
+{
+    event_monitor evm;
+
+    evm.Event_InferenceAttempt_Started();
+    evm.Event_InferenceAttempt_Started();
+    evm.Event_InferenceAttempt_Started();
+    evm.Event_InferenceAttempt_Started();
+    evm.Event_InferenceAttempt_Started();
+    evm.Event_InferenceAttempt_Saturation("test");
+    ostringstream ost;
+
+    evm.log(ost);
+    STRCMP_EQUAL("5 values were attempted (0% rejected)\n", ost.str().c_str());
+}
+
 TEST_CASE_FIXTURE(Inference, "initialization_failure_advice_shows_20_families_with_largest_differentials")
 {
     std::ostringstream ost;
@@ -1636,6 +2459,26 @@ TEST_CASE_FIXTURE(Inference, "initialization_failure_advice_shows_20_families_wi
     STRCMP_CONTAINS("Families with largest size differentials:", ost.str().c_str());
     STRCMP_CONTAINS("\nYou may want to try removing the top few families with the largest difference\nbetween the max and min counts and then re-run the analysis.\n", ost.str().c_str());
     STRCMP_CONTAINS("TestFamily2: 52\nTestFamily1: 1", ost.str().c_str());
+}
+
+TEST_CASE("Simulation, base_prepare_matrices_for_simulation_creates_matrix_for_each_branch")
+{
+    single_lambda lam(0.05);
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    base_model b(&lam, p_tree.get(), NULL, 0, 0, NULL);
+    matrix_cache m(25);
+    b.prepare_matrices_for_simulation(m);
+    CHECK_EQ(3, m.get_cache_size());
+}
+
+TEST_CASE("Simulation, gamma_prepare_matrices_for_simulation_creates_matrix_for_each_branch_and_category")
+{
+    single_lambda lam(0.05);
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    gamma_model g(&lam, p_tree.get(), NULL, 0, 0, 2, 0.5, NULL);
+    matrix_cache m(25);
+    g.prepare_matrices_for_simulation(m);
+    CHECK_EQ(6, m.get_cache_size());
 }
 
 TEST_CASE("Simulation, set_random_node_size_without_error_model")

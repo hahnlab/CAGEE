@@ -7,7 +7,7 @@ std::random_device rd;
 std::mt19937 randomizer_engine(rd()); // seeding random number engine
 
 
-int cagee(int argc, char *const argv[]);
+int cafe5(int argc, char *const argv[]);
 
 int main(int argc, char *const argv[]) {
 
@@ -17,5 +17,5 @@ int main(int argc, char *const argv[]) {
     defaultConf.set(el::Level::Trace, el::ConfigurationType::Enabled, "false");
     el::Loggers::reconfigureLogger("default", defaultConf);
 
-    cagee(argc, argv);
+    cafe5(argc, argv);
 }

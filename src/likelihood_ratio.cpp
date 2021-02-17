@@ -91,6 +91,22 @@ namespace LikelihoodRatioTest
 
     void lhr_for_diff_lambdas(const user_data & data, model *p_model)
     {
-        throw std::runtime_error("lhr_for_diff_lambdas not implemented");
+        std::vector<lambda*> lambda_cache(100);
+
+        cout << "Running Likelihood Ratio Test 2....\n";
+
+        std::vector<double> pvalues(data.gene_families.size());
+        std::vector<int> lambdas(data.gene_families.size());
+
+        auto lengths = data.p_tree->get_branch_lengths();
+        auto longest_branch = *max_element(lengths.begin(), lengths.end());
+
+        auto scorer = new lambda_optimizer(data.p_lambda, p_model, &data.prior, longest_branch);
+
+        optimizer opt(scorer);
+        opt.quiet = true;
+        compute_for_diff_lambdas_i(data, lambdas, pvalues, lambda_cache, &opt);
+
+        likelihood_ratio_report(cout, data.gene_families, data.p_tree, pvalues, lambdas, lambda_cache);
     }
 }

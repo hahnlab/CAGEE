@@ -10,14 +10,42 @@
 #include "core.h"
 #include "user_data.h"
 #include "matrix_cache.h"
-#include "bounded_brownian_motion_model.h"
+#include "gamma_core.h"
+#include "base_model.h"
 #include "error_model.h"
 
 std::vector<model *> build_models(const input_parameters& user_input, user_data& user_data) {
 
-    std::vector<gene_family>* p_gene_families = &user_data.gene_families;
+    model *p_model = NULL;
 
-    model *p_model = new bounded_brownian_motion_model(user_data.p_lambda, user_data.p_tree, p_gene_families, user_data.max_family_size, user_data.max_root_family_size, nullptr);
+    std::vector<gene_family> *p_gene_families = &user_data.gene_families;
+
+    if (user_input.is_simulating) {
+        p_gene_families = NULL;
+    }
+
+    if (user_input.fixed_alpha > 0 || user_input.n_gamma_cats > 1)
+    {
+        auto gmodel = new gamma_model(user_data.p_lambda, user_data.p_tree, &user_data.gene_families, user_data.max_family_size, user_data.max_root_family_size,
+            user_input.n_gamma_cats, user_input.fixed_alpha, user_data.p_error_model);
+#ifndef SILENT
+        if (user_input.fixed_alpha >= 0 && !user_input.is_simulating)
+            gmodel->write_probabilities(cout);
+#endif
+        p_model = gmodel;
+    }
+    else
+    {
+        error_model* p_error_model = user_data.p_error_model;
+        if (user_input.use_error_model && !p_error_model)
+        {
+            p_error_model = new error_model();
+            p_error_model->set_probabilities(0, { 0, .95, 0.05 });
+            p_error_model->set_probabilities(user_data.max_family_size, { 0.05, .9, 0.05 });
+        }
+
+        p_model = new base_model(user_data.p_lambda, user_data.p_tree, p_gene_families, user_data.max_family_size, user_data.max_root_family_size, p_error_model);
+    }
 
     return std::vector<model *>{p_model};
 }
@@ -66,6 +94,23 @@ void model::initialize_lambda(clade *p_lambda_tree)
     _p_lambda = p_lambda;
 }
 
+void model::write_vital_statistics(std::ostream& ost, double final_likelihood)
+{
+    ost << "Model " << name() << " Final Likelihood (-lnL): " << final_likelihood << endl;
+    ost << "Lambda: " << *get_lambda() << endl;
+    if (_p_error_model)
+        ost << "Epsilon: " << _p_error_model->get_epsilons()[0] << endl;
+
+    auto lengths = _p_tree->get_branch_lengths();
+    auto longest_branch = *max_element(lengths.begin(), lengths.end());
+    auto max_lambda = 1 / longest_branch;
+
+    ost << "Maximum possible lambda for this topology: " << max_lambda << endl;
+
+    get_monitor().log(ost);
+
+}
+
 lambda* model::get_simulation_lambda()
 {
     return _p_lambda->clone();
@@ -97,6 +142,35 @@ std::vector<double> inference_prune(const gene_family& gf, matrix_cache& calc, c
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), compute_func);
 
     return probabilities.at(p_tree); // likelihood of the whole tree = multiplication of likelihood of all nodes
+}
+
+void event_monitor::Event_InferenceAttempt_Started() 
+{ 
+    attempts++;
+}
+
+void event_monitor::log(el::base::type::ostream_t& ost) const
+{
+    if (attempts == 0)
+    {
+        ost << "No attempts made\n";
+        return;
+    }
+    ost << this->attempts << " values were attempted (" << round(double(rejects) / double(attempts) * 100) << "% rejected)\n";
+    if (!failure_count.empty())
+    {
+        auto failures = [](const pair<string, int>& a, const pair<string, int>& b) { return a.second < b.second; };
+        auto worst_performing_family = std::max_element(failure_count.begin(), failure_count.end(), failures);
+        if (worst_performing_family->second * 5 > (attempts - rejects))    // at least one family had 20% rejections
+        {
+            ost << "The following families had failure rates >20% of the time:\n";
+            for (auto& a : this->failure_count)
+            {
+                if (a.second * 5 > (attempts - rejects))
+                    ost << a.first << " had " << a.second << " failures\n";
+            }
+        }
+    }
 }
 
 bool branch_probabilities::contains(const gene_family& fam) const { 

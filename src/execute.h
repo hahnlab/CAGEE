@@ -59,6 +59,8 @@ public:
     void compute(std::vector<model *>& models, const input_parameters &my_input_parameters);
 
     void estimate_missing_variables(std::vector<model *>& models, user_data& data);
+    void estimate_lambda_per_family(model *p_model, std::ostream& ost);
+
 };
 
 void initialization_failure_advice(std::ostream& ost, const std::vector<gene_family>& families);

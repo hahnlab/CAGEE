@@ -55,7 +55,93 @@ public:
     bool quiet;
 };
 
+//! @brief Scorer that optimizes for lambda
+//! \ingroup optimizer
+class lambda_optimizer : public inference_optimizer_scorer
+{
+    double _longest_branch;
 
+public:
+    lambda_optimizer(lambda *p_lambda, model* p_model, const root_equilibrium_distribution *p_distribution, double longest_branch) :
+        inference_optimizer_scorer(p_lambda, p_model, p_distribution),
+        _longest_branch(longest_branch)
+    {
+    }
+
+    std::vector<double> initial_guesses() override;
+
+    virtual void finalize(double *results) override;
+
+    virtual void prepare_calculation(const double *values) override;
+    virtual void report_precalculation() override;
+};
+
+
+/// @brief Scorer that optimizes lambdas and epsilons together
+//! \ingroup optimizer
+class lambda_epsilon_optimizer : public inference_optimizer_scorer
+{
+    lambda_optimizer _lambda_optimizer;
+    error_model* _p_error_model;
+    std::vector<double> current_guesses;
+public:
+    lambda_epsilon_optimizer(
+        model* p_model,
+        error_model *p_error_model,
+        const root_equilibrium_distribution* p_distribution,
+        const std::map<int, int>& root_distribution_map,
+        lambda *p_lambda,
+        double longest_branch) :
+        inference_optimizer_scorer(p_lambda, p_model, p_distribution),
+        _lambda_optimizer(p_lambda, p_model, p_distribution, longest_branch),
+        _p_error_model(p_error_model)
+    {
+    }
+
+    std::vector<double> initial_guesses() override;
+
+    virtual void prepare_calculation(const double *values) override;
+    virtual void report_precalculation() override;
+
+    virtual void finalize(double *results) override;
+};
+
+class gamma_model;
+
+//! @brief Scorer that optimizes for alpha
+//! \ingroup optimizer
+//! \ingroup gamma
+class gamma_optimizer : public inference_optimizer_scorer {
+    gamma_model *_p_gamma_model;
+public:
+    virtual void prepare_calculation(const double *values) override;
+    virtual void report_precalculation() override;
+
+    // Inherited via optimizer_scorer
+    virtual std::vector<double> initial_guesses() override;
+    virtual void finalize(double * result) override;
+    gamma_optimizer(gamma_model* p_model, const root_equilibrium_distribution* prior);
+
+    double get_alpha() const;
+};
+
+//! @brief Scorer that optimizes for both lambda and alpha
+//! \ingroup optimizer
+//! \ingroup gamma
+class gamma_lambda_optimizer : public inference_optimizer_scorer
+{
+    virtual void prepare_calculation(const double *values) override;
+    virtual void report_precalculation() override;
+    lambda_optimizer _lambda_optimizer;
+    gamma_optimizer _gamma_optimizer;
+public:
+    gamma_lambda_optimizer(lambda *p_lambda, gamma_model * p_model, const root_equilibrium_distribution *p_distribution, double longest_branch);
+
+    std::vector<double> initial_guesses() override;
+
+    /// results consists of the desired number of lambdas and one alpha value
+    void finalize(double *results) override;
+};
 
 
 
