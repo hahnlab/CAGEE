@@ -96,15 +96,15 @@ vector<double> VectorPos_bounds(int x, int Npts, pair<int, int> bounds) {
     vector<double> X(Npts);
     if (x == bounds.second)
     {
-        X[Npts] = 1;
+        X[Npts-1] = 1;
     }
     else
     {
         double nx = (Npts - 1) * (x - bounds.first) / double(bounds.second - bounds.first);
         int ix = floor(nx);
         double ux = nx - ix;
-        X[ix + 2] = ux;
-        X[ix + 1] = 1 - ux;
+        X[ix + 1] = ux;
+        X[ix] = 1 - ux;
     }
     vector<double> result(Npts);
     transform(X.begin(), X.end(), result.begin(), [Npts, bounds](double x) { return x * (Npts - 1) / double(bounds.second - bounds.first); });
@@ -515,7 +515,18 @@ vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_famil
 TEST_CASE("VectorPos_bounds")
 {
     auto actual = VectorPos_bounds(7, 20, pair<int, int>(0, 10));
-    vector<double> expected{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.33, 0.57, 0, 0, 0, 0 };
+    vector<double> expected{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.33, 0.57, 0, 0, 0, 0, 0 };
+    CHECK_EQ(expected.size(), actual.size());
+    for (size_t i = 0; i < expected.size(); ++i)
+    {
+        CHECK_EQ(doctest::Approx(expected[i]), actual[i]);
+    }
+}
+
+TEST_CASE("VectorPos_bounds at right edge")
+{
+    auto actual = VectorPos_bounds(10, 20, pair<int, int>(0, 10));
+    vector<double> expected{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.9 };
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
     {
@@ -546,7 +557,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     compute_node_probability(A, family, NULL, _probabilities, pair<int, int>(1, 20), 20, &lambda, cache);
     auto& actual = _probabilities[A];
 
-    vector<double> expected{ 0, 0.07, 0.03, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    vector<double> expected{ 0.07, 0.03, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
@@ -558,7 +569,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     compute_node_probability(B, family, NULL, _probabilities, pair<int, int>(1, 20), 20, &lambda, cache);
     actual = _probabilities[B];
 
-    expected = { 0, 0.04, 0.06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    expected = { 0.04, 0.06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
