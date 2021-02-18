@@ -80,14 +80,6 @@ void gamma_model::write_probabilities(ostream& ost)
     ost << "Lambda multipliers are: " << comma_separated(_lambda_multipliers) << endl;
 }
 
-std::vector<double> multipliers;
-
-void write_average_multiplier(std::ostream& ost)
-{
-    double average = std::accumulate(multipliers.begin(), multipliers.end(), 0.0) / multipliers.size();
-    ost << "Average multiplier for simulated values: " << average << endl;
-}
-
 lambda* gamma_model::get_simulation_lambda()
 {
     discrete_distribution<int> dist(_gamma_cat_probs.begin(), _gamma_cat_probs.end());

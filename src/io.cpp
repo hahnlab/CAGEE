@@ -13,6 +13,8 @@
 
 #include <sys/stat.h>
 
+#include "doctest.h"
+
 #include "io.h"
 #include "gene_family.h"
 #include "error_model.h"
@@ -65,7 +67,7 @@ void input_parameters::check_input() {
     {
         // Must specify a lambda
         if (fixed_lambda <= 0.0 && fixed_multiple_lambdas.empty()) {
-            throw runtime_error("Cannot simulate without initial lambda values");
+            throw runtime_error("Cannot simulate without initial sigma values");
         }
 
         if (fixed_alpha <= 0.0 && this->n_gamma_cats > 1) {
@@ -332,3 +334,11 @@ std::ostream& operator<<(std::ostream& ost, const gene_family& family)
     }
     return ost;
 }
+
+TEST_CASE("Options: must_specify_sigma_for_simulation")
+{
+    input_parameters params;
+    params.is_simulating = true;
+    CHECK_THROWS_WITH(params.check_input(), "Cannot simulate without initial sigma values");
+}
+

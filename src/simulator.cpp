@@ -78,9 +78,6 @@ void simulator::simulate_processes(model *p_model, std::vector<simulated_family>
         //cache.precalculate_matrices(get_lambda_values(sim_lambda.get()), this->data.p_tree->get_branch_lengths());
         p_model->prepare_matrices_for_simulation(cache);
 
-        if (!quiet)
-            cache.warn_on_saturation(cerr);
-
         int n = 0;
 
         auto end_it = i + LAMBDA_PERTURBATION_STEP_SIZE > results.size() ? results.end() : results.begin() + i + LAMBDA_PERTURBATION_STEP_SIZE;
@@ -123,11 +120,6 @@ void simulator::simulate(std::vector<model *>& models, const input_parameters &m
         std::ofstream ofst(truth_fname);
         print_simulations(ofst, true, results);
         LOG(INFO) << "Simulated values (including internal nodes) written to " << truth_fname << endl;
-
-        if (my_input_parameters.fixed_lambda > 0)
-        {
-            write_average_multiplier(cout);
-        }
 
     }
 }

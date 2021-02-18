@@ -295,13 +295,6 @@ TEST_CASE("Options: must_specify_lambda_and_input_file_for_estimator")
     CHECK_THROWS_WITH(params.check_input(), "Options -l and -i must both be provided an argument.");
 }
 
-TEST_CASE("Options: must_specify_lambda_for_simulation")
-{
-    input_parameters params;
-    params.is_simulating = true;
-    CHECK_THROWS_WITH(params.check_input(), "Cannot simulate without initial lambda values");
-}
-
 TEST_CASE("Options: must_specify_alpha_for_gamma_simulation")
 {
     input_parameters params;
@@ -1583,15 +1576,6 @@ TEST_CASE("Probability: write_error_model_skips_unnecessary_lines")
         "15 0.05 0.9 0.05\n";
 
     STRCMP_EQUAL(expected, ost.str().c_str());
-}
-
-TEST_CASE("Probability: matrix_cache_warns_on_saturation")
-{
-    matrix_cache m(10);
-    m.precalculate_matrices({ 0.05, 0.01 }, { 25 });
-    ostringstream ost;
-    m.warn_on_saturation(ost);
-    STRCMP_EQUAL("WARNING: Saturated branch using lambda 0.05 on branch length 25\n", ost.str().c_str());
 }
 
 TEST_CASE("Probability, matrix_is_saturated")

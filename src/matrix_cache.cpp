@@ -204,15 +204,6 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& lambdas, con
     }
 }
 
-void matrix_cache::warn_on_saturation(std::ostream& ost)
-{
-    for (auto& kv : _matrix_cache)
-    {
-        if (is_saturated(kv.first.branch_length(), kv.first.lambda()))
-            ost << "WARNING: Saturated branch using lambda " << kv.first.lambda() << " on branch length " << kv.first.branch_length() << endl;
-    }
-}
-
 std::ostream& operator<<(std::ostream& ost, matrix_cache& c)
 {
     ost << c.get_cache_size() << " matrices. Keys: ";
