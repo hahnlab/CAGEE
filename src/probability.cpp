@@ -415,6 +415,7 @@ void set_weighted_random_family_size(const clade *node, clademap<int> *sizemap, 
         c = adjust_for_error_model(c, p_error_model);
     }
 
+    LOG(TRACE) << node->get_taxon_name() << " size set to " << c;
     (*sizemap)[node] = c;
 }
 

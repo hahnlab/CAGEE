@@ -10,6 +10,7 @@
 #include "matrix_cache.h"
 #include "probability.h"
 #include "doctest.h"
+#include "easylogging++.h"
 
 #ifdef HAVE_BLAS
 #ifdef HAVE_OPENBLAS
@@ -106,6 +107,19 @@ int matrix::select_random_y(int x, int max) const
 {
     assert(x < _size);
     assert(max < _size);
+    el::Logger* l = el::Loggers::getLogger("default");
+    bool enabled = l->typedConfigurations()->enabled(el::Level::Trace);
+    if (enabled)
+    {
+        ostringstream ost;
+        ost << "Selecting random value from: ";
+        for (int i = 0; i < max; ++i)
+        {
+            ost << *(values.begin() + x * _size + i) << " ";
+        }
+        LOG(TRACE) << ost.str();
+    }
+
     std::discrete_distribution<int> distribution(values.begin() + x*_size, values.begin() + x*_size + max);
     return distribution(randomizer_engine);
 }
