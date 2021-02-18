@@ -75,7 +75,7 @@ void simulator::simulate_processes(model *p_model, std::vector<simulated_family>
     {
         unique_ptr<lambda> sim_lambda(p_model->get_simulation_lambda());
         
-        matrix_cache cache(data.max_root_family_size+1);
+        matrix_cache cache;
         //cache.precalculate_matrices(get_lambda_values(sim_lambda.get()), this->data.p_tree->get_branch_lengths());
         p_model->prepare_matrices_for_simulation(cache);
 

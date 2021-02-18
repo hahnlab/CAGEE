@@ -111,7 +111,6 @@ vector<double> VectorPos_bounds(int x, int Npts, pair<int, int> bounds) {
     return result;
 }
 
-
 /// <summary>
 /// Call this method if there are less than MAX_POSSIBLE_FAMILY_SIZE sizes. Uses strictly stack memory 
 /// to run faster and in a thread-compatible manner
@@ -142,7 +141,7 @@ void compute_node_probability_small_families(const clade *node, const gene_famil
         else
         {
             // cout << "Leaf node " << node->get_taxon_name() << " has " << _probabilities[node].size() << " probabilities" << endl;
-            probabilities[node] = VectorPos_bounds(species_size, probabilities[node].size(), std::pair<int, int>(0,200));
+            probabilities[node] = VectorPos_bounds(species_size, DISCRETIZATION_RANGE, std::pair<int, int>(0, probabilities[node].size()));
         }
     }
 
@@ -154,7 +153,7 @@ void compute_node_probability_small_families(const clade *node, const gene_famil
         for (auto it = node->descendant_begin(); it != node->descendant_end(); ++it) {
             double result[MAX_STACK_FAMILY_SIZE];
             fill(result, result + MAX_STACK_FAMILY_SIZE, 0);
-             _lambda->calculate_child_factor(_calc, *it, probabilities[*it], root_size_range.first, root_size_range.second, 0, max_family_size, result);
+             _lambda->calculate_child_factor(_calc, *it, probabilities[*it], 0, DISCRETIZATION_RANGE-1, 0, DISCRETIZATION_RANGE-1, result);
              for (size_t i = 0; i < node_probs.size(); i++) {
                  node_probs[i] *= result[i];
              }
@@ -168,7 +167,7 @@ void compute_node_probability_small_families(const clade *node, const gene_famil
         for (auto it = node->descendant_begin(); it != node->descendant_end(); ++it) {
             double result[MAX_STACK_FAMILY_SIZE];
             fill(result, result + MAX_STACK_FAMILY_SIZE, 0);
-            _lambda->calculate_child_factor(_calc, *it, probabilities[*it], 0, max_family_size, 0, max_family_size, result);
+            _lambda->calculate_child_factor(_calc, *it, probabilities[*it], 0, DISCRETIZATION_RANGE-1, 0, DISCRETIZATION_RANGE-1, result);
             for (size_t i = 0; i< node_probs.size(); i++) {
                 node_probs[i] *= result[i];
             }
@@ -203,7 +202,7 @@ void compute_node_probability_large_families(const clade* node, const gene_famil
         else
         {
             // cout << "Leaf node " << node->get_taxon_name() << " has " << _probabilities[node].size() << " probabilities" << endl;
-            probabilities[node] = VectorPos_bounds(species_size, probabilities[node].size(), std::pair<int, int>(0, 200));
+            probabilities[node] = VectorPos_bounds(species_size, DISCRETIZATION_RANGE, std::pair<int, int>(0, probabilities[node].size()));
         }
     }
 
@@ -212,7 +211,7 @@ void compute_node_probability_large_families(const clade* node, const gene_famil
         std::vector<std::vector<double> > factors;
         for (auto it = node->descendant_begin(); it != node->descendant_end(); ++it) {
             vector<double> result(root_size_range.second);
-            _lambda->calculate_child_factor(_calc, *it, probabilities[*it], root_size_range.first, root_size_range.second, 0, max_family_size, result.data());
+            _lambda->calculate_child_factor(_calc, *it, probabilities[*it], 0, DISCRETIZATION_RANGE-1, 0, DISCRETIZATION_RANGE-1, result.data());
             factors.push_back(result);
         }
         vector<double>& node_probs = probabilities[node];
@@ -234,7 +233,7 @@ void compute_node_probability_large_families(const clade* node, const gene_famil
 
         for (auto it = node->descendant_begin(); it != node->descendant_end(); ++it) {
             vector<double> result(max_family_size+1);
-            _lambda->calculate_child_factor(_calc, *it, probabilities[*it], 0, max_family_size, 0, max_family_size, result.data());
+            _lambda->calculate_child_factor(_calc, *it, probabilities[*it], 0, DISCRETIZATION_RANGE, 0, DISCRETIZATION_RANGE, result.data());
             factors.push_back(result);
         }
 
@@ -339,7 +338,7 @@ vector<double> compute_family_probabilities(pvalue_parameters p, const vector<cl
         // vector of lk's at tips must go from 0 -> _max_possible_family_size, so we must add 1
         for_each(p.p_tree->reverse_level_begin(), p.p_tree->reverse_level_end(), [&p, &pruner, m](const clade* node) 
             { 
-                pruner[node].resize(1 + (node->is_root() ? p.max_root_family_size : m)); 
+                pruner[node].resize(DISCRETIZATION_RANGE);
             });
         return pruner;
         });
@@ -490,7 +489,7 @@ vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_famil
     for (auto& pruner : pruners)
     {
         // vector of lk's at tips must go from 0 -> _max_possible_family_size, so we must add 1
-        auto fn = [&](const clade* node) { pruner[node].resize(node->is_root() ? p.max_root_family_size : p.max_family_size + 1); };
+        auto fn = [&](const clade* node) { pruner[node].resize(DISCRETIZATION_RANGE); };
         for_each(p.p_tree->reverse_level_begin(), p.p_tree->reverse_level_end(), fn);
     }
 
@@ -546,7 +545,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
 
     single_lambda lambda(0.03);
 
-    matrix_cache cache(21);
+    matrix_cache cache;
     std::map<const clade*, std::vector<double> > _probabilities;
 
     auto init_func = [&](const clade* node) { _probabilities[node].resize(node->is_root() ? 20 : 21); };
@@ -558,24 +557,28 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     compute_node_probability(A, family, NULL, _probabilities, pair<int, int>(1, 20), 20, &lambda, cache);
     auto& actual = _probabilities[A];
 
-    vector<double> expected{ 0.07, 0.03, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    vector<double> expected(DISCRETIZATION_RANGE);
+    expected[28] = 5.41496598;
+    expected[29] = 4.0612244;
 
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
     {
-        CHECK_EQ(expected[i], actual[i]);
+        CHECK_EQ(doctest::Approx(expected[i]), actual[i]);
     }
 
     auto B = p_tree->find_descendant("B");
     compute_node_probability(B, family, NULL, _probabilities, pair<int, int>(1, 20), 20, &lambda, cache);
     actual = _probabilities[B];
 
-    expected = { 0.04, 0.06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    expected = vector<double>(DISCRETIZATION_RANGE);
+    expected[56] = 1.353741;
+    expected[57] = 8.122448;
 
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
     {
-        CHECK_EQ(expected[i], actual[i]);
+        CHECK_EQ(doctest::Approx(expected[i]), actual[i]);
     }
 }
 

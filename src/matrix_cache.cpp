@@ -194,7 +194,7 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& lambdas, con
     generate(matrices.begin(), matrices.end(), [this] { return new matrix(this->_matrix_size); });
 
     DiffMat dMat;
-    dMat.Create(_matrix_size);
+    dMat.Create(DISCRETIZATION_RANGE);
 
     size_t i = 0;
     size_t num_keys = keys.size();
@@ -206,8 +206,8 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& lambdas, con
         MatrixXd mxd = ConvProp_bounds(branch_length, lambda*lambda/2, dMat, pair<double, double>(0.0, _matrix_size));
 
         matrix* m = matrices[i];
-        for (int j = 0; j < _matrix_size; ++j)
-            for (int k = 0; k < _matrix_size; ++k)
+        for (int j = 0; j < DISCRETIZATION_RANGE; ++j)
+            for (int k = 0; k < DISCRETIZATION_RANGE; ++k)
                 m->set(j, k, mxd(j, k));
     }
 

@@ -62,7 +62,7 @@ double base_model::infer_family_likelihoods(const root_equilibrium_distribution 
     results.resize(_p_gene_families->size());
     std::vector<double> all_families_likelihood(_p_gene_families->size());
 
-    matrix_cache calc(max(_max_root_family_size, _max_family_size) + 1);
+    matrix_cache calc;
     calc.precalculate_matrices(get_lambda_values(_p_lambda), _p_tree->get_branch_lengths());
 
     vector<vector<double>> partial_likelihoods(_p_gene_families->size());

@@ -55,3 +55,4 @@
 /* Maximum family size to analyze before dropping to allocating heap memory */
 #undef MAX_STACK_FAMILY_SIZE
 
+#define DISCRETIZATION_RANGE 200

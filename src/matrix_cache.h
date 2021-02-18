@@ -74,7 +74,6 @@ private:
     std::map<matrix_cache_key, matrix*> _matrix_cache; //!< nested map that stores transition probabilities for a given lambda and branch_length (outer), then for a given parent and child size (inner)
     int _matrix_size;
 public:
-    double get_from_parent_fam_size_to_c(double lambda, double branch_length, int parent_size, int child_size) const;
     const matrix* get_matrix(double branch_length, double lambda) const;
     void precalculate_matrices(const std::vector<double>& lambdas, const std::set<double>& branch_lengths);
 
@@ -88,7 +87,7 @@ public:
 
     static bool is_saturated(double branch_length, double lambda);
 
-    matrix_cache(int matrix_size) : _matrix_size(matrix_size) {}
+    matrix_cache() : _matrix_size(DISCRETIZATION_RANGE) {}
     ~matrix_cache();
 
     friend std::ostream& operator<<(std::ostream& ost, matrix_cache& c);

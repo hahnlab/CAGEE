@@ -148,13 +148,12 @@ void estimator::execute(std::vector<model *>& models)
 
             compute(models, _user_input);
 
-            matrix_cache cache(data.max_family_size + 1);
             for (model* p_model : models) {
 
                 /// For Gamma models, we tried using the most rapidly changing lambda multiplier here, but that
                 /// caused issues in the pvalue calculation. It should be best to use the original lambda
                 /// instead
-                matrix_cache cache(max(data.max_family_size, data.max_root_family_size) + 100);
+                matrix_cache cache;
                 cache.precalculate_matrices(get_lambda_values(p_model->get_lambda()), data.p_tree->get_branch_lengths());
 
                 pvalue_parameters p = { data.p_tree, p_model->get_lambda(), data.max_family_size, data.max_root_family_size, cache };

@@ -174,7 +174,7 @@ double gamma_model::infer_family_likelihoods(const root_equilibrium_distribution
     vector<double> all_bundles_likelihood(_p_gene_families->size());
 
     vector<bool> failure(_p_gene_families->size());
-    matrix_cache calc(max(_max_root_family_size, _max_family_size) + 1);
+    matrix_cache calc;
     prepare_matrices_for_simulation(calc);
 
     vector<vector<family_info_stash>> pruning_results(_p_gene_families->size());
