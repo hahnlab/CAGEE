@@ -7,8 +7,7 @@
 
 #include <assert.h>
 
-class lambda;
-class readwritelock;
+class DiffMat;
 
 class matrix
 {
@@ -62,8 +61,6 @@ public:
     }
 };
 
-std::vector<double> get_lambda_values(const lambda *p_lambda);
-
 //! Computation of the probabilities of moving from a family size (parent) to another (child)
 /*!
 Contains a map (_cache) that serves as a hash table to store precalculated values.
@@ -73,6 +70,7 @@ class matrix_cache {
 private:
     std::map<matrix_cache_key, matrix*> _matrix_cache; //!< nested map that stores transition probabilities for a given lambda and branch_length (outer), then for a given parent and child size (inner)
     int _matrix_size;
+    DiffMat* _p_diffmat;
 public:
     const matrix* get_matrix(double branch_length, double lambda) const;
     void precalculate_matrices(const std::vector<double>& lambdas, const std::set<double>& branch_lengths);
@@ -87,7 +85,7 @@ public:
 
     static bool is_saturated(double branch_length, double lambda);
 
-    matrix_cache() : _matrix_size(DISCRETIZATION_RANGE) {}
+    matrix_cache();
     ~matrix_cache();
 
     friend std::ostream& operator<<(std::ostream& ost, matrix_cache& c);

@@ -1879,35 +1879,6 @@ TEST_CASE("Simulation: gamma_model_get_simulation_lambda_uses_multiplier_based_o
 
 }
 
-TEST_CASE("Simulation: create_trial" * doctest::skip(true))
-{
-    randomizer_engine.seed(10);
-
-    single_lambda lam(0.25);
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-
-    user_data data;
-    data.p_tree = p_tree.get();
-    data.rootdist[1] = 1;
-    data.rootdist[2] = 1;
-    data.rootdist[5] = 1;
-    data.max_family_size = 10;
-    data.max_root_family_size = 10;
-
-    data.prior = root_equilibrium_distribution(data.rootdist);
-    input_parameters params;
-    simulator sim(data, params);
-
-    matrix_cache cache;
-    cache.precalculate_matrices(get_lambda_values(&lam), { 1,3,7 });
-
-    simulated_family actual = sim.create_trial(&lam, 2, cache);
-
-    CHECK_EQ(5, actual.values.at(p_tree.get()));
-    CHECK_EQ(4, actual.values.at(p_tree->find_descendant("A")));
-    CHECK_EQ(4, actual.values.at(p_tree->find_descendant("B")));
-}
-
 TEST_CASE("Inference: model_vitals")
 {
     mock_model model;

@@ -8,6 +8,23 @@
 
 using namespace std;
 
+vector<double> get_lambda_values(const lambda* p_lambda)
+{
+    vector<double> lambdas;
+    auto sl = dynamic_cast<const single_lambda*>(p_lambda);
+    if (sl)
+    {
+        lambdas.push_back(sl->get_single_lambda());
+    }
+    else
+    {
+        auto ml = dynamic_cast<const multiple_lambda*>(p_lambda);
+        lambdas = ml->get_lambdas();
+    }
+    return lambdas;
+}
+
+
 /* START: Holding lambda values and specifying how likelihood is computed depending on the number of different lambdas */
 
 void single_lambda::calculate_child_factor(const matrix_cache& calc, const clade *child, std::vector<double> probabilities, int s_min_family_size, int s_max_family_size, int c_min_family_size, int c_max_family_size, double* result) const

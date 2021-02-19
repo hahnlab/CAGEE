@@ -2,7 +2,9 @@
 #include <algorithm>
 #include <fstream>
 #include <random>
+#include <vector>
 
+#include "doctest.h"
 #include "easylogging++.h"
 
 #include "simulator.h"
@@ -10,6 +12,8 @@
 #include "core.h"
 #include "matrix_cache.h"
 #include "root_equilibrium_distribution.h"
+
+using namespace std;
 
 extern std::mt19937 randomizer_engine; // seeding random number engine
 
@@ -25,6 +29,11 @@ void simulator::execute(std::vector<model *>& models)
     simulate(models, _user_input);
 }
 
+// At the root, we have a vector of length DISCRETIZATION_RANGE. This has probability 1 at the size of the root
+// and 0 everywhere else
+// for each child, generate the transition matrix and multiply
+// The tip values would then be taken to be the highest probability entries in the vector for that node#endif
+
 simulated_family simulator::create_trial(const lambda *p_lambda, int family_number, const matrix_cache& cache) {
 
     if (data.p_tree == NULL)
@@ -33,27 +42,24 @@ simulated_family simulator::create_trial(const lambda *p_lambda, int family_numb
     simulated_family result;
     result.lambda = get_lambda_values(p_lambda)[0];
 
-    int i = 0;
-    for (i = 0; i<50; ++i)
+    clademap<vector<double>> probs;
+    data.p_tree->apply_prefix_order([&probs](const clade*c) { probs[c].resize(DISCRETIZATION_RANGE); });
+
+    probs.at(data.p_tree)[data.prior.select_root_size(family_number)] = 1;
+
+    std::function <void(const clade*)> get_child_probability_vector;
+    get_child_probability_vector = [&](const clade* c) {
+        p_lambda->calculate_child_factor(cache, c, probs.at(c->get_parent()), 0, DISCRETIZATION_RANGE - 1, 0, DISCRETIZATION_RANGE - 1, probs.at(c).data());
+        c->apply_to_descendants(get_child_probability_vector);
+    };
+
+    data.p_tree->apply_to_descendants(get_child_probability_vector);
+
+    for (auto it = data.p_tree->reverse_level_begin(); it != data.p_tree->reverse_level_end(); ++it)
     {
-        result.values[data.p_tree] = data.prior.select_root_size(family_number);
-        LOG(TRACE) << "Root size: " << result.values[data.p_tree];
-
-        data.p_tree->apply_prefix_order([&](const clade* c)
-            {
-                set_weighted_random_family_size(c, &result.values, p_lambda, data.p_error_model, data.max_family_size, cache);
-            });
-
-        gene_family gf;
-        gf.init_from_clademap(result.values);
-        if (gf.exists_at_root(data.p_tree))
-            break;
+        auto max = max_element(probs[*it].begin(), probs[*it].end());
+        result.values[*it] = max - probs[*it].begin();
     }
-    if (i >= 50)
-    {
-        LOG(WARNING) << "Failed to create a family that would exist at the root\n";
-    }
-
     return result;
 }
 
@@ -163,3 +169,33 @@ void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes
         ost << endl;
     }
 }
+
+TEST_CASE("create_trial")
+{
+    randomizer_engine.seed(10);
+
+    single_lambda lam(0.25);
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    user_data data;
+    data.p_tree = p_tree.get();
+    data.rootdist[1] = 1;
+    data.rootdist[2] = 1;
+    data.rootdist[5] = 1;
+    data.max_family_size = 10;
+    data.max_root_family_size = 10;
+
+    data.prior = root_equilibrium_distribution(data.rootdist);
+    input_parameters params;
+    simulator sim(data, params);
+
+    matrix_cache cache;
+    cache.precalculate_matrices(get_lambda_values(&lam), { 1,3,7 });
+
+    simulated_family actual = sim.create_trial(&lam, 2, cache);
+
+    CHECK_EQ(5, actual.values.at(p_tree.get()));
+    CHECK_EQ(5, actual.values.at(p_tree->find_descendant("A")));
+    CHECK_EQ(5, actual.values.at(p_tree->find_descendant("B")));
+}
+

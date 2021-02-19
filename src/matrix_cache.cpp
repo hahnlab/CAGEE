@@ -27,13 +27,12 @@ class DiffMat {
 public:
     MatrixXd Diff;
     MatrixXcd passage;
+    VectorXcd eig;
 
-    void Create(int Npts);
+    DiffMat(int Npts);
 };
 
 MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, pair<double, double> bounds) {
-    VectorXcd eig = dMat.Diff.eigenvalues();
-
     auto tP = dMat.passage.transpose();
 
     int Npts = dMat.Diff.cols();
@@ -42,13 +41,13 @@ MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, pair<doub
     expD.setZero();
     for (int i = 0; i < Npts; ++i)
     {
-        expD(i, i) = exp(cCoeff * (t / tau) * eig[i].real());
+        expD(i, i) = exp(cCoeff * (t / tau) * dMat.eig[i].real());
     }
     MatrixXcd a = dMat.passage * expD * tP;
     return a.unaryExpr([](complex<double> x) {return max(x.real(), 0.0); });
 }
 
-void DiffMat::Create(int Npts) {
+DiffMat::DiffMat(int Npts) {
     // Npts is the number of points in which the interval is discretized
     MatrixXd A(Npts, Npts);
     A.setZero();
@@ -63,6 +62,7 @@ void DiffMat::Create(int Npts) {
     Diff = A;
     EigenSolver<MatrixXd> es(Diff);
     passage = es.eigenvectors();
+    eig = Diff.eigenvalues();
 }
 
 bool matrix::is_zero() const
@@ -124,8 +124,13 @@ int matrix::select_random_y(int x, int max) const
     return distribution(randomizer_engine);
 }
 
+matrix_cache::matrix_cache() : _matrix_size(DISCRETIZATION_RANGE), _p_diffmat(new DiffMat(DISCRETIZATION_RANGE))
+{
+}
+
 matrix_cache::~matrix_cache()
 {
+    delete _p_diffmat;
     for (auto m : _matrix_cache)
     {
         delete m.second;
@@ -149,22 +154,6 @@ const matrix* matrix_cache::get_matrix(double branch_length, double lambda) cons
         throw std::runtime_error(ost.str());
     }
     return result;
-}
-
-vector<double> get_lambda_values(const lambda *p_lambda)
-{
-    vector<double> lambdas;
-    auto sl = dynamic_cast<const single_lambda *>(p_lambda);
-    if (sl)
-    {
-        lambdas.push_back(sl->get_single_lambda());
-    }
-    else
-    {
-        auto ml = dynamic_cast<const multiple_lambda *>(p_lambda);
-        lambdas = ml->get_lambdas();
-    }
-    return lambdas;
 }
 
 bool matrix_cache::is_saturated(double branch_length, double lambda)
@@ -193,9 +182,6 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& lambdas, con
     vector<matrix*> matrices(keys.size());
     generate(matrices.begin(), matrices.end(), [this] { return new matrix(this->_matrix_size); });
 
-    DiffMat dMat;
-    dMat.Create(DISCRETIZATION_RANGE);
-
     size_t i = 0;
     size_t num_keys = keys.size();
 
@@ -203,7 +189,7 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& lambdas, con
     {
         double lambda = keys[i].lambda();
         double branch_length = keys[i].branch_length();
-        MatrixXd mxd = ConvProp_bounds(branch_length, lambda*lambda/2, dMat, pair<double, double>(0.0, _matrix_size));
+        MatrixXd mxd = ConvProp_bounds(branch_length, lambda*lambda/2, *_p_diffmat, pair<double, double>(0.0, _matrix_size));
 
         matrix* m = matrices[i];
         for (int j = 0; j < DISCRETIZATION_RANGE; ++j)
@@ -230,8 +216,7 @@ std::ostream& operator<<(std::ostream& ost, matrix_cache& c)
 
 TEST_CASE("DiffMat creates the expected matrix")
 {
-    DiffMat dMat;
-    dMat.Create(3);
+    DiffMat dMat(3);
 
     Matrix3d expected;
     expected <<
@@ -244,8 +229,7 @@ TEST_CASE("DiffMat creates the expected matrix")
 
 TEST_CASE("ConvProp_bounds")
 {
-    DiffMat dMat;
-    dMat.Create(3);
+    DiffMat dMat(3);
     MatrixXd actual = ConvProp_bounds(2.0, 3.0, dMat, pair<double, double>(0.0, 3.0));
 
     Matrix3d expected;
