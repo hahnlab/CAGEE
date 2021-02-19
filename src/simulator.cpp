@@ -17,6 +17,47 @@ using namespace std;
 
 extern std::mt19937 randomizer_engine; // seeding random number engine
 
+double distance_from_root_to_tip(const clade* p_tree)
+{
+    vector<double> candidates;
+    p_tree->apply_prefix_order([&candidates](const clade* c) {
+        if (c->is_leaf())
+        {
+            auto p = c;
+            double dist = 0;
+            while (p)
+            {
+                dist += p->get_branch_length();
+                p = p->get_parent();
+            }
+            candidates.push_back(dist);
+        }
+});
+
+    return *max_element(candidates.begin(), candidates.end());
+}
+
+class binner
+{
+    double _max_value;
+public:
+    binner(const lambda* p_lambda, const clade* p_tree, double root_size)
+    {
+        double t = distance_from_root_to_tip(p_tree);
+        double sigma = p_lambda->get_value_for_clade(p_tree);
+        _max_value = double(root_size) + 4.5 * sigma / sqrt(t);
+    }
+
+    int bin(double value)
+    {
+        return value / _max_value * DISCRETIZATION_RANGE;
+    }
+    double value(int bin)
+    {
+        return bin * _max_value / double(DISCRETIZATION_RANGE);
+    }
+};
+
 simulator::simulator(user_data& d, const input_parameters& ui) : action(d, ui)
 {
 #ifdef SILENT
@@ -35,7 +76,6 @@ void simulator::execute(std::vector<model *>& models)
 // The tip values would then be taken to be the highest probability entries in the vector for that node#endif
 
 simulated_family simulator::create_trial(const lambda *p_lambda, int family_number, const matrix_cache& cache) {
-
     if (data.p_tree == NULL)
         throw runtime_error("No tree specified for simulation");
 
@@ -45,7 +85,10 @@ simulated_family simulator::create_trial(const lambda *p_lambda, int family_numb
     clademap<vector<double>> probs;
     data.p_tree->apply_prefix_order([&probs](const clade*c) { probs[c].resize(DISCRETIZATION_RANGE); });
 
-    probs.at(data.p_tree)[data.prior.select_root_size(family_number)] = 1;
+    double root_size = data.prior.select_root_size(family_number);
+    binner b(p_lambda, data.p_tree, root_size);
+
+    probs.at(data.p_tree)[b.bin(root_size)] = 1;
 
     std::function <void(const clade*)> get_child_probability_vector;
     get_child_probability_vector = [&](const clade* c) {
@@ -57,8 +100,9 @@ simulated_family simulator::create_trial(const lambda *p_lambda, int family_numb
 
     for (auto it = data.p_tree->reverse_level_begin(); it != data.p_tree->reverse_level_end(); ++it)
     {
-        auto max = max_element(probs[*it].begin(), probs[*it].end());
-        result.values[*it] = max - probs[*it].begin();
+        std::discrete_distribution<int> distribution(probs[*it].begin(), probs[*it].end());
+
+        result.values[*it] = b.value(distribution(randomizer_engine));
     }
     return result;
 }
@@ -194,8 +238,75 @@ TEST_CASE("create_trial")
 
     simulated_family actual = sim.create_trial(&lam, 2, cache);
 
-    CHECK_EQ(5, actual.values.at(p_tree.get()));
-    CHECK_EQ(5, actual.values.at(p_tree->find_descendant("A")));
-    CHECK_EQ(5, actual.values.at(p_tree->find_descendant("B")));
+    CHECK_EQ(doctest::Approx(4.98085), actual.values.at(p_tree.get()));
+    CHECK_EQ(doctest::Approx(4.98085), actual.values.at(p_tree->find_descendant("A")));
+    CHECK_EQ(doctest::Approx(4.98085), actual.values.at(p_tree->find_descendant("B")));
+}
+
+TEST_CASE("distance_from_root_to_tip")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    CHECK_EQ(10, distance_from_root_to_tip(p_tree.get()));
+}
+
+TEST_CASE("binner")
+{
+    single_lambda lam(0.25);
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    binner b(&lam, p_tree.get(), 5);
+
+    CHECK_EQ(100, b.bin(2.7));
+    CHECK_EQ(doctest::Approx(3.21345), b.value(120));
+    CHECK_EQ(48, b.bin(1.3));
+    CHECK_EQ(doctest::Approx(1.07115), b.value(40));
+}
+
+#define STRCMP_CONTAINS(x, y) CHECK(strstr(y,x) != nullptr)
+
+TEST_CASE("print_process_prints_in_order")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    std::ostringstream ost;
+    clademap<double> t;
+    t[p_tree->find_descendant("B")] = 4;
+    t[p_tree->find_descendant("A")] = 2;
+    t[p_tree->find_descendant("AB")] = 6;
+
+    vector<simulated_family> my_trials(1);
+    my_trials[0].values = t;
+
+    user_data data;
+    data.p_tree = p_tree.get();
+    input_parameters params;
+    simulator sim(data, params);
+    sim.print_simulations(ost, true, my_trials);
+
+    STRCMP_CONTAINS("DESC\tFID\tB\tA\t2", ost.str().c_str());
+    STRCMP_CONTAINS("L0\tsimfam0\t4\t2\t6", ost.str().c_str());
+
+}
+
+TEST_CASE("print_process_can_print_without_internal_nodes")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    std::ostringstream ost;
+    clademap<double> t;
+    t[p_tree->find_descendant("B")] = 4;
+    t[p_tree->find_descendant("A")] = 2;
+    t[p_tree->find_descendant("AB")] = 6;
+
+    vector<simulated_family> my_trials(1);
+    my_trials[0].values = t;
+
+    user_data data;
+    data.p_tree = p_tree.get();
+    input_parameters params;
+    simulator sim(data, params);
+    sim.print_simulations(ost, false, my_trials);
+    STRCMP_CONTAINS("DESC\tFID\tB\tA\n", ost.str().c_str());
+    STRCMP_CONTAINS("L0\tsimfam0\t4\t2\n", ost.str().c_str());
+
 }
 

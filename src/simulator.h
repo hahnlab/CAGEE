@@ -8,7 +8,7 @@ class root_distribution;
 
 struct simulated_family
 {
-    clademap<int> values;
+    clademap<double> values;
     double lambda;
 
     simulated_family() : lambda(0)

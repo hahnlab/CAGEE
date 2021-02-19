@@ -1816,53 +1816,6 @@ TEST_CASE("Simulation: specified_distribution__select_root_size__returns_exact_s
         CHECK_EQ(i, sd.select_root_size(i));
 }
 
-TEST_CASE("Simulation: print_process_prints_in_order")
-{
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-
-    std::ostringstream ost;
-    clademap<int> t;
-    t[p_tree->find_descendant("B")] = 4;
-    t[p_tree->find_descendant("A")] = 2;
-    t[p_tree->find_descendant("AB")] = 6;
-
-    vector<simulated_family> my_trials(1);
-    my_trials[0].values = t;
-
-    user_data data;
-    data.p_tree = p_tree.get();
-    input_parameters params;
-    simulator sim(data, params);
-    sim.print_simulations(ost, true, my_trials);
-
-    STRCMP_CONTAINS("DESC\tFID\tB\tA\t2", ost.str().c_str());
-    STRCMP_CONTAINS("L0\tsimfam0\t4\t2\t6", ost.str().c_str());
-
-}
-
-TEST_CASE("Simulation: print_process_can_print_without_internal_nodes")
-{
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-
-    std::ostringstream ost;
-    clademap<int> t;
-    t[p_tree->find_descendant("B")] = 4;
-    t[p_tree->find_descendant("A")] = 2;
-    t[p_tree->find_descendant("AB")] = 6;
-
-    vector<simulated_family> my_trials(1);
-    my_trials[0].values = t;
-
-    user_data data;
-    data.p_tree = p_tree.get();
-    input_parameters params;
-    simulator sim(data, params);
-    sim.print_simulations(ost, false, my_trials);
-    STRCMP_CONTAINS("DESC\tFID\tB\tA\n", ost.str().c_str());
-    STRCMP_CONTAINS("L0\tsimfam0\t4\t2\n", ost.str().c_str());
-
-}
-
 TEST_CASE("Simulation: gamma_model_get_simulation_lambda_uses_multiplier_based_on_category_probability")
 {
     vector<double> gamma_categories{ 0.3, 0.7 };
