@@ -124,13 +124,16 @@ int matrix::select_random_y(int x, int max) const
     return distribution(randomizer_engine);
 }
 
-matrix_cache::matrix_cache() : _matrix_size(DISCRETIZATION_RANGE), _p_diffmat(new DiffMat(DISCRETIZATION_RANGE))
+DiffMat* matrix_cache::_p_diffmat = nullptr;
+
+matrix_cache::matrix_cache() : _matrix_size(DISCRETIZATION_RANGE)
 {
+    if (!_p_diffmat)
+        _p_diffmat = new DiffMat(DISCRETIZATION_RANGE);
 }
 
 matrix_cache::~matrix_cache()
 {
-    delete _p_diffmat;
     for (auto m : _matrix_cache)
     {
         delete m.second;
