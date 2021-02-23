@@ -5,7 +5,7 @@
 #include "easylogging++.h"
 
 #include "clade.h"
-#include "gene_family.h"
+#include "gene_transcript.h"
 
 using namespace std;
 

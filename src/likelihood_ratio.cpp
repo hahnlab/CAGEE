@@ -19,7 +19,7 @@ namespace LikelihoodRatioTest
             return c.get_branch_length() + (c.get_branch_length() + bl_augment * t);  });
     }
 
-    double get_likelihood_for_diff_lambdas(const gene_family & gf, const clade * p_tree, const clade * p_lambda_tree, 
+    double get_likelihood_for_diff_lambdas(const gene_transcript & gf, const clade * p_tree, const clade * p_lambda_tree, 
         int lambda_index, 
         std::vector<lambda*> & lambda_cache, 
         optimizer *opt,
@@ -74,7 +74,7 @@ namespace LikelihoodRatioTest
         }
     }
 
-    void likelihood_ratio_report(std::ostream & ost, const std::vector<gene_family> & families,
+    void likelihood_ratio_report(std::ostream & ost, const std::vector<gene_transcript> & families,
         const clade * pcafe,
         const std::vector<double> & pvalues,
         const std::vector<int> & plambda,

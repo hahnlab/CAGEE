@@ -63,7 +63,7 @@ public:
 
 };
 
-void initialization_failure_advice(std::ostream& ost, const std::vector<gene_family>& families);
+void initialization_failure_advice(std::ostream& ost, const std::vector<gene_transcript>& families);
 
 action* get_executor(input_parameters& user_input, user_data& data);
 

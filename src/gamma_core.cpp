@@ -15,14 +15,14 @@
 #include "root_equilibrium_distribution.h"
 #include "gene_family_reconstructor.h"
 #include "matrix_cache.h"
-#include "gene_family.h"
+#include "gene_transcript.h"
 #include "user_data.h"
 #include "optimizer_scorer.h"
 #include "simulator.h"
 
 extern mt19937 randomizer_engine;
 
-gamma_model::gamma_model(lambda* p_lambda, clade *p_tree, std::vector<gene_family>* p_gene_families, int max_family_size,
+gamma_model::gamma_model(lambda* p_lambda, clade *p_tree, std::vector<gene_transcript>* p_gene_families, int max_family_size,
     int max_root_family_size, int n_gamma_cats, double fixed_alpha, error_model* p_error_model) :
     model(p_lambda, p_tree, p_gene_families, max_family_size, max_root_family_size, p_error_model) {
 
@@ -33,7 +33,7 @@ gamma_model::gamma_model(lambda* p_lambda, clade *p_tree, std::vector<gene_famil
     set_alpha(fixed_alpha);
 }
 
-gamma_model::gamma_model(lambda* p_lambda, clade *p_tree, std::vector<gene_family>* p_gene_families, int max_family_size,
+gamma_model::gamma_model(lambda* p_lambda, clade *p_tree, std::vector<gene_transcript>* p_gene_families, int max_family_size,
     int max_root_family_size, std::vector<double> gamma_categories, std::vector<double> multipliers, error_model *p_error_model) :
     model(p_lambda, p_tree, p_gene_families, max_family_size, max_root_family_size, p_error_model)
 {
@@ -132,7 +132,7 @@ bool gamma_model::can_infer() const
     return true;
 }
 
-bool gamma_model::prune(const gene_family& family, const root_equilibrium_distribution& prior, matrix_cache& calc, const lambda *p_lambda,
+bool gamma_model::prune(const gene_transcript& family, const root_equilibrium_distribution& prior, matrix_cache& calc, const lambda *p_lambda,
     std::vector<double>& category_likelihoods) 
 {
     category_likelihoods.clear();
@@ -279,7 +279,7 @@ clademap<double> get_weighted_averages(const std::vector<clademap<int>>& m, cons
     return result;
 }
 
-reconstruction* gamma_model::reconstruct_ancestral_states(const vector<gene_family>& families, matrix_cache *calc, root_equilibrium_distribution*prior)
+reconstruction* gamma_model::reconstruct_ancestral_states(const vector<gene_transcript>& families, matrix_cache *calc, root_equilibrium_distribution*prior)
 {
     LOG(INFO) << "Starting reconstruction processes for Gamma model";
 
@@ -314,7 +314,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const vector<gene_fami
 #pragma omp parallel for
         for (size_t i = 0; i < families.size(); ++i)
         {
-            pupko_reconstructor::reconstruct_gene_family(ml.get(), _p_tree, &families[i], calc, prior,
+            pupko_reconstructor::reconstruct_gene_transcript(ml.get(), _p_tree, &families[i], calc, prior,
                 recs[i]->category_reconstruction[k], data.C(i), data.L(i));
         }
     }
@@ -340,7 +340,7 @@ void gamma_model_reconstruction::write_nexus_extensions(std::ostream& ost)
     ost << "END;\n\n";
 }
 
-int gamma_model_reconstruction::get_node_count(const gene_family& family, const clade* c) const
+int gamma_model_reconstruction::get_node_count(const gene_transcript& family, const clade* c) const
 {
     if (c->is_leaf())
         return family.get_species_size(c->get_taxon_name());

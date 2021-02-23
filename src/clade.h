@@ -8,8 +8,6 @@
 #include <functional>
 #include <set>
 
-class gene_family;
-
 /* Forward declaration of newick_parser class, so class clade can see friend */
 class newick_parser; // actual declaration in utils.h
 

@@ -9,7 +9,7 @@
 #include "base_model.h"
 #include "gene_family_reconstructor.h"
 #include "matrix_cache.h"
-#include "gene_family.h"
+#include "gene_transcript.h"
 #include "user_data.h"
 #include "root_equilibrium_distribution.h"
 #include "optimizer_scorer.h"
@@ -17,14 +17,14 @@
 
 extern mt19937 randomizer_engine;
 
-base_model::base_model(lambda* p_lambda, const clade *p_tree, const vector<gene_family>* p_gene_families,
+base_model::base_model(lambda* p_lambda, const clade *p_tree, const vector<gene_transcript>* p_gene_families,
     int max_family_size, int max_root_family_size, error_model *p_error_model) :
     model(p_lambda, p_tree, p_gene_families, max_family_size, max_root_family_size, p_error_model)
 {
 
 }
 
-vector<size_t> build_reference_list(const vector<gene_family>& families)
+vector<size_t> build_reference_list(const vector<gene_transcript>& families)
 {
     const size_t invalid_index = std::numeric_limits<size_t>::max();
 
@@ -130,7 +130,7 @@ inference_optimizer_scorer *base_model::get_lambda_optimizer(const user_data& da
 
 #define EPSILON_RANGES
 
-reconstruction* base_model::reconstruct_ancestral_states(const vector<gene_family>& families, matrix_cache *p_calc, root_equilibrium_distribution* p_prior)
+reconstruction* base_model::reconstruct_ancestral_states(const vector<gene_transcript>& families, matrix_cache *p_calc, root_equilibrium_distribution* p_prior)
 {
     LOG(INFO) << "Starting reconstruction processes for Base model";
 
@@ -151,7 +151,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const vector<gene_famil
 #pragma omp parallel for
     for (size_t i = 0; i< families.size(); ++i)
     {
-        pupko_reconstructor::reconstruct_gene_family(_p_lambda, _p_tree, &families[i], p_calc, p_prior, result->_reconstructions[families[i].id()], data.C(i), data.L(i));
+        pupko_reconstructor::reconstruct_gene_transcript(_p_lambda, _p_tree, &families[i], p_calc, p_prior, result->_reconstructions[families[i].id()], data.C(i), data.L(i));
     }
 
     size_t success = count_if(data.v_all_node_Ls.begin(), data.v_all_node_Ls.end(), [this](const clademap<std::vector<double>>& L) 
@@ -180,7 +180,7 @@ lambda* base_model::get_simulation_lambda()
     return _p_lambda->multiply(simulation_lambda_multiplier);
 }
 
-int base_model_reconstruction::get_node_count(const gene_family& family, const clade *c) const
+int base_model_reconstruction::get_node_count(const gene_transcript& family, const clade *c) const
 {
     if (c->is_leaf())
         return family.get_species_size(c->get_taxon_name());

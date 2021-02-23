@@ -9,7 +9,7 @@
 #include "lambda.h"
 #include "matrix_cache.h"
 #include "root_equilibrium_distribution.h"
-#include "gene_family.h"
+#include "gene_transcript.h"
 #include "user_data.h"
 
 namespace pupko_reconstructor {
@@ -26,14 +26,14 @@ namespace pupko_reconstructor {
 
     }
 
-    void reconstruct_leaf_node(const clade* c, const lambda* _lambda, clademap<std::vector<int>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const gene_family* _gene_family, const matrix_cache* _p_calc)
+    void reconstruct_leaf_node(const clade* c, const lambda* _lambda, clademap<std::vector<int>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const gene_transcript* _gene_transcript, const matrix_cache* _p_calc)
     {
         auto& C = all_node_Cs[c];
         auto& L = all_node_Ls[c];
 
         double branch_length = c->get_branch_length();
 
-        int observed_count = _gene_family->get_species_size(c->get_taxon_name());
+        int observed_count = _gene_transcript->get_species_size(c->get_taxon_name());
         fill(C.begin(), C.end(), observed_count);
 
         auto matrix = _p_calc->get_matrix(branch_length, _lambda->get_value_for_clade(c));
@@ -113,7 +113,7 @@ namespace pupko_reconstructor {
     }
 
 
-    void reconstruct_at_node(const clade* c, const lambda* _lambda, clademap<std::vector<int>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache* p_calc, const root_equilibrium_distribution* p_prior, const gene_family* p_family)
+    void reconstruct_at_node(const clade* c, const lambda* _lambda, clademap<std::vector<int>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache* p_calc, const root_equilibrium_distribution* p_prior, const gene_transcript* p_family)
     {
         if (c->is_leaf())
         {
@@ -157,8 +157,8 @@ namespace pupko_reconstructor {
         }
     }
 
-    void reconstruct_gene_family(const lambda* lambda, const clade* p_tree,
-        const gene_family* gf,
+    void reconstruct_gene_transcript(const lambda* lambda, const clade* p_tree,
+        const gene_transcript* gf,
         matrix_cache* p_calc,
         root_equilibrium_distribution* p_prior,
         clademap<int>& reconstructed_states,
@@ -271,7 +271,7 @@ void reconstruction::print_family_clade_table(std::ostream& ost, const cladevect
     }
 }
 
-void print_branch_probabilities(std::ostream& ost, const cladevector& order, const vector<gene_family>& gene_families, const branch_probabilities& branch_probabilities)
+void print_branch_probabilities(std::ostream& ost, const cladevector& order, const vector<gene_transcript>& gene_families, const branch_probabilities& branch_probabilities)
 {
     ost << "#FamilyID\t";
     for (auto& it : order) {
@@ -303,20 +303,20 @@ void reconstruction::print_reconstructed_states(std::ostream& ost, const cladeve
     ost << "#nexus\nBEGIN TREES;\n";
     for (size_t i = 0; i < gene_families.size(); ++i)
     {
-        auto& gene_family = gene_families[i];
-        auto g = [gene_family, this](const clade* node) {
-            return std::to_string(get_node_count(gene_family, node));
+        auto& gene_transcript = gene_families[i];
+        auto g = [gene_transcript, this](const clade* node) {
+            return std::to_string(get_node_count(gene_transcript, node));
         };
 
         function<string(const clade*)> text_func;
-        if (branch_probabilities.contains(gene_family))
+        if (branch_probabilities.contains(gene_transcript))
         {
-            auto is_significant = [&branch_probabilities, test_pvalue, gene_family](const clade* node) {
-                const auto& p = branch_probabilities.at(gene_family, node);
+            auto is_significant = [&branch_probabilities, test_pvalue, gene_transcript](const clade* node) {
+                const auto& p = branch_probabilities.at(gene_transcript, node);
                 return p._is_valid ? p._value < test_pvalue : false;
             };
 
-            text_func = [g, order, is_significant, &gene_family](const clade* node) {
+            text_func = [g, order, is_significant, &gene_transcript](const clade* node) {
                 return newick_node(node, order, is_significant(node), g);
             };
         }
@@ -327,7 +327,7 @@ void reconstruction::print_reconstructed_states(std::ostream& ost, const cladeve
             };
         }
 
-        ost << "  TREE " << gene_family.id() << " = ";
+        ost << "  TREE " << gene_transcript.id() << " = ";
         p_tree->write_newick(ost, text_func);
 
         ost << ';' << endl;
@@ -381,7 +381,7 @@ void reconstruction::write_results(std::string model_identifier,
     print_additional_data(order, families, output_prefix);
 }
 
-int reconstruction::get_difference_from_parent(const gene_family& gf, const clade* c)
+int reconstruction::get_difference_from_parent(const gene_transcript& gf, const clade* c)
 {
     if (c->is_root())
         return 0;
@@ -391,7 +391,7 @@ int reconstruction::get_difference_from_parent(const gene_family& gf, const clad
 
 
 branch_probabilities::branch_probability compute_viterbi_sum(const clade* c, 
-    const gene_family& family, 
+    const gene_transcript& family, 
     const reconstruction* rec, 
     int max_family_size, 
     const matrix_cache& cache, 

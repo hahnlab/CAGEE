@@ -23,7 +23,7 @@ public:
 
     void print_category_likelihoods(std::ostream& ost, const cladevector& order, familyvector& gene_families);
 
-    int get_node_count(const gene_family& gf, const clade* c) const override;
+    int get_node_count(const gene_transcript& gf, const clade* c) const override;
 
     struct gamma_reconstruction {
         std::vector<clademap<int>> category_reconstruction;
@@ -51,11 +51,11 @@ private:
 public:
 
     //! Calculate gamma categories and lambda multipliers based on category count and a fixed alpha
-    gamma_model(lambda* p_lambda, clade *p_tree, std::vector<gene_family>* p_gene_families, int max_family_size,
+    gamma_model(lambda* p_lambda, clade *p_tree, std::vector<gene_transcript>* p_gene_families, int max_family_size,
         int max_root_family_size, int n_gamma_cats, double fixed_alpha, error_model *p_error_model);
 
     //! Specify gamma categories and lambda multipliers explicitly
-    gamma_model(lambda* p_lambda, clade *p_tree, std::vector<gene_family>* p_gene_families, int max_family_size,
+    gamma_model(lambda* p_lambda, clade *p_tree, std::vector<gene_transcript>* p_gene_families, int max_family_size,
         int max_root_family_size, std::vector<double> gamma_categories, std::vector<double> multipliers, error_model *p_error_model);
 
     void set_alpha(double alpha);
@@ -77,7 +77,7 @@ public:
     virtual void write_family_likelihoods(std::ostream& ost) override;
     virtual void write_vital_statistics(std::ostream& ost, double final_likelihood) override;
 
-    virtual reconstruction* reconstruct_ancestral_states(const vector<gene_family>& families, matrix_cache *, root_equilibrium_distribution* p_prior) override;
+    virtual reconstruction* reconstruct_ancestral_states(const vector<gene_transcript>& families, matrix_cache *, root_equilibrium_distribution* p_prior) override;
 
     std::size_t get_gamma_cat_probs_count() const {
         return _gamma_cat_probs.size();
@@ -95,7 +95,7 @@ public:
 
     bool can_infer() const;
 
-    bool prune(const gene_family& family, const root_equilibrium_distribution& eq, matrix_cache& calc, const lambda *p_lambda,
+    bool prune(const gene_transcript& family, const root_equilibrium_distribution& eq, matrix_cache& calc, const lambda *p_lambda,
         std::vector<double>& category_likelihoods);
 };
 

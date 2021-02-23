@@ -47,7 +47,7 @@ class mock_model : public model {
     virtual void write_family_likelihoods(std::ostream& ost) override
     {
     }
-    virtual reconstruction* reconstruct_ancestral_states(const vector<gene_family>& families, matrix_cache* p_calc, root_equilibrium_distribution* p_prior) override
+    virtual reconstruction* reconstruct_ancestral_states(const vector<gene_transcript>& families, matrix_cache* p_calc, root_equilibrium_distribution* p_prior) override
     {
         return nullptr;
     }
@@ -364,7 +364,7 @@ TEST_CASE("GeneFamilies: read_gene_families_reads_cafe_files")
 {
     std::string str = "Desc\tFamily ID\tA\tB\tC\tD\n\t (null)1\t5\t10\t2\t6\n\t (null)2\t5\t10\t2\t6\n\t (null)3\t5\t10\t2\t6\n\t (null)4\t5\t10\t2\t6";
     std::istringstream ist(str);
-    std::vector<gene_family> families;
+    std::vector<gene_transcript> families;
     read_gene_families(ist, NULL, families);
     CHECK_EQ(5, families.at(0).get_species_size("A"));
     CHECK_EQ(10, families.at(0).get_species_size("B"));
@@ -380,7 +380,7 @@ TEST_CASE("GeneFamilies: init_from_clademap")
     values[p_tree->find_descendant("B")] = 5;
     values[p_tree->find_descendant("C")] = 7;
     values[p_tree->find_descendant("D")] = 11;
-    gene_family gf;
+    gene_transcript gf;
     gf.init_from_clademap(values);
     CHECK_EQ(3, gf.get_species_size("A"));
 }
@@ -392,7 +392,7 @@ TEST_CASE("GeneFamilies: read_gene_families_reads_simulation_files")
 
     clade* p_tree = parse_newick("((A:1,B:1):1,(C:1,D:1):1);");
 
-    std::vector<gene_family> families;
+    std::vector<gene_transcript> families;
     read_gene_families(ist, p_tree, families);
     CHECK_EQ(35, families.at(0).get_species_size("A"));
     CHECK_EQ(36, families.at(0).get_species_size("B"));
@@ -407,7 +407,7 @@ TEST_CASE("GeneFamilies: read_gene_families_throws_if_no_families_found")
     std::istringstream ist(empty);
 
     unique_ptr<clade> p_tree(parse_newick("((A:1,B:1):1,(C:1,D:1):1);"));
-    std::vector<gene_family> families;
+    std::vector<gene_transcript> families;
     CHECK_THROWS_WITH_AS(read_gene_families(ist, p_tree.get(), families), "No families found", runtime_error);
 }
 
@@ -415,7 +415,7 @@ TEST_CASE("GeneFamilies: read_gene_families skips blank lines in input")
 {
     std::string str = "Desc\tFamily ID\tA\tB\tC\tD\n\n\n\n\t (null)1\t5\t10\t2\t6\n\n\n\n";
     std::istringstream ist(str);
-    std::vector<gene_family> families;
+    std::vector<gene_transcript> families;
     read_gene_families(ist, NULL, families);
     CHECK_EQ(1, families.size());
 }
@@ -424,17 +424,17 @@ TEST_CASE("GeneFamilies: model_set_families")
 {
     mock_model m;
 
-    vector<gene_family> fams;
+    vector<gene_transcript> fams;
     m.set_families(&fams);
-    CHECK_EQ(0, m.get_gene_family_count());
+    CHECK_EQ(0, m.get_gene_transcript_count());
 
     fams.resize(5);
-    CHECK_EQ(5, m.get_gene_family_count());
+    CHECK_EQ(5, m.get_gene_transcript_count());
 }
 
 TEST_CASE("GeneFamilies: species_size_is_case_insensitive")
 {
-    gene_family gf;
+    gene_transcript gf;
     gf.set_species_size("Human", 5);
     CHECK_EQ(5, gf.get_species_size("human"));
     CHECK_EQ(5, gf.get_species_size("HUMAN"));
@@ -443,7 +443,7 @@ TEST_CASE("GeneFamilies: species_size_is_case_insensitive")
 
 TEST_CASE("GeneFamilies: species_size_differential")
 {
-    gene_family gf;
+    gene_transcript gf;
     gf.set_species_size("Cat", 5);
     gf.set_species_size("Horse", 3);
     gf.set_species_size("Cow", 1);
@@ -457,20 +457,20 @@ TEST_CASE("GeneFamilies: species_size_differential")
 TEST_CASE_FIXTURE(Inference, "infer_processes"
     * doctest::skip(true))
 {
-    vector<gene_family> families;
-    gene_family fam;
+    vector<gene_transcript> families;
+    gene_transcript fam;
     fam.set_species_size("A", 1);
     fam.set_species_size("B", 2);
     families.push_back(fam);
-    gene_family fam2;
+    gene_transcript fam2;
     fam2.set_species_size("A", 2);
     fam2.set_species_size("B", 1);
     families.push_back(fam2);
-    gene_family fam3;
+    gene_transcript fam3;
     fam3.set_species_size("A", 3);
     fam3.set_species_size("B", 6);
     families.push_back(fam3);
-    gene_family fam4;
+    gene_transcript fam4;
     fam4.set_species_size("A", 6);
     fam4.set_species_size("B", 3);
     families.push_back(fam4);
@@ -512,7 +512,7 @@ TEST_CASE( "Inference: gamma_adjust_family_gamma_membership")
 {
     std::string str = "Desc\tFamily ID\tA\tB\tC\tD\n\t (null)1\t5\t10\t2\t6\n\t (null)2\t5\t10\t2\t6\n\t (null)3\t5\t10\t2\t6\n\t (null)4\t5\t10\t2\t6";
     std::istringstream ist(str);
-    std::vector<gene_family> families;
+    std::vector<gene_transcript> families;
     read_gene_families(ist, NULL, families);
 
     gamma_model model(NULL, NULL, NULL, 0, 5, 0, 0, NULL);
@@ -617,7 +617,7 @@ TEST_CASE("Probability: generate_family" * doctest::skip(true))
     matrix_cache cache;
     cache.precalculate_matrices(vector<double>{0.2}, set<double>{1});
     pvalue_parameters p = { p_tree.get(),  &lam, 10, 8, cache };
-    gene_family fam;
+    gene_transcript fam;
     fam.init_from_clademap(create_family(p, 6));
     CHECK_EQ(5, fam.get_species_size("A"));
     CHECK_EQ(5, fam.get_species_size("B"));
@@ -781,7 +781,7 @@ TEST_CASE_FIXTURE(Inference, "base_model_reconstruction")
     unique_ptr<clade> p_tree(parse_newick("((A:1,B:1):1"));
     single_lambda sl(0.05);
 
-    std::vector<gene_family> families(1);
+    std::vector<gene_transcript> families(1);
     families[0].set_species_size("A", 3);
     families[0].set_species_size("B", 4);
 
@@ -808,7 +808,7 @@ TEST_CASE("Inference: branch_length_finder")
 TEST_CASE("Inference: increase_decrease")
 {
     base_model_reconstruction bmr;
-    gene_family gf;
+    gene_transcript gf;
 
     unique_ptr<clade> p_tree(parse_newick("((A:1,B:3):7,(C:11,D:17):23);"));
 
@@ -840,7 +840,7 @@ TEST_CASE( "Inference: precalculate_matrices_calculates_all_lambdas_all_branchle
 class Reconstruction
 {
 public:
-    gene_family fam;
+    gene_transcript fam;
     unique_ptr<clade> p_tree;
     cladevector order;
 
@@ -890,7 +890,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_leaf_node" * doctest::skip(true))
 
 TEST_CASE_FIXTURE(Reconstruction, "print_reconstructed_states__prints_star_for_significant_values")
 {
-    gene_family gf;
+    gene_transcript gf;
     gf.set_id("Family5");
     base_model_reconstruction bmr;
     auto& values = bmr._reconstructions[gf.id()];
@@ -1056,9 +1056,9 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruction_process_internal_node with 0s 
     CHECK_EQ(doctest::Approx(0.0698147771), L[3]);
 }
 
-TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_family" * doctest::skip(true))
+TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript" * doctest::skip(true))
 {
-    gene_family fam;
+    gene_transcript fam;
     fam.set_species_size("A", 3);
     fam.set_species_size("B", 6);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
@@ -1081,7 +1081,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_family" * doctest::skip(true
         pupko_reconstructor::initialize_at_node(c, all_node_Cs, all_node_Ls, 10, ud.max_root_family_size);
     };
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), pupko_initializer);
-    pupko_reconstructor::reconstruct_gene_family(&lambda, p_tree.get(), &fam, &cache, &dist, result, all_node_Cs, all_node_Ls);
+    pupko_reconstructor::reconstruct_gene_transcript(&lambda, p_tree.get(), &fam, &cache, &dist, result, all_node_Cs, all_node_Ls);
     auto AB = p_tree->find_descendant("AB");
     CHECK_EQ(4, result[AB]);
 }
@@ -1147,7 +1147,7 @@ TEST_CASE_FIXTURE(Reconstruction, "clade_index_or_name__returns_node_name_plus_i
 
 TEST_CASE_FIXTURE(Reconstruction, "print_branch_probabilities__shows_NA_for_invalids")
 {
-    gene_family gf;
+    gene_transcript gf;
     gf.set_id("Family5");
     std::ostringstream ost;
     branch_probabilities probs;
@@ -1235,7 +1235,7 @@ TEST_CASE_FIXTURE(Reconstruction, "compute_family_probabilities")
 
 TEST_CASE_FIXTURE(Inference, "gamma_model_prune" * doctest::skip(true))
 {
-    vector<gene_family> families(1);
+    vector<gene_transcript> families(1);
     families[0].set_species_size("A", 3);
     families[0].set_species_size("B", 6);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
@@ -1262,7 +1262,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_prune" * doctest::skip(true))
 
 TEST_CASE_FIXTURE(Inference, "gamma_model_prune_returns_false_if_saturated" * doctest::skip(true))
 {
-    vector<gene_family> families(1);
+    vector<gene_transcript> families(1);
     families[0].set_species_size("A", 3);
     families[0].set_species_size("B", 6);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
@@ -1593,7 +1593,7 @@ TEST_CASE("Inference: build_reference_list")
         "\t (null)3\t5\t10\n"
         "\t (null)4\t5\t7\n";
     std::istringstream ist(str);
-    std::vector<gene_family> families;
+    std::vector<gene_transcript> families;
     read_gene_families(ist, NULL, families);
     auto actual = build_reference_list(families);
     vector<int> expected({ 0, 1, 0, 1 });
@@ -1604,7 +1604,7 @@ TEST_CASE("Inference: build_reference_list")
 TEST_CASE("Inference: prune" * doctest::skip(true))
 {
     ostringstream ost;
-    gene_family fam;
+    gene_transcript fam;
     fam.set_species_size("A", 3);
     fam.set_species_size("B", 6);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
@@ -1627,7 +1627,7 @@ TEST_CASE("Inference: prune" * doctest::skip(true))
 TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly" * doctest::skip(true))
 {
     ostringstream ost;
-    gene_family family;
+    gene_transcript family;
     family.set_species_size("A", 3);
     family.set_species_size("B", 6);
 
@@ -1664,7 +1664,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_from_error_model_if_pr
 {
     ostringstream ost;
 
-    gene_family family;
+    gene_transcript family;
     family.set_species_size("A", 3);
     family.set_species_size("B", 6);
 
@@ -1736,7 +1736,7 @@ TEST_CASE("Clade: exists_at_root_returns_false_if_not_all_children_exist")
         "(null)\t1\t0\t0\t0\t1\t1\t0\t0\t0\t0\t0\t0\t0\n"
         "(null)\t2\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t1\t1\n");
 
-    vector<gene_family> families;
+    vector<gene_transcript> families;
     read_gene_families(ist, p_tree.get(), families);
     CHECK_FALSE(families[0].exists_at_root(p_tree.get()));
     CHECK_FALSE(families[1].exists_at_root(p_tree.get()));
@@ -1746,7 +1746,7 @@ TEST_CASE("Clade: exists_at_root_returns_true_if_all_children_exist")
 {
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
-    gene_family family;
+    gene_transcript family;
     family.set_species_size("A", 3);
     family.set_species_size("B", 6);
 
@@ -1846,12 +1846,12 @@ TEST_CASE("Inference: model_vitals")
     STRCMP_CONTAINS("No attempts made", ost.str().c_str());
 }
 
-TEST_CASE_FIXTURE(Reconstruction, "gene_family_reconstrctor__print_increases_decreases_by_family__adds_flag_for_significance")
+TEST_CASE_FIXTURE(Reconstruction, "gene_transcript_reconstrctor__print_increases_decreases_by_family__adds_flag_for_significance")
 {
     ostringstream insignificant;
     base_model_reconstruction bmr;
     bmr._reconstructions["myid"][p_tree->find_descendant("AB")] = 5;
-    gene_family gf;
+    gene_transcript gf;
     gf.set_id("myid");
     gf.set_species_size("A", 7);
     order.clear();
@@ -1867,7 +1867,7 @@ TEST_CASE_FIXTURE(Reconstruction, "print_increases_decreases_by_family__prints_s
 {
     ostringstream ost;
     base_model_reconstruction bmr;
-    gene_family gf;
+    gene_transcript gf;
 
     bmr.print_increases_decreases_by_family(ost, order, { gf }, { 0.07 }, 0.00001);
     STRCMP_CONTAINS("#FamilyID\tpvalue\tSignificant at 1e-05\n", ost.str().c_str());
@@ -1888,7 +1888,7 @@ TEST_CASE("Reconstruction: base_model_print_increases_decreases_by_family")
 
     bmr._reconstructions["myid"][p_tree->find_descendant("AB")] = 5;
 
-    gene_family gf;
+    gene_transcript gf;
     gf.set_id("myid");
     gf.set_species_size("A", 7);
     gf.set_species_size("B", 2);
@@ -1917,7 +1917,7 @@ TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_family")
 
     gmr._reconstructions["myid"].reconstruction[p_tree->find_descendant("AB")] = 5;
 
-    gene_family gf;
+    gene_transcript gf;
     gf.set_id("myid");
     gf.set_species_size("A", 7);
     gf.set_species_size("B", 2);
@@ -1948,7 +1948,7 @@ TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade")
 
     gmr._reconstructions["myid"].reconstruction[p_tree->find_descendant("AB")] = 5;
 
-    gene_family gf;
+    gene_transcript gf;
     gf.set_id("myid");
     gf.set_species_size("A", 7);
     gf.set_species_size("B", 2);
@@ -1980,7 +1980,7 @@ TEST_CASE("Reconstruction: base_model_print_increases_decreases_by_clade")
     //    bmr._reconstructions["myid"][p_tree->find_descendant("B")] = -3;
     bmr._reconstructions["myid"][p_tree->find_descendant("AB")] = 5;
 
-    gene_family gf;
+    gene_transcript gf;
     gf.set_id("myid");
     gf.set_species_size("A", 7);
     gf.set_species_size("B", 2);
@@ -2027,7 +2027,7 @@ TEST_CASE("Inference: lambda_per_family")
     ud.gene_families.resize(1);
     ud.prior = root_equilibrium_distribution(ud.max_root_family_size);
 
-    gene_family& family = ud.gene_families[0];
+    gene_transcript& family = ud.gene_families[0];
     family.set_id("test");
     family.set_species_size("A", 3);
     family.set_species_size("B", 6);
@@ -2136,7 +2136,7 @@ TEST_CASE_FIXTURE(Inference, "poisson_scorer_optimizes_correct_value")
 
 TEST_CASE("poisson_scorer returns invalid for negative lambda")
 {
-    vector<gene_family> _;
+    vector<gene_transcript> _;
     poisson_scorer scorer(_);
     double lambda = -1;
     double actual = scorer.lnLPoisson(&lambda);
@@ -2877,7 +2877,7 @@ TEST_CASE("LikelihoodRatioTest, get_likelihood_for_diff_lambdas" * doctest::skip
 {
     mock_scorer s;
     optimizer opt(&s);
-    gene_family gf;
+    gene_transcript gf;
     gf.set_species_size("A", 5);
     gf.set_species_size("B", 9);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));

@@ -211,7 +211,7 @@ int cagee(int argc, char *const argv[]) {
 
         if (user_input.exclude_zero_root_families)
         {
-            auto rem = std::remove_if(data.gene_families.begin(), data.gene_families.end(), [&data](const gene_family& fam) {
+            auto rem = std::remove_if(data.gene_families.begin(), data.gene_families.end(), [&data](const gene_transcript& fam) {
                 return !fam.exists_at_root(data.p_tree);
             });
 

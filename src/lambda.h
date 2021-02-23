@@ -6,7 +6,6 @@
 
 class clade;
 class matrix_cache;
-class gene_family;
 class root_equilibrium_distribution;
 class model;
 

@@ -8,7 +8,7 @@
 #include "clade.h"
 #include "optimizer.h"
 #include "probability.h"
-#include "gene_family.h"
+#include "gene_transcript.h"
 #include "optimizer_scorer.h"
 
 extern std::mt19937 randomizer_engine;
@@ -37,7 +37,7 @@ vector<double> get_prior_rfsize_poisson_lambda(int min_family_size, int max_fami
   return prior_rfsize;
 }
 
-poisson_scorer::poisson_scorer(const vector<gene_family>& gene_families)
+poisson_scorer::poisson_scorer(const vector<gene_transcript>& gene_families)
 {
     for (auto &fam : gene_families)
     {

@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include <sstream>
 
-#include "gene_family.h"
+#include "gene_transcript.h"
 #include "clade.h"
 
 using namespace std;
@@ -23,7 +23,7 @@ bool max_value(const std::pair<T, U>& p1, const std::pair<T, U>& p2) {
 /*!
 CAFE had a not_root_max (which we use = _parsed_max_family_size; see below) and a root_max = MAX(30, rint(max*1.25));
 */
-int gene_family::get_max_size() const {
+int gene_transcript::get_max_size() const {
     // Max family size can only be found if there is data inside the object in the first place
     int max_family_size = 0;
     if (!_species_size_map.empty()) {
@@ -35,7 +35,7 @@ int gene_family::get_max_size() const {
 
 
 //! Mainly for debugging: In case one want to grab the gene count for a given species
-int gene_family::get_species_size(std::string species) const {
+int gene_transcript::get_species_size(std::string species) const {
     // First checks if species data has been entered (i.e., is key in map?)
     if (_species_size_map.find(species) == _species_size_map.end()) {
         throw std::runtime_error(species + " was not found in gene family " + _id);
@@ -51,7 +51,7 @@ type1 do_get_species(const std::pair<type1, type2> & p1) {
 }
 
 //! Return vector of species names
-vector<std::string> gene_family::get_species() const {
+vector<std::string> gene_transcript::get_species() const {
     vector<std::string> species_names(_species_size_map.size());
     transform(_species_size_map.begin(), _species_size_map.end(), species_names.begin(), do_get_species<string, int>); // Transform performs an operation on all elements of a container (here, the operation is the template)
 
@@ -59,7 +59,7 @@ vector<std::string> gene_family::get_species() const {
 }
 
 /// returns true if the family exists at the root, according to their parsimony reconstruction.
-bool gene_family::exists_at_root(const clade *p_tree) const
+bool gene_transcript::exists_at_root(const clade *p_tree) const
 {
     set<const clade *> exists;
     auto registered = [&exists](const clade *c) {
@@ -90,7 +90,7 @@ bool gene_family::exists_at_root(const clade *p_tree) const
     return exists_at_all_children;
 }
 
-int gene_family::species_size_differential() const
+int gene_transcript::species_size_differential() const
 {
     auto compare = [](const std::pair<string, int>& a, const std::pair<string, int>& b) { return a.second < b.second; };
     int max_species_size = max_element(_species_size_map.begin(), _species_size_map.end(), compare)->second;
@@ -98,7 +98,7 @@ int gene_family::species_size_differential() const
     return max_species_size - min_species_size;
 }
 
-void gene_family::init_from_clademap(const clademap<int>& values)
+void gene_transcript::init_from_clademap(const clademap<int>& values)
 {
     for (auto& it : values) {
         if (it.first->is_leaf())

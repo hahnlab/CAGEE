@@ -104,12 +104,12 @@ void estimator::estimate_lambda_per_family(model *p_model, ostream& ost)
 {
     vector<lambda*> result(data.gene_families.size());
     std::transform(data.gene_families.begin(), data.gene_families.end(), result.begin(),
-        [this, p_model](gene_family& fam)
+        [this, p_model](gene_transcript& fam)
     {
 #ifndef SILENT
             LOG(INFO) << "Estimating for " << fam.id() << endl;
 #endif
-        vector<gene_family> v({ fam });
+        vector<gene_transcript> v({ fam });
         vector<model *> models{ p_model };
         p_model->set_families(&v);
         data.p_lambda = nullptr;
@@ -118,7 +118,7 @@ void estimator::estimate_lambda_per_family(model *p_model, ostream& ost)
     });
     std::transform(data.gene_families.begin(), data.gene_families.end(), result.begin(),
         ostream_iterator<string>(ost, "\n"),
-        [](const gene_family& fam, lambda* lambda)
+        [](const gene_transcript& fam, lambda* lambda)
     {
         return fam.id() + '\t' + lambda->to_string();
     });
@@ -188,11 +188,11 @@ void estimator::execute(std::vector<model *>& models)
 }
 
 //Calculate the difference between the Max and Min count for each family, report the 20 families with the largest difference.
-void initialization_failure_advice(std::ostream& ost, const std::vector<gene_family>& families)
+void initialization_failure_advice(std::ostream& ost, const std::vector<gene_transcript>& families)
 {
     std::vector<std::pair<std::string, int>> m;
     transform(families.begin(), families.end(), std::inserter(m, m.end()),
-        [](const gene_family& gf) { return std::make_pair(gf.id(), gf.species_size_differential()); });
+        [](const gene_transcript& gf) { return std::make_pair(gf.id(), gf.species_size_differential()); });
     auto compare = [](const std::pair<string, int>& a, const std::pair<string, int>& b) { return a.second > b.second; };
     sort(m.begin(), m.end(), compare);
     if (m.size() > 20)

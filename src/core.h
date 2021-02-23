@@ -10,11 +10,12 @@
 
 class simulation_data;
 class inference_process;
-class gene_family_reconstructor;
+class gene_transcript_reconstructor;
 class reconstruction;
 class user_data;
 class root_distribution;
 class inference_optimizer_scorer;
+class gene_transcript;
 
 struct family_info_stash {
     family_info_stash() : lambda_multiplier(0.0), category_likelihood(0.0), family_likelihood(0.0), 
@@ -50,9 +51,9 @@ public:
     };
 
 
-    bool contains(const gene_family& fam) const;
-    branch_probability at(const gene_family& fam, const clade* c) const;
-    void set(const gene_family& fam, const clade* c, branch_probability p);
+    bool contains(const gene_transcript& fam) const;
+    branch_probability at(const gene_transcript& fam, const clade* c) const;
+    void set(const gene_transcript& fam, const clade* c, branch_probability p);
 
     static branch_probability invalid() { return branch_probability(); }
 
@@ -67,7 +68,7 @@ private:
 /// (b) print increases and decreases by family; and (c) print increases and decreases by clade.
 class reconstruction {
 public:
-    typedef const std::vector<gene_family> familyvector;
+    typedef const std::vector<gene_transcript> familyvector;
 
     void print_node_change(std::ostream& ost, const cladevector& order, familyvector& gene_families, const clade* p_tree);
 
@@ -88,9 +89,9 @@ public:
     {
     }
 
-    virtual int get_node_count(const gene_family& gf, const clade* c) const = 0;
+    virtual int get_node_count(const gene_transcript& gf, const clade* c) const = 0;
 
-    int get_difference_from_parent(const gene_family& gf, const clade* c);
+    int get_difference_from_parent(const gene_transcript& gf, const clade* c);
 private:
     virtual void print_additional_data(const cladevector& order, familyvector& gene_families, std::string output_prefix) {};
 
@@ -120,7 +121,7 @@ protected:
     std::ostream & _ost; 
     lambda *_p_lambda;
     const clade *_p_tree;
-    const std::vector<gene_family>* _p_gene_families;
+    const std::vector<gene_transcript>* _p_gene_families;
     int _max_family_size;
     int _max_root_family_size;
     error_model* _p_error_model;
@@ -142,7 +143,7 @@ protected:
 public:
     model(lambda* p_lambda,
         const clade *p_tree,
-        const std::vector<gene_family>* p_gene_families,
+        const std::vector<gene_transcript>* p_gene_families,
         int max_family_size,
         int max_root_family_size,
         error_model *p_error_model);
@@ -150,7 +151,7 @@ public:
     virtual ~model() {}
     
     /// Allows the replacement of the current set of families with a new set
-    void set_families(const std::vector<gene_family>* p_gene_families)
+    void set_families(const std::vector<gene_transcript>* p_gene_families)
     {
         _p_gene_families = p_gene_families;
     }
@@ -172,11 +173,11 @@ public:
     void write_error_model(std::ostream& ost) const;
 
     //! Based on the model parameters, attempts to reconstruct the most likely counts of each family at each node
-    virtual reconstruction* reconstruct_ancestral_states(const vector<gene_family>& families, matrix_cache *p_calc, root_equilibrium_distribution* p_prior) = 0;
+    virtual reconstruction* reconstruct_ancestral_states(const vector<gene_transcript>& families, matrix_cache *p_calc, root_equilibrium_distribution* p_prior) = 0;
 
     virtual inference_optimizer_scorer *get_lambda_optimizer(const user_data& data) = 0;
 
-    std::size_t get_gene_family_count() const;
+    std::size_t get_gene_transcript_count() const;
 
     const event_monitor& get_monitor() { return _monitor;  }
 };
@@ -185,7 +186,7 @@ public:
 //!
 //! With this information we can reduce the number of calculations required
 //! and speed up the overall performance
-std::vector<size_t> build_reference_list(const std::vector<gene_family>& families);
+std::vector<size_t> build_reference_list(const std::vector<gene_transcript>& families);
 
 std::vector<model *> build_models(const input_parameters& my_input_parameters, user_data& user_data);
 
@@ -199,7 +200,7 @@ inline std::string filename(std::string base, std::string suffix)
     return filename(base, suffix, "txt");
 }
 
-std::vector<double> inference_prune(const gene_family& gf, matrix_cache& calc, const lambda *_lambda, const error_model *p_error_model, const clade *_p_tree, double _lambda_multiplier, int _max_root_family_size, int _max_family_size);
+std::vector<double> inference_prune(const gene_transcript& gf, matrix_cache& calc, const lambda *_lambda, const error_model *p_error_model, const clade *_p_tree, double _lambda_multiplier, int _max_root_family_size, int _max_family_size);
 
 #endif /* CORE_H */
 

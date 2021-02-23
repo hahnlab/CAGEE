@@ -1,5 +1,5 @@
 class clade;
-class gene_family;
+class gene_transcript;
 class user_data;
 class lambda;
 class optimizer_scorer;
@@ -10,7 +10,7 @@ class model;
 namespace LikelihoodRatioTest {
     clade* update_branchlength(const clade* lambda_tree, double bl_augment, int t);
 
-    double get_likelihood_for_diff_lambdas(const gene_family& gf, const clade* p_tree,
+    double get_likelihood_for_diff_lambdas(const gene_transcript& gf, const clade* p_tree,
         const clade* p_lambda_tree, int t, std::vector<lambda*>& lambda_cache, optimizer* p_opt, int, int);
 
     void compute_for_diff_lambdas_i(const user_data& data,

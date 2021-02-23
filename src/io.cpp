@@ -16,7 +16,7 @@
 #include "doctest.h"
 
 #include "io.h"
-#include "gene_family.h"
+#include "gene_transcript.h"
 #include "error_model.h"
 #include "clade.h"
 
@@ -131,9 +131,9 @@ clade* read_tree(string tree_file_path, bool lambda_tree) {
 
 //! Read gene family data from user-provided tab-delimited file
 /*!
-  This function is called by execute::read_gene_family_data, which is itself called by CAFExp's main function when "--infile"/"-i" is specified  
+  This function is called by execute::read_gene_transcript_data, which is itself called by CAFExp's main function when "--infile"/"-i" is specified  
 */
-void read_gene_families(std::istream& input_file, clade *p_tree, std::vector<gene_family> &gene_families) {
+void read_gene_families(std::istream& input_file, clade *p_tree, std::vector<gene_transcript> &gene_families) {
     map<int, std::string> sp_col_map; // For dealing with CAFE input format, {col_idx: sp_name} 
     map<int, string> leaf_indices; // For dealing with CAFExp input format, {idx: sp_name}, idx goes from 0 to number of species
     std::string line;
@@ -180,7 +180,7 @@ void read_gene_families(std::istream& input_file, clade *p_tree, std::vector<gen
         
         // Header has ended, reading gene family counts
         else {
-            gene_family genfam; 
+            gene_transcript genfam; 
             
             for (size_t i = 0; i < tokens.size(); ++i) {                
                 // If reading CAFE input format, leaf_indices (which is for CAFExp input format) should be empty
@@ -189,7 +189,7 @@ void read_gene_families(std::istream& input_file, clade *p_tree, std::vector<gen
                     else if (i == 1) { genfam.set_id(tokens[i]); }
                     else {
                         std::string sp_name = sp_col_map[i];
-                        genfam.set_species_size(sp_name, atoi(tokens[i].c_str()));
+                        genfam.set_species_size(sp_name, atof(tokens[i].c_str()));
                         // cout << "Species " << sp_name << " has " << tokens[i] << "gene members." << endl;
                     }
                 }
@@ -199,7 +199,7 @@ void read_gene_families(std::istream& input_file, clade *p_tree, std::vector<gen
                     // If index i is in leaf_indices
                     if (leaf_indices.find(i) != leaf_indices.end()) { // This should always be true...
                         std::string sp_name = leaf_indices[i];
-                        genfam.set_species_size(sp_name, atoi(tokens[i].c_str()));
+                        genfam.set_species_size(sp_name, atof(tokens[i].c_str()));
                         // cout << "Species " << sp_name << " has " << tokens[i] << "gene members." << endl;
                     }
                     else
@@ -323,7 +323,7 @@ void create_directory(std::string& dir)
     }
 }
 
-std::ostream& operator<<(std::ostream& ost, const gene_family& family)
+std::ostream& operator<<(std::ostream& ost, const gene_transcript& family)
 {
     ost << family._id;
     if (!family._desc.empty())

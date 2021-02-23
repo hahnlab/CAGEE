@@ -1,5 +1,5 @@
-#ifndef GENE_FAMILY_H
-#define GENE_FAMILY_H
+#ifndef gene_transcript_H
+#define gene_transcript_H
 
 #include <string>
 #include <map>
@@ -25,19 +25,19 @@ struct ci_less
 };
 
 
-class gene_family {
+class gene_transcript {
 private:
     std::string _id; //!< Gene family ID
     std::string _desc; //!< Gene family description
 
-    std::map<std::string, int, ci_less> _species_size_map; //!< Map that stores each species gene family count: {sp1_name:count1, ...}
+    std::map<std::string, double, ci_less> _species_size_map; //!< Map that stores each species gene family count: {sp1_name:count1, ...}
 
 public:
-    gene_family() { }
-    gene_family(const gene_family& other) : _id(other._id), _desc(other._desc), _species_size_map(other._species_size_map)
+    gene_transcript() { }
+    gene_transcript(const gene_transcript& other) : _id(other._id), _desc(other._desc), _species_size_map(other._species_size_map)
     {
     }
-    gene_family(gene_family&& other)
+    gene_transcript(gene_transcript&& other)
     {
         *this = std::move(other);
     }
@@ -46,7 +46,7 @@ public:
 
     void set_id(std::string id) { _id = id; }
 
-    void set_species_size(std::string species, int gene_count) {
+    void set_species_size(std::string species, double gene_count) {
         _species_size_map[species] = gene_count;
     }
 
@@ -61,7 +61,7 @@ public:
     int get_species_size(std::string species) const;
 
     //! Returns true if every species size for both gene families are identical
-    bool species_size_match(const gene_family& other) const
+    bool species_size_match(const gene_transcript& other) const
     {
         return _species_size_map == other._species_size_map;
     }
@@ -73,7 +73,7 @@ public:
     int species_size_differential() const;
 
     // move assignment operator
-    gene_family& operator=(gene_family&& other)
+    gene_transcript& operator=(gene_transcript&& other)
     {
         _species_size_map = std::move(other._species_size_map);
         _id = std::move(other._id);
@@ -81,6 +81,6 @@ public:
         return *this;
     }
 
-    friend std::ostream& operator<<(std::ostream& ost, const gene_family& family);
+    friend std::ostream& operator<<(std::ostream& ost, const gene_transcript& family);
 };
 #endif

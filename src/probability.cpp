@@ -17,7 +17,7 @@
 #include "clade.h"
 #include "probability.h"
 #include "matrix_cache.h"
-#include "gene_family.h"
+#include "gene_transcript.h"
 #include "error_model.h"
 
 using namespace std;
@@ -114,7 +114,7 @@ vector<double> VectorPos_bounds(int x, int Npts, pair<int, int> bounds) {
 /// <summary>
 /// Call this method if there are less than MAX_POSSIBLE_FAMILY_SIZE sizes. Uses strictly stack memory 
 /// to run faster and in a thread-compatible manner
-void compute_node_probability_small_families(const clade *node, const gene_family&gene_family, const error_model*p_error_model,
+void compute_node_probability_small_families(const clade *node, const gene_transcript& gene_transcript, const error_model*p_error_model,
     std::map<const clade *, std::vector<double> >& probabilities, 
     std::pair<int, int> root_size_range,
     int max_family_size,
@@ -124,7 +124,7 @@ void compute_node_probability_small_families(const clade *node, const gene_famil
     assert(max(root_size_range.second, max_family_size) < MAX_STACK_FAMILY_SIZE);
 
     if (node->is_leaf()) {
-        int species_size = gene_family.get_species_size(node->get_taxon_name());
+        int species_size = gene_transcript.get_species_size(node->get_taxon_name());
 
         if (p_error_model != NULL)
         {
@@ -178,14 +178,14 @@ void compute_node_probability_small_families(const clade *node, const gene_famil
 /// <summary>
 /// Call this method if there are more than MAX_POSSIBLE_FAMILY_SIZE sizes. Allocates sufficient heap memory 
 /// to handle ay number of families
-void compute_node_probability_large_families(const clade* node, const gene_family& gene_family, const error_model* p_error_model,
+void compute_node_probability_large_families(const clade* node, const gene_transcript& gene_transcript, const error_model* p_error_model,
     std::map<const clade*, std::vector<double> >& probabilities,
     std::pair<int, int> root_size_range,
     int max_family_size,
     const lambda* _lambda,
     const matrix_cache& _calc) {
     if (node->is_leaf()) {
-        int species_size = gene_family.get_species_size(node->get_taxon_name());
+        int species_size = gene_transcript.get_species_size(node->get_taxon_name());
 
         if (p_error_model != NULL)
         {
@@ -257,7 +257,7 @@ void compute_node_probability_large_families(const clade* node, const gene_famil
 //! of the descendants.
 //! Results are stored in the probabilities vector, 0 - max possible size
 void compute_node_probability(const clade* node,
-    const gene_family& gene_family,
+    const gene_transcript& gene_transcript,
     const error_model* p_error_model,
     std::map<const clade*, std::vector<double> >& probabilities,
     std::pair<int, int> root_size_range,
@@ -266,9 +266,9 @@ void compute_node_probability(const clade* node,
     const matrix_cache& calc)
 {
     if (max(root_size_range.second, max_family_size) < MAX_STACK_FAMILY_SIZE)
-        compute_node_probability_small_families(node, gene_family, p_error_model, probabilities, root_size_range, max_family_size, lambda, calc);
+        compute_node_probability_small_families(node, gene_transcript, p_error_model, probabilities, root_size_range, max_family_size, lambda, calc);
     else
-        compute_node_probability_large_families(node, gene_family, p_error_model, probabilities, root_size_range, max_family_size, lambda, calc);
+        compute_node_probability_large_families(node, gene_transcript, p_error_model, probabilities, root_size_range, max_family_size, lambda, calc);
 }
 
 
@@ -344,9 +344,9 @@ vector<double> compute_family_probabilities(pvalue_parameters p, const vector<cl
         });
 
     // get a gene family for each clademap
-    vector<gene_family> families(sizes.size());
+    vector<gene_transcript> families(sizes.size());
     transform(sizes.begin(), sizes.end(), families.begin(), [](const clademap<int>& s) {
-        gene_family f;
+        gene_transcript f;
         f.init_from_clademap(s);
         return f;
     });
@@ -455,7 +455,7 @@ double pvalue(double v, const vector<double>& conddist)
     return  idx / (double)conddist.size();
 }
 
-double find_best_pvalue(const gene_family& fam, const vector<double>& root_probabilities, const std::vector<std::vector<double> >& conditional_distribution)
+double find_best_pvalue(const gene_transcript& fam, const vector<double>& root_probabilities, const std::vector<std::vector<double> >& conditional_distribution)
 {    
     vector<double> pvalues(root_probabilities.size());
     int max_size_to_check = rint(fam.get_max_size() * 1.25);
@@ -470,7 +470,7 @@ double find_best_pvalue(const gene_family& fam, const vector<double>& root_proba
 }
 
 //! Compute pvalues for each family based on the given lambda
-vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_family>& families, int number_of_simulations)
+vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_transcript>& families, int number_of_simulations)
 {
     LOG(INFO) << "Computing pvalues...";
 
@@ -537,7 +537,7 @@ TEST_CASE("VectorPos_bounds at right edge")
 TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
 {
     ostringstream ost;
-    gene_family family;
+    gene_transcript family;
     family.set_species_size("A", 3);
     family.set_species_size("B", 6);
 

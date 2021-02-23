@@ -7,7 +7,7 @@
 #include <string>
 #include <memory>
 
-#include "gene_family.h"
+#include "gene_transcript.h"
 #include "root_equilibrium_distribution.h"
 
 class root_equilibrium_distribution;
@@ -32,13 +32,13 @@ public:
     error_model *p_error_model = NULL;
     root_equilibrium_distribution prior;
 
-    std::vector<gene_family> gene_families;
+    std::vector<gene_transcript> gene_families;
     std::map<int, int> rootdist;
 
     void read_datafiles(const input_parameters& my_input_parameters);
 
     //! Read in gene family data
-    void read_gene_family_data(const input_parameters &my_input_parameters, int &max_family_size, int &max_root_family_size, clade *p_tree, std::vector<gene_family> *p_gene_families);
+    void read_gene_family_data(const input_parameters &my_input_parameters, int &max_family_size, int &max_root_family_size, clade *p_tree, std::vector<gene_transcript> *p_gene_families);
 
     //! Read in error model file
     void read_error_model(const input_parameters &my_input_parameters, error_model *p_error_model);

@@ -39,7 +39,7 @@ root_equilibrium_distribution::root_equilibrium_distribution(double poisson_lamb
     create_from_poisson(poisson_lambda, num_values);
 }
 
-root_equilibrium_distribution::root_equilibrium_distribution(const std::vector<gene_family>& gene_families, size_t num_values)
+root_equilibrium_distribution::root_equilibrium_distribution(const std::vector<gene_transcript>& gene_families, size_t num_values)
 {
     poisson_scorer scorer(gene_families);
     optimizer opt(&scorer);

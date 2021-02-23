@@ -13,6 +13,7 @@
 
 class matrix;
 class matrix_cache;
+class gene_transcript;
 
 struct pvalue_parameters
 {
@@ -24,8 +25,6 @@ struct pvalue_parameters
 };
 
 
-double birthdeath_rate_with_log_alpha(int s, int c, double log_alpha, double coeff);
-double the_probability_of_going_from_parent_fam_size_to_c(double lambda, double branch_length, int parent_size, int size);
 double chooseln(double n, double k);
 
 /* START: Likelihood computation ---------------------- */
@@ -36,7 +35,7 @@ double chooseln(double n, double k);
 /// based on the probabilities of the child nodes. After all calculations, the caller should call the max_likelihood method,
 /// passing the root of the tree, to determine the overall probabilities for the tree.
 void compute_node_probability(const clade *node, 
-    const gene_family& gene_family, 
+    const gene_transcript& gene_family,
     const error_model* p_error_model,
     std::map<const clade *, std::vector<double> >& probabilities,
     std::pair<int, int> root_size_range,
@@ -56,8 +55,8 @@ size_t adjust_for_error_model(size_t c, const error_model *p_error_model);
 double pvalue(double v, const vector<double>& conddist);
 
 //! computes a pvalue for each family. Returns a vector of pvalues matching the list of families
-std::vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_family>& families, int number_of_simulations);
+std::vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_transcript>& families, int number_of_simulations);
 std::vector<double> compute_family_probabilities(pvalue_parameters p, const vector<clademap<int>>& sizes, int root_family_size);
-double find_best_pvalue(const gene_family& fam, const vector<double>& root_probabilities, const std::vector<std::vector<double> >& conditional_distribution);
+double find_best_pvalue(const gene_transcript& fam, const vector<double>& root_probabilities, const std::vector<std::vector<double> >& conditional_distribution);
 
 #endif

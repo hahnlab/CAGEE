@@ -4,11 +4,10 @@
 #include <vector>
 #include <map>
 
-#include "gene_family.h"
-
 class clade;
 struct input_parameters;
 class root_distribution;
+class gene_transcript;
 
 class root_equilibrium_distribution
 {
@@ -28,7 +27,7 @@ public:
     root_equilibrium_distribution(double poisson_lambda, size_t num_values);
 
     /// Estimate a Poisson distribution from the given families
-    root_equilibrium_distribution(const std::vector<gene_family>& gene_families, size_t num_values);
+    root_equilibrium_distribution(const std::vector<gene_transcript>& gene_families, size_t num_values);
 
     /// Move constructor
     root_equilibrium_distribution(root_equilibrium_distribution&& other)

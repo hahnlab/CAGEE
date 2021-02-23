@@ -5,13 +5,13 @@
 #include "optimizer_scorer.h"
 
 class clade;
-class gene_family;
+class gene_transcript;
 
 class poisson_scorer : public optimizer_scorer
 {
     std::vector<int> leaf_family_sizes;
 public:
-    poisson_scorer(const std::vector<gene_family>& gene_families);
+    poisson_scorer(const std::vector<gene_transcript>& gene_families);
 
     // Inherited via optimizer_scorer
     virtual std::vector<double> initial_guesses() override;

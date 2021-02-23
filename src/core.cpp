@@ -18,7 +18,7 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
 
     model *p_model = NULL;
 
-    std::vector<gene_family> *p_gene_families = &user_data.gene_families;
+    std::vector<gene_transcript> *p_gene_families = &user_data.gene_families;
 
     if (user_input.is_simulating) {
         p_gene_families = NULL;
@@ -59,7 +59,7 @@ std::ostream& operator<<(std::ostream& ost, const family_info_stash& r)
 
 model::model(lambda* p_lambda,
     const clade *p_tree,
-    const vector<gene_family> *p_gene_families,
+    const vector<gene_transcript> *p_gene_families,
     int max_family_size,
     int max_root_family_size,
     error_model *p_error_model) :
@@ -70,7 +70,7 @@ model::model(lambda* p_lambda,
         references = build_reference_list(*_p_gene_families);
 }
 
-std::size_t model::get_gene_family_count() const {
+std::size_t model::get_gene_transcript_count() const {
     return _p_gene_families->size();
 }
 
@@ -131,7 +131,7 @@ void model::write_error_model(std::ostream& ost) const
 /// and a given multiplier. Works by calling \ref compute_node_probability on all nodes of the tree
 /// using the species counts for the family. 
 /// \returns a vector of probabilities for gene counts at the root of the tree 
-std::vector<double> inference_prune(const gene_family& gf, matrix_cache& calc, const lambda *p_lambda, const error_model* p_error_model, const clade *p_tree, double lambda_multiplier, int max_root_family_size, int max_family_size)
+std::vector<double> inference_prune(const gene_transcript& gf, matrix_cache& calc, const lambda *p_lambda, const error_model* p_error_model, const clade *p_tree, double lambda_multiplier, int max_root_family_size, int max_family_size)
 {
     unique_ptr<lambda> multiplier(p_lambda->multiply(lambda_multiplier));
     clademap<std::vector<double>> probabilities;
@@ -173,15 +173,15 @@ void event_monitor::log(el::base::type::ostream_t& ost) const
     }
 }
 
-bool branch_probabilities::contains(const gene_family& fam) const { 
+bool branch_probabilities::contains(const gene_transcript& fam) const { 
     return _probabilities.find(fam.id()) != _probabilities.end(); 
 }
 
-branch_probabilities::branch_probability branch_probabilities::at(const gene_family& fam, const clade* c) const {
+branch_probabilities::branch_probability branch_probabilities::at(const gene_transcript& fam, const clade* c) const {
     return _probabilities.at(fam.id()).at(c);
 }
 
-void branch_probabilities::set(const gene_family& fam, const clade* c, branch_probability p)
+void branch_probabilities::set(const gene_transcript& fam, const clade* c, branch_probability p)
 {
     _probabilities[fam.id()][c] = p;
 }
