@@ -238,9 +238,9 @@ TEST_CASE("create_trial")
 
     simulated_family actual = sim.create_trial(&lam, 2, cache);
 
-    CHECK_EQ(doctest::Approx(4.98085), actual.values.at(p_tree.get()));
-    CHECK_EQ(doctest::Approx(4.98085), actual.values.at(p_tree->find_descendant("A")));
-    CHECK_EQ(doctest::Approx(4.98085), actual.values.at(p_tree->find_descendant("B")));
+    CHECK_EQ(doctest::Approx(4.9633861), actual.values.at(p_tree.get()));
+    CHECK_EQ(doctest::Approx(4.9633861), actual.values.at(p_tree->find_descendant("A")));
+    CHECK_EQ(doctest::Approx(4.9633861), actual.values.at(p_tree->find_descendant("B")));
 }
 
 TEST_CASE("distance_from_root_to_tip")
@@ -255,10 +255,10 @@ TEST_CASE("binner")
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     binner b(&lam, p_tree.get(), 5);
 
-    CHECK_EQ(100, b.bin(2.7));
-    CHECK_EQ(doctest::Approx(3.21345), b.value(120));
-    CHECK_EQ(48, b.bin(1.3));
-    CHECK_EQ(doctest::Approx(1.07115), b.value(40));
+    CHECK_EQ(63, b.bin(2.7));
+    CHECK_EQ(doctest::Approx(5.13453), b.value(120));
+    CHECK_EQ(30, b.bin(1.3));
+    CHECK_EQ(doctest::Approx(1.7115), b.value(40));
 }
 
 #define STRCMP_CONTAINS(x, y) CHECK(strstr(y,x) != nullptr)
