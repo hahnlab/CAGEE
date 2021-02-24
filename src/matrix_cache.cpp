@@ -78,8 +78,12 @@ A minimum and maximum on the parent's and child's family sizes is provided. Beca
 void matrix::multiply(const vector<double>& v, int s_min_family_size, int s_max_family_size, int c_min_family_size, int c_max_family_size, double* result) const
 {
     assert(c_min_family_size < c_max_family_size);
-    assert(v.size() > size_t(c_max_family_size - c_min_family_size));
-
+    if (v.size() <= size_t(c_max_family_size - c_min_family_size))
+    {
+        std::ostringstream ost;
+        ost << "Matrix error: size " << v.size() << " less than max family size (" << c_max_family_size << ") - min family size (" << c_min_family_size << ")";
+        throw std::runtime_error(ost.str());
+    }
 #ifdef HAVE_BLAS
     double alpha = 1.0, beta = 0.;
     int m = s_max_family_size - s_min_family_size + 1;

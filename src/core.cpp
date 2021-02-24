@@ -135,7 +135,7 @@ std::vector<double> inference_prune(const gene_transcript& gf, matrix_cache& cal
 {
     unique_ptr<lambda> multiplier(p_lambda->multiply(lambda_multiplier));
     clademap<std::vector<double>> probabilities;
-    auto init_func = [&](const clade* node) { probabilities[node].resize(node->is_root() ? max_root_family_size : max_family_size + 1); };
+    auto init_func = [&](const clade* node) { probabilities[node].resize(DISCRETIZATION_RANGE); };
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
 
     auto compute_func = [&](const clade *c) { compute_node_probability(c, gf, p_error_model, probabilities, pair<int, int>(1, max_root_family_size), max_family_size, multiplier.get(), calc); };
