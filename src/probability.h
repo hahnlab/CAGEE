@@ -27,22 +27,6 @@ struct pvalue_parameters
 
 double chooseln(double n, double k);
 
-/* START: Likelihood computation ---------------------- */
-
-/// compute_node_probability is a function that is used in the pruning algorithm. It is called once on each node of the tree,
-/// starting with the leaf nodes and working upwards. For each node, a vector of probabilities is added to the _probabilities
-/// map. For leaf nodes, the probabilities are set based on input data, but for internal nodes the probabilities are calculated 
-/// based on the probabilities of the child nodes. After all calculations, the caller should call the max_likelihood method,
-/// passing the root of the tree, to determine the overall probabilities for the tree.
-void compute_node_probability(const clade *node, 
-    const gene_transcript& gene_family,
-    const error_model* p_error_model,
-    std::map<const clade *, std::vector<double> >& probabilities,
-    std::pair<int, int> root_size_range,
-    int max_family_size,
-    const lambda* lambda,
-    const matrix_cache& calc);
-
 /* START: Uniform distribution */
 std::vector<int> uniform_dist(int n_draws, int min, int max);
 /* END: Uniform distribution - */

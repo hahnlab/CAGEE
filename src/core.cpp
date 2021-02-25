@@ -127,23 +127,6 @@ void model::write_error_model(std::ostream& ost) const
     write_error_model_file(ost, *em);
 }
 
-//! Computes likelihoods for the given tree and a single family. Uses a lambda value based on the provided lambda
-/// and a given multiplier. Works by calling \ref compute_node_probability on all nodes of the tree
-/// using the species counts for the family. 
-/// \returns a vector of probabilities for gene counts at the root of the tree 
-std::vector<double> inference_prune(const gene_transcript& gf, matrix_cache& calc, const lambda *p_lambda, const error_model* p_error_model, const clade *p_tree, double lambda_multiplier, int max_root_family_size, int max_family_size)
-{
-    unique_ptr<lambda> multiplier(p_lambda->multiply(lambda_multiplier));
-    clademap<std::vector<double>> probabilities;
-    auto init_func = [&](const clade* node) { probabilities[node].resize(DISCRETIZATION_RANGE); };
-    for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
-
-    auto compute_func = [&](const clade *c) { compute_node_probability(c, gf, p_error_model, probabilities, pair<int, int>(1, max_root_family_size), max_family_size, multiplier.get(), calc); };
-    for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), compute_func);
-
-    return probabilities.at(p_tree); // likelihood of the whole tree = multiplication of likelihood of all nodes
-}
-
 void event_monitor::Event_InferenceAttempt_Started() 
 { 
     attempts++;
