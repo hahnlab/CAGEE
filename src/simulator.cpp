@@ -45,7 +45,7 @@ public:
     {
         double t = distance_from_root_to_tip(p_tree);
         double sigma = p_lambda->get_value_for_clade(p_tree);
-        _max_value = double(root_size) + 4.5 * sigma / sqrt(t);
+        _max_value = double(root_size) + 4.5 * sigma * sqrt(t);
     }
 
     int bin(double value)
