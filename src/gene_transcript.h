@@ -58,7 +58,7 @@ public:
 
     std::string id() const { return _id; }
 
-    int get_species_size(std::string species) const;
+    double get_species_size(std::string species) const;
 
     //! Returns true if every species size for both gene families are identical
     bool species_size_match(const gene_transcript& other) const
@@ -70,7 +70,7 @@ public:
     bool exists_at_root(const clade *p_tree) const;
 
     //! Returns largest species size minus smallest species size
-    int species_size_differential() const;
+    double species_size_differential() const;
 
     // move assignment operator
     gene_transcript& operator=(gene_transcript&& other)

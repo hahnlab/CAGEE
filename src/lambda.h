@@ -19,7 +19,6 @@ struct FMinSearch;
  */
 class lambda {
 public:
-    virtual void calculate_child_factor(const matrix_cache& calc, const clade* child, std::vector<double> probabilities, int s_min_family_size, int s_max_family_size, int c_min_family_size, int c_max_family_size, double* result) const = 0;
     virtual lambda *multiply(double factor) const = 0;
     virtual void update(const double* values) = 0;
     virtual int count() const = 0;
@@ -39,7 +38,6 @@ private:
 public:
     single_lambda(double lam) : _lambda(lam) { } //!< Constructor 
     double get_single_lambda() const { return _lambda; }
-    virtual void calculate_child_factor(const matrix_cache& calc, const clade *child, std::vector<double> probabilities, int s_min_family_size, int s_max_family_size, int c_min_family_size, int c_max_family_size, double* result) const override; //!< Computes tr. prob. matrix, and multiplies by likelihood vector. Returns result (=factor).
 
 	virtual lambda *multiply(double factor) const override
 	{
@@ -71,7 +69,7 @@ private:
 public:
     multiple_lambda(std::map<std::string, int> nodename_index_map, std::vector<double> lambda_vector) :
 		_node_name_to_lambda_index(nodename_index_map), _lambdas(lambda_vector) { } //!< Constructor
-    virtual void calculate_child_factor(const matrix_cache& calc, const clade *child, std::vector<double> probabilities, int s_min_family_size, int s_max_family_size, int c_min_family_size, int c_max_family_size, double* result) const override; //!< Computes tr. prob. matrix (uses right lambda for each branch) and multiplies by likelihood vector. Returns result (=factor).
+
     virtual lambda *multiply(double factor) const override
     {
         auto npi = _lambdas;

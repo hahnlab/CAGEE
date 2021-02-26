@@ -1114,7 +1114,7 @@ TEST_CASE_FIXTURE(Reconstruction, "print_node_counts")
 
     gmr.print_node_counts(ost, order, { fam }, p_tree.get());
     STRCMP_CONTAINS("FamilyID\tA<0>\tB<1>\tC<2>\tD<3>\t<4>\t<5>\t<6>", ost.str().c_str());
-    STRCMP_CONTAINS("Family5\t11\t2\t5\t6\t5\t5\t5", ost.str().c_str());
+    STRCMP_CONTAINS("Family5\t11.000000\t2.000000\t5.000000\t6.000000\t5\t5\t5", ost.str().c_str());
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "print_node_change")
@@ -1979,45 +1979,6 @@ TEST_CASE_FIXTURE(Inference, "estimator_compute_pvalues" * doctest::skip(true))
     auto values = compute_pvalues(p, _user_data.gene_families, 3);
     CHECK_EQ(1, values.size());
     CHECK_EQ(doctest::Approx(0.0), values[0]);
-}
-
-TEST_CASE_FIXTURE(Inference, "find_best_pvalue")
-{
-    std::vector<std::vector<double> > conditional_distribution(3);
-    conditional_distribution[0] = vector<double>({.1, .2, .3, .4});
-    conditional_distribution[1] = vector<double>({ .1, .2, .3, .4 });
-    conditional_distribution[2] = vector<double>({ .1, .2, .3, .4 });
-    vector<double> root_probabilities(3);
-    root_probabilities[0] = .15;
-    auto value = find_best_pvalue(_user_data.gene_families[0], root_probabilities, conditional_distribution);
-    CHECK_EQ(doctest::Approx(0.25), value);
-}
-
-TEST_CASE_FIXTURE(Inference, "find_best_pvalue_skips_values_outside_of_range")
-{
-    std::vector<std::vector<double> > conditional_distribution(3);
-    conditional_distribution[0] = vector<double>({ .1, .2, .3, .4 });
-    conditional_distribution[1] = vector<double>({ .1, .2, .3, .4 });
-    conditional_distribution[2] = vector<double>({ .1, .2, .3, .4 });
-    vector<double> root_probabilities(3);
-    root_probabilities[0] = .15;
-    root_probabilities[2] = .35;
-    auto value = find_best_pvalue(_user_data.gene_families[0], root_probabilities, conditional_distribution);
-    CHECK_EQ(doctest::Approx(0.25), value);
-}
-
-
-TEST_CASE_FIXTURE(Inference, "find_best_pvalue_selects_largest_value_in_range")
-{
-    std::vector<std::vector<double> > conditional_distribution(3);
-    conditional_distribution[0] = vector<double>({ .1, .2, .3, .4 });
-    conditional_distribution[1] = vector<double>({ .1, .2, .3, .4 });
-    conditional_distribution[2] = vector<double>({ .1, .2, .3, .4 });
-    vector<double> root_probabilities(3);
-    root_probabilities[0] = .15;
-    root_probabilities[1] = .25;
-    auto value = find_best_pvalue(_user_data.gene_families[0], root_probabilities, conditional_distribution);
-    CHECK_EQ(doctest::Approx(0.5), value);
 }
 
 TEST_CASE_FIXTURE(Inference, "gamma_lambda_optimizer updates model alpha and lambda")

@@ -14,6 +14,7 @@
 #include "root_equilibrium_distribution.h"
 
 using namespace std;
+using namespace Eigen;
 
 extern std::mt19937 randomizer_engine; // seeding random number engine
 
@@ -49,13 +50,17 @@ public:
         VLOG(SIMULATOR) << "Root size: " << root_size << " => max value: " << _max_value << " (Tree length: " << t << ", Sigma: " << sigma << ")";
     }
 
-    int bin(double value)
+    int bin(double value) const
     {
         return value / _max_value * DISCRETIZATION_RANGE;
     }
-    double value(int bin)
+    double value(int bin) const
     {
         return bin * _max_value / double(DISCRETIZATION_RANGE);
+    }
+    double max_value() const
+    {
+        return _max_value;
     }
 };
 
@@ -74,24 +79,25 @@ void simulator::execute(std::vector<model *>& models)
 // At the root, we have a vector of length DISCRETIZATION_RANGE. This has probability 1 at the size of the root
 // and 0 everywhere else
 // for each child, generate the transition matrix and multiply
-simulated_family simulator::create_trial(const lambda *p_lambda, int family_number, const matrix_cache& cache) {
+simulated_family simulator::create_trial(const lambda *p_sigma, int family_number, const matrix_cache& cache) {
     if (data.p_tree == NULL)
         throw runtime_error("No tree specified for simulation");
 
     simulated_family result;
-    result.lambda = get_lambda_values(p_lambda)[0];
+    result.lambda = get_lambda_values(p_sigma)[0];
 
-    clademap<vector<double>> probs;
-    data.p_tree->apply_prefix_order([&probs](const clade*c) { probs[c].resize(DISCRETIZATION_RANGE); });
+    clademap<VectorXd> probs;
+    data.p_tree->apply_prefix_order([&probs](const clade* c) { probs[c] = VectorXd::Zero(DISCRETIZATION_RANGE);  });
 
     double root_size = data.prior.select_root_size(family_number);
-    binner b(p_lambda, data.p_tree, root_size);
+    binner b(p_sigma, data.p_tree, root_size);
 
     probs.at(data.p_tree)[b.bin(root_size)] = 1;
 
     std::function <void(const clade*)> get_child_probability_vector;
     get_child_probability_vector = [&](const clade* c) {
-        p_lambda->calculate_child_factor(cache, c, probs.at(c->get_parent()), 0, DISCRETIZATION_RANGE - 1, 0, DISCRETIZATION_RANGE - 1, probs.at(c).data());
+        MatrixXd m = cache.get_matrix(c->get_branch_length(), p_sigma->get_value_for_clade(c), b.max_value());
+        probs[c] = m * probs[c->get_parent()];
         c->apply_to_descendants(get_child_probability_vector);
     };
 
@@ -99,7 +105,8 @@ simulated_family simulator::create_trial(const lambda *p_lambda, int family_numb
 
     for (auto it = data.p_tree->reverse_level_begin(); it != data.p_tree->reverse_level_end(); ++it)
     {
-        std::discrete_distribution<int> distribution(probs[*it].begin(), probs[*it].end());
+        auto& weighted_probs = probs[*it];
+        std::discrete_distribution<int> distribution(weighted_probs.data(), weighted_probs.data() + weighted_probs.size());
 
         result.values[*it] = b.value(distribution(randomizer_engine));
     }
@@ -239,7 +246,7 @@ TEST_CASE("create_trial")
 
     CHECK_EQ(doctest::Approx(4.96338), actual.values.at(p_tree.get()));
     CHECK_EQ(doctest::Approx(4.96338), actual.values.at(p_tree->find_descendant("A")));
-    CHECK_EQ(doctest::Approx(4.96338), actual.values.at(p_tree->find_descendant("B")));
+    CHECK_EQ(doctest::Approx(4.749447), actual.values.at(p_tree->find_descendant("B")));
 }
 
 TEST_CASE("distance_from_root_to_tip")

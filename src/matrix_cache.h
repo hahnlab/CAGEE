@@ -5,6 +5,8 @@
 #include <vector>
 #include <set>
 
+#include <Eigen/Dense>
+
 #include <assert.h>
 
 class DiffMat;
@@ -72,8 +74,9 @@ private:
     int _matrix_size;
     static DiffMat* _p_diffmat;
 public:
-    const matrix* get_matrix(double branch_length, double lambda) const;
+    Eigen::MatrixXd get_matrix(double branch_length, double lambda, double max_value) const;
     void precalculate_matrices(const std::vector<double>& lambdas, const std::set<double>& branch_lengths);
+    const matrix* get_matrix(double branch_length, double lambda) const;
 
     int get_cache_size() const {
         return _matrix_cache.size();

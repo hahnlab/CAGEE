@@ -35,7 +35,7 @@ int gene_transcript::get_max_size() const {
 
 
 //! Mainly for debugging: In case one want to grab the gene count for a given species
-int gene_transcript::get_species_size(std::string species) const {
+double gene_transcript::get_species_size(std::string species) const {
     // First checks if species data has been entered (i.e., is key in map?)
     if (_species_size_map.find(species) == _species_size_map.end()) {
         throw std::runtime_error(species + " was not found in gene family " + _id);
@@ -90,11 +90,11 @@ bool gene_transcript::exists_at_root(const clade *p_tree) const
     return exists_at_all_children;
 }
 
-int gene_transcript::species_size_differential() const
+double gene_transcript::species_size_differential() const
 {
     auto compare = [](const std::pair<string, int>& a, const std::pair<string, int>& b) { return a.second < b.second; };
-    int max_species_size = max_element(_species_size_map.begin(), _species_size_map.end(), compare)->second;
-    int min_species_size = min_element(_species_size_map.begin(), _species_size_map.end(), compare)->second;
+    double max_species_size = max_element(_species_size_map.begin(), _species_size_map.end(), compare)->second;
+    double min_species_size = min_element(_species_size_map.begin(), _species_size_map.end(), compare)->second;
     return max_species_size - min_species_size;
 }
 
