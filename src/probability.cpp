@@ -279,7 +279,7 @@ void set_weighted_random_family_size(const clade *node, clademap<int> *sizemap, 
             std::uniform_int_distribution<int> distribution(0, max_family_size - 1);
             c = distribution(randomizer_engine);
         }
-        c = probabilities->select_random_y(parent_family_size, max_family_size);
+        c = probabilities->select_random_y(min(parent_family_size, DISCRETIZATION_RANGE - 1), min(max_family_size, DISCRETIZATION_RANGE-1));
     }
 
     if (node->is_leaf())
@@ -346,6 +346,7 @@ double find_best_pvalue(const gene_transcript& fam, const vector<double>& root_p
 vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_transcript>& families, int number_of_simulations)
 {
     LOG(INFO) << "Computing pvalues...";
+    LOG(WARNING) << "PValues are not calculating accurate randomizations yet";
 
     std::vector<std::vector<double> > conditional_distribution(p.max_root_family_size);
     for (int i = 0; i < p.max_root_family_size; ++i)
