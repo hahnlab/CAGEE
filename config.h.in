@@ -28,7 +28,8 @@
 #undef OPTIMIZER_LOW_PRECISION
 
 /* Optimizer will stop after 12 iterations with no significant change in -ln
-   likelihood */
+   likelihood
+ */
 #undef OPTIMIZER_STRATEGY_SIMILARITY_CUTOFF
 
 /* Define to the address where bug reports for this package should be sent. */
@@ -56,3 +57,8 @@
 #undef MAX_STACK_FAMILY_SIZE
 
 #define DISCRETIZATION_RANGE 200
+
+/* Verbose log keys for various aspects of the application */
+#define PVALUE 2
+#define SIMULATOR 3
+#define MATRIX 6

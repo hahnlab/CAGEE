@@ -1,4 +1,4 @@
-AC_INIT(cafe5, 1.0)
+AC_INIT(cagee, 1.0)
  
 AC_CONFIG_HEADER([config.h])
 

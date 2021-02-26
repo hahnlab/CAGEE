@@ -192,13 +192,13 @@ clademap<int> create_family(pvalue_parameters p, int root_family_size)
     // note we do not use an error model for creating family sizes. See architecture decision #6
     p.p_tree->apply_prefix_order([p, &sizes](const clade* c) { set_weighted_random_family_size(c, &sizes, p.p_lambda, nullptr, p.max_family_size, p.cache); });
 
-    if (VLOG_IS_ON(2)) {
+    if (VLOG_IS_ON(PVALUE)) {
         ostringstream ost;
         p.p_tree->write_newick(ost, [&sizes](const clade* c) 
             {
                 return c->get_taxon_name() + "_" + to_string(sizes.at(c)) + ":" + to_string(c->get_branch_length());
             });
-        VLOG(2) << "Generated tree: " << ost.str() << endl;
+        VLOG(PVALUE) << "Generated tree: " << ost.str() << endl;
     }
 
     return sizes;

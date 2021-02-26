@@ -46,6 +46,7 @@ public:
         double t = distance_from_root_to_tip(p_tree);
         double sigma = p_lambda->get_value_for_clade(p_tree);
         _max_value = double(root_size) + 4.5 * sigma * sqrt(t);
+        VLOG(SIMULATOR) << "Root size: " << root_size << " => max value: " << _max_value << " (Tree length: " << t << ", Sigma: " << sigma << ")";
     }
 
     int bin(double value)
@@ -73,8 +74,6 @@ void simulator::execute(std::vector<model *>& models)
 // At the root, we have a vector of length DISCRETIZATION_RANGE. This has probability 1 at the size of the root
 // and 0 everywhere else
 // for each child, generate the transition matrix and multiply
-// The tip values would then be taken to be the highest probability entries in the vector for that node#endif
-
 simulated_family simulator::create_trial(const lambda *p_lambda, int family_number, const matrix_cache& cache) {
     if (data.p_tree == NULL)
         throw runtime_error("No tree specified for simulation");

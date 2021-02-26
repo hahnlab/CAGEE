@@ -63,6 +63,10 @@ DiffMat::DiffMat(int Npts) {
     EigenSolver<MatrixXd> es(Diff);
     passage = es.eigenvectors();
     eig = Diff.eigenvalues();
+    VLOG(MATRIX) << "Eigenvalues for Diff matrix";
+    VLOG(MATRIX) << eig;
+    VLOG(MATRIX) << "Eigenvalues end";
+
 }
 
 bool matrix::is_zero() const
@@ -194,9 +198,12 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& lambdas, con
 
     for (i = 0; i < num_keys; ++i)
     {
-        double lambda = keys[i].lambda();
+        double sigma = keys[i].lambda();
         double branch_length = keys[i].branch_length();
-        MatrixXd mxd = ConvProp_bounds(branch_length, lambda*lambda/2, *_p_diffmat, pair<double, double>(0.0, _matrix_size));
+        MatrixXd mxd = ConvProp_bounds(branch_length, sigma*sigma/2, *_p_diffmat, pair<double, double>(0.0, _matrix_size));
+        VLOG(MATRIX) << "Matrix for sigma: " << sigma << ", Branch length: " << branch_length;
+        VLOG(MATRIX) << mxd;
+        VLOG(MATRIX) << "Matrix end";
 
         matrix* m = matrices[i];
         for (int j = 0; j < DISCRETIZATION_RANGE; ++j)
