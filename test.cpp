@@ -35,6 +35,8 @@ INITIALIZE_EASYLOGGINGPP
 #include "src/likelihood_ratio.h"
 #include "src/lambda.h"
 
+using namespace std;
+
 #define NEED_TO_CONVERT_TO_MATRIX_ALGORITHM // note tests that are failing because they rely on the CAFE transition matrix algorithm
 
 std::mt19937 randomizer_engine(10); // seeding random number engine

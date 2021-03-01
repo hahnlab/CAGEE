@@ -20,6 +20,8 @@
 #include "root_equilibrium_distribution.h"
 #include "lambda.h"
 
+using namespace std;
+
 double __Qs[] = { 1.000000000190015, 76.18009172947146, -86.50532032941677,
 24.01409824083091, -1.231739572450155, 1.208650973866179e-3,
 -5.395239384953e-6 };

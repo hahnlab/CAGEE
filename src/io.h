@@ -3,8 +3,6 @@
 
 #include "optimizer.h"
 
-using namespace std;
-
 extern struct option longopts[];
 
 class clade;

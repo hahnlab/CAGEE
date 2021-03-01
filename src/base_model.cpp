@@ -17,6 +17,8 @@
 #include "lambda.h"
 #include "io.h"
 
+using namespace std;
+
 extern mt19937 randomizer_engine;
 
 base_model::base_model(lambda* p_lambda, const clade *p_tree, const vector<gene_transcript>* p_gene_families,

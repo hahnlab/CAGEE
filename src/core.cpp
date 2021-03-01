@@ -16,6 +16,8 @@
 #include "lambda.h"
 #include "io.h"
 
+using namespace std;
+
 std::vector<model *> build_models(const input_parameters& user_input, user_data& user_data) {
 
     model *p_model = NULL;

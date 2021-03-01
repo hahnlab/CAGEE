@@ -21,6 +21,8 @@
 #include "simulator.h"
 #include "lambda.h"
 
+using namespace std;
+
 extern mt19937 randomizer_engine;
 
 gamma_model::gamma_model(lambda* p_lambda, clade *p_tree, std::vector<gene_transcript>* p_gene_families, int max_family_size,

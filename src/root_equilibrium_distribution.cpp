@@ -10,6 +10,8 @@
 #include "io.h"
 #include "optimizer.h"
 
+using namespace std;
+
 extern std::mt19937 randomizer_engine; // seeding random number engine
 
 root_equilibrium_distribution::root_equilibrium_distribution(const map<int, int>& root_distribution)
