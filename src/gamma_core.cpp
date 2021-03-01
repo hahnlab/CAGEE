@@ -19,6 +19,7 @@
 #include "user_data.h"
 #include "optimizer_scorer.h"
 #include "simulator.h"
+#include "lambda.h"
 
 extern mt19937 randomizer_engine;
 

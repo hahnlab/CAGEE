@@ -33,6 +33,7 @@ INITIALIZE_EASYLOGGINGPP
 #include "src/optimizer.h"
 #include "src/error_model.h"
 #include "src/likelihood_ratio.h"
+#include "src/lambda.h"
 
 #define NEED_TO_CONVERT_TO_MATRIX_ALGORITHM // note tests that are failing because they rely on the CAFE transition matrix algorithm
 

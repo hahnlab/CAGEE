@@ -20,6 +20,7 @@
 #include "gene_transcript.h"
 #include "error_model.h"
 #include "simulator.h"
+#include "lambda.h"
 
 using namespace std;
 using namespace Eigen;

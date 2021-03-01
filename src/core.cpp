@@ -13,6 +13,8 @@
 #include "gamma_core.h"
 #include "base_model.h"
 #include "error_model.h"
+#include "lambda.h"
+#include "io.h"
 
 std::vector<model *> build_models(const input_parameters& user_input, user_data& user_data) {
 

@@ -31,7 +31,7 @@ public:
         std::vector<double> _category_likelihoods;
     };
 
-    std::map<string, gamma_reconstruction> _reconstructions;
+    std::map<std::string, gamma_reconstruction> _reconstructions;
 };
 
 //! @brief Represents a model of species change in which lambda values are expected to belong to a gamma distribution
@@ -77,7 +77,7 @@ public:
     virtual void write_family_likelihoods(std::ostream& ost) override;
     virtual void write_vital_statistics(std::ostream& ost, double final_likelihood) override;
 
-    virtual reconstruction* reconstruct_ancestral_states(const vector<gene_transcript>& families, matrix_cache *, root_equilibrium_distribution* p_prior) override;
+    virtual reconstruction* reconstruct_ancestral_states(const std::vector<gene_transcript>& families, matrix_cache *, root_equilibrium_distribution* p_prior) override;
 
     std::size_t get_gamma_cat_probs_count() const {
         return _gamma_cat_probs.size();
@@ -100,5 +100,5 @@ public:
 };
 
 //! \ingroup gamma
-clademap<double> get_weighted_averages(const std::vector<clademap<int>>& m, const vector<double>& probabilities);
+clademap<double> get_weighted_averages(const std::vector<clademap<int>>& m, const std::vector<double>& probabilities);
 

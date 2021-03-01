@@ -12,6 +12,8 @@
 #include "core.h"
 #include "matrix_cache.h"
 #include "root_equilibrium_distribution.h"
+#include "probability.h"
+#include "lambda.h"
 
 using namespace std;
 using namespace Eigen;
@@ -76,7 +78,7 @@ void simulator::execute(std::vector<model *>& models)
     simulate(models, _user_input);
 }
 
-simulated_family create_simulated_family(const clade* p_tree, const lambda* p_sigma, double root_value, const matrix_cache& cache)
+simulated_family create_simulated_family(const clade *p_tree, const lambda* p_sigma, double root_value, const matrix_cache& cache)
 {
     simulated_family sim;
     sim.lambda = get_lambda_values(p_sigma)[0];

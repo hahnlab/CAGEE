@@ -12,6 +12,8 @@
 #include "gene_transcript.h"
 #include "user_data.h"
 
+using namespace std;
+
 namespace pupko_reconstructor {
     pupko_data::pupko_data(size_t num_families, const clade *p_tree, int max_family_size, int max_root_family_size) : v_all_node_Cs(num_families), v_all_node_Ls(num_families)
     {

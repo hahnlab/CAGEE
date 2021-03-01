@@ -16,6 +16,8 @@ class user_data;
 class root_distribution;
 class inference_optimizer_scorer;
 class gene_transcript;
+class root_equilibrium_distribution;
+class input_parameters;
 
 struct family_info_stash {
     family_info_stash() : lambda_multiplier(0.0), category_likelihood(0.0), family_likelihood(0.0), 
@@ -81,7 +83,7 @@ public:
     void print_increases_decreases_by_family(std::ostream& ost, const cladevector& order, familyvector& gene_families, const std::vector<double>& pvalues, double test_pvalue);
         
     void print_family_clade_table(std::ostream& ost, const cladevector& order, familyvector& gene_families, const clade* p_tree,
-        std::function<string(int family_index, const clade* c)> get_family_clade_value);
+        std::function<std::string(int family_index, const clade* c)> get_family_clade_value);
 
     void write_results(std::string model_identifier, std::string output_prefix, const clade* p_tree, familyvector& families, std::vector<double>& pvalues, double test_pvalue, const branch_probabilities& branch_probabilities);
 
@@ -101,7 +103,7 @@ private:
 
 class event_monitor : public el::Loggable
 {
-    std::map<string, int> failure_count;
+    std::map<std::string, int> failure_count;
     int attempts = 0;
     int rejects = 0;
 public:
@@ -125,7 +127,7 @@ protected:
     int _max_family_size;
     int _max_root_family_size;
     error_model* _p_error_model;
-    vector<vector<int> > _rootdist_bins; // holds the distribution for each lambda bin
+    std::vector<std::vector<int> > _rootdist_bins; // holds the distribution for each lambda bin
 
     /// Used to track gene families with identical species counts
     std::vector<size_t> references;
@@ -173,7 +175,7 @@ public:
     void write_error_model(std::ostream& ost) const;
 
     //! Based on the model parameters, attempts to reconstruct the most likely counts of each family at each node
-    virtual reconstruction* reconstruct_ancestral_states(const vector<gene_transcript>& families, matrix_cache *p_calc, root_equilibrium_distribution* p_prior) = 0;
+    virtual reconstruction* reconstruct_ancestral_states(const std::vector<gene_transcript>& families, matrix_cache *p_calc, root_equilibrium_distribution* p_prior) = 0;
 
     virtual inference_optimizer_scorer *get_lambda_optimizer(const user_data& data) = 0;
 

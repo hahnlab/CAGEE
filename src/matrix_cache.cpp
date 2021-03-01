@@ -22,6 +22,7 @@
 
 extern std::mt19937 randomizer_engine;
 using namespace Eigen;
+using namespace std;
 
 class DiffMat {
 public:

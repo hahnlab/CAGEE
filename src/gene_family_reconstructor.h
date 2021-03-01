@@ -39,6 +39,6 @@ void reconstruct_gene_transcript(const lambda* lambda, const clade *p_tree,
 
 branch_probabilities::branch_probability compute_viterbi_sum(const clade* c, const gene_transcript& family, const reconstruction* rec, int max_family_size, const matrix_cache& cache, const lambda* p_lambda);
 
-void print_branch_probabilities(std::ostream& ost, const cladevector& order, const vector<gene_transcript>& gene_families, const branch_probabilities& branch_probabilities);
+void print_branch_probabilities(std::ostream& ost, const cladevector& order, const std::vector<gene_transcript>& gene_families, const branch_probabilities& branch_probabilities);
 
 #endif

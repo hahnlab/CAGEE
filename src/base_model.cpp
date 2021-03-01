@@ -14,6 +14,8 @@
 #include "root_equilibrium_distribution.h"
 #include "optimizer_scorer.h"
 #include "simulator.h"
+#include "lambda.h"
+#include "io.h"
 
 extern mt19937 randomizer_engine;
 
