@@ -76,23 +76,17 @@ void simulator::execute(std::vector<model *>& models)
     simulate(models, _user_input);
 }
 
-// At the root, we have a vector of length DISCRETIZATION_RANGE. This has probability 1 at the size of the root
-// and 0 everywhere else
-// for each child, generate the transition matrix and multiply
-simulated_family simulator::create_trial(const lambda *p_sigma, int family_number, const matrix_cache& cache) {
-    if (data.p_tree == NULL)
-        throw runtime_error("No tree specified for simulation");
-
+simulated_family create_simulated_family(const clade *p_tree, const lambda* p_sigma, int root_size, const matrix_cache& cache)
+{
     simulated_family result;
     result.lambda = get_lambda_values(p_sigma)[0];
 
     clademap<VectorXd> probs;
-    data.p_tree->apply_prefix_order([&probs](const clade* c) { probs[c] = VectorXd::Zero(DISCRETIZATION_RANGE);  });
+    p_tree->apply_prefix_order([&probs](const clade* c) { probs[c] = VectorXd::Zero(DISCRETIZATION_RANGE);  });
 
-    double root_size = data.prior.select_root_size(family_number);
-    binner b(p_sigma, data.p_tree, root_size);
+    binner b(p_sigma, p_tree, root_size);
 
-    probs.at(data.p_tree)[b.bin(root_size)] = 1;
+    probs.at(p_tree)[b.bin(root_size)] = 1;
 
     std::function <void(const clade*)> get_child_probability_vector;
     get_child_probability_vector = [&](const clade* c) {
@@ -101,9 +95,9 @@ simulated_family simulator::create_trial(const lambda *p_sigma, int family_numbe
         c->apply_to_descendants(get_child_probability_vector);
     };
 
-    data.p_tree->apply_to_descendants(get_child_probability_vector);
+    p_tree->apply_to_descendants(get_child_probability_vector);
 
-    for (auto it = data.p_tree->reverse_level_begin(); it != data.p_tree->reverse_level_end(); ++it)
+    for (auto it = p_tree->reverse_level_begin(); it != p_tree->reverse_level_end(); ++it)
     {
         auto& weighted_probs = probs[*it];
         std::discrete_distribution<int> distribution(weighted_probs.data(), weighted_probs.data() + weighted_probs.size());
@@ -111,6 +105,18 @@ simulated_family simulator::create_trial(const lambda *p_sigma, int family_numbe
         result.values[*it] = b.value(distribution(randomizer_engine));
     }
     return result;
+}
+
+// At the root, we have a vector of length DISCRETIZATION_RANGE. This has probability 1 at the size of the root
+// and 0 everywhere else
+// for each child, generate the transition matrix and multiply
+simulated_family simulator::create_trial(const lambda *p_sigma, int family_number, const matrix_cache& cache) {
+    double root_size = data.prior.select_root_size(family_number);
+
+    if (data.p_tree == NULL)
+        throw runtime_error("No tree specified for simulation");
+
+    return create_simulated_family(data.p_tree, p_sigma, root_size, cache);
 }
 
 void simulator::simulate_processes(model *p_model, std::vector<simulated_family>& results) {
@@ -132,8 +138,6 @@ void simulator::simulate_processes(model *p_model, std::vector<simulated_family>
         unique_ptr<lambda> sim_lambda(p_model->get_simulation_lambda());
         
         matrix_cache cache;
-        //cache.precalculate_matrices(get_lambda_values(sim_lambda.get()), this->data.p_tree->get_branch_lengths());
-        p_model->prepare_matrices_for_simulation(cache);
 
         int n = 0;
 
@@ -143,8 +147,6 @@ void simulator::simulate_processes(model *p_model, std::vector<simulated_family>
         });
     }
 }
-
-extern void write_average_multiplier(std::ostream& ost);
 
 /// Simulate
 /// \callgraph
@@ -240,7 +242,6 @@ TEST_CASE("create_trial")
     simulator sim(data, params);
 
     matrix_cache cache;
-    cache.precalculate_matrices(get_lambda_values(&lam), { 1,3,7 });
 
     simulated_family actual = sim.create_trial(&lam, 2, cache);
 

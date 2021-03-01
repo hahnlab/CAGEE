@@ -175,7 +175,11 @@ bool matrix_cache::is_saturated(double branch_length, double lambda)
 
 MatrixXd matrix_cache::get_matrix(double branch_length, double sigma, double max_value) const
 {
-    return ConvProp_bounds(branch_length, sigma * sigma / 2, *_p_diffmat, pair<double, double>(0.0, max_value));
+    MatrixXd mxd = ConvProp_bounds(branch_length, sigma * sigma / 2, *_p_diffmat, pair<double, double>(0.0, max_value));
+    VLOG(MATRIX) << "Matrix for sigma: " << sigma << ", Branch length: " << branch_length << ", Max value: " << max_value;
+    VLOG(MATRIX) << mxd;
+    VLOG(MATRIX) << "Matrix end";
+    return mxd;
 }
 
 void matrix_cache::precalculate_matrices(const std::vector<double>& lambdas, const std::set<double>& branch_lengths)
@@ -206,9 +210,6 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& lambdas, con
         double sigma = keys[i].lambda();
         double branch_length = keys[i].branch_length();
         MatrixXd mxd = ConvProp_bounds(branch_length, sigma*sigma/2, *_p_diffmat, pair<double, double>(0.0, _matrix_size));
-        VLOG(MATRIX) << "Matrix for sigma: " << sigma << ", Branch length: " << branch_length;
-        VLOG(MATRIX) << mxd;
-        VLOG(MATRIX) << "Matrix end";
 
         matrix* m = matrices[i];
         for (int j = 0; j < DISCRETIZATION_RANGE; ++j)

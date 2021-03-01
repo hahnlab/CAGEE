@@ -31,8 +31,6 @@ double chooseln(double n, double k);
 std::vector<int> uniform_dist(int n_draws, int min, int max);
 /* END: Uniform distribution - */
 
-clademap<int> create_family(pvalue_parameters p, int root_family_size);
-void set_weighted_random_family_size(const clade *node, clademap<int> *sizemap, const lambda *p_lambda, error_model *p_error_model, int max_family_size, const matrix_cache& cache);
 std::vector<double> get_random_probabilities(pvalue_parameters p, int number_of_simulations, int root_family_size);
 size_t adjust_for_error_model(size_t c, const error_model *p_error_model);
 
@@ -40,6 +38,5 @@ double pvalue(double v, const vector<double>& conddist);
 
 //! computes a pvalue for each family. Returns a vector of pvalues matching the list of families
 std::vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_transcript>& families, int number_of_simulations);
-std::vector<double> compute_family_probabilities(pvalue_parameters p, const vector<clademap<int>>& sizes, int root_family_size);
 
 #endif

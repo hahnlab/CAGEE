@@ -21,19 +21,21 @@ struct simulated_family
 
     }
 
-    simulated_family(simulated_family&& other) 
+    simulated_family(simulated_family&& other) noexcept
     {
         *this = std::move(other);
     }
 
     // this is the move assignment operator
-    simulated_family& operator=(simulated_family&& other) 
+    simulated_family& operator=(simulated_family&& other) noexcept
     { 
         values = std::move(other.values);
         lambda = other.lambda;
         return *this; 
     }
 };
+
+simulated_family create_simulated_family(const clade* p_tree, const lambda* p_sigma, int root_size, const matrix_cache& cache);
 
 /*! @brief Build simulated families based on the user's input
 

@@ -50,8 +50,6 @@ public:
         _species_size_map[species] = gene_count;
     }
 
-    void init_from_clademap(const clademap<int>& values);
-
     std::vector<std::string> get_species() const;
 
     int get_max_size() const;

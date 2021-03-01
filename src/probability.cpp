@@ -19,6 +19,7 @@
 #include "matrix_cache.h"
 #include "gene_transcript.h"
 #include "error_model.h"
+#include "simulator.h"
 
 using namespace std;
 using namespace Eigen;
@@ -183,32 +184,7 @@ std::vector<int> uniform_dist(int n_draws, int min, int max) {
     return uniform_vec;
 }
 
-/// <summary>
-/// Create a gene family based on the given tree and root size, by assigning child sizes down the tree 
-/// The child size is selected randomly, based on the lambda and error model
-/// </summary>
-clademap<int> create_family(pvalue_parameters p, int root_family_size)
-{
-    // generate a tree with root_family_size at the root
-    clademap<int> sizes;
-    sizes[p.p_tree] = root_family_size;
-
-    // note we do not use an error model for creating family sizes. See architecture decision #6
-    p.p_tree->apply_prefix_order([p, &sizes](const clade* c) { set_weighted_random_family_size(c, &sizes, p.p_lambda, nullptr, p.max_family_size, p.cache); });
-
-    if (VLOG_IS_ON(PVALUE)) {
-        ostringstream ost;
-        p.p_tree->write_newick(ost, [&sizes](const clade* c) 
-            {
-                return c->get_taxon_name() + "_" + to_string(sizes.at(c)) + ":" + to_string(c->get_branch_length());
-            });
-        VLOG(PVALUE) << "Generated tree: " << ost.str() << endl;
-    }
-
-    return sizes;
-}
-
-vector<double> compute_family_probabilities(pvalue_parameters p, const vector<clademap<int>>& sizes, int root_family_size)
+vector<double> compute_family_probabilities(pvalue_parameters p, vector<simulated_family>& sizes, int root_family_size)
 {
     vector<double> result(sizes.size());
 
@@ -224,9 +200,14 @@ vector<double> compute_family_probabilities(pvalue_parameters p, const vector<cl
 
     // get a gene family for each clademap
     vector<gene_transcript> families(sizes.size());
-    transform(sizes.begin(), sizes.end(), families.begin(), [](const clademap<int>& s) {
+    transform(sizes.begin(), sizes.end(), families.begin(), [](const simulated_family& s) {
         gene_transcript f;
-        f.init_from_clademap(s);
+        for (auto& it : s.values) {
+            if (it.first->is_leaf())
+            {
+                f.set_species_size(it.first->get_taxon_name(), it.second);
+            }
+        }
         return f;
     });
 
@@ -253,46 +234,15 @@ vector<double> compute_family_probabilities(pvalue_parameters p, const vector<cl
 */
 std::vector<double> get_random_probabilities(pvalue_parameters p, int number_of_simulations, int root_family_size)
 {
-    vector<clademap<int>> families(number_of_simulations);
+    vector<simulated_family> families(number_of_simulations);
 
-    generate(families.begin(), families.end(), [p, root_family_size]() { return create_family(p, root_family_size); });
+    generate(families.begin(), families.end(), [p, root_family_size]() { return create_simulated_family(p.p_tree, p.p_lambda, root_family_size, p.cache); });
 
     auto result = compute_family_probabilities(p, families, root_family_size);
 
     sort(result.begin(), result.end());
 
     return result;
-}
-
-//! Set the family size of a node to a random value, using parent's family size
-void set_weighted_random_family_size(const clade *node, clademap<int> *sizemap, const lambda *p_lambda, error_model *p_error_model, int max_family_size, const matrix_cache& cache)
-{
-    if (node->is_root()) // if node is root, we do nothing
-        return;
-
-    int parent_family_size = (*sizemap)[node->get_parent()];
-    size_t c = 0; // c is the family size we will go to
-
-    double lambda = p_lambda->get_value_for_clade(node);
-    double branch_length = node->get_branch_length();
-
-    if (parent_family_size > 0) {
-        auto probabilities = cache.get_matrix(branch_length, lambda);
-        if (cache.is_saturated(branch_length, lambda))
-        {
-            std::uniform_int_distribution<int> distribution(0, max_family_size - 1);
-            c = distribution(randomizer_engine);
-        }
-        c = probabilities->select_random_y(min(parent_family_size, DISCRETIZATION_RANGE - 1), min(max_family_size, DISCRETIZATION_RANGE-1));
-    }
-
-    if (node->is_leaf())
-    {
-        c = adjust_for_error_model(c, p_error_model);
-    }
-
-    LOG(TRACE) << node->get_taxon_name() << " size set to " << c;
-    (*sizemap)[node] = c;
 }
 
 size_t adjust_for_error_model(size_t c, const error_model *p_error_model)
@@ -606,5 +556,38 @@ TEST_CASE("find_best_pvalue_selects_largest_value_in_range")
     root_probabilities[1] = .25;
     auto value = find_best_pvalue(gt, root_probabilities, conditional_distribution);
     CHECK_EQ(doctest::Approx(0.5), value);
+}
+
+TEST_CASE("compute_family_probabilities")
+{
+    unique_ptr<clade> p_tree(parse_newick("((A:1,B:3):7,(C:11,D:17):23);"));
+
+    single_lambda lambda(0.03);
+    matrix_cache cache;
+    cache.precalculate_matrices({ 0.03 }, p_tree->get_branch_lengths());
+    pvalue_parameters p = { p_tree.get(),  &lambda, 20, 15, cache };
+
+    vector<simulated_family> v(1);
+    v[0].values[p_tree.get()] = 5;
+
+    gene_transcript fam;
+    fam.set_id("Family5");
+    fam.set_species_size("A", 11);
+    fam.set_species_size("B", 2);
+    fam.set_species_size("C", 5);
+    fam.set_species_size("D", 6);
+
+    // note we do not use an error model for creating family sizes. See architecture decision #6
+    p.p_tree->apply_prefix_order([&v, &fam](const clade* c)
+        {
+            if (c->is_leaf())
+                v[0].values[c] = fam.get_species_size(c->get_taxon_name());
+            else
+                v[0].values[c] = 5;
+        });
+    auto result = compute_family_probabilities(p, v, 5);
+
+    CHECK_EQ(1, result.size());
+    CHECK_EQ(doctest::Approx(0.0000000001), result[0]);
 }
 

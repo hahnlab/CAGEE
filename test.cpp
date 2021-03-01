@@ -372,19 +372,6 @@ TEST_CASE("GeneFamilies: read_gene_families_reads_cafe_files")
     CHECK_EQ(6, families.at(0).get_species_size("D"));
 }
 
-TEST_CASE("GeneFamilies: init_from_clademap")
-{
-    clade* p_tree = parse_newick("((A:1,B:1):1,(C:1,D:1):1);");
-    clademap<int> values;
-    values[p_tree->find_descendant("A")] = 3;
-    values[p_tree->find_descendant("B")] = 5;
-    values[p_tree->find_descendant("C")] = 7;
-    values[p_tree->find_descendant("D")] = 11;
-    gene_transcript gf;
-    gf.init_from_clademap(values);
-    CHECK_EQ(3, gf.get_species_size("A"));
-}
-
 TEST_CASE("GeneFamilies: read_gene_families_reads_simulation_files")
 {
     std::string str = "#A\n#B\n#AB\n#CD\n#C\n#ABCD\n#D\n35\t36\t35\t35\t36\t34\t34\t1\n98\t96\t97\t98\t98\t98\t98\t1\n";
@@ -605,24 +592,6 @@ TEST_CASE("Probability: get_random_probabilities" * doctest::skip(true))
     auto probs = get_random_probabilities(p, 10, 3);
     CHECK_EQ(10, probs.size());
     CHECK_EQ(doctest::Approx(0.001905924).scale(10000), probs[0]);
-}
-
-TEST_CASE("Probability: generate_family" * doctest::skip(true))
-{
-    randomizer_engine.seed(10);
-
-    unique_ptr<clade> p_tree(parse_newick("((A:1,B:1):1,(C:1,D:1):1);"));
-
-    single_lambda lam(0.2);
-    matrix_cache cache;
-    cache.precalculate_matrices(vector<double>{0.2}, set<double>{1});
-    pvalue_parameters p = { p_tree.get(),  &lam, 10, 8, cache };
-    gene_transcript fam;
-    fam.init_from_clademap(create_family(p, 6));
-    CHECK_EQ(5, fam.get_species_size("A"));
-    CHECK_EQ(5, fam.get_species_size("B"));
-    CHECK_EQ(7, fam.get_species_size("C"));
-    CHECK_EQ(4, fam.get_species_size("D"));
 }
 
 TEST_CASE("Matrix__get_random_y")
@@ -1207,30 +1176,6 @@ TEST_CASE_FIXTURE(Reconstruction, "pvalues 2")
     std::vector<double> conddist = { .1, .2, .3, .4, .5, .6, .7, .8, .9 };
     double actual = pvalue(v, conddist);
     CHECK_EQ(doctest::Approx(3.0 / 9.0), actual);
-}
-
-TEST_CASE_FIXTURE(Reconstruction, "compute_family_probabilities")
-{
-    single_lambda lambda(0.03);
-    matrix_cache cache;
-    cache.precalculate_matrices({ 0.03 }, p_tree->get_branch_lengths());
-    pvalue_parameters p = { p_tree.get(),  &lambda, 20, 15, cache };
-
-    clademap<int> cm;
-    cm[p_tree.get()] = 5;
-
-    // note we do not use an error model for creating family sizes. See architecture decision #6
-    p.p_tree->apply_prefix_order([&cm, this](const clade* c)
-        {
-            if (c->is_leaf())
-                cm[c] = fam.get_species_size(c->get_taxon_name());
-            else
-                cm[c] = 5;
-        });
-    auto result = compute_family_probabilities(p, vector<clademap<int>>{cm}, 5);
-
-    CHECK_EQ(1, result.size());
-    CHECK_EQ(doctest::Approx(0.0000000001), result[0]);
 }
 
 TEST_CASE_FIXTURE(Inference, "gamma_model_prune" * doctest::skip(true))
@@ -2194,52 +2139,6 @@ TEST_CASE("Simulation, gamma_prepare_matrices_for_simulation_creates_matrix_for_
     matrix_cache m;
     g.prepare_matrices_for_simulation(m);
     CHECK_EQ(6, m.get_cache_size());
-}
-
-TEST_CASE("Simulation, set_random_node_size_without_error_model" * doctest::skip(true))
-{
-    randomizer_engine.seed(10);
-
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-
-    single_lambda lambda(0.05);
-    clademap<int> t;
-    matrix_cache cache;
-    cache.precalculate_matrices({ 0.05 }, { 3 });
-    auto b = p_tree->find_descendant("B");
-    set_weighted_random_family_size(b, &t, &lambda, NULL, 10, cache);
-
-    CHECK_EQ(0, t[b]);
-
-    t[p_tree.get()] = 5;
-
-    set_weighted_random_family_size(b, &t, &lambda, NULL, 10, cache);
-    CHECK_EQ(4, t[b]);
-}
-
-TEST_CASE("Simulation, set_random_node_size_with_error_model")
-{
-    randomizer_engine.seed(10);
-
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-
-    single_lambda lambda(0.05);
-    clademap<int> t;
-    matrix_cache cache;
-    cache.precalculate_matrices({ 0.05 }, { 3 });
-    auto b = p_tree->find_descendant("B");
-
-    error_model err;
-    err.set_probabilities(0, { 0, .95, 0.05 });
-
-    t[p_tree.get()] = 5;
-    err.set_probabilities(5, { .9, .05, 0.05 });
-    set_weighted_random_family_size(b, &t, &lambda, &err, 10, cache);
-    CHECK_EQ(4, t[b]);
-
-    err.set_probabilities(5, { .05, .05, 0.9 });
-    set_weighted_random_family_size(b, &t, &lambda, &err, 10, cache);
-    CHECK_EQ(6, t[b]);
 }
 
 TEST_CASE("Simulation, specified_distribution__with_rootdist_creates_matching_vector")
