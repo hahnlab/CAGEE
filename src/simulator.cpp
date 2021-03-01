@@ -76,35 +76,28 @@ void simulator::execute(std::vector<model *>& models)
     simulate(models, _user_input);
 }
 
-simulated_family create_simulated_family(const clade *p_tree, const lambda* p_sigma, int root_size, const matrix_cache& cache)
+simulated_family create_simulated_family(const clade* p_tree, const lambda* p_sigma, double root_value, const matrix_cache& cache)
 {
-    simulated_family result;
-    result.lambda = get_lambda_values(p_sigma)[0];
+    simulated_family sim;
+    sim.lambda = get_lambda_values(p_sigma)[0];
 
-    clademap<VectorXd> probs;
-    p_tree->apply_prefix_order([&probs](const clade* c) { probs[c] = VectorXd::Zero(DISCRETIZATION_RANGE);  });
+    binner b(p_sigma, p_tree, root_value);
 
-    binner b(p_sigma, p_tree, root_size);
+    sim.values[p_tree] = root_value;
 
-    probs.at(p_tree)[b.bin(root_size)] = 1;
-
-    std::function <void(const clade*)> get_child_probability_vector;
-    get_child_probability_vector = [&](const clade* c) {
+    std::function <void(const clade*)> get_child_value;
+    get_child_value = [&](const clade* c) {
         MatrixXd m = cache.get_matrix(c->get_branch_length(), p_sigma->get_value_for_clade(c), b.max_value());
-        probs[c] = m * probs[c->get_parent()];
-        c->apply_to_descendants(get_child_probability_vector);
+        VectorXd v = VectorPos_bounds(sim.values[c->get_parent()], DISCRETIZATION_RANGE, std::pair<int, int>(0, b.max_value()));
+        VectorXd probs = m * v;
+        std::discrete_distribution<int> distribution(probs.data(), probs.data() + probs.size());
+        sim.values[c] = b.value(distribution(randomizer_engine));
+        c->apply_to_descendants(get_child_value);
     };
 
-    p_tree->apply_to_descendants(get_child_probability_vector);
+    p_tree->apply_to_descendants(get_child_value);
 
-    for (auto it = p_tree->reverse_level_begin(); it != p_tree->reverse_level_end(); ++it)
-    {
-        auto& weighted_probs = probs[*it];
-        std::discrete_distribution<int> distribution(weighted_probs.data(), weighted_probs.data() + weighted_probs.size());
-
-        result.values[*it] = b.value(distribution(randomizer_engine));
-    }
-    return result;
+    return sim;
 }
 
 // At the root, we have a vector of length DISCRETIZATION_RANGE. This has probability 1 at the size of the root
@@ -245,9 +238,9 @@ TEST_CASE("create_trial")
 
     simulated_family actual = sim.create_trial(&lam, 2, cache);
 
-    CHECK_EQ(doctest::Approx(4.96338), actual.values.at(p_tree.get()));
-    CHECK_EQ(doctest::Approx(4.96338), actual.values.at(p_tree->find_descendant("A")));
-    CHECK_EQ(doctest::Approx(4.749447), actual.values.at(p_tree->find_descendant("B")));
+    CHECK_EQ(doctest::Approx(5.0), actual.values.at(p_tree.get()));
+    CHECK_EQ(doctest::Approx(5.17732), actual.values.at(p_tree->find_descendant("A")));
+    CHECK_EQ(doctest::Approx(5.30568), actual.values.at(p_tree->find_descendant("B")));
 }
 
 TEST_CASE("distance_from_root_to_tip")

@@ -1,6 +1,8 @@
 #ifndef PROBABILITY_H_A2E01F6E_6A7D_44FB_A9C0_6512F15FF939
 #define PROBABILITY_H_A2E01F6E_6A7D_44FB_A9C0_6512F15FF939
 
+#include <Eigen/Dense>
+
 #include <vector>
 #include <tuple>
 #include <set>
@@ -38,5 +40,6 @@ double pvalue(double v, const vector<double>& conddist);
 
 //! computes a pvalue for each family. Returns a vector of pvalues matching the list of families
 std::vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_transcript>& families, int number_of_simulations);
+Eigen::VectorXd VectorPos_bounds(int x, int Npts, std::pair<int, int> bounds);
 
 #endif
