@@ -72,9 +72,8 @@ class matrix_cache {
 private:
     std::map<matrix_cache_key, matrix*> _matrix_cache; //!< nested map that stores transition probabilities for a given lambda and branch_length (outer), then for a given parent and child size (inner)
     int _matrix_size;
-    static DiffMat* _p_diffmat;
 public:
-    Eigen::MatrixXd get_matrix(double branch_length, double lambda, double max_value) const;
+    static DiffMat* _p_diffmat;
     void precalculate_matrices(const std::vector<double>& lambdas, const std::set<double>& branch_lengths);
     const matrix* get_matrix(double branch_length, double lambda) const;
 

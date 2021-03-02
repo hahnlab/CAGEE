@@ -14,6 +14,7 @@
 #include "root_equilibrium_distribution.h"
 #include "probability.h"
 #include "lambda.h"
+#include "DiffMat.h"
 
 using namespace std;
 using namespace Eigen;
@@ -78,7 +79,7 @@ void simulator::execute(std::vector<model *>& models)
     simulate(models, _user_input);
 }
 
-simulated_family create_simulated_family(const clade *p_tree, const lambda* p_sigma, double root_value, const matrix_cache& cache)
+simulated_family create_simulated_family(const clade *p_tree, const lambda* p_sigma, double root_value, const DiffMat& diff_mat)
 {
     simulated_family sim;
     sim.lambda = get_lambda_values(p_sigma)[0];
@@ -89,7 +90,8 @@ simulated_family create_simulated_family(const clade *p_tree, const lambda* p_si
 
     std::function <void(const clade*)> get_child_value;
     get_child_value = [&](const clade* c) {
-        MatrixXd m = cache.get_matrix(c->get_branch_length(), p_sigma->get_value_for_clade(c), b.max_value());
+        double sigma = p_sigma->get_value_for_clade(c);
+        MatrixXd m = ConvProp_bounds(c->get_branch_length(), sigma * sigma / 2, diff_mat, pair<double, double>(0.0, b.max_value()));
         VectorXd v = VectorPos_bounds(sim.values[c->get_parent()], DISCRETIZATION_RANGE, std::pair<int, int>(0, b.max_value()));
         VectorXd probs = m * v;
         std::discrete_distribution<int> distribution(probs.data(), probs.data() + probs.size());
@@ -111,7 +113,7 @@ simulated_family simulator::create_trial(const lambda *p_sigma, int family_numbe
     if (data.p_tree == NULL)
         throw runtime_error("No tree specified for simulation");
 
-    return create_simulated_family(data.p_tree, p_sigma, root_size, cache);
+    return create_simulated_family(data.p_tree, p_sigma, root_size, *cache._p_diffmat);
 }
 
 void simulator::simulate_processes(model *p_model, std::vector<simulated_family>& results) {

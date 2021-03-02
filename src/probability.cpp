@@ -21,6 +21,7 @@
 #include "error_model.h"
 #include "simulator.h"
 #include "lambda.h"
+#include "DiffMat.h"
 
 using namespace std;
 using namespace Eigen;
@@ -112,7 +113,7 @@ void compute_node_probability(const clade* node,
     const error_model* p_error_model,
     std::map<const clade*, VectorXd>& probabilities,
     const lambda* p_sigma,
-    const matrix_cache& cache)
+    const DiffMat& diff_mat)
 {
     if (node->is_leaf()) {
         int species_size = gene_transcript.get_species_size(node->get_taxon_name());
@@ -140,7 +141,9 @@ void compute_node_probability(const clade* node,
         node_probs = VectorXd::Constant(DISCRETIZATION_RANGE, 1);
 
         for (auto it = node->descendant_begin(); it != node->descendant_end(); ++it) {
-            MatrixXd m = cache.get_matrix((*it)->get_branch_length(), p_sigma->get_value_for_clade(*it), largest_observed_value(gene_transcript) * 1.5);
+            double sigma = p_sigma->get_value_for_clade(*it);
+            MatrixXd m = ConvProp_bounds((*it)->get_branch_length(), sigma * sigma / 2, diff_mat, pair<double, double>(0.0, largest_observed_value(gene_transcript) * 1.5));
+
             auto result = m * probabilities[*it];
             for (VectorXd::Index i = 0; i < node_probs.size(); i++) {
                 node_probs[i] *= result[i];
@@ -200,7 +203,7 @@ vector<double> compute_family_probabilities(pvalue_parameters p, vector<simulate
     for (size_t i = 0; i < result.size(); ++i)
     {
         for (auto it = p.p_tree->reverse_level_begin(); it != p.p_tree->reverse_level_end(); ++it)
-            compute_node_probability(*it, families[i], NULL, pruners[i], p.p_lambda, p.cache);
+            compute_node_probability(*it, families[i], NULL, pruners[i], p.p_lambda, *p.cache._p_diffmat);
         result[i] = *std::max_element(pruners[i].at(p.p_tree).data(), pruners[i].at(p.p_tree).data() + pruners[i].at(p.p_tree).size());
     }
     return result;
@@ -220,7 +223,7 @@ std::vector<double> get_random_probabilities(pvalue_parameters p, int number_of_
 {
     vector<simulated_family> families(number_of_simulations);
 
-    generate(families.begin(), families.end(), [p, root_family_size]() { return create_simulated_family(p.p_tree, p.p_lambda, root_family_size, p.cache); });
+    generate(families.begin(), families.end(), [p, root_family_size]() { return create_simulated_family(p.p_tree, p.p_lambda, root_family_size, *p.cache._p_diffmat); });
 
     auto result = compute_family_probabilities(p, families, root_family_size);
 
@@ -309,7 +312,7 @@ vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_trans
     for (size_t i = 0; i < families.size(); ++i)
     {
         for (auto it = p.p_tree->reverse_level_begin(); it != p.p_tree->reverse_level_end(); ++it)
-            compute_node_probability(*it, families[i], NULL, pruners[i], p.p_lambda, p.cache);
+            compute_node_probability(*it, families[i], NULL, pruners[i], p.p_lambda, *p.cache._p_diffmat);
     }
 
     vector<double> result(families.size());
@@ -335,7 +338,7 @@ std::vector<double> inference_prune(const gene_transcript& gf, matrix_cache& cal
     auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(DISCRETIZATION_RANGE); };
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
 
-    auto compute_func = [&](const clade* c) { compute_node_probability(c, gf, p_error_model, probabilities, multiplier.get(), calc); };
+    auto compute_func = [&](const clade* c) { compute_node_probability(c, gf, p_error_model, probabilities, multiplier.get(), *calc._p_diffmat); };
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), compute_func);
 
     return vector<double>(probabilities.at(p_tree).data(), probabilities.at(p_tree).data() + probabilities.at(p_tree).size()); // likelihood of the whole tree = multiplication of likelihood of all nodes
@@ -383,7 +386,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     cache.precalculate_matrices({ 0.045 }, { 1.0,3.0,7.0 });
 
     auto A = p_tree->find_descendant("A");
-    compute_node_probability(A, family, NULL, probabilities, &lambda, cache);
+    compute_node_probability(A, family, NULL, probabilities, &lambda, *cache._p_diffmat);
     auto& actual = probabilities[A];
 
     vector<double> expected(DISCRETIZATION_RANGE);
@@ -397,7 +400,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     }
 
     auto B = p_tree->find_descendant("B");
-    compute_node_probability(B, family, NULL, probabilities, &lambda, cache);
+    compute_node_probability(B, family, NULL, probabilities, &lambda, *cache._p_diffmat);
     actual = probabilities[B];
 
     expected = vector<double>(DISCRETIZATION_RANGE);
@@ -430,9 +433,9 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly" * doctest::
     cache.precalculate_matrices({ 0.03 }, { 1.0,3.0,7.0 });
 
     auto AB = p_tree->find_descendant("AB");
-    compute_node_probability(p_tree->find_descendant("A"), family, NULL, probabilities, &lambda, cache);
-    compute_node_probability(p_tree->find_descendant("B"), family, NULL, probabilities, &lambda, cache);
-    compute_node_probability(AB, family, NULL, probabilities, &lambda, cache);
+    compute_node_probability(p_tree->find_descendant("A"), family, NULL, probabilities, &lambda, *cache._p_diffmat);
+    compute_node_probability(p_tree->find_descendant("B"), family, NULL, probabilities, &lambda, *cache._p_diffmat);
+    compute_node_probability(AB, family, NULL, probabilities, &lambda, *cache._p_diffmat);
 
     auto& actual = probabilities[AB];
 
@@ -475,7 +478,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_from_error_model_if_pr
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
 
     auto A = p_tree->find_descendant("A");
-    compute_node_probability(A, family, &model, probabilities, &lambda, cache);
+    compute_node_probability(A, family, &model, probabilities, &lambda, *cache._p_diffmat);
     auto& actual = probabilities[A];
 
     vector<double> expected{ 0, 0, 0.2, 0.6, 0.2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };

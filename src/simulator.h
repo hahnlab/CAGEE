@@ -5,6 +5,7 @@
 #include "clade.h"
 
 class root_distribution;
+class DiffMat;
 
 struct simulated_family
 {
@@ -35,7 +36,7 @@ struct simulated_family
     }
 };
 
-simulated_family create_simulated_family(const clade* p_tree, const lambda* p_sigma, double root_value, const matrix_cache& cache);
+simulated_family create_simulated_family(const clade* p_tree, const lambda* p_sigma, double root_value, const DiffMat& cache);
 
 /*! @brief Build simulated families based on the user's input
 
