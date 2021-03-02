@@ -4,7 +4,7 @@
 //! @brief Extends the Base model by assuming lambda values belong to a gamma distribution
 class inference_process_factory;
 class gamma_bundle;
-
+class DiffMat;
 
 //! @brief Holds data for reconstructing a tree based on the Gamma model
 //! \ingroup gamma
@@ -95,7 +95,7 @@ public:
 
     bool can_infer() const;
 
-    bool prune(const gene_transcript& family, const root_equilibrium_distribution& eq, matrix_cache& calc, const lambda *p_lambda,
+    bool prune(const gene_transcript& family, const root_equilibrium_distribution& eq, const DiffMat& calc, const lambda *p_lambda,
         std::vector<double>& category_likelihoods);
 };
 

@@ -18,6 +18,7 @@ class inference_optimizer_scorer;
 class gene_transcript;
 class root_equilibrium_distribution;
 class input_parameters;
+class matrix_cache;
 
 struct family_info_stash {
     family_info_stash() : lambda_multiplier(0.0), category_likelihood(0.0), family_likelihood(0.0), 
@@ -201,8 +202,6 @@ inline std::string filename(std::string base, std::string suffix)
 {
     return filename(base, suffix, "txt");
 }
-
-std::vector<double> inference_prune(const gene_transcript& gf, matrix_cache& calc, const lambda *_lambda, const error_model *p_error_model, const clade *_p_tree, double _lambda_multiplier, int _max_root_family_size, int _max_family_size);
 
 #endif /* CORE_H */
 

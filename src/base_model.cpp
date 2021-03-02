@@ -16,6 +16,7 @@
 #include "simulator.h"
 #include "lambda.h"
 #include "io.h"
+#include "DiffMat.h"
 
 using namespace std;
 
@@ -66,14 +67,11 @@ double base_model::infer_family_likelihoods(const root_equilibrium_distribution 
     results.resize(_p_gene_families->size());
     std::vector<double> all_families_likelihood(_p_gene_families->size());
 
-    matrix_cache calc;
-    calc.precalculate_matrices(get_lambda_values(_p_lambda), _p_tree->get_branch_lengths());
-
     vector<vector<double>> partial_likelihoods(_p_gene_families->size());
 #pragma omp parallel for
     for (size_t i = 0; i < _p_gene_families->size(); ++i) {
         if (references[i] == i)
-            partial_likelihoods[i] = inference_prune(_p_gene_families->at(i), calc, _p_lambda, _p_error_model, _p_tree, 1.0, _max_root_family_size, _max_family_size);
+            partial_likelihoods[i] = inference_prune(_p_gene_families->at(i), DiffMat::instance(), _p_lambda, _p_error_model, _p_tree, 1.0, _max_root_family_size, _max_family_size);
             // probabilities of various family sizes
     }
 

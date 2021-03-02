@@ -20,6 +20,7 @@
 #include "optimizer_scorer.h"
 #include "simulator.h"
 #include "lambda.h"
+#include "DiffMat.h"
 
 using namespace std;
 
@@ -135,14 +136,14 @@ bool gamma_model::can_infer() const
     return true;
 }
 
-bool gamma_model::prune(const gene_transcript& family, const root_equilibrium_distribution& prior, matrix_cache& calc, const lambda *p_lambda,
+bool gamma_model::prune(const gene_transcript& family, const root_equilibrium_distribution& prior, const DiffMat& diff_mat, const lambda *p_lambda,
     std::vector<double>& category_likelihoods) 
 {
     category_likelihoods.clear();
 
     for (size_t k = 0; k < _gamma_cat_probs.size(); ++k)
     {
-        auto partial_likelihood = inference_prune(family, calc, p_lambda, _p_error_model, _p_tree, _lambda_multipliers[k], _max_root_family_size, _max_family_size);
+        auto partial_likelihood = inference_prune(family, diff_mat, p_lambda, _p_error_model, _p_tree, _lambda_multipliers[k], _max_root_family_size, _max_family_size);
         if (accumulate(partial_likelihood.begin(), partial_likelihood.end(), 0.0) == 0.0)
             return false;   // saturation
 
@@ -177,8 +178,6 @@ double gamma_model::infer_family_likelihoods(const root_equilibrium_distribution
     vector<double> all_bundles_likelihood(_p_gene_families->size());
 
     vector<bool> failure(_p_gene_families->size());
-    matrix_cache calc;
-    prepare_matrices_for_simulation(calc);
 
     vector<vector<family_info_stash>> pruning_results(_p_gene_families->size());
 
@@ -186,7 +185,7 @@ double gamma_model::infer_family_likelihoods(const root_equilibrium_distribution
     for (size_t i = 0; i < _p_gene_families->size(); i++) {
         auto& cat_likelihoods = _category_likelihoods[i];
 
-        if (prune(_p_gene_families->at(i), prior, calc, p_lambda, cat_likelihoods))
+        if (prune(_p_gene_families->at(i), prior, DiffMat::instance(), p_lambda, cat_likelihoods))
         {
             double family_likelihood = accumulate(cat_likelihoods.begin(), cat_likelihoods.end(), 0.0);
 

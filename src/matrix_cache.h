@@ -5,11 +5,7 @@
 #include <vector>
 #include <set>
 
-#include <Eigen/Dense>
-
 #include <assert.h>
-
-class DiffMat;
 
 class matrix
 {
@@ -73,7 +69,6 @@ private:
     std::map<matrix_cache_key, matrix*> _matrix_cache; //!< nested map that stores transition probabilities for a given lambda and branch_length (outer), then for a given parent and child size (inner)
     int _matrix_size;
 public:
-    static DiffMat* _p_diffmat;
     void precalculate_matrices(const std::vector<double>& lambdas, const std::set<double>& branch_lengths);
     const matrix* get_matrix(double branch_length, double lambda) const;
 

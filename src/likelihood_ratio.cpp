@@ -10,6 +10,7 @@
 #include "root_equilibrium_distribution.h"
 #include "optimizer.h"
 #include "lambda.h"
+#include "DiffMat.h"
 
 namespace LikelihoodRatioTest
 {
@@ -39,9 +40,7 @@ namespace LikelihoodRatioTest
                 lambda_cache[lambda_index] = new single_lambda(result.values[0]);
         }
 
-        matrix_cache m;
-        m.precalculate_matrices(get_lambda_values(lambda_cache[lambda_index]), adjusted_tree->get_branch_lengths());
-        auto probs = inference_prune(gf, m, lambda_cache[lambda_index], nullptr, adjusted_tree.get(), 1.0, max_root_family_size, max_family_size);
+        auto probs = inference_prune(gf, DiffMat::instance(), lambda_cache[lambda_index], nullptr, adjusted_tree.get(), 1.0, max_root_family_size, max_family_size);
         return *max_element(probs.begin(), probs.end());
     }
 
@@ -54,14 +53,12 @@ namespace LikelihoodRatioTest
     {
         auto references = build_reference_list(data.gene_families);
 
-        matrix_cache cache;
         for (size_t i = 0; i < data.gene_families.size(); i += 1)
         {
             auto& pitem = data.gene_families[i];
             if (references[i] != i) continue;
 
-            cache.precalculate_matrices(get_lambda_values(data.p_lambda), data.p_tree->get_branch_lengths());
-            auto values = inference_prune(pitem, cache, data.p_lambda, data.p_error_model, data.p_tree, 1.0, data.max_root_family_size, data.max_family_size);
+            auto values = inference_prune(pitem, DiffMat::instance(), data.p_lambda, data.p_error_model, data.p_tree, 1.0, data.max_root_family_size, data.max_family_size);
             double maxlh1 = *max_element(values.begin(), values.end());
             double prev = -1;
             double next = get_likelihood_for_diff_lambdas(pitem, data.p_tree, data.p_lambda_tree, 0, lambda_cache, p_opt, data.max_root_family_size, data.max_family_size);

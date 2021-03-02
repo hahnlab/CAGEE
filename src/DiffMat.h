@@ -11,6 +11,8 @@ public:
     Eigen::VectorXcd eig;
 
     DiffMat(int Npts);
+
+    static const DiffMat& instance();
 };
 
 Eigen::MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, std::pair<double, double> bounds);

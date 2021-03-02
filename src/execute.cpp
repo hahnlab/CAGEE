@@ -19,6 +19,7 @@
 #include "io.h"
 #include "root_equilibrium_distribution.h"
 #include "lambda.h"
+#include "DiffMat.h"
 
 using namespace std;
 
@@ -156,12 +157,10 @@ void estimator::execute(std::vector<model *>& models)
                 /// For Gamma models, we tried using the most rapidly changing lambda multiplier here, but that
                 /// caused issues in the pvalue calculation. It should be best to use the original lambda
                 /// instead
-                matrix_cache cache;
-                cache.precalculate_matrices(get_lambda_values(p_model->get_lambda()), data.p_tree->get_branch_lengths());
-
-                pvalue_parameters p = { data.p_tree, p_model->get_lambda(), data.max_family_size, data.max_root_family_size, cache };
+                pvalue_parameters p = { data.p_tree, p_model->get_lambda(), data.max_family_size, data.max_root_family_size, DiffMat::instance() };
                 auto pvalues = compute_pvalues(p, data.gene_families, 1000 );
 
+                matrix_cache cache;
                 std::unique_ptr<reconstruction> rec(p_model->reconstruct_ancestral_states(data.gene_families, &cache, &data.prior));
 
                 branch_probabilities probs;

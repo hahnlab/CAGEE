@@ -5,7 +5,7 @@
 #include <Eigen/Dense>
 
 class matrix;
-class matrix_cache;
+class DiffMat;
 class gene_transcript;
 class lambda;
 class clade;
@@ -17,7 +17,7 @@ struct pvalue_parameters
     const lambda* p_lambda;
     const int max_family_size;
     const int max_root_family_size;
-    const matrix_cache& cache;
+    const DiffMat& diff_mat;
 };
 
 double chooseln(double n, double k);
@@ -33,5 +33,7 @@ double pvalue(double v, const std::vector<double>& conddist);
 std::vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_transcript>& families, int number_of_simulations);
 
 Eigen::VectorXd VectorPos_bounds(int x, int Npts, std::pair<int, int> bounds);
+
+std::vector<double> inference_prune(const gene_transcript& gf, const DiffMat& diff_mat, const lambda* _lambda, const error_model* p_error_model, const clade* _p_tree, double _lambda_multiplier, int _max_root_family_size, int _max_family_size);
 
 #endif

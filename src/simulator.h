@@ -68,7 +68,7 @@ class simulator : public action
 public:
     simulator(user_data& d, const input_parameters& ui);
 
-    simulated_family create_trial(const lambda *p_lambda, int family_number, const matrix_cache& cache);
+    simulated_family create_trial(const lambda *p_lambda, int family_number, const DiffMat& cache);
 
     virtual void execute(std::vector<model *>& models);
     void print_simulations(std::ostream& ost, bool include_internal_nodes, const std::vector<simulated_family>& results);

@@ -88,12 +88,8 @@ int matrix::select_random_y(int x, int max) const
     return distribution(randomizer_engine);
 }
 
-DiffMat* matrix_cache::_p_diffmat = nullptr;
-
 matrix_cache::matrix_cache() : _matrix_size(DISCRETIZATION_RANGE)
 {
-    if (!_p_diffmat)
-        _p_diffmat = new DiffMat(DISCRETIZATION_RANGE);
 }
 
 matrix_cache::~matrix_cache()
@@ -156,7 +152,7 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& lambdas, con
     {
         double sigma = keys[i].lambda();
         double branch_length = keys[i].branch_length();
-        MatrixXd mxd = ConvProp_bounds(branch_length, sigma*sigma/2, *_p_diffmat, pair<double, double>(0.0, _matrix_size));
+        MatrixXd mxd = ConvProp_bounds(branch_length, sigma*sigma/2, DiffMat::instance(), pair<double, double>(0.0, _matrix_size));
 
         matrix* m = matrices[i];
         for (int j = 0; j < DISCRETIZATION_RANGE; ++j)

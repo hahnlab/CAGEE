@@ -27,6 +27,17 @@ DiffMat::DiffMat(int Npts) {
 
 }
 
+DiffMat* p_diffmat = nullptr;
+
+const DiffMat& DiffMat::instance()
+{
+    if (!p_diffmat)
+        p_diffmat = new DiffMat(DISCRETIZATION_RANGE);
+
+    return *p_diffmat;
+}
+
+
 MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, pair<double, double> bounds) {
     auto tP = dMat.passage.transpose();
 

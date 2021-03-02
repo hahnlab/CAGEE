@@ -34,6 +34,7 @@ INITIALIZE_EASYLOGGINGPP
 #include "src/error_model.h"
 #include "src/likelihood_ratio.h"
 #include "src/lambda.h"
+#include "src/DiffMat.h"
 
 using namespace std;
 
@@ -588,10 +589,8 @@ TEST_CASE("Probability: get_random_probabilities" * doctest::skip(true))
     unique_ptr<clade> p_tree(parse_newick("((A:1,B:1):1,(C:1,D:1):1);"));
 
     single_lambda lam(0.05);
-    matrix_cache cache;
-    cache.precalculate_matrices(vector<double>{0.05}, set<double>{1});
 
-    pvalue_parameters p = { p_tree.get(),  &lam, 12, 8, cache };
+    pvalue_parameters p = { p_tree.get(),  &lam, 12, 8, DiffMat::instance() };
     auto probs = get_random_probabilities(p, 10, 3);
     CHECK_EQ(10, probs.size());
     CHECK_EQ(doctest::Approx(0.001905924).scale(10000), probs[0]);
@@ -1195,13 +1194,11 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_prune" * doctest::skip(true))
     _user_data.rootdist[4] = 2;
     _user_data.rootdist[5] = 1;
     root_equilibrium_distribution dist(_user_data.rootdist);
-    matrix_cache cache;
-    cache.precalculate_matrices({ 0.0005, 0.0025 }, set<double>{1, 3, 7});
 
     gamma_model model(&lambda, p_tree.get(), &families, 10, 8, { 0.01, 0.05 }, { 0.1, 0.5 }, NULL);
 
     vector<double> cat_likelihoods;
-    CHECK(model.prune(families[0], dist, cache, &lambda, cat_likelihoods));
+    CHECK(model.prune(families[0], dist, DiffMat::instance(), &lambda, cat_likelihoods));
 
     CHECK_EQ(2, cat_likelihoods.size());
     CHECK_EQ(doctest::Approx(-23.04433), log(cat_likelihoods[0]));
@@ -1216,13 +1213,11 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_prune_returns_false_if_saturated" * do
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     single_lambda lambda(0.9);
 
-    matrix_cache cache;
-    cache.precalculate_matrices({ 0.09, 0.45 }, set<double>{1, 3, 7});
     vector<double> cat_likelihoods;
 
     gamma_model model(&lambda, p_tree.get(), &families, 10, 8, { 1.0,1.0 }, { 0.1, 0.5 }, NULL);
 
-    CHECK(!model.prune(families[0], _user_data.prior, cache, &lambda, cat_likelihoods));
+    CHECK(!model.prune(families[0], _user_data.prior, DiffMat::instance(), &lambda, cat_likelihoods));
 }
 
 TEST_CASE("Inference: matrix_cache_key_handles_floating_point_imprecision")
@@ -1560,7 +1555,7 @@ TEST_CASE("Inference: prune" * doctest::skip(true))
     single_lambda lambda(0.03);
     matrix_cache cache;
     cache.precalculate_matrices({ 0.045 }, { 1.0,3.0,7.0 });
-    auto actual = inference_prune(fam, cache, &lambda, nullptr, p_tree.get(), 1.5, 20, 20);
+    auto actual = inference_prune(fam, DiffMat::instance(), &lambda, nullptr, p_tree.get(), 1.5, 20, 20);
 
     vector<double> log_expected{ -17.2771, -10.0323 , -5.0695 , -4.91426 , -5.86062 , -7.75163 , -10.7347 , -14.2334 , -18.0458 ,
         -22.073 , -26.2579 , -30.5639 , -34.9663 , -39.4472 , -43.9935 , -48.595 , -53.2439 , -57.9338 , -62.6597 , -67.4173 };
@@ -1920,9 +1915,8 @@ TEST_CASE_FIXTURE(Inference, "estimator_compute_pvalues" * doctest::skip(true))
 {
     input_parameters params;
     matrix_cache cache;
-    cache.precalculate_matrices(get_lambda_values(_user_data.p_lambda), _user_data.p_tree->get_branch_lengths());
 
-    pvalue_parameters p = { _user_data.p_tree,  _user_data.p_lambda, _user_data.max_family_size, _user_data.max_root_family_size, cache };
+    pvalue_parameters p = { _user_data.p_tree,  _user_data.p_lambda, _user_data.max_family_size, _user_data.max_root_family_size, DiffMat::instance() };
 
     auto values = compute_pvalues(p, _user_data.gene_families, 3);
     CHECK_EQ(1, values.size());

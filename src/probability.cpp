@@ -203,7 +203,7 @@ vector<double> compute_family_probabilities(pvalue_parameters p, vector<simulate
     for (size_t i = 0; i < result.size(); ++i)
     {
         for (auto it = p.p_tree->reverse_level_begin(); it != p.p_tree->reverse_level_end(); ++it)
-            compute_node_probability(*it, families[i], NULL, pruners[i], p.p_lambda, *p.cache._p_diffmat);
+            compute_node_probability(*it, families[i], NULL, pruners[i], p.p_lambda, p.diff_mat);
         result[i] = *std::max_element(pruners[i].at(p.p_tree).data(), pruners[i].at(p.p_tree).data() + pruners[i].at(p.p_tree).size());
     }
     return result;
@@ -223,7 +223,7 @@ std::vector<double> get_random_probabilities(pvalue_parameters p, int number_of_
 {
     vector<simulated_family> families(number_of_simulations);
 
-    generate(families.begin(), families.end(), [p, root_family_size]() { return create_simulated_family(p.p_tree, p.p_lambda, root_family_size, *p.cache._p_diffmat); });
+    generate(families.begin(), families.end(), [p, root_family_size]() { return create_simulated_family(p.p_tree, p.p_lambda, root_family_size, p.diff_mat); });
 
     auto result = compute_family_probabilities(p, families, root_family_size);
 
@@ -312,7 +312,7 @@ vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_trans
     for (size_t i = 0; i < families.size(); ++i)
     {
         for (auto it = p.p_tree->reverse_level_begin(); it != p.p_tree->reverse_level_end(); ++it)
-            compute_node_probability(*it, families[i], NULL, pruners[i], p.p_lambda, *p.cache._p_diffmat);
+            compute_node_probability(*it, families[i], NULL, pruners[i], p.p_lambda, p.diff_mat);
     }
 
     vector<double> result(families.size());
@@ -331,14 +331,14 @@ vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_trans
 /// and a given multiplier. Works by calling \ref compute_node_probability on all nodes of the tree
 /// using the species counts for the family. 
 /// \returns a vector of probabilities for gene counts at the root of the tree 
-std::vector<double> inference_prune(const gene_transcript& gf, matrix_cache& calc, const lambda* p_lambda, const error_model* p_error_model, const clade* p_tree, double lambda_multiplier, int max_root_family_size, int max_family_size)
+std::vector<double> inference_prune(const gene_transcript& gf, const DiffMat& diff_mat, const lambda* p_lambda, const error_model* p_error_model, const clade* p_tree, double lambda_multiplier, int max_root_family_size, int max_family_size)
 {
     unique_ptr<lambda> multiplier(p_lambda->multiply(lambda_multiplier));
     clademap<VectorXd> probabilities;
     auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(DISCRETIZATION_RANGE); };
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
 
-    auto compute_func = [&](const clade* c) { compute_node_probability(c, gf, p_error_model, probabilities, multiplier.get(), *calc._p_diffmat); };
+    auto compute_func = [&](const clade* c) { compute_node_probability(c, gf, p_error_model, probabilities, multiplier.get(), diff_mat); };
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), compute_func);
 
     return vector<double>(probabilities.at(p_tree).data(), probabilities.at(p_tree).data() + probabilities.at(p_tree).size()); // likelihood of the whole tree = multiplication of likelihood of all nodes
@@ -377,16 +377,13 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
 
     single_lambda lambda(0.03);
 
-    matrix_cache cache;
     std::map<const clade*, VectorXd> probabilities;
 
     auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(DISCRETIZATION_RANGE); };
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
 
-    cache.precalculate_matrices({ 0.045 }, { 1.0,3.0,7.0 });
-
     auto A = p_tree->find_descendant("A");
-    compute_node_probability(A, family, NULL, probabilities, &lambda, *cache._p_diffmat);
+    compute_node_probability(A, family, NULL, probabilities, &lambda, DiffMat::instance());
     auto& actual = probabilities[A];
 
     vector<double> expected(DISCRETIZATION_RANGE);
@@ -400,7 +397,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     }
 
     auto B = p_tree->find_descendant("B");
-    compute_node_probability(B, family, NULL, probabilities, &lambda, *cache._p_diffmat);
+    compute_node_probability(B, family, NULL, probabilities, &lambda, DiffMat::instance());
     actual = probabilities[B];
 
     expected = vector<double>(DISCRETIZATION_RANGE);
@@ -425,17 +422,14 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly" * doctest::
 
     single_lambda lambda(0.03);
 
-    matrix_cache cache;
     std::map<const clade*, VectorXd> probabilities;
     auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(DISCRETIZATION_RANGE); };
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
 
-    cache.precalculate_matrices({ 0.03 }, { 1.0,3.0,7.0 });
-
     auto AB = p_tree->find_descendant("AB");
-    compute_node_probability(p_tree->find_descendant("A"), family, NULL, probabilities, &lambda, *cache._p_diffmat);
-    compute_node_probability(p_tree->find_descendant("B"), family, NULL, probabilities, &lambda, *cache._p_diffmat);
-    compute_node_probability(AB, family, NULL, probabilities, &lambda, *cache._p_diffmat);
+    compute_node_probability(p_tree->find_descendant("A"), family, NULL, probabilities, &lambda, DiffMat::instance());
+    compute_node_probability(p_tree->find_descendant("B"), family, NULL, probabilities, &lambda, DiffMat::instance());
+    compute_node_probability(AB, family, NULL, probabilities, &lambda, DiffMat::instance());
 
     auto& actual = probabilities[AB];
 
@@ -462,9 +456,6 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_from_error_model_if_pr
 
     single_lambda lambda(0.03);
 
-    matrix_cache cache;
-    cache.precalculate_matrices({ 0.045 }, { 1.0,3.0,7.0 });
-
     string input = "maxcnt: 20\ncntdiff: -1 0 1\n"
         "0 0.0 0.8 0.2\n"
         "1 0.2 0.6 0.2\n"
@@ -478,7 +469,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_from_error_model_if_pr
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
 
     auto A = p_tree->find_descendant("A");
-    compute_node_probability(A, family, &model, probabilities, &lambda, *cache._p_diffmat);
+    compute_node_probability(A, family, &model, probabilities, &lambda, DiffMat::instance());
     auto& actual = probabilities[A];
 
     vector<double> expected{ 0, 0, 0.2, 0.6, 0.2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -550,9 +541,7 @@ TEST_CASE("compute_family_probabilities")
     unique_ptr<clade> p_tree(parse_newick("((A:1,B:3):7,(C:11,D:17):23);"));
 
     single_lambda lambda(0.03);
-    matrix_cache cache;
-    cache.precalculate_matrices({ 0.03 }, p_tree->get_branch_lengths());
-    pvalue_parameters p = { p_tree.get(),  &lambda, 20, 15, cache };
+    pvalue_parameters p = { p_tree.get(),  &lambda, 20, 15, DiffMat::instance() };
 
     vector<simulated_family> v(1);
     v[0].values[p_tree.get()] = 5;

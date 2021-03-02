@@ -107,13 +107,13 @@ simulated_family create_simulated_family(const clade *p_tree, const lambda* p_si
 // At the root, we have a vector of length DISCRETIZATION_RANGE. This has probability 1 at the size of the root
 // and 0 everywhere else
 // for each child, generate the transition matrix and multiply
-simulated_family simulator::create_trial(const lambda *p_sigma, int family_number, const matrix_cache& cache) {
+simulated_family simulator::create_trial(const lambda *p_sigma, int family_number, const DiffMat& diff_mat) {
     double root_size = data.prior.select_root_size(family_number);
 
     if (data.p_tree == NULL)
         throw runtime_error("No tree specified for simulation");
 
-    return create_simulated_family(data.p_tree, p_sigma, root_size, *cache._p_diffmat);
+    return create_simulated_family(data.p_tree, p_sigma, root_size, diff_mat);
 }
 
 void simulator::simulate_processes(model *p_model, std::vector<simulated_family>& results) {
@@ -134,13 +134,11 @@ void simulator::simulate_processes(model *p_model, std::vector<simulated_family>
     {
         unique_ptr<lambda> sim_lambda(p_model->get_simulation_lambda());
         
-        matrix_cache cache;
-
         int n = 0;
 
         auto end_it = i + LAMBDA_PERTURBATION_STEP_SIZE > results.size() ? results.end() : results.begin() + i + LAMBDA_PERTURBATION_STEP_SIZE;
-        generate(results.begin()+i, end_it, [this, &sim_lambda, i, &cache, &n]() mutable {
-            return create_trial(sim_lambda.get(), i+n++, cache);
+        generate(results.begin()+i, end_it, [this, &sim_lambda, i, &n]() mutable {
+            return create_trial(sim_lambda.get(), i+n++, DiffMat::instance());
         });
     }
 }
@@ -238,9 +236,7 @@ TEST_CASE("create_trial")
     input_parameters params;
     simulator sim(data, params);
 
-    matrix_cache cache;
-
-    simulated_family actual = sim.create_trial(&lam, 2, cache);
+    simulated_family actual = sim.create_trial(&lam, 2, DiffMat::instance());
 
     CHECK_EQ(doctest::Approx(5.0), actual.values.at(p_tree.get()));
     CHECK_EQ(doctest::Approx(5.17732), actual.values.at(p_tree->find_descendant("A")));
