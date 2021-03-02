@@ -1,6 +1,7 @@
 #include "DiffMat.h"
-#include "easylogging++.h"
+
 #include "doctest.h"
+#include "easylogging++.h"
 
 using namespace Eigen;
 using namespace std;
