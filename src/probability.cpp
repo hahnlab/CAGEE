@@ -95,23 +95,6 @@ double chooseln(double n, double r)
 
 /* END: Math tools ----------------------- */
 
-VectorXd VectorPos_bounds(int x, int Npts, pair<int, int> bounds) {
-    VectorXd X = VectorXd::Zero(Npts);
-    if (x == bounds.second)
-    {
-        X[Npts-1] = 1;
-    }
-    else
-    {
-        double nx = (Npts - 1) * (x - bounds.first) / double(bounds.second - bounds.first);
-        int ix = floor(nx);
-        double ux = nx - ix;
-        X[ix + 1] = ux;
-        X[ix] = 1 - ux;
-    }
-    return X.unaryExpr([Npts, bounds](double x) {return x * (Npts - 1) / double(bounds.second - bounds.first); });
-}
-
 double largest_observed_value(const gene_transcript& transcript)
 {
     auto sp = transcript.get_species();
