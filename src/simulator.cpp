@@ -310,3 +310,27 @@ TEST_CASE("print_process_can_print_without_internal_nodes")
 
 }
 
+TEST_CASE("Check mean and variance of a simulated family leaf")
+{
+    randomizer_engine.seed(10);
+
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:1):1"));
+    single_lambda sigma(10);
+    auto a = p_tree->find_descendant("A");
+
+    size_t sz = 3;  // make this larger when simulations are faster
+    vector<double> v(sz);
+    generate(v.begin(), v.end(), [&]() {
+        auto sim = create_simulated_family(p_tree.get(), &sigma, 10, DiffMat::instance());
+        return sim.values[a];
+        });
+
+    auto mean = std::accumulate(v.begin(), v.end(), 0.0) / sz;
+    auto variance = std::accumulate(v.begin(), v.end(), 0.0, [&mean, &sz](double accumulator, const double& val) {
+        return accumulator + ((val - mean) * (val - mean) / (sz - 1));
+     });
+
+    CHECK_EQ(doctest::Approx(9.37455), mean);
+    CHECK_EQ(doctest::Approx(9.90501), variance);
+
+}
