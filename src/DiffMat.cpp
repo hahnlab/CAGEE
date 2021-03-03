@@ -59,7 +59,7 @@ MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, pair<doub
     return result;
 }
 
-VectorXd VectorPos_bounds(int x, int Npts, pair<double, double> bounds) {
+VectorXd VectorPos_bounds(double x, int Npts, pair<double, double> bounds) {
     VectorXd X = VectorXd::Zero(Npts);
     if (x == bounds.second)
     {

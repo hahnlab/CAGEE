@@ -116,7 +116,7 @@ void compute_node_probability(const clade* node,
     const DiffMat& diff_mat)
 {
     if (node->is_leaf()) {
-        int species_size = gene_transcript.get_species_size(node->get_taxon_name());
+        double species_size = gene_transcript.get_species_size(node->get_taxon_name());
 
         if (p_error_model != NULL)
         {
@@ -346,7 +346,7 @@ std::vector<double> inference_prune(const gene_transcript& gf, const DiffMat& di
 
 TEST_CASE("VectorPos_bounds")
 {
-    auto actual = VectorPos_bounds(7, 20, pair<double, double>(0, 10));
+    auto actual = VectorPos_bounds(7.0, 20, pair<double, double>(0, 10));
     vector<double> expected{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.33, 0.57, 0, 0, 0, 0, 0 };
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
@@ -357,7 +357,7 @@ TEST_CASE("VectorPos_bounds")
 
 TEST_CASE("VectorPos_bounds at right edge")
 {
-    auto actual = VectorPos_bounds(10, 20, pair<double, double>(0, 10));
+    auto actual = VectorPos_bounds(10.0, 20, pair<double, double>(0, 10));
     vector<double> expected{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.9 };
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
