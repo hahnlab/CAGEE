@@ -16,6 +16,6 @@ public:
 };
 
 Eigen::MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, std::pair<double, double> bounds);
-Eigen::VectorXd VectorPos_bounds(int x, int Npts, std::pair<int, int> bounds);
+Eigen::VectorXd VectorPos_bounds(int x, int Npts, std::pair<double, double> bounds);
 
 #endif

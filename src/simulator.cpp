@@ -55,11 +55,11 @@ public:
 
     int bin(double value) const
     {
-        return value / _max_value * DISCRETIZATION_RANGE;
+        return value / _max_value * (DISCRETIZATION_RANGE-1);
     }
     double value(int bin) const
     {
-        return bin * _max_value / double(DISCRETIZATION_RANGE);
+        return bin * _max_value / double(DISCRETIZATION_RANGE-1);
     }
     double max_value() const
     {
@@ -92,7 +92,7 @@ simulated_family create_simulated_family(const clade *p_tree, const lambda* p_si
     get_child_value = [&](const clade* c) {
         double sigma = p_sigma->get_value_for_clade(c);
         MatrixXd m = ConvProp_bounds(c->get_branch_length(), sigma * sigma / 2, diff_mat, pair<double, double>(0.0, b.max_value()));
-        VectorXd v = VectorPos_bounds(sim.values[c->get_parent()], DISCRETIZATION_RANGE, std::pair<int, int>(0, b.max_value()));
+        VectorXd v = VectorPos_bounds(sim.values[c->get_parent()], DISCRETIZATION_RANGE, std::pair<double, double>(0, b.max_value()));
         VectorXd probs = m * v;
         std::discrete_distribution<int> distribution(probs.data(), probs.data() + probs.size());
         sim.values[c] = b.value(distribution(randomizer_engine));
@@ -239,8 +239,8 @@ TEST_CASE("create_trial")
     simulated_family actual = sim.create_trial(&lam, 2, DiffMat::instance());
 
     CHECK_EQ(doctest::Approx(5.0), actual.values.at(p_tree.get()));
-    CHECK_EQ(doctest::Approx(5.17732), actual.values.at(p_tree->find_descendant("A")));
-    CHECK_EQ(doctest::Approx(5.30568), actual.values.at(p_tree->find_descendant("B")));
+    CHECK_EQ(doctest::Approx(4.85931), actual.values.at(p_tree->find_descendant("A")));
+    CHECK_EQ(doctest::Approx(4.988327), actual.values.at(p_tree->find_descendant("B")));
 }
 
 TEST_CASE("distance_from_root_to_tip")
@@ -255,10 +255,10 @@ TEST_CASE("binner")
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     binner b(&lam, p_tree.get(), 5);
 
-    CHECK_EQ(63, b.bin(2.7));
-    CHECK_EQ(doctest::Approx(5.1345374), b.value(120));
+    CHECK_EQ(62, b.bin(2.7));
+    CHECK_EQ(doctest::Approx(5.16033), b.value(120));
     CHECK_EQ(30, b.bin(1.3));
-    CHECK_EQ(doctest::Approx(1.71151), b.value(40));
+    CHECK_EQ(doctest::Approx(1.720113), b.value(40));
 }
 
 #define STRCMP_CONTAINS(x, y) CHECK(strstr(y,x) != nullptr)
