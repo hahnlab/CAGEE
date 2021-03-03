@@ -38,14 +38,14 @@ void user_data::read_gene_family_data(const input_parameters &my_input_parameter
     
     // Iterating over gene families to get max gene family size
     for (std::vector<gene_transcript>::iterator it = p_gene_families->begin(); it != p_gene_families->end(); ++it) {
-        int this_family_max_size = it->get_max_size();
+        double this_family_max_size = it->get_max_expression_value();
 
         if (max_family_size < this_family_max_size)
             max_family_size = this_family_max_size;
     }
 
-    max_root_family_size = std::max(30, static_cast<int>(std::rint(max_family_size*1.25)));
-    max_family_size = max_family_size + std::max(50, max_family_size / 5);
+    max_root_family_size = std::max(30.0, max_family_size*1.25);
+    max_family_size = max_family_size + std::max(50.0, max_family_size / 5.0);
     // cout << "Read input file " << my_input_parameters.input_file_path << "." << endl;
     // cout << "Max (parsed) family size is: " << max_family_size << endl;
     // cout << "Max root family size is: " << max_root_family_size << endl;

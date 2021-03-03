@@ -108,8 +108,8 @@ public:
         _user_data.max_root_family_size = 8;
         _user_data.gene_families.resize(1);
         _user_data.gene_families[0].set_id("TestFamily1");
-        _user_data.gene_families[0].set_species_size("A", 1);
-        _user_data.gene_families[0].set_species_size("B", 2);
+        _user_data.gene_families[0].set_expression_value("A", 1);
+        _user_data.gene_families[0].set_expression_value("B", 2);
 
         randomizer_engine.seed(10);
     }
@@ -370,10 +370,10 @@ TEST_CASE("GeneFamilies: read_gene_families_reads_cafe_files")
     std::istringstream ist(str);
     std::vector<gene_transcript> families;
     read_gene_families(ist, NULL, families);
-    CHECK_EQ(5, families.at(0).get_species_size("A"));
-    CHECK_EQ(10, families.at(0).get_species_size("B"));
-    CHECK_EQ(2, families.at(0).get_species_size("C"));
-    CHECK_EQ(6, families.at(0).get_species_size("D"));
+    CHECK_EQ(5, families.at(0).get_expression_value("A"));
+    CHECK_EQ(10, families.at(0).get_expression_value("B"));
+    CHECK_EQ(2, families.at(0).get_expression_value("C"));
+    CHECK_EQ(6, families.at(0).get_expression_value("D"));
 }
 
 TEST_CASE("GeneFamilies: read_gene_families_reads_simulation_files")
@@ -385,10 +385,10 @@ TEST_CASE("GeneFamilies: read_gene_families_reads_simulation_files")
 
     std::vector<gene_transcript> families;
     read_gene_families(ist, p_tree, families);
-    CHECK_EQ(35, families.at(0).get_species_size("A"));
-    CHECK_EQ(36, families.at(0).get_species_size("B"));
-    CHECK_EQ(36, families.at(0).get_species_size("C"));
-    CHECK_EQ(34, families.at(0).get_species_size("D"));
+    CHECK_EQ(35, families.at(0).get_expression_value("A"));
+    CHECK_EQ(36, families.at(0).get_expression_value("B"));
+    CHECK_EQ(36, families.at(0).get_expression_value("C"));
+    CHECK_EQ(34, families.at(0).get_expression_value("D"));
     delete p_tree;
 }
 
@@ -426,22 +426,22 @@ TEST_CASE("GeneFamilies: model_set_families")
 TEST_CASE("GeneFamilies: species_size_is_case_insensitive")
 {
     gene_transcript gf;
-    gf.set_species_size("Human", 5);
-    CHECK_EQ(5, gf.get_species_size("human"));
-    CHECK_EQ(5, gf.get_species_size("HUMAN"));
-    CHECK_EQ(5, gf.get_species_size("hUmAn"));
+    gf.set_expression_value("Human", 5);
+    CHECK_EQ(5, gf.get_expression_value("human"));
+    CHECK_EQ(5, gf.get_expression_value("HUMAN"));
+    CHECK_EQ(5, gf.get_expression_value("hUmAn"));
 }
 
 TEST_CASE("GeneFamilies: species_size_differential")
 {
     gene_transcript gf;
-    gf.set_species_size("Cat", 5);
-    gf.set_species_size("Horse", 3);
-    gf.set_species_size("Cow", 1);
+    gf.set_expression_value("Cat", 5);
+    gf.set_expression_value("Horse", 3);
+    gf.set_expression_value("Cow", 1);
 
     CHECK_EQ(4, gf.species_size_differential());
 
-    gf.set_species_size("Chicken", 12);
+    gf.set_expression_value("Chicken", 12);
     CHECK_EQ(11, gf.species_size_differential());
 }
 
@@ -450,20 +450,20 @@ TEST_CASE_FIXTURE(Inference, "infer_processes"
 {
     vector<gene_transcript> families;
     gene_transcript fam;
-    fam.set_species_size("A", 1);
-    fam.set_species_size("B", 2);
+    fam.set_expression_value("A", 1);
+    fam.set_expression_value("B", 2);
     families.push_back(fam);
     gene_transcript fam2;
-    fam2.set_species_size("A", 2);
-    fam2.set_species_size("B", 1);
+    fam2.set_expression_value("A", 2);
+    fam2.set_expression_value("B", 1);
     families.push_back(fam2);
     gene_transcript fam3;
-    fam3.set_species_size("A", 3);
-    fam3.set_species_size("B", 6);
+    fam3.set_expression_value("A", 3);
+    fam3.set_expression_value("B", 6);
     families.push_back(fam3);
     gene_transcript fam4;
-    fam4.set_species_size("A", 6);
-    fam4.set_species_size("B", 3);
+    fam4.set_expression_value("A", 6);
+    fam4.set_expression_value("B", 3);
     families.push_back(fam4);
 
     single_lambda lambda(0.01);
@@ -753,8 +753,8 @@ TEST_CASE_FIXTURE(Inference, "base_model_reconstruction")
     single_lambda sl(0.05);
 
     std::vector<gene_transcript> families(1);
-    families[0].set_species_size("A", 3);
-    families[0].set_species_size("B", 4);
+    families[0].set_expression_value("A", 3);
+    families[0].set_expression_value("B", 4);
 
     base_model model(&sl, p_tree.get(), &families, 5, 5, NULL);
 
@@ -789,8 +789,8 @@ TEST_CASE("Inference: increase_decrease")
     auto abcd = p_tree->find_descendant("ABCD");
 
     gf.set_id("myid");
-    gf.set_species_size("A", 4);
-    gf.set_species_size("B", 2);
+    gf.set_expression_value("A", 4);
+    gf.set_expression_value("B", 2);
     bmr._reconstructions["myid"][ab] = 3;
     bmr._reconstructions["myid"][abcd] = 3;
 
@@ -820,10 +820,10 @@ public:
         p_tree.reset(parse_newick("((A:1,B:3):7,(C:11,D:17):23);"));
 
         fam.set_id("Family5");
-        fam.set_species_size("A", 11);
-        fam.set_species_size("B", 2);
-        fam.set_species_size("C", 5);
-        fam.set_species_size("D", 6);
+        fam.set_expression_value("A", 11);
+        fam.set_expression_value("B", 2);
+        fam.set_expression_value("C", 5);
+        fam.set_expression_value("D", 6);
 
         vector<string> nodes{ "A", "B", "C", "D", "AB", "CD", "ABCD" };
         order.resize(nodes.size());
@@ -836,7 +836,7 @@ public:
 TEST_CASE_FIXTURE(Reconstruction, "reconstruct_leaf_node" * doctest::skip(true))
 {
     single_lambda lambda(0.1);
-    fam.set_species_size("Mouse", 3);
+    fam.set_expression_value("Mouse", 3);
 
     clade leaf("Mouse", 7);
 
@@ -878,11 +878,11 @@ TEST_CASE_FIXTURE(Reconstruction, "print_reconstructed_states__prints_star_for_s
 
     ostringstream sig;
     bmr.print_reconstructed_states(sig, order, { fam }, p_tree.get(), 0.05, branch_probs);
-    STRCMP_CONTAINS("  TREE Family5 = ((A<0>_11:1,B<1>_2:3)<4>*_8:7,(C<2>_5:11,D<3>_6:17)<5>_6:23)<6>_7;", sig.str().c_str());
+    STRCMP_CONTAINS("((A<0>_11.000000:1,B<1>_2.000000:3)<4>*_8.000000:7,(C<2>_5.000000:11,D<3>_6.000000:17)<5>_6.000000:23)<6>_7.000000", sig.str().c_str());
 
     ostringstream insig;
     bmr.print_reconstructed_states(insig, order, { fam }, p_tree.get(), 0.01, branch_probs);
-    STRCMP_CONTAINS("  TREE Family5 = ((A<0>_11:1,B<1>_2:3)<4>_8:7,(C<2>_5:11,D<3>_6:17)<5>_6:23)<6>_7;", insig.str().c_str());
+    STRCMP_CONTAINS("  TREE Family5 = ((A<0>_11.000000:1,B<1>_2.000000:3)<4>_8.000000:7,(C<2>_5.000000:11,D<3>_6.000000:17)<5>_6.000000:23)<6>_7.000000;", insig.str().c_str());
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__print_reconstructed_states__prints_value_for_each_category_and_a_summation")
@@ -902,7 +902,7 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__print_reconstruct
     ostringstream ost;
     branch_probabilities branch_probs;
     gmr.print_reconstructed_states(ost, order, { fam }, p_tree.get(), 0.05, branch_probs);
-    STRCMP_CONTAINS("  TREE Family5 = ((A<0>_11:1,B<1>_2:3)<4>_8:7,(C<2>_5:11,D<3>_6:17)<5>_6:23)<6>_7;", ost.str().c_str());
+    STRCMP_CONTAINS("  TREE Family5 = ((A<0>_11.000000:1,B<1>_2.000000:3)<4>_8.000000:7,(C<2>_5.000000:11,D<3>_6.000000:17)<5>_6.000000:23)<6>_7.000000;", ost.str().c_str());
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__print_additional_data__prints_likelihoods")
@@ -957,15 +957,16 @@ TEST_CASE_FIXTURE(Reconstruction, "base_model_reconstruction__print_reconstructe
     bmr.print_reconstructed_states(ost, order, { fam }, p_tree.get(), 0.05, branch_probs);
     STRCMP_CONTAINS("#nexus", ost.str().c_str());
     STRCMP_CONTAINS("BEGIN TREES;", ost.str().c_str());
-    STRCMP_CONTAINS("  TREE Family5 = ((A<0>_11:1,B<1>_2:3)<4>_8:7,(C<2>_5:11,D<3>_6:17)<5>_6:23)<6>_7;", ost.str().c_str());
+    CHECK_MESSAGE(ost.str().find("  TREE Family5 = ((A<0>_11.000000:1,B<1>_2.000000:3)<4>_8.000000:7,(C<2>_5.000000:11,D<3>_6.000000:17)<5>_6.000000:23)<6>_7.000000;") != string::npos, ost.str());
     STRCMP_CONTAINS("END;", ost.str().c_str());
+
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "reconstruction_process_internal_node" * doctest::skip(true))
 {
     single_lambda s_lambda(0.1);
-    fam.set_species_size("A", 3);
-    fam.set_species_size("B", 6);
+    fam.set_expression_value("A", 3);
+    fam.set_expression_value("B", 6);
 
     matrix_cache calc;
     calc.precalculate_matrices({ 0.1 }, set<double>({ 1, 3, 7, 11, 17, 23 }));
@@ -997,8 +998,8 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruction_process_internal_node" * docte
 TEST_CASE_FIXTURE(Reconstruction, "reconstruction_process_internal_node with 0s at the leafs" * doctest::skip(true))
 {
     single_lambda s_lambda(0.1);
-    fam.set_species_size("A", 0);
-    fam.set_species_size("B", 0);
+    fam.set_expression_value("A", 0);
+    fam.set_expression_value("B", 0);
 
     matrix_cache calc;
     calc.precalculate_matrices({ 0.1 }, set<double>({ 1, 3, 7, 11, 17, 23 }));
@@ -1030,8 +1031,8 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruction_process_internal_node with 0s 
 TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript" * doctest::skip(true))
 {
     gene_transcript fam;
-    fam.set_species_size("A", 3);
-    fam.set_species_size("B", 6);
+    fam.set_expression_value("A", 3);
+    fam.set_expression_value("B", 6);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     single_lambda lambda(0.005);
     matrix_cache cache;
@@ -1085,7 +1086,7 @@ TEST_CASE_FIXTURE(Reconstruction, "print_node_counts")
 
     gmr.print_node_counts(ost, order, { fam }, p_tree.get());
     STRCMP_CONTAINS("FamilyID\tA<0>\tB<1>\tC<2>\tD<3>\t<4>\t<5>\t<6>", ost.str().c_str());
-    STRCMP_CONTAINS("Family5\t11.000000\t2.000000\t5.000000\t6.000000\t5\t5\t5", ost.str().c_str());
+    CHECK_MESSAGE(ost.str().find("Family5\t11.000000\t2.000000\t5.000000\t6.000000\t5.000000\t5.000000\t5.000000") != string::npos, ost.str());
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "print_node_change")
@@ -1183,8 +1184,8 @@ TEST_CASE_FIXTURE(Reconstruction, "pvalues 2")
 TEST_CASE_FIXTURE(Inference, "gamma_model_prune" * doctest::skip(true))
 {
     vector<gene_transcript> families(1);
-    families[0].set_species_size("A", 3);
-    families[0].set_species_size("B", 6);
+    families[0].set_expression_value("A", 3);
+    families[0].set_expression_value("B", 6);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     single_lambda lambda(0.005);
 
@@ -1208,8 +1209,8 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_prune" * doctest::skip(true))
 TEST_CASE_FIXTURE(Inference, "gamma_model_prune_returns_false_if_saturated" * doctest::skip(true))
 {
     vector<gene_transcript> families(1);
-    families[0].set_species_size("A", 3);
-    families[0].set_species_size("B", 6);
+    families[0].set_expression_value("A", 3);
+    families[0].set_expression_value("B", 6);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     single_lambda lambda(0.9);
 
@@ -1548,8 +1549,8 @@ TEST_CASE("Inference: prune" * doctest::skip(true))
 {
     ostringstream ost;
     gene_transcript fam;
-    fam.set_species_size("A", 3);
-    fam.set_species_size("B", 6);
+    fam.set_expression_value("A", 3);
+    fam.set_expression_value("B", 6);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
     single_lambda lambda(0.03);
@@ -1613,8 +1614,8 @@ TEST_CASE("Clade: exists_at_root_returns_true_if_all_children_exist")
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
     gene_transcript family;
-    family.set_species_size("A", 3);
-    family.set_species_size("B", 6);
+    family.set_expression_value("A", 3);
+    family.set_expression_value("B", 6);
 
     CHECK(family.exists_at_root(p_tree.get()));
 }
@@ -1719,7 +1720,7 @@ TEST_CASE_FIXTURE(Reconstruction, "gene_transcript_reconstrctor__print_increases
     bmr._reconstructions["myid"][p_tree->find_descendant("AB")] = 5;
     gene_transcript gf;
     gf.set_id("myid");
-    gf.set_species_size("A", 7);
+    gf.set_expression_value("A", 7);
     order.clear();
     bmr.print_increases_decreases_by_family(insignificant, order, { gf }, { 0.03 }, 0.01);
     STRCMP_CONTAINS("myid\t0.03\tn", insignificant.str().c_str());
@@ -1756,8 +1757,8 @@ TEST_CASE("Reconstruction: base_model_print_increases_decreases_by_family")
 
     gene_transcript gf;
     gf.set_id("myid");
-    gf.set_species_size("A", 7);
-    gf.set_species_size("B", 2);
+    gf.set_expression_value("A", 7);
+    gf.set_expression_value("B", 2);
 
     ostringstream ost;
     bmr.print_increases_decreases_by_family(ost, order, { gf }, { 0.07 }, 0.05);
@@ -1785,8 +1786,8 @@ TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_family")
 
     gene_transcript gf;
     gf.set_id("myid");
-    gf.set_species_size("A", 7);
-    gf.set_species_size("B", 2);
+    gf.set_expression_value("A", 7);
+    gf.set_expression_value("B", 2);
 
     ostringstream ost;
     gmr.print_increases_decreases_by_family(ost, order, { gf }, { 0.07 }, 0.05);
@@ -1816,8 +1817,8 @@ TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade")
 
     gene_transcript gf;
     gf.set_id("myid");
-    gf.set_species_size("A", 7);
-    gf.set_species_size("B", 2);
+    gf.set_expression_value("A", 7);
+    gf.set_expression_value("B", 2);
 
     ostringstream ost;
     gmr.print_increases_decreases_by_clade(ost, order, { gf });
@@ -1848,8 +1849,8 @@ TEST_CASE("Reconstruction: base_model_print_increases_decreases_by_clade")
 
     gene_transcript gf;
     gf.set_id("myid");
-    gf.set_species_size("A", 7);
-    gf.set_species_size("B", 2);
+    gf.set_expression_value("A", 7);
+    gf.set_expression_value("B", 2);
 
     ostringstream ost;
     bmr.print_increases_decreases_by_clade(ost, order, { gf });
@@ -1895,8 +1896,8 @@ TEST_CASE("Inference: lambda_per_family")
 
     gene_transcript& family = ud.gene_families[0];
     family.set_id("test");
-    family.set_species_size("A", 3);
-    family.set_species_size("B", 6);
+    family.set_expression_value("A", 3);
+    family.set_expression_value("B", 6);
     input_parameters params;
     params.lambda_per_family = true;
 
@@ -1980,8 +1981,8 @@ TEST_CASE_FIXTURE(Inference, "poisson_scorer__lnlPoisson_skips_incalculable_fami
 {
     _user_data.gene_families.resize(2);
     _user_data.gene_families[1].set_id("TestFamily2");
-    _user_data.gene_families[1].set_species_size("A", 3);
-    _user_data.gene_families[1].set_species_size("B", 175);
+    _user_data.gene_families[1].set_expression_value("A", 3);
+    _user_data.gene_families[1].set_expression_value("B", 175);
 
     poisson_scorer scorer(_user_data.gene_families);
     double lambda = 0.05;
@@ -2109,8 +2110,8 @@ TEST_CASE_FIXTURE(Inference, "initialization_failure_advice_shows_20_families_wi
     std::ostringstream ost;
     _user_data.gene_families.resize(2);
     _user_data.gene_families[1].set_id("TestFamily2");
-    _user_data.gene_families[1].set_species_size("A", 34);
-    _user_data.gene_families[1].set_species_size("B", 86);
+    _user_data.gene_families[1].set_expression_value("A", 34);
+    _user_data.gene_families[1].set_expression_value("B", 86);
 
     initialization_failure_advice(ost, _user_data.gene_families);
     STRCMP_CONTAINS("Families with largest size differentials:", ost.str().c_str());
@@ -2658,8 +2659,8 @@ TEST_CASE("LikelihoodRatioTest, get_likelihood_for_diff_lambdas" * doctest::skip
     mock_scorer s;
     optimizer opt(&s);
     gene_transcript gf;
-    gf.set_species_size("A", 5);
-    gf.set_species_size("B", 9);
+    gf.set_expression_value("A", 5);
+    gf.set_expression_value("B", 9);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     std::vector<lambda*> cache(100);
     CHECK_EQ(0.0, LikelihoodRatioTest::get_likelihood_for_diff_lambdas(gf, p_tree.get(), 0, 0, cache, &opt, 12, 12));
@@ -2673,8 +2674,8 @@ TEST_CASE("LikelihoodRatioTest, compute_for_diff_lambdas" * doctest::skip(true))
     data.p_lambda = &lam;
     data.p_tree = p_tree.get();
     data.gene_families.resize(1);
-    data.gene_families[0].set_species_size("A", 5);
-    data.gene_families[0].set_species_size("B", 9);
+    data.gene_families[0].set_expression_value("A", 5);
+    data.gene_families[0].set_expression_value("B", 9);
     data.max_root_family_size = 12;
     data.max_family_size = 12;
     vector<int> lambda_index(data.gene_families.size(), -1);

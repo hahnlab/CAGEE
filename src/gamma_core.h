@@ -23,7 +23,7 @@ public:
 
     void print_category_likelihoods(std::ostream& ost, const cladevector& order, familyvector& gene_families);
 
-    int get_node_count(const gene_transcript& gf, const clade* c) const override;
+    double get_node_count(const gene_transcript& gf, const clade* c) const override;
 
     struct gamma_reconstruction {
         std::vector<clademap<int>> category_reconstruction;

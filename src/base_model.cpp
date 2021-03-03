@@ -182,10 +182,10 @@ lambda* base_model::get_simulation_lambda()
     return _p_lambda->multiply(simulation_lambda_multiplier);
 }
 
-int base_model_reconstruction::get_node_count(const gene_transcript& family, const clade *c) const
+double base_model_reconstruction::get_node_count(const gene_transcript& family, const clade *c) const
 {
     if (c->is_leaf())
-        return family.get_species_size(c->get_taxon_name());
+        return family.get_expression_value(c->get_taxon_name());
 
     if (_reconstructions.find(family.id()) == _reconstructions.end())
         throw runtime_error("Family " + family.id() + " not found in reconstruction");

@@ -46,17 +46,17 @@ public:
 
     void set_id(std::string id) { _id = id; }
 
-    void set_species_size(std::string species, double gene_count) {
-        _species_size_map[species] = gene_count;
+    void set_expression_value(std::string species, double val) {
+        _species_size_map[species] = val;
     }
 
     std::vector<std::string> get_species() const;
 
-    int get_max_size() const;
+    double get_max_expression_value() const;
 
     std::string id() const { return _id; }
 
-    double get_species_size(std::string species) const;
+    double get_expression_value(std::string species) const;
 
     //! Returns true if every species size for both gene families are identical
     bool species_size_match(const gene_transcript& other) const

@@ -35,7 +35,7 @@ namespace pupko_reconstructor {
 
         double branch_length = c->get_branch_length();
 
-        int observed_count = _gene_transcript->get_species_size(c->get_taxon_name());
+        double observed_count = _gene_transcript->get_expression_value(c->get_taxon_name());
         fill(C.begin(), C.end(), observed_count);
 
         auto matrix = _p_calc->get_matrix(branch_length, _lambda->get_value_for_clade(c));
@@ -344,7 +344,7 @@ void reconstruction::print_node_counts(std::ostream& ost, const cladevector& ord
     print_family_clade_table(ost, order, gene_families, p_tree, [this, gene_families](int family_index, const clade* c) {
         auto& gf = gene_families[family_index];
         if (c->is_leaf())
-            return to_string(gf.get_species_size(c->get_taxon_name()));
+            return to_string(gf.get_expression_value(c->get_taxon_name()));
         else
             return to_string(get_node_count(gf, c));
         });

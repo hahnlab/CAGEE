@@ -96,13 +96,6 @@ double chooseln(double n, double r)
 
 /* END: Math tools ----------------------- */
 
-double largest_observed_value(const gene_transcript& transcript)
-{
-    auto sp = transcript.get_species();
-    auto el = max_element(sp.begin(), sp.end(), [&transcript](string a, string b) { return transcript.get_species_size(a) < transcript.get_species_size(b);  });
-    return transcript.get_species_size(*el);
-}
-
 //! Calculates the probabilities of a given node for a given family size.
 //! The probability of a leaf node is given from the family size at that node (1 for the family
 //! size, and 0 for all other sizes). Internal nodes are calculated based on the probabilities
@@ -116,7 +109,7 @@ void compute_node_probability(const clade* node,
     const DiffMat& diff_mat)
 {
     if (node->is_leaf()) {
-        double species_size = gene_transcript.get_species_size(node->get_taxon_name());
+        double species_size = gene_transcript.get_expression_value(node->get_taxon_name());
 
         if (p_error_model != NULL)
         {
@@ -142,7 +135,7 @@ void compute_node_probability(const clade* node,
 
         for (auto it = node->descendant_begin(); it != node->descendant_end(); ++it) {
             double sigma = p_sigma->get_value_for_clade(*it);
-            MatrixXd m = ConvProp_bounds((*it)->get_branch_length(), sigma * sigma / 2, diff_mat, pair<double, double>(0.0, largest_observed_value(gene_transcript) * 1.5));
+            MatrixXd m = ConvProp_bounds((*it)->get_branch_length(), sigma * sigma / 2, diff_mat, pair<double, double>(0.0, gene_transcript.get_max_expression_value() * 1.5));
 
             auto result = m * probabilities[*it];
             for (VectorXd::Index i = 0; i < node_probs.size(); i++) {
@@ -192,7 +185,7 @@ vector<double> compute_family_probabilities(pvalue_parameters p, vector<simulate
         for (auto& it : s.values) {
             if (it.first->is_leaf())
             {
-                f.set_species_size(it.first->get_taxon_name(), it.second);
+                f.set_expression_value(it.first->get_taxon_name(), it.second);
             }
         }
         return f;
@@ -272,7 +265,7 @@ double pvalue(double v, const vector<double>& conddist)
 double find_best_pvalue(const gene_transcript& fam, const VectorXd& root_probabilities, const std::vector<std::vector<double> >& conditional_distribution)
 {    
     vector<double> pvalues(root_probabilities.size());
-    int max_size_to_check = rint(fam.get_max_size() * 1.25);
+    int max_size_to_check = rint(fam.get_max_expression_value() * 1.25);
     for (int j = 0; j < max_size_to_check; ++j)
     {
         pvalues[j] = pvalue(root_probabilities[j], conditional_distribution[j]);
@@ -370,8 +363,8 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
 {
     ostringstream ost;
     gene_transcript family;
-    family.set_species_size("A", 3);
-    family.set_species_size("B", 6);
+    family.set_expression_value("A", 3);
+    family.set_expression_value("B", 6);
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
@@ -415,8 +408,8 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly" * doctest::
 {
     ostringstream ost;
     gene_transcript family;
-    family.set_species_size("A", 3);
-    family.set_species_size("B", 6);
+    family.set_expression_value("A", 3);
+    family.set_expression_value("B", 6);
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
@@ -449,8 +442,8 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_from_error_model_if_pr
     ostringstream ost;
 
     gene_transcript family;
-    family.set_species_size("A", 3);
-    family.set_species_size("B", 6);
+    family.set_expression_value("A", 3);
+    family.set_expression_value("B", 6);
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
@@ -486,8 +479,8 @@ TEST_CASE("find_best_pvalue")
 {
     gene_transcript gt;
     gt.set_id("TestFamily1");
-    gt.set_species_size("A", 1);
-    gt.set_species_size("B", 2);
+    gt.set_expression_value("A", 1);
+    gt.set_expression_value("B", 2);
 
     std::vector<std::vector<double> > conditional_distribution(3);
     conditional_distribution[0] = vector<double>({ .1, .2, .3, .4 });
@@ -503,8 +496,8 @@ TEST_CASE("find_best_pvalue_skips_values_outside_of_range")
 {
     gene_transcript gt;
     gt.set_id("TestFamily1");
-    gt.set_species_size("A", 1);
-    gt.set_species_size("B", 2);
+    gt.set_expression_value("A", 1);
+    gt.set_expression_value("B", 2);
 
     std::vector<std::vector<double> > conditional_distribution(3);
     conditional_distribution[0] = vector<double>({ .1, .2, .3, .4 });
@@ -522,8 +515,8 @@ TEST_CASE("find_best_pvalue_selects_largest_value_in_range")
 {
     gene_transcript gt;
     gt.set_id("TestFamily1");
-    gt.set_species_size("A", 1);
-    gt.set_species_size("B", 2);
+    gt.set_expression_value("A", 1);
+    gt.set_expression_value("B", 2);
 
     std::vector<std::vector<double> > conditional_distribution(3);
     conditional_distribution[0] = vector<double>({ .1, .2, .3, .4 });
@@ -548,16 +541,16 @@ TEST_CASE("compute_family_probabilities")
 
     gene_transcript fam;
     fam.set_id("Family5");
-    fam.set_species_size("A", 11);
-    fam.set_species_size("B", 2);
-    fam.set_species_size("C", 5);
-    fam.set_species_size("D", 6);
+    fam.set_expression_value("A", 11);
+    fam.set_expression_value("B", 2);
+    fam.set_expression_value("C", 5);
+    fam.set_expression_value("D", 6);
 
     // note we do not use an error model for creating family sizes. See architecture decision #6
     p.p_tree->apply_prefix_order([&v, &fam](const clade* c)
         {
             if (c->is_leaf())
-                v[0].values[c] = fam.get_species_size(c->get_taxon_name());
+                v[0].values[c] = fam.get_expression_value(c->get_taxon_name());
             else
                 v[0].values[c] = 5;
         });

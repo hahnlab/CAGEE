@@ -342,10 +342,10 @@ void gamma_model_reconstruction::write_nexus_extensions(std::ostream& ost)
     ost << "END;\n\n";
 }
 
-int gamma_model_reconstruction::get_node_count(const gene_transcript& family, const clade* c) const
+double gamma_model_reconstruction::get_node_count(const gene_transcript& family, const clade* c) const
 {
     if (c->is_leaf())
-        return family.get_species_size(c->get_taxon_name());
+        return family.get_expression_value(c->get_taxon_name());
 
     return int(std::round(_reconstructions.at(family.id()).reconstruction.at(c)));
 }

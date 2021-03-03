@@ -92,7 +92,7 @@ public:
     {
     }
 
-    virtual int get_node_count(const gene_transcript& gf, const clade* c) const = 0;
+    virtual double get_node_count(const gene_transcript& gf, const clade* c) const = 0;
 
     int get_difference_from_parent(const gene_transcript& gf, const clade* c);
 private:

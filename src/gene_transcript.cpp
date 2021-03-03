@@ -19,23 +19,17 @@ bool max_value(const std::pair<T, U>& p1, const std::pair<T, U>& p2) {
 	return p1.second < p2.second;
 }
 
-//! Find and set _max_family_size and _parsed_max_family_size for this family
-/*!
-CAFE had a not_root_max (which we use = _parsed_max_family_size; see below) and a root_max = MAX(30, rint(max*1.25));
-*/
-int gene_transcript::get_max_size() const {
+double gene_transcript::get_max_expression_value() const {
     // Max family size can only be found if there is data inside the object in the first place
-    int max_family_size = 0;
+    double max_family_size = 0.0;
     if (!_species_size_map.empty()) {
-        max_family_size = (*max_element(_species_size_map.begin(), _species_size_map.end(), max_value<string, int>)).second;
-        //_parsed_max_family_size = _max_family_size + std::max(50, _max_family_size/5);
+        max_family_size = (*max_element(_species_size_map.begin(), _species_size_map.end(), max_value<string, double>)).second;
     }
     return max_family_size;
 }
 
 
-//! Mainly for debugging: In case one want to grab the gene count for a given species
-double gene_transcript::get_species_size(std::string species) const {
+double gene_transcript::get_expression_value(std::string species) const {
     // First checks if species data has been entered (i.e., is key in map?)
     if (_species_size_map.find(species) == _species_size_map.end()) {
         throw std::runtime_error(species + " was not found in gene family " + _id);
@@ -68,7 +62,7 @@ bool gene_transcript::exists_at_root(const clade *p_tree) const
     auto existence = [&](const clade *pc) {
         if (pc->is_leaf())
         {
-            int sz = get_species_size(pc->get_taxon_name());
+            int sz = get_expression_value(pc->get_taxon_name());
             if (sz > 0)
             {
                 auto p = pc;

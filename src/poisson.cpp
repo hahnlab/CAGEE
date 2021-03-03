@@ -42,8 +42,8 @@ poisson_scorer::poisson_scorer(const vector<gene_transcript>& gene_families)
     for (auto &fam : gene_families)
     {
         for (auto species : fam.get_species())
-            if (fam.get_species_size(species) > 0)
-                leaf_family_sizes.push_back(fam.get_species_size(species) - 1);
+            if (fam.get_expression_value(species) > 0)
+                leaf_family_sizes.push_back(fam.get_expression_value(species) - 1);
     }
 }
 
@@ -67,7 +67,7 @@ double poisson_scorer::lnLPoisson(const double* plambda)
     if (lambda < 0)
         return -log(0);
 
-    double score = accumulate(leaf_family_sizes.begin(), leaf_family_sizes.end(), 0.0, [lambda](double x, int sz) {
+    double score = accumulate(leaf_family_sizes.begin(), leaf_family_sizes.end(), 0.0, [lambda](double x, double sz) {
         double ll = poisspdf((double)sz, lambda);
         if (std::isnan(ll) || std::isinf(ll) || ll == 0) {
             return x;

@@ -189,7 +189,7 @@ void read_gene_families(std::istream& input_file, clade *p_tree, std::vector<gen
                     else if (i == 1) { genfam.set_id(tokens[i]); }
                     else {
                         std::string sp_name = sp_col_map[i];
-                        genfam.set_species_size(sp_name, atof(tokens[i].c_str()));
+                        genfam.set_expression_value(sp_name, atof(tokens[i].c_str()));
                         // cout << "Species " << sp_name << " has " << tokens[i] << "gene members." << endl;
                     }
                 }
@@ -199,7 +199,7 @@ void read_gene_families(std::istream& input_file, clade *p_tree, std::vector<gen
                     // If index i is in leaf_indices
                     if (leaf_indices.find(i) != leaf_indices.end()) { // This should always be true...
                         std::string sp_name = leaf_indices[i];
-                        genfam.set_species_size(sp_name, atof(tokens[i].c_str()));
+                        genfam.set_expression_value(sp_name, atof(tokens[i].c_str()));
                         // cout << "Species " << sp_name << " has " << tokens[i] << "gene members." << endl;
                     }
                     else

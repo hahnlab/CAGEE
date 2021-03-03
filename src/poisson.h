@@ -9,7 +9,7 @@ class gene_transcript;
 
 class poisson_scorer : public optimizer_scorer
 {
-    std::vector<int> leaf_family_sizes;
+    std::vector<double> leaf_family_sizes;
 public:
     poisson_scorer(const std::vector<gene_transcript>& gene_families);
 
