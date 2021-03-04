@@ -2,6 +2,7 @@
 #include <iostream>
 #include <random>
 #include <numeric>
+#include <algorithm>
 
 #include "doctest.h"
 #include "easylogging++.h"
@@ -46,17 +47,20 @@ sigma_optimizer_scorer::sigma_optimizer_scorer(lambda* p_lambda, model* p_model,
 
     _tree_length = p_tree->distance_from_root_to_tip();
     auto species = t.at(0).get_species();
-    vector<double> v;
-    for (auto s : species)
-        for (auto& tt : t)
-            v.push_back(tt.get_expression_value(s));
+    vector<double> variances;
+    for (auto& tt : t)
+    {
+        vector<double> v(species.size());
+        transform(species.begin(), species.end(), v.begin(), [&tt](string s) {return tt.get_expression_value(s);  });
+        double sz = v.size();
+        auto mean = std::accumulate(v.begin(), v.end(), 0.0) / sz;
+        variances.push_back(std::accumulate(v.begin(), v.end(), 0.0, [&mean, &sz](double accumulator, const double& val) {
+            return accumulator + ((val - mean) * (val - mean) / (sz - 1));
+            }));
 
-    size_t sz = v.size();
-    auto mean = std::accumulate(v.begin(), v.end(), 0.0) / sz;
-    _species_variance = std::accumulate(v.begin(), v.end(), 0.0, [&mean, &sz](double accumulator, const double& val) {
-        return accumulator + ((val - mean) * (val - mean) / (sz - 1));
-        });
+    }
 
+    _species_variance = std::accumulate(variances.begin(), variances.end(), 0.0) / double(variances.size());
 }
 
 std::vector<double> sigma_optimizer_scorer::initial_guesses()
@@ -218,7 +222,34 @@ TEST_CASE("sigma_optimizer_scorer constructor calculates tree length and varianc
     auto guesses = soc.initial_guesses();
     REQUIRE(guesses.size() == 1);
     CHECK_EQ(doctest::Approx(0.213353), guesses[0]);
+
+    v.resize(2);
+    v[1].set_id("TestFamily2");
+    v[1].set_expression_value("A", 5);
+    v[1].set_expression_value("B", 8);
 }
+
+TEST_CASE("sigma_optimizer_scorer constructor averages variances across all transcripts")
+{
+    randomizer_engine.seed(10);
+
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    vector<gene_transcript> v(2);
+    v[0].set_id("TestFamily1");
+    v[0].set_expression_value("A", 1);
+    v[0].set_expression_value("B", 2);
+    v[1].set_id("TestFamily2");
+    v[1].set_expression_value("A", 5);
+    v[1].set_expression_value("B", 8);
+
+    single_lambda s(5);
+    sigma_optimizer_scorer soc(&s, nullptr, nullptr, p_tree.get(), v);
+
+    auto guesses = soc.initial_guesses();
+    REQUIRE(guesses.size() == 1);
+    CHECK_EQ(doctest::Approx(0.48974), guesses[0]);
+}
+
 
 TEST_CASE("lambda_epsilon_optimizer guesses lambda and unique epsilons")
 {
