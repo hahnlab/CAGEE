@@ -1579,32 +1579,6 @@ TEST_CASE("Clade: lambda_tree_root_index_is_1_if_not_specified")
     CHECK_EQ(1, p_tree->get_lambda_index());
 }
 
-TEST_CASE("Clade: exists_at_root_returns_false_if_not_all_children_exist")
-{
-    unique_ptr<clade> p_tree(parse_newick(" ((((cat:68.710687,horse:68.710687):4.566771,cow:73.277458):20.722542,(((((chimp:4.444178,human:4.444178):6.682660,orang:11.126837):2.285866,gibbon:13.412704):7.211528,(macaque:4.567239,baboon:4.567239):16.056993):16.060691,marmoset:36.684923):57.315077)mancat:38.738115,(rat:36.302467,mouse:36.302467):96.435648)"));
-
-    istringstream ist(
-        "Desc\tFamily ID\tcat\thorse\tcow\tchimp\thuman\torang\tgibbon\tmacaque\tbaboon\tmarmoset\trat\tmouse\n"
-        "(null)\t1\t0\t0\t0\t1\t1\t0\t0\t0\t0\t0\t0\t0\n"
-        "(null)\t2\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t1\t1\n");
-
-    vector<gene_transcript> families;
-    read_gene_families(ist, p_tree.get(), families);
-    CHECK_FALSE(families[0].exists_at_root(p_tree.get()));
-    CHECK_FALSE(families[1].exists_at_root(p_tree.get()));
-}
-
-TEST_CASE("Clade: exists_at_root_returns_true_if_all_children_exist")
-{
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-
-    gene_transcript family;
-    family.set_expression_value("A", 3);
-    family.set_expression_value("B", 6);
-
-    CHECK(family.exists_at_root(p_tree.get()));
-}
-
 TEST_CASE("Clade: parse_newick_throws_exception_for_invalid_lambdas_in_tree")
 {
     CHECK_THROWS_WITH_AS(parse_newick("(A:1,B:0):2", true), "Invalid lambda index set for B", runtime_error);

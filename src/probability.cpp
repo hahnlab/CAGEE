@@ -108,6 +108,8 @@ void compute_node_probability(const clade* node,
     const lambda* p_sigma,
     const DiffMat& diff_mat)
 {
+    double upper_bound = gene_transcript.get_max_expression_value() * 1.5;
+
     if (node->is_leaf()) {
         double species_size = gene_transcript.get_expression_value(node->get_taxon_name());
 
@@ -126,7 +128,7 @@ void compute_node_probability(const clade* node,
         else
         {
             // cout << "Leaf node " << node->get_taxon_name() << " has " << _probabilities[node].size() << " probabilities" << endl;
-            probabilities[node] = VectorPos_bounds(species_size, DISCRETIZATION_RANGE, std::pair<double, double>(0, probabilities[node].size()));
+            probabilities[node] = VectorPos_bounds(species_size, DISCRETIZATION_RANGE, std::pair<double, double>(0, upper_bound));
         }
     }
     else  {
@@ -135,7 +137,7 @@ void compute_node_probability(const clade* node,
 
         for (auto it = node->descendant_begin(); it != node->descendant_end(); ++it) {
             double sigma = p_sigma->get_value_for_clade(*it);
-            MatrixXd m = ConvProp_bounds((*it)->get_branch_length(), sigma * sigma / 2, diff_mat, pair<double, double>(0.0, gene_transcript.get_max_expression_value() * 1.5));
+            MatrixXd m = ConvProp_bounds((*it)->get_branch_length(), sigma * sigma / 2, diff_mat, pair<double, double>(0.0, upper_bound));
 
             auto result = m * probabilities[*it];
             for (VectorXd::Index i = 0; i < node_probs.size(); i++) {
@@ -380,8 +382,8 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     auto& actual = probabilities[A];
 
     vector<double> expected(DISCRETIZATION_RANGE);
-    expected[2] = 0.014925;
-    expected[3] = 0.980075;
+    expected[66] = 14.74074;
+    expected[67] = 7.370370;
 
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
@@ -394,8 +396,8 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     actual = probabilities[B];
 
     expected = vector<double>(DISCRETIZATION_RANGE);
-    expected[5] = 0.02985;
-    expected[6] = 0.96515;
+    expected[133] = 14.74074;
+    expected[132] = 7.370370;
 
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
