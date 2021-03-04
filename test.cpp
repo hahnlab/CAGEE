@@ -57,11 +57,8 @@ class mock_model : public model {
     }
     virtual inference_optimizer_scorer* get_lambda_optimizer(const user_data& data) override
     {
-        auto lengths = _p_tree->get_branch_lengths();
-        auto longest_branch = *max_element(lengths.begin(), lengths.end());
-
         initialize_lambda(data.p_lambda_tree);
-        auto result = new sigma_optimizer_scorer(_p_lambda, this, &data.prior, longest_branch);
+        auto result = new sigma_optimizer_scorer(_p_lambda, this, &data.prior, 10, 1);
         result->quiet = true;
         return result;
     }
@@ -631,11 +628,11 @@ TEST_CASE_FIXTURE(Inference, "base_optimizer_guesses_lambda_only")
     unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data));
     auto guesses = opt->initial_guesses();
     CHECK_EQ(1, guesses.size());
-    CHECK_EQ(doctest::Approx(0.2498383).epsilon(0.00001), guesses[0]);
+    CHECK_EQ(doctest::Approx(0.696853).epsilon(0.00001), guesses[0]);
     delete model.get_lambda();
 }
 
-TEST_CASE_FIXTURE(Inference, "base_optimizer_guesses_lambda_and_unique_epsilons")
+TEST_CASE_FIXTURE(Inference, "base_model creates lambda_epsilon_optimizer if requested")
 {
     error_model err;
     err.set_probabilities(0, { .0, .7, .3 });
@@ -650,25 +647,15 @@ TEST_CASE_FIXTURE(Inference, "base_optimizer_guesses_lambda_and_unique_epsilons"
 
     CHECK(opt);
     CHECK(dynamic_cast<lambda_epsilon_optimizer*>(opt.get()) != nullptr);
-    auto guesses = opt->initial_guesses();
-    CHECK_EQ(3, guesses.size());
-    CHECK_EQ(doctest::Approx(0.2498383).epsilon(0.00001), guesses[0]);
-    CHECK_EQ(0.3, guesses[1]);
-    CHECK_EQ(0.4, guesses[2]);
-
-    delete model.get_lambda();
 }
-
 
 TEST_CASE_FIXTURE(Inference, "gamma_model_creates__gamma_lambda_optimizer_if_nothing_provided")
 {
-    unique_ptr<clade> p_tree(parse_newick("((A:1,B:1):1,(C:1,D:1):1);"));
+    gamma_model model(NULL, _user_data.p_tree, NULL, 0, 5, 4, -1, NULL);
+    _user_data.p_lambda = nullptr;
 
-    gamma_model model(NULL, p_tree.get(), NULL, 0, 5, 4, -1, NULL);
-    user_data data;
-
-    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(data));
-    CHECK(opt);
+    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data));
+    REQUIRE(opt);
     CHECK(dynamic_cast<gamma_lambda_optimizer*>(opt.get()));
 
     delete model.get_lambda();
@@ -681,6 +668,11 @@ TEST_CASE("Inference: gamma_model__creates__lambda_optimizer__if_alpha_provided"
     gamma_model model(NULL, p_tree.get(), NULL, 0, 5, 4, 0.25, NULL);
 
     user_data data;
+    data.gene_families.resize(1);
+    data.gene_families[0].set_id("TestFamily1");
+    data.gene_families[0].set_expression_value("A", 1);
+    data.gene_families[0].set_expression_value("B", 2);
+    data.p_tree = p_tree.get();
 
     unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(data));
 
@@ -726,7 +718,7 @@ TEST_CASE("Inference: gamma_lambda_optimizer__provides_two_guesses")
 {
     single_lambda sl(0.05);
     gamma_model model(NULL, NULL, NULL, 0, 5, 4, .25, NULL);
-    gamma_lambda_optimizer glo(&sl, &model, NULL, 5);
+    gamma_lambda_optimizer glo(&sl, &model, NULL, 5, 1);
     auto guesses = glo.initial_guesses();
     CHECK_EQ(2, guesses.size());
 
@@ -1869,7 +1861,7 @@ TEST_CASE("Inference: lambda_epsilon_optimizer")
     mock_model model;
 
     single_lambda lambda(0.05);
-    lambda_epsilon_optimizer optimizer(&model, &err, NULL, std::map<int, int>(), &lambda, 10);
+    lambda_epsilon_optimizer optimizer(&model, &err, NULL, std::map<int, int>(), &lambda, 10, 3);
     optimizer.initial_guesses();
     vector<double> values = { 0.05, 0.06 };
     optimizer.calculate_score(&values[0]);
@@ -1909,7 +1901,7 @@ TEST_CASE("Inference: lambda_per_family")
     m.set_tree(ud.p_tree);
     ostringstream ost;
     v.estimate_lambda_per_family(&m, ost);
-    CHECK_EQ(std::string("test\t0.00053526736161992\n"), ost.str());
+    CHECK_EQ(std::string("test\t0.30597463754818\n"), ost.str());
 }
 
 TEST_CASE_FIXTURE(Inference, "estimator_compute_pvalues" * doctest::skip(true))
@@ -1934,7 +1926,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_lambda_optimizer updates model alpha and lam
     vector<double> multipliers{ 0.5, 1.5 };
     gamma_model m(_user_data.p_lambda, _user_data.p_tree, &_user_data.gene_families, 10, _user_data.max_root_family_size, gamma_categories, multipliers, NULL);
 
-    gamma_lambda_optimizer optimizer(_user_data.p_lambda, &m, &_user_data.prior, 7);
+    gamma_lambda_optimizer optimizer(_user_data.p_lambda, &m, &_user_data.prior, 7, 1);
     vector<double> values{ 0.01, 0.25 };
     optimizer.calculate_score(&values[0]);
     CHECK_EQ(doctest::Approx(0.25), m.get_alpha());
@@ -1947,7 +1939,7 @@ TEST_CASE("Inference: inference_optimizer_scorer__calculate_score__translates_na
     mock_model m;
     m.set_invalid_likelihood();
     double val;
-    sigma_optimizer_scorer opt(&lam, &m, NULL, 0);
+    sigma_optimizer_scorer opt(&lam, &m, NULL, 0, 0);
     CHECK(std::isinf(opt.calculate_score(&val)));
 }
 

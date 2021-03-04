@@ -1,7 +1,9 @@
 #include <iomanip>
 #include <iostream>
 #include <random>
+#include <numeric>
 
+#include "doctest.h"
 #include "easylogging++.h"
 
 #include "optimizer_scorer.h"
@@ -12,6 +14,7 @@
 #include "gamma.h"
 #include "error_model.h"
 #include "root_equilibrium_distribution.h"
+#include "gene_transcript.h"
 
 #define GAMMA_INITIAL_GUESS_EXPONENTIAL_DISTRIBUTION_LAMBDA 1.75
 
@@ -35,21 +38,35 @@ double inference_optimizer_scorer::calculate_score(const double *values)
     return score;
 }
 
-//Inititial Guess multiplies the 1/longest branch by a random draw from a normal 
-//distribution centered such that it will start around a value for lambda of 0.002
+sigma_optimizer_scorer::sigma_optimizer_scorer(lambda* p_lambda, model* p_model, const root_equilibrium_distribution* p_distribution, const clade* p_tree, const vector<gene_transcript>& t) :
+    inference_optimizer_scorer(p_lambda, p_model, p_distribution)
+{
+    if (t.empty()) throw runtime_error("No gene transcripts provided");
+    if (!p_tree) throw runtime_error("No tree provided");
+
+    _tree_length = p_tree->distance_from_root_to_tip();
+    auto species = t.at(0).get_species();
+    vector<double> v;
+    for (auto s : species)
+        for (auto& tt : t)
+            v.push_back(tt.get_expression_value(s));
+
+    size_t sz = v.size();
+    auto mean = std::accumulate(v.begin(), v.end(), 0.0) / sz;
+    _species_variance = std::accumulate(v.begin(), v.end(), 0.0, [&mean, &sz](double accumulator, const double& val) {
+        return accumulator + ((val - mean) * (val - mean) / (sz - 1));
+        });
+
+}
+
 std::vector<double> sigma_optimizer_scorer::initial_guesses()
 {
-    double distmean = 0.002/(1.0 / _longest_branch);
+    double distmean = sqrt(_species_variance / _tree_length);
     std::vector<double> result(_p_sigma->count());
-    //std::uniform_real_distribution<double> distribution(0.0, 1.0); Insert a prior distribution (above to start from a biologically realistic rate)
     std::normal_distribution<double> distribution(distmean,0.2);
     for (auto& i : result)
     {
-    	i=1.0 / _longest_branch * distribution(randomizer_engine);
-    	while (i<0)
-    	{
-    		i=1.0 / _longest_branch * distribution(randomizer_engine);
-    	}
+    	i = distribution(randomizer_engine);
     }
     return result;
 }
@@ -144,9 +161,16 @@ double gamma_optimizer::get_alpha() const
     return _p_gamma_model->get_alpha();
 }
 
-gamma_lambda_optimizer::gamma_lambda_optimizer(lambda *p_lambda, gamma_model * p_model, const root_equilibrium_distribution *p_distribution, double longest_branch) :
+gamma_lambda_optimizer::gamma_lambda_optimizer(lambda *p_lambda, gamma_model * p_model, const root_equilibrium_distribution *p_distribution, double tree_length, double species_variance) :
     inference_optimizer_scorer(p_lambda, p_model, p_distribution),
-    _lambda_optimizer(p_lambda, p_model, p_distribution, longest_branch),
+    _lambda_optimizer(p_lambda, p_model, p_distribution, tree_length, species_variance),
+    _gamma_optimizer(p_model, p_distribution)
+{
+}
+
+gamma_lambda_optimizer::gamma_lambda_optimizer(lambda* p_lambda, gamma_model* p_model, const root_equilibrium_distribution* p_distribution, const clade* p_tree, const std::vector<gene_transcript>& t) :
+    inference_optimizer_scorer(p_lambda, p_model, p_distribution),
+    _lambda_optimizer(p_lambda, p_model, p_distribution, p_tree, t),
     _gamma_optimizer(p_model, p_distribution)
 {
 }
@@ -177,5 +201,39 @@ void gamma_lambda_optimizer::report_precalculation()
 void gamma_lambda_optimizer::finalize(double *results) {
     _lambda_optimizer.finalize(results);
     _gamma_optimizer.finalize(results + _p_sigma->count());
+}
+
+TEST_CASE("sigma_optimizer_scorer constructor calculates tree length and variance")
+{
+    randomizer_engine.seed(10);
+
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    vector<gene_transcript> v(1);
+    v[0].set_id("TestFamily1");
+    v[0].set_expression_value("A", 1);
+    v[0].set_expression_value("B", 2);
+    single_lambda s(5);
+    sigma_optimizer_scorer soc(&s, nullptr, nullptr, p_tree.get(), v);
+
+    auto guesses = soc.initial_guesses();
+    REQUIRE(guesses.size() == 1);
+    CHECK_EQ(doctest::Approx(0.213353), guesses[0]);
+}
+
+TEST_CASE("lambda_epsilon_optimizer guesses lambda and unique epsilons")
+{
+    randomizer_engine.seed(10);
+
+    error_model err;
+    err.set_probabilities(0, { .0, .7, .3 });
+    err.set_probabilities(1, { .4, .2, .4 });
+
+    single_lambda s(10);
+    lambda_epsilon_optimizer leo(nullptr, &err, nullptr, map<int, int>(), &s, 10, 1);
+    auto guesses = leo.initial_guesses();
+    REQUIRE(guesses.size() == 3);
+    CHECK_EQ(doctest::Approx(0.30597).epsilon(0.00001), guesses[0]);
+    CHECK_EQ(0.3, guesses[1]);
+    CHECK_EQ(0.4, guesses[2]);
 }
 

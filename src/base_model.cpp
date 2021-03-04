@@ -117,16 +117,13 @@ inference_optimizer_scorer *base_model::get_lambda_optimizer(const user_data& da
 
     initialize_lambda(data.p_lambda_tree);
 
-    auto lengths = _p_tree->get_branch_lengths();
-    auto longest_branch = *max_element(lengths.begin(), lengths.end());
-
     if (_p_error_model && !data.p_error_model)
     {
-        return new lambda_epsilon_optimizer(this, _p_error_model, &data.prior, data.rootdist, _p_lambda, longest_branch);
+        return new lambda_epsilon_optimizer(this, _p_error_model, &data.prior, data.rootdist, _p_lambda, data.p_tree, data.gene_families);
     }
     else
     {
-        return new sigma_optimizer_scorer(_p_lambda, this, &data.prior, longest_branch);
+        return new sigma_optimizer_scorer(_p_lambda, this, &data.prior, data.p_tree, data.gene_families);
     }
 }
 

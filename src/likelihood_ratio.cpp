@@ -97,10 +97,7 @@ namespace LikelihoodRatioTest
         std::vector<double> pvalues(data.gene_families.size());
         std::vector<int> lambdas(data.gene_families.size());
 
-        auto lengths = data.p_tree->get_branch_lengths();
-        auto longest_branch = *max_element(lengths.begin(), lengths.end());
-
-        auto scorer = new sigma_optimizer_scorer(data.p_lambda, p_model, &data.prior, longest_branch);
+        auto scorer = new sigma_optimizer_scorer(data.p_lambda, p_model, &data.prior, data.p_tree, data.gene_families);
 
         optimizer opt(scorer);
         opt.quiet = true;

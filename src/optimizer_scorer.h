@@ -10,6 +10,7 @@ class model;
 class root_equilibrium_distribution;
 class clade;
 class base_model;
+class gene_transcript;
 
 /// @brief Base class for use by the optimizer
 //! \ingroup optimizer
@@ -59,15 +60,19 @@ public:
 //! \ingroup optimizer
 class sigma_optimizer_scorer : public inference_optimizer_scorer
 {
-    double _longest_branch;
+    double _tree_length;
+    double _species_variance;
 
 public:
-    sigma_optimizer_scorer(lambda *p_lambda, model* p_model, const root_equilibrium_distribution *p_distribution, double longest_branch) :
+    sigma_optimizer_scorer(lambda *p_lambda, model* p_model, const root_equilibrium_distribution *p_distribution, double tree_length, double species_variance) :
         inference_optimizer_scorer(p_lambda, p_model, p_distribution),
-        _longest_branch(longest_branch)
+        _tree_length(tree_length),
+        _species_variance(species_variance)
     {
     }
 
+    sigma_optimizer_scorer(lambda* p_lambda, model* p_model, const root_equilibrium_distribution* p_distribution, const clade* p_tree, const std::vector<gene_transcript>& t);
+    
     std::vector<double> initial_guesses() override;
 
     virtual void finalize(double *results) override;
@@ -91,9 +96,24 @@ public:
         const root_equilibrium_distribution* p_distribution,
         const std::map<int, int>& root_distribution_map,
         lambda *p_lambda,
-        double longest_branch) :
+        double tree_length, 
+        double species_variance) :
         inference_optimizer_scorer(p_lambda, p_model, p_distribution),
-        _lambda_optimizer(p_lambda, p_model, p_distribution, longest_branch),
+        _lambda_optimizer(p_lambda, p_model, p_distribution, tree_length, species_variance),
+        _p_error_model(p_error_model)
+    {
+    }
+
+    lambda_epsilon_optimizer(
+        model* p_model,
+        error_model* p_error_model,
+        const root_equilibrium_distribution* p_distribution,
+        const std::map<int, int>& root_distribution_map,
+        lambda* p_lambda, 
+        const clade* p_tree, 
+        const std::vector<gene_transcript>& t) :
+        inference_optimizer_scorer(p_lambda, p_model, p_distribution),
+        _lambda_optimizer(p_lambda, p_model, p_distribution, p_tree, t),
         _p_error_model(p_error_model)
     {
     }
@@ -135,7 +155,8 @@ class gamma_lambda_optimizer : public inference_optimizer_scorer
     sigma_optimizer_scorer _lambda_optimizer;
     gamma_optimizer _gamma_optimizer;
 public:
-    gamma_lambda_optimizer(lambda *p_lambda, gamma_model * p_model, const root_equilibrium_distribution *p_distribution, double longest_branch);
+    gamma_lambda_optimizer(lambda *p_lambda, gamma_model * p_model, const root_equilibrium_distribution *p_distribution, double tree_length, double species_variance);
+    gamma_lambda_optimizer(lambda* p_lambda, gamma_model* p_model, const root_equilibrium_distribution* p_distribution, const clade* p_tree, const std::vector<gene_transcript>& t);
 
     std::vector<double> initial_guesses() override;
 

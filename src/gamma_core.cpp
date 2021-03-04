@@ -237,19 +237,13 @@ inference_optimizer_scorer *gamma_model::get_lambda_optimizer(const user_data& d
 
     if (estimate_lambda && estimate_alpha)
     {
-        auto lengths = _p_tree->get_branch_lengths();
-        auto longest_branch = *max_element(lengths.begin(), lengths.end());
-
         initialize_lambda(data.p_lambda_tree);
-        return new gamma_lambda_optimizer(_p_lambda, this, &data.prior, longest_branch);
+        return new gamma_lambda_optimizer(_p_lambda, this, &data.prior, data.p_tree, data.gene_families);
     }
     else if (estimate_lambda && !estimate_alpha)
     {
-        auto lengths = _p_tree->get_branch_lengths();
-        auto longest_branch = *max_element(lengths.begin(), lengths.end());
-
         initialize_lambda(data.p_lambda_tree);
-        return new sigma_optimizer_scorer(_p_lambda, this, &data.prior, longest_branch);
+        return new sigma_optimizer_scorer(_p_lambda, this, &data.prior, data.p_tree, data.gene_families);
     }
     else if (!estimate_lambda && estimate_alpha)
     {
