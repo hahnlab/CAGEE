@@ -67,6 +67,8 @@ public:
 
     double get_branch_length() const;
 
+    double distance_from_root_to_tip() const;
+
     //! In a multiple lambda situation, returns the index of the lambda associated with this particular clade
     int get_lambda_index() const;
 

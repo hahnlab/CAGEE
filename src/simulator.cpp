@@ -21,25 +21,6 @@ using namespace Eigen;
 
 extern std::mt19937 randomizer_engine; // seeding random number engine
 
-double distance_from_root_to_tip(const clade* p_tree)
-{
-    vector<double> candidates;
-    p_tree->apply_prefix_order([&candidates](const clade* c) {
-        if (c->is_leaf())
-        {
-            auto p = c;
-            double dist = 0;
-            while (p)
-            {
-                dist += p->get_branch_length();
-                p = p->get_parent();
-            }
-            candidates.push_back(dist);
-        }
-});
-
-    return *max_element(candidates.begin(), candidates.end());
-}
 
 class binner
 {
@@ -47,7 +28,7 @@ class binner
 public:
     binner(const lambda* p_lambda, const clade* p_tree, double root_size)
     {
-        double t = distance_from_root_to_tip(p_tree);
+        double t = p_tree->distance_from_root_to_tip();
         double sigma = p_lambda->get_value_for_clade(p_tree);
         _max_value = double(root_size) + 4.5 * sigma * sqrt(t);
         VLOG(SIMULATOR) << "Root size: " << root_size << " => max value: " << _max_value << " (Tree length: " << t << ", Sigma: " << sigma << ")";
@@ -241,12 +222,6 @@ TEST_CASE("create_trial")
     CHECK_EQ(doctest::Approx(5.0), actual.values.at(p_tree.get()));
     CHECK_EQ(doctest::Approx(4.85931), actual.values.at(p_tree->find_descendant("A")));
     CHECK_EQ(doctest::Approx(4.988327), actual.values.at(p_tree->find_descendant("B")));
-}
-
-TEST_CASE("distance_from_root_to_tip")
-{
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-    CHECK_EQ(10, distance_from_root_to_tip(p_tree.get()));
 }
 
 TEST_CASE("binner")

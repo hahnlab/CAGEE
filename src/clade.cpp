@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <regex>
 
+#include "doctest.h"
 #include "easylogging++.h"
 
 #include "clade.h"
@@ -222,6 +223,26 @@ void clade::write_newick(ostream& ost, std::function<std::string(const clade *c)
     }
 }
 
+double clade::distance_from_root_to_tip() const
+{
+    vector<double> candidates;
+    apply_prefix_order([&candidates](const clade* c) {
+        if (c->is_leaf())
+        {
+            auto p = c;
+            double dist = 0;
+            while (p)
+            {
+                dist += p->get_branch_length();
+                p = p->get_parent();
+            }
+            candidates.push_back(dist);
+        }
+        });
+
+    return *max_element(candidates.begin(), candidates.end());
+}
+
 string clade_index_or_name(const clade* node, const cladevector& order)
 {
     auto id = distance(order.begin(), find(order.begin(), order.end(), node));
@@ -415,3 +436,10 @@ clade* parse_newick(std::string newick_string, bool parse_to_lambdas) {
 
     return p_root_clade;
 }
+
+TEST_CASE("distance_from_root_to_tip")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    CHECK_EQ(10, p_tree->distance_from_root_to_tip());
+}
+
