@@ -124,15 +124,6 @@ bool gamma_model::can_infer() const
     if (_alpha < 0)
         return false;
 
-    auto v = get_lambda_values(_p_lambda);
-
-    auto lengths = _p_tree->get_branch_lengths();
-    auto longest_branch = *max_element(lengths.begin(), lengths.end());
-    double largest_lambda = *max_element(v.begin(), v.end());
-
-    if (matrix_cache::is_saturated(longest_branch, largest_lambda))
-        return false;
-
     return true;
 }
 

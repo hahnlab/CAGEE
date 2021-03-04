@@ -1514,13 +1514,6 @@ TEST_CASE("Probability: write_error_model_skips_unnecessary_lines")
     STRCMP_EQUAL(expected, ost.str().c_str());
 }
 
-TEST_CASE("Probability, matrix_is_saturated")
-{
-    matrix_cache c;
-    CHECK(c.is_saturated(25, 0.05));
-    CHECK_FALSE(c.is_saturated(25, 0.01));
-}
-
 TEST_CASE("Inference: build_reference_list")
 {
     std::string str = "Desc\tFamily ID\tA\tB\n"

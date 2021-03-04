@@ -80,8 +80,6 @@ public:
         return _matrix_size;
     }
 
-    static bool is_saturated(double branch_length, double lambda);
-
     matrix_cache();
     ~matrix_cache();
 

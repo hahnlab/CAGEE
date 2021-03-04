@@ -119,12 +119,6 @@ const matrix* matrix_cache::get_matrix(double branch_length, double lambda) cons
     return result;
 }
 
-bool matrix_cache::is_saturated(double branch_length, double lambda)
-{
-    double alpha = lambda*branch_length / (1 + lambda*branch_length);
-    return (1 - 2 * alpha) < 0;
-}
-
 void matrix_cache::precalculate_matrices(const std::vector<double>& lambdas, const std::set<double>& branch_lengths)
 {
     // build a list of required matrices
