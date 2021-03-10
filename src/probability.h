@@ -32,8 +32,6 @@ double pvalue(double v, const std::vector<double>& conddist);
 //! computes a pvalue for each family. Returns a vector of pvalues matching the list of families
 std::vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_transcript>& families, int number_of_simulations);
 
-Eigen::VectorXd VectorPos_bounds(int x, int Npts, std::pair<int, int> bounds);
-
-std::vector<double> inference_prune(const gene_transcript& gf, const DiffMat& diff_mat, const lambda* _lambda, const error_model* p_error_model, const clade* _p_tree, double _lambda_multiplier, int _max_root_family_size, int _max_family_size);
+std::vector<double> inference_prune(const gene_transcript& gf, const DiffMat& diff_mat, const lambda* _lambda, const error_model* p_error_model, const clade* _p_tree, double _lambda_multiplier);
 
 #endif

@@ -5,7 +5,9 @@
 #include <algorithm>
 #include <sstream>
 #include <iostream>
+#include <random>
 
+#include "doctest.h"
 #include "easylogging++.h"
 
 #include "io.h"
@@ -14,6 +16,8 @@
 #include "error_model.h"
 
 using namespace std;
+
+extern std::mt19937 randomizer_engine;
 
 //! Read user provided gene family data (whose path is stored in input_parameters instance)
 /// @param[in] my_input_parameters Parsed parameters passed to the application
@@ -181,7 +185,7 @@ void user_data::create_prior(const input_parameters& params)
         }
 
         LOG(INFO) << "\nUsing Poisson root distribution with user provided lambda " << params.poisson_lambda;
-        prior = root_equilibrium_distribution(params.poisson_lambda, max_root_family_size);
+        prior = root_equilibrium_distribution(params.poisson_lambda, DISCRETIZATION_RANGE);
     }
     else if (!rootdist.empty())
     {
@@ -191,14 +195,125 @@ void user_data::create_prior(const input_parameters& params)
     else if (!gene_families.empty() && params.use_poisson_dist_for_prior)
     {
         LOG(INFO) << "\nEstimating Poisson root distribution from gene families";
-        prior = root_equilibrium_distribution(gene_families, max_root_family_size * 0.8);
+        prior = root_equilibrium_distribution(gene_families, DISCRETIZATION_RANGE);
     }
     else 
     {
         LOG(WARNING) << "\nNo root family size distribution specified, using uniform distribution";
-        prior = root_equilibrium_distribution(max_root_family_size);
+        prior = root_equilibrium_distribution(DISCRETIZATION_RANGE);
     }
 
     if (params.nsims > 0)
         prior.resize(params.nsims);
 }
+
+TEST_CASE("create_prior__creates__uniform_distribution")
+{
+    input_parameters params;
+    user_data ud;
+    ud.create_prior(params);
+    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(1));
+    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(99));
+    CHECK_EQ(0, ud.prior.compute(DISCRETIZATION_RANGE+50));
+}
+
+TEST_CASE("create_prior__creates__specifed_distribution_if_given")
+{
+    input_parameters params;
+    user_data ud;
+    ud.rootdist[2] = 11;
+    ud.rootdist[3] = 5;
+    ud.rootdist[4] = 7;
+    ud.rootdist[6] = 2;
+    ud.max_root_family_size = 10;
+    ud.create_prior(params);
+    CHECK_EQ(doctest::Approx(0.44), ud.prior.compute(2));
+    CHECK_EQ(doctest::Approx(0.2), ud.prior.compute(3));
+    CHECK_EQ(doctest::Approx(0.28), ud.prior.compute(4));
+    CHECK_EQ(0, ud.prior.compute(5));
+    CHECK_EQ(doctest::Approx(.08), ud.prior.compute(6));
+}
+
+
+TEST_CASE("create_prior__creates__poisson_distribution_if_given")
+{
+    input_parameters params;
+    params.use_poisson_dist_for_prior = true;
+    params.poisson_lambda = 0.75;
+    user_data ud;
+    ud.create_prior(params);
+    CHECK_EQ(doctest::Approx(0.47237f), ud.prior.compute(0));
+    CHECK_EQ(doctest::Approx(0.35427f), ud.prior.compute(1));
+    vector<int> r(100);
+    int i = 0;
+    generate(r.begin(), r.end(), [&ud, &i]() mutable { i++; return ud.prior.select_root_size(i);  });
+    CHECK_EQ(94, count(r.begin(), r.end(), 1));
+    CHECK_EQ(6, count(r.begin(), r.end(), 2));
+    CHECK_EQ(0, count(r.begin(), r.end(), 3));
+    CHECK_EQ(0, count(r.begin(), r.end(), 4));
+
+    CHECK_EQ(0, ud.prior.compute(11));
+}
+
+TEST_CASE("create_prior__creates__poisson_distribution_if_given_distribution_and_poisson")
+{
+    input_parameters params;
+    params.use_poisson_dist_for_prior = true;
+    params.poisson_lambda = 0.75;
+    user_data ud;
+    ud.max_root_family_size = 100;
+    ud.create_prior(params);
+    CHECK_EQ(doctest::Approx(0.35427f), ud.prior.compute(1));
+
+}
+
+TEST_CASE("create_prior__creates__poisson_distribution_from_families")
+{
+    randomizer_engine.seed(10);
+
+    input_parameters params;
+    params.use_poisson_dist_for_prior = true;
+    user_data ud;
+    ud.gene_families.resize(1);
+    ud.create_prior(params);
+    // bogus value that serves the purpose
+    // depends on optimizer and poisson_scorer
+    CHECK_EQ(doctest::Approx(0.74174f), ud.prior.compute(0));
+}
+
+TEST_CASE("create_prior creates uniform distribution if poisson not specified")
+{
+    randomizer_engine.seed(10);
+
+    input_parameters params;
+    params.use_poisson_dist_for_prior = false;
+    user_data ud;
+    ud.gene_families.resize(1);
+    ud.create_prior(params);
+    // bogus value that serves the purpose
+    // depends on optimizer and poisson_scorer
+    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(1));
+    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(10));
+    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(50));
+    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(100));
+}
+
+TEST_CASE("create_prior__resizes_distribution_if_nsims_specified")
+{
+    randomizer_engine.seed(10);
+
+    input_parameters params;
+    params.nsims = 10;
+    user_data ud;
+    ud.max_root_family_size = 100;
+    ud.create_prior(params);
+    /// GCC's implementation of shuffle changed so the numbers that are
+    /// returned are in a slightly different order, even with the same seed
+#if __GNUC__ >= 7
+    CHECK_EQ(152, ud.prior.select_root_size(9));
+#else
+    CHECK_EQ(80, ud.prior.select_root_size(9));
+#endif
+    CHECK_EQ(0, ud.prior.select_root_size(10));
+}
+

@@ -326,7 +326,7 @@ vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_trans
 /// and a given multiplier. Works by calling \ref compute_node_probability on all nodes of the tree
 /// using the species counts for the family. 
 /// \returns a vector of probabilities for gene counts at the root of the tree 
-std::vector<double> inference_prune(const gene_transcript& gf, const DiffMat& diff_mat, const lambda* p_lambda, const error_model* p_error_model, const clade* p_tree, double lambda_multiplier, int max_root_family_size, int max_family_size)
+std::vector<double> inference_prune(const gene_transcript& gf, const DiffMat& diff_mat, const lambda* p_lambda, const error_model* p_error_model, const clade* p_tree, double lambda_multiplier)
 {
     unique_ptr<lambda> multiplier(p_lambda->multiply(lambda_multiplier));
     clademap<VectorXd> probabilities;
@@ -562,3 +562,25 @@ TEST_CASE("compute_family_probabilities")
     CHECK_EQ(doctest::Approx(0.0000000001), result[0]);
 }
 
+TEST_CASE("Inference: prune" * doctest::skip(true))
+{
+    ostringstream ost;
+    gene_transcript fam;
+    fam.set_expression_value("A", 3);
+    fam.set_expression_value("B", 6);
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    single_lambda lambda(0.03);
+    matrix_cache cache;
+    cache.precalculate_matrices({ 0.045 }, { 1.0,3.0,7.0 });
+    auto actual = inference_prune(fam, DiffMat::instance(), &lambda, nullptr, p_tree.get(), 1.5);
+
+    vector<double> log_expected{ -17.2771, -10.0323 , -5.0695 , -4.91426 , -5.86062 , -7.75163 , -10.7347 , -14.2334 , -18.0458 ,
+        -22.073 , -26.2579 , -30.5639 , -34.9663 , -39.4472 , -43.9935 , -48.595 , -53.2439 , -57.9338 , -62.6597 , -67.4173 };
+
+    CHECK_EQ(log_expected.size(), actual.size());
+    for (size_t i = 0; i < log_expected.size(); ++i)
+    {
+        CHECK_EQ(doctest::Approx(log_expected[i]), log(actual[i]));
+    }
+}
