@@ -274,12 +274,12 @@ TEST_CASE("Options, errormodel_accepts_no_argument")
 TEST_CASE("Options, zero_root_familes")
 {
     input_parameters by_default;
-    CHECK(by_default.exclude_zero_root_families);
+    CHECK_FALSE(by_default.exclude_zero_root_families);
 
     option_test c({ "cafe5", "-z" });
 
     auto actual = read_arguments(c.argc, c.values);
-    CHECK_FALSE(actual.exclude_zero_root_families);
+    CHECK(actual.exclude_zero_root_families);
 }
 
 TEST_CASE("Options: cannot_have_space_before_optional_parameter")

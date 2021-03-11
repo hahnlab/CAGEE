@@ -35,7 +35,7 @@ public:
     int nsims = 0;
     int n_gamma_cats = 1;
     bool use_poisson_dist_for_prior = false;
-    bool exclude_zero_root_families = true;
+    bool exclude_zero_root_families = false;
     bool lambda_per_family = false;
     bool use_error_model = false;
     int verbose_logging_level = 0;

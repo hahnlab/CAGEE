@@ -93,7 +93,7 @@ input_parameters read_arguments(int argc, char *const argv[])
             my_input_parameters.lambda_tree_file_path = optarg;
             break;
         case 'z':
-            my_input_parameters.exclude_zero_root_families = false;
+            my_input_parameters.exclude_zero_root_families = true;
             break;
         case 'E':
             my_input_parameters.optimizer_params.neldermead_expansion = atof(optarg);
@@ -178,7 +178,7 @@ void show_help()
         "   --lambda_per_family, -b\tEstimate lambda by family (for testing purposes only).\n"
 //        "   --chisquare_compare, -r\tChi square compare.\n"
         "   --pvalue, -P\t\t\tP-value to use for determining significance of family size change, Default=0.05.\n"
-        "   --zero_root, -z\t\tInclude gene families that don't exist at the root, not recommended.\n"
+        "   --zero_root, -z\t\tExclude gene families that don't exist at the root, not recommended.\n"
         "   --Expansion, -E\t\tExpansion parameter for Nelder-Mead optimizer, Default=2.\n"
 		"   --Iterations, -I\t\tMaximum number of iterations that will be performed in \n \t\t\t\t    lambda search. Default=300 (increase this number if likelihood is still improving when limit is hit).\n"
         "   --Reflection, -R\t\tReflection parameter for Nelder-Mead optimizer, Default=1.\n\n\n";
