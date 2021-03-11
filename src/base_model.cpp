@@ -84,7 +84,6 @@ double base_model::infer_family_likelihoods(const root_equilibrium_distribution 
 
         for (size_t j = 0; j < partial_likelihood.size(); ++j) {
             double eq_freq = prior.compute(j);
-            LOG(INFO) << "Family " << i << ", likelihood " << j << " probability: " << partial_likelihood[j] << " prior: " << eq_freq;
 
             full[j] = std::log(partial_likelihood[j]) + std::log(eq_freq);
         }
