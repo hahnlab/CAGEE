@@ -73,6 +73,11 @@ void input_parameters::check_input() {
         if (fixed_alpha <= 0.0 && this->n_gamma_cats > 1) {
             throw runtime_error("Cannot simulate gamma clusters without an alpha value");
         }
+
+        //! Options -i and -f cannot be both specified. Either one or the other is used to specify the root eq freq distr'n.
+        if (!input_file_path.empty() && !rootdist.empty()) {
+            throw runtime_error("Options -i and -f are mutually exclusive.");
+        }
     }
     else
     {
@@ -92,10 +97,6 @@ void input_parameters::check_input() {
     if (n_gamma_cats > 1 && use_error_model && error_model_file_path.empty())
     {
         throw runtime_error("Estimating an error model with a gamma distribution is not supported at this time");
-    }
-    //! Options -i and -f cannot be both specified. Either one or the other is used to specify the root eq freq distr'n.
-    if (!input_file_path.empty() && !rootdist.empty()) {
-        throw runtime_error("Options -i and -f are mutually exclusive.");
     }
 
     }
@@ -340,5 +341,91 @@ TEST_CASE("Options: must_specify_sigma_for_simulation")
     input_parameters params;
     params.is_simulating = true;
     CHECK_THROWS_WITH(params.check_input(), "Cannot simulate without initial sigma values");
+}
+
+TEST_CASE("Options: must_specify_lambda_and_input_file_for_estimator")
+{
+    input_parameters params;
+    params.fixed_lambda = 0.05;
+    CHECK_THROWS_WITH(params.check_input(), "Options -l and -i must both be provided an argument.");
+}
+
+TEST_CASE("Options: must_specify_alpha_for_gamma_simulation")
+{
+    input_parameters params;
+    params.is_simulating = true;
+    params.fixed_lambda = 0.05;
+    params.n_gamma_cats = 3;
+    CHECK_THROWS_WITH(params.check_input(), "Cannot simulate gamma clusters without an alpha value");
+}
+
+TEST_CASE("Options: must_specify_alpha_and_k_for_gamma_inference")
+{
+    input_parameters params;
+    params.fixed_alpha = 0.7;
+    CHECK_THROWS_WITH(params.check_input(), "Alpha specified with 1 gamma category.");
+}
+
+TEST_CASE("Options: can_specify_alpha_without_k_for_gamma_simulation")
+{
+    input_parameters params;
+    params.fixed_alpha = 0.7;
+    params.fixed_lambda = 0.01;
+    params.is_simulating = true;
+    params.check_input();
+    CHECK(true);
+}
+
+TEST_CASE("Options: check_input_does_not_throw_when_simulating_with_multiple_lambdas")
+{
+    input_parameters params;
+    params.is_simulating = true;
+    params.fixed_multiple_lambdas = "0.01,0.05";
+    params.lambda_tree_file_path = "./tree";
+    params.check_input();
+    CHECK(true);
+}
+
+TEST_CASE("Options: per_family_must_provide_families")
+{
+    input_parameters params;
+    params.lambda_per_family = true;
+    CHECK_THROWS_WITH_AS(params.check_input(), "No family file provided", runtime_error);
+}
+
+TEST_CASE("Options: per_family_must_provide_tree")
+{
+    input_parameters params;
+    params.lambda_per_family = true;
+    params.input_file_path = "/tmp/test";
+    CHECK_THROWS_WITH_AS(params.check_input(), "No tree file provided", runtime_error);
+}
+
+TEST_CASE("Options: cannot_estimate_error_and_gamma_together")
+{
+    input_parameters params;
+    params.n_gamma_cats = 3;
+    params.use_error_model = true;
+    params.error_model_file_path = "model.txt";
+    params.check_input();
+    CHECK(true);
+
+    params.error_model_file_path.clear();
+    CHECK_THROWS_WITH_AS(params.check_input(), "Estimating an error model with a gamma distribution is not supported at this time", runtime_error);
+
+}
+
+TEST_CASE("Options: Cannot specify rootdist for simulations with rootdist file and transcript file")
+{
+    input_parameters params;
+    params.fixed_lambda = 10;
+    params.input_file_path = "transcripts.txt";
+    params.rootdist = "10 1";
+    params.check_input();
+    CHECK(true);
+
+    params.is_simulating = true;
+    CHECK_THROWS_WITH_AS(params.check_input(), "Options -i and -f are mutually exclusive.", runtime_error);
+
 }
 
