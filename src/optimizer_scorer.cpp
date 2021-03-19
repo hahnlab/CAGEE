@@ -16,6 +16,7 @@
 #include "error_model.h"
 #include "root_equilibrium_distribution.h"
 #include "gene_transcript.h"
+#include "user_data.h"
 
 #define GAMMA_INITIAL_GUESS_EXPONENTIAL_DISTRIBUTION_LAMBDA 1.75
 
@@ -32,23 +33,23 @@ double inference_optimizer_scorer::calculate_score(const double *values)
         report_precalculation();
     }
 
-    double score = _p_model->infer_family_likelihoods(*_p_distribution, _p_sigma);
+    double score = _p_model->infer_family_likelihoods(_user_data, _p_sigma);
 
     if (std::isnan(score)) score = -log(0);
 
     return score;
 }
 
-sigma_optimizer_scorer::sigma_optimizer_scorer(lambda* p_lambda, model* p_model, const root_equilibrium_distribution* p_distribution, const clade* p_tree, const vector<gene_transcript>& t) :
-    inference_optimizer_scorer(p_lambda, p_model, p_distribution)
+sigma_optimizer_scorer::sigma_optimizer_scorer(lambda* p_lambda, model* p_model, const user_data& user_data) :
+    inference_optimizer_scorer(p_lambda, p_model, user_data)
 {
-    if (t.empty()) throw runtime_error("No gene transcripts provided");
-    if (!p_tree) throw runtime_error("No tree provided");
+    if (user_data.gene_families.empty()) throw runtime_error("No gene transcripts provided");
+    if (!user_data.p_tree) throw runtime_error("No tree provided");
 
-    _tree_length = p_tree->distance_from_root_to_tip();
-    auto species = t.at(0).get_species();
+    _tree_length = user_data.p_tree->distance_from_root_to_tip();
+    auto species = user_data.gene_families.at(0).get_species();
     vector<double> variances;
-    for (auto& tt : t)
+    for (auto& tt : user_data.gene_families)
     {
         vector<double> v(species.size());
         transform(species.begin(), species.end(), v.begin(), [&tt](string s) {return tt.get_expression_value(s);  });
@@ -129,8 +130,8 @@ void lambda_epsilon_optimizer::finalize(double *results)
     _p_error_model->update_single_epsilon(results[_p_sigma->count()]);
 }
 
-gamma_optimizer::gamma_optimizer(gamma_model* p_model, const root_equilibrium_distribution* prior) :
-    inference_optimizer_scorer(p_model->get_lambda(), p_model, prior),
+gamma_optimizer::gamma_optimizer(gamma_model* p_model, const user_data& user_data) :
+    inference_optimizer_scorer(p_model->get_lambda(), p_model, user_data),
     _p_gamma_model(p_model)
 {
 
@@ -165,17 +166,17 @@ double gamma_optimizer::get_alpha() const
     return _p_gamma_model->get_alpha();
 }
 
-gamma_lambda_optimizer::gamma_lambda_optimizer(lambda *p_lambda, gamma_model * p_model, const root_equilibrium_distribution *p_distribution, double tree_length, double species_variance) :
-    inference_optimizer_scorer(p_lambda, p_model, p_distribution),
-    _lambda_optimizer(p_lambda, p_model, p_distribution, tree_length, species_variance),
-    _gamma_optimizer(p_model, p_distribution)
+gamma_lambda_optimizer::gamma_lambda_optimizer(lambda *p_lambda, gamma_model * p_model, const user_data& user_data, double tree_length, double species_variance) :
+    inference_optimizer_scorer(p_lambda, p_model, user_data),
+    _lambda_optimizer(p_lambda, p_model, user_data, tree_length, species_variance),
+    _gamma_optimizer(p_model, user_data)
 {
 }
 
-gamma_lambda_optimizer::gamma_lambda_optimizer(lambda* p_lambda, gamma_model* p_model, const root_equilibrium_distribution* p_distribution, const clade* p_tree, const std::vector<gene_transcript>& t) :
-    inference_optimizer_scorer(p_lambda, p_model, p_distribution),
-    _lambda_optimizer(p_lambda, p_model, p_distribution, p_tree, t),
-    _gamma_optimizer(p_model, p_distribution)
+gamma_lambda_optimizer::gamma_lambda_optimizer(lambda* p_lambda, gamma_model* p_model, const user_data& user_data) :
+    inference_optimizer_scorer(p_lambda, p_model, user_data),
+    _lambda_optimizer(p_lambda, p_model, user_data),
+    _gamma_optimizer(p_model, user_data)
 {
 }
 
@@ -211,39 +212,44 @@ TEST_CASE("sigma_optimizer_scorer constructor calculates tree length and varianc
 {
     randomizer_engine.seed(10);
 
+    user_data ud;
+    ud.gene_families.resize(1);
+    ud.gene_families[0].set_id("TestFamily1");
+    ud.gene_families[0].set_expression_value("A", 1);
+    ud.gene_families[0].set_expression_value("B", 2);
+
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-    vector<gene_transcript> v(1);
-    v[0].set_id("TestFamily1");
-    v[0].set_expression_value("A", 1);
-    v[0].set_expression_value("B", 2);
+    ud.p_tree = p_tree.get();
     single_lambda s(5);
-    sigma_optimizer_scorer soc(&s, nullptr, nullptr, p_tree.get(), v);
+    sigma_optimizer_scorer soc(&s, nullptr, ud);
 
     auto guesses = soc.initial_guesses();
     REQUIRE(guesses.size() == 1);
     CHECK_EQ(doctest::Approx(0.213353), guesses[0]);
 
-    v.resize(2);
-    v[1].set_id("TestFamily2");
-    v[1].set_expression_value("A", 5);
-    v[1].set_expression_value("B", 8);
+    ud.gene_families.resize(2);
+    ud.gene_families[1].set_id("TestFamily2");
+    ud.gene_families[1].set_expression_value("A", 5);
+    ud.gene_families[1].set_expression_value("B", 8);
 }
 
 TEST_CASE("sigma_optimizer_scorer constructor averages variances across all transcripts")
 {
     randomizer_engine.seed(10);
 
+    user_data ud;
+    ud.gene_families.resize(2);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-    vector<gene_transcript> v(2);
-    v[0].set_id("TestFamily1");
-    v[0].set_expression_value("A", 1);
-    v[0].set_expression_value("B", 2);
-    v[1].set_id("TestFamily2");
-    v[1].set_expression_value("A", 5);
-    v[1].set_expression_value("B", 8);
+    ud.p_tree = p_tree.get();
+    ud.gene_families[0].set_id("TestFamily1");
+    ud.gene_families[0].set_expression_value("A", 1);
+    ud.gene_families[0].set_expression_value("B", 2);
+    ud.gene_families[1].set_id("TestFamily2");
+    ud.gene_families[1].set_expression_value("A", 5);
+    ud.gene_families[1].set_expression_value("B", 8);
 
     single_lambda s(5);
-    sigma_optimizer_scorer soc(&s, nullptr, nullptr, p_tree.get(), v);
+    sigma_optimizer_scorer soc(&s, nullptr, ud);
 
     auto guesses = soc.initial_guesses();
     REQUIRE(guesses.size() == 1);
@@ -260,7 +266,8 @@ TEST_CASE("lambda_epsilon_optimizer guesses lambda and unique epsilons")
     err.set_probabilities(1, { .4, .2, .4 });
 
     single_lambda s(10);
-    lambda_epsilon_optimizer leo(nullptr, &err, nullptr, map<int, int>(), &s, 10, 1);
+    user_data ud;
+    lambda_epsilon_optimizer leo(nullptr, &err, ud, &s, 10, 1);
     auto guesses = leo.initial_guesses();
     REQUIRE(guesses.size() == 3);
     CHECK_EQ(doctest::Approx(0.30597).epsilon(0.00001), guesses[0]);

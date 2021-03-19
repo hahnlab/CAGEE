@@ -22,9 +22,9 @@ using namespace std;
 
 extern mt19937 randomizer_engine;
 
-base_model::base_model(lambda* p_lambda, const clade *p_tree, const vector<gene_transcript>* p_gene_families,
-    int max_family_size, int max_root_family_size, error_model *p_error_model) :
-    model(p_lambda, p_tree, p_gene_families, max_family_size, max_root_family_size, p_error_model)
+base_model::base_model(lambda* p_lambda, const vector<gene_transcript>* p_gene_families,
+    error_model *p_error_model) :
+    model(p_lambda, p_gene_families, p_error_model)
 {
 
 }
@@ -55,7 +55,7 @@ vector<size_t> build_reference_list(const vector<gene_transcript>& families)
     return reff;
 }
 
-double base_model::infer_family_likelihoods(const root_equilibrium_distribution &prior, const lambda *p_lambda) {
+double base_model::infer_family_likelihoods(const user_data& ud, const lambda *p_lambda) {
     _monitor.Event_InferenceAttempt_Started();
 
     if (!_p_lambda->is_valid())
@@ -64,26 +64,26 @@ double base_model::infer_family_likelihoods(const root_equilibrium_distribution 
         return -log(0);
     }
 
-    results.resize(_p_gene_families->size());
-    std::vector<double> all_families_likelihood(_p_gene_families->size());
+    results.resize(ud.gene_families.size());
+    std::vector<double> all_families_likelihood(ud.gene_families.size());
 
-    vector<vector<double>> partial_likelihoods(_p_gene_families->size());
+    vector<vector<double>> partial_likelihoods(ud.gene_families.size());
 #pragma omp parallel for
-    for (size_t i = 0; i < _p_gene_families->size(); ++i) {
+    for (size_t i = 0; i < ud.gene_families.size(); ++i) {
         if (references[i] == i)
-            partial_likelihoods[i] = inference_prune(_p_gene_families->at(i), DiffMat::instance(), _p_lambda, _p_error_model, _p_tree, 1.0);
+            partial_likelihoods[i] = inference_prune(ud.gene_families.at(i), DiffMat::instance(), _p_lambda, _p_error_model, ud.p_tree, 1.0);
             // probabilities of various family sizes
     }
 
     // prune all the families with the same lambda
 #pragma omp parallel for
-    for (size_t i = 0; i < _p_gene_families->size(); ++i) {
+    for (size_t i = 0; i < ud.gene_families.size(); ++i) {
 
         auto& partial_likelihood = partial_likelihoods[references[i]];
         std::vector<double> full(partial_likelihood.size());
 
         for (size_t j = 0; j < partial_likelihood.size(); ++j) {
-            double eq_freq = prior.compute(j);
+            double eq_freq = ud.prior.compute(j);
 
             full[j] = std::log(partial_likelihood[j]) + std::log(eq_freq);
         }
@@ -92,7 +92,7 @@ double base_model::infer_family_likelihoods(const root_equilibrium_distribution 
         all_families_likelihood[i] = *max_element(full.begin(), full.end()); // get max (CAFE's approach)
                                                                              // cout << i << " contribution " << scientific << all_families_likelihood[i] << endl;
         
-        results[i] = family_info_stash(_p_gene_families->at(i).id(), 0.0, 0.0, 0.0, all_families_likelihood[i], false);
+        results[i] = family_info_stash(ud.gene_families.at(i).id(), 0.0, 0.0, 0.0, all_families_likelihood[i], false);
     }
     double final_likelihood = -std::accumulate(all_families_likelihood.begin(), all_families_likelihood.end(), 0.0); // sum over all families
 
@@ -119,48 +119,48 @@ inference_optimizer_scorer *base_model::get_lambda_optimizer(const user_data& da
 
     if (_p_error_model && !data.p_error_model)
     {
-        return new lambda_epsilon_optimizer(this, _p_error_model, &data.prior, data.rootdist, _p_lambda, data.p_tree, data.gene_families);
+        return new lambda_epsilon_optimizer(this, _p_error_model, data, _p_lambda);
     }
     else
     {
-        return new sigma_optimizer_scorer(_p_lambda, this, &data.prior, data.p_tree, data.gene_families);
+        return new sigma_optimizer_scorer(_p_lambda, this, data);
     }
 }
 
 #define EPSILON_RANGES
 
-reconstruction* base_model::reconstruct_ancestral_states(const vector<gene_transcript>& families, matrix_cache *p_calc, root_equilibrium_distribution* p_prior)
+reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, matrix_cache *p_calc)
 {
     LOG(INFO) << "Starting reconstruction processes for Base model";
 
     auto result = new base_model_reconstruction();
 
-    p_calc->precalculate_matrices(get_lambda_values(_p_lambda), _p_tree->get_branch_lengths());
+    p_calc->precalculate_matrices(get_lambda_values(_p_lambda), ud.p_tree->get_branch_lengths());
 
-    pupko_reconstructor::pupko_data data(families.size(), _p_tree, _max_family_size, _max_root_family_size);
+    pupko_reconstructor::pupko_data data(ud.gene_families.size(), ud.p_tree, ud.max_family_size, ud.max_root_family_size);
 
-    for (size_t i = 0; i < families.size(); ++i)
+    for (size_t i = 0; i < ud.gene_families.size(); ++i)
     {
-        clademap<int> &rc = result->_reconstructions[families[i].id()];
-        _p_tree->apply_prefix_order([&rc](const clade* c) {
+        clademap<int> &rc = result->_reconstructions[ud.gene_families[i].id()];
+        ud.p_tree->apply_prefix_order([&rc](const clade* c) {
             rc[c] = 0;
             });
     }
 
 #pragma omp parallel for
-    for (size_t i = 0; i< families.size(); ++i)
+    for (size_t i = 0; i< ud.gene_families.size(); ++i)
     {
-        pupko_reconstructor::reconstruct_gene_transcript(_p_lambda, _p_tree, &families[i], p_calc, p_prior, result->_reconstructions[families[i].id()], data.C(i), data.L(i));
+        pupko_reconstructor::reconstruct_gene_transcript(_p_lambda, ud.p_tree, &ud.gene_families[i], p_calc, &ud.prior, result->_reconstructions[ud.gene_families[i].id()], data.C(i), data.L(i));
     }
 
-    size_t success = count_if(data.v_all_node_Ls.begin(), data.v_all_node_Ls.end(), [this](const clademap<std::vector<double>>& L) 
+    size_t success = count_if(data.v_all_node_Ls.begin(), data.v_all_node_Ls.end(), [this, &ud](const clademap<std::vector<double>>& L)
         { 
-            return *max_element( L.at(_p_tree).begin(), L.at(_p_tree).end()) > 0; 
+            return *max_element( L.at(ud.p_tree).begin(), L.at(ud.p_tree).end()) > 0;
         });
 
-    if (success != families.size())
+    if (success != ud.gene_families.size())
     {
-        LOG(WARNING) << "Failed to reconstruct " << families.size() - success << " families" << endl;
+        LOG(WARNING) << "Failed to reconstruct " << ud.gene_families.size() - success << " families" << endl;
     }
 
     LOG(INFO) << "Done!\n";
@@ -168,10 +168,10 @@ reconstruction* base_model::reconstruct_ancestral_states(const vector<gene_trans
     return result;
 }
 
-void base_model::prepare_matrices_for_simulation(matrix_cache& cache)
+void base_model::prepare_matrices_for_simulation(clade *p_tree, matrix_cache& cache)
 {
     unique_ptr<lambda> perturbed_lambda(get_simulation_lambda());
-    cache.precalculate_matrices(get_lambda_values(_p_lambda), _p_tree->get_branch_lengths());
+    cache.precalculate_matrices(get_lambda_values(_p_lambda), p_tree->get_branch_lengths());
 }
 
 lambda* base_model::get_simulation_lambda()

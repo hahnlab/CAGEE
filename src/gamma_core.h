@@ -51,12 +51,10 @@ private:
 public:
 
     //! Calculate gamma categories and lambda multipliers based on category count and a fixed alpha
-    gamma_model(lambda* p_lambda, clade *p_tree, std::vector<gene_transcript>* p_gene_families, int max_family_size,
-        int max_root_family_size, int n_gamma_cats, double fixed_alpha, error_model *p_error_model);
+    gamma_model(lambda* p_lambda, std::vector<gene_transcript>* p_gene_families, int n_gamma_cats, double fixed_alpha, error_model *p_error_model);
 
     //! Specify gamma categories and lambda multipliers explicitly
-    gamma_model(lambda* p_lambda, clade *p_tree, std::vector<gene_transcript>* p_gene_families, int max_family_size,
-        int max_root_family_size, std::vector<double> gamma_categories, std::vector<double> multipliers, error_model *p_error_model);
+    gamma_model(lambda* p_lambda, std::vector<gene_transcript>* p_gene_families, std::vector<double> gamma_categories, std::vector<double> multipliers, error_model *p_error_model);
 
     void set_alpha(double alpha);
     double get_alpha() const { return _alpha; }
@@ -66,7 +64,7 @@ public:
     //! Randomly select one of the multipliers to apply to the simulation
     virtual lambda* get_simulation_lambda() override;
 
-    double infer_family_likelihoods(const root_equilibrium_distribution& prior, const lambda *p_lambda) override;
+    double infer_family_likelihoods(const user_data& ud, const lambda *p_lambda) override;
 
     virtual inference_optimizer_scorer *get_lambda_optimizer(const user_data& data) override;
 
@@ -75,9 +73,9 @@ public:
     }
 
     virtual void write_family_likelihoods(std::ostream& ost) override;
-    virtual void write_vital_statistics(std::ostream& ost, double final_likelihood) override;
+    virtual void write_vital_statistics(std::ostream& ost, const clade *p_tree, double final_likelihood) override;
 
-    virtual reconstruction* reconstruct_ancestral_states(const std::vector<gene_transcript>& families, matrix_cache *, root_equilibrium_distribution* p_prior) override;
+    virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache *) override;
 
     std::size_t get_gamma_cat_probs_count() const {
         return _gamma_cat_probs.size();
@@ -91,12 +89,12 @@ public:
         return _lambda_multipliers;
     }
 
-    void prepare_matrices_for_simulation(matrix_cache& cache) override;
+    void prepare_matrices_for_simulation(clade *p_tree, matrix_cache& cache) override;
 
     bool can_infer() const;
 
     bool prune(const gene_transcript& family, const root_equilibrium_distribution& eq, const DiffMat& calc, const lambda *p_lambda,
-        std::vector<double>& category_likelihoods);
+        const clade *p_tree, std::vector<double>& category_likelihoods);
 };
 
 //! \ingroup gamma

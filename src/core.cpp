@@ -30,7 +30,7 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
 
     if (user_input.fixed_alpha > 0 || user_input.n_gamma_cats > 1)
     {
-        auto gmodel = new gamma_model(user_data.p_lambda, user_data.p_tree, &user_data.gene_families, user_data.max_family_size, user_data.max_root_family_size,
+        auto gmodel = new gamma_model(user_data.p_lambda, &user_data.gene_families, 
             user_input.n_gamma_cats, user_input.fixed_alpha, user_data.p_error_model);
 #ifndef SILENT
         if (user_input.fixed_alpha >= 0 && !user_input.is_simulating)
@@ -48,7 +48,7 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
             p_error_model->set_probabilities(user_data.max_family_size, { 0.05, .9, 0.05 });
         }
 
-        p_model = new base_model(user_data.p_lambda, user_data.p_tree, p_gene_families, user_data.max_family_size, user_data.max_root_family_size, p_error_model);
+        p_model = new base_model(user_data.p_lambda, p_gene_families, p_error_model);
     }
 
     return std::vector<model *>{p_model};
@@ -62,20 +62,12 @@ std::ostream& operator<<(std::ostream& ost, const family_info_stash& r)
 }
 
 model::model(lambda* p_lambda,
-    const clade *p_tree,
     const vector<gene_transcript> *p_gene_families,
-    int max_family_size,
-    int max_root_family_size,
     error_model *p_error_model) :
-    _ost(cout), _p_lambda(p_lambda), _p_tree(p_tree), _p_gene_families(p_gene_families), _max_family_size(max_family_size),
-    _max_root_family_size(max_root_family_size), _p_error_model(p_error_model) 
+    _ost(cout), _p_lambda(p_lambda),  _p_error_model(p_error_model) 
 {
-    if (_p_gene_families)
-        references = build_reference_list(*_p_gene_families);
-}
-
-std::size_t model::get_gene_transcript_count() const {
-    return _p_gene_families->size();
+    if (p_gene_families)
+        references = build_reference_list(*p_gene_families);
 }
 
 void model::initialize_lambda(clade *p_lambda_tree)
@@ -98,14 +90,14 @@ void model::initialize_lambda(clade *p_lambda_tree)
     _p_lambda = p_lambda;
 }
 
-void model::write_vital_statistics(std::ostream& ost, double final_likelihood)
+void model::write_vital_statistics(std::ostream& ost, const clade *p_tree, double final_likelihood)
 {
     ost << "Model " << name() << " Final Likelihood (-lnL): " << final_likelihood << endl;
     ost << "Lambda: " << *get_lambda() << endl;
     if (_p_error_model)
         ost << "Epsilon: " << _p_error_model->get_epsilons()[0] << endl;
 
-    auto lengths = _p_tree->get_branch_lengths();
+    auto lengths = p_tree->get_branch_lengths();
     auto longest_branch = *max_element(lengths.begin(), lengths.end());
     auto max_lambda = 1 / longest_branch;
 
@@ -120,13 +112,13 @@ lambda* model::get_simulation_lambda()
     return _p_lambda->clone();
 }
 
-void model::write_error_model(std::ostream& ost) const
+void model::write_error_model(int max_family_size, std::ostream& ost) const
 {
     auto em = _p_error_model;
     if (!em)
     {
         em = new error_model();
-        em->set_probabilities(_max_family_size, { 0, 1, 0 });
+        em->set_probabilities(max_family_size, { 0, 1, 0 });
     }
     write_error_model_file(ost, *em);
 }

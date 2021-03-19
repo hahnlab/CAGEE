@@ -25,10 +25,10 @@ class base_model : public model {
 
 public:
     //! Computation or estimation constructor
-    base_model(lambda* p_lambda, const clade *p_tree, const std::vector<gene_transcript>* p_gene_families,
-        int max_family_size, int max_root_family_size, error_model *p_error_model);
+    base_model(lambda* p_lambda, const std::vector<gene_transcript>* p_gene_families,
+        error_model *p_error_model);
 
-    virtual double infer_family_likelihoods(const root_equilibrium_distribution& prior, const lambda *p_lambda) override;
+    virtual double infer_family_likelihoods(const user_data& ud, const lambda *p_lambda) override;
 
     virtual std::string name() const {
         return "Base";
@@ -38,9 +38,9 @@ public:
 
     virtual inference_optimizer_scorer *get_lambda_optimizer(const user_data& data);
 
-    virtual reconstruction* reconstruct_ancestral_states(const std::vector<gene_transcript>& families, matrix_cache *p_calc, root_equilibrium_distribution* p_prior);
+    virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache *p_calc);
 
-    virtual void prepare_matrices_for_simulation(matrix_cache& cache);
+    virtual void prepare_matrices_for_simulation(clade *p_tree, matrix_cache& cache);
 
     virtual lambda* get_simulation_lambda();
 

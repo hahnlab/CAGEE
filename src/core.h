@@ -123,10 +123,6 @@ class model {
 protected:
     std::ostream & _ost; 
     lambda *_p_lambda;
-    const clade *_p_tree;
-    const std::vector<gene_transcript>* _p_gene_families;
-    int _max_family_size;
-    int _max_root_family_size;
     error_model* _p_error_model;
     std::vector<std::vector<int> > _rootdist_bins; // holds the distribution for each lambda bin
 
@@ -145,20 +141,11 @@ protected:
     void initialize_lambda(clade *p_lambda_tree);
 public:
     model(lambda* p_lambda,
-        const clade *p_tree,
         const std::vector<gene_transcript>* p_gene_families,
-        int max_family_size,
-        int max_root_family_size,
         error_model *p_error_model);
     
     virtual ~model() {}
     
-    /// Allows the replacement of the current set of families with a new set
-    void set_families(const std::vector<gene_transcript>* p_gene_families)
-    {
-        _p_gene_families = p_gene_families;
-    }
-
     lambda * get_lambda() const {
         return _p_lambda;
     }
@@ -166,21 +153,19 @@ public:
     //! Returns a lambda suitable for creating a simulated family. Default case is simply to return the lambda provided by the user.
     virtual lambda* get_simulation_lambda();
 
-    virtual void prepare_matrices_for_simulation(matrix_cache& cache) = 0;
+    virtual void prepare_matrices_for_simulation(clade *p_tree, matrix_cache& cache) = 0;
 
-    virtual double infer_family_likelihoods(const root_equilibrium_distribution& prior, const lambda *p_lambda) = 0;  // return vector of likelihoods
+    virtual double infer_family_likelihoods(const user_data& ud, const lambda *p_lambda) = 0;  // return vector of likelihoods
     
     virtual std::string name() const = 0;
     virtual void write_family_likelihoods(std::ostream& ost) = 0;
-    virtual void write_vital_statistics(std::ostream& ost, double final_likelihood);
-    void write_error_model(std::ostream& ost) const;
+    virtual void write_vital_statistics(std::ostream& ost, const clade *p_tree, double final_likelihood);
+    void write_error_model(int max_family_size, std::ostream& ost) const;
 
     //! Based on the model parameters, attempts to reconstruct the most likely counts of each family at each node
-    virtual reconstruction* reconstruct_ancestral_states(const std::vector<gene_transcript>& families, matrix_cache *p_calc, root_equilibrium_distribution* p_prior) = 0;
+    virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache *p_calc) = 0;
 
     virtual inference_optimizer_scorer *get_lambda_optimizer(const user_data& data) = 0;
-
-    std::size_t get_gene_transcript_count() const;
 
     const event_monitor& get_monitor() { return _monitor;  }
 };

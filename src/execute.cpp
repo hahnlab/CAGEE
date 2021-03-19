@@ -41,7 +41,7 @@ void estimator::write_error_model_if_specified(const input_parameters& my_input_
         else
         {
             /// user did not specify an error model, write out the estimated one or a default
-            p_model->write_error_model(errmodel);
+            p_model->write_error_model(data.max_family_size, errmodel);
         }
     }
 }
@@ -52,9 +52,9 @@ void estimator::compute(std::vector<model *>& models, const input_parameters &my
     for (size_t i = 0; i < models.size(); ++i) {
         LOG(INFO) << "Inferring processes for " << models[i]->name() << " model";
 
-        double result = models[i]->infer_family_likelihoods(data.prior, models[i]->get_lambda());
+        double result = models[i]->infer_family_likelihoods(data, models[i]->get_lambda());
         std::ofstream results_file(filename(models[i]->name() + "_results", my_input_parameters.output_prefix));
-        models[i]->write_vital_statistics(results_file, result);
+        models[i]->write_vital_statistics(results_file, data.p_tree, result);
 
         std::ofstream likelihoods_file(filename(models[i]->name() + "_family_likelihoods", my_input_parameters.output_prefix));
         models[i]->write_family_likelihoods(likelihoods_file);
@@ -106,6 +106,7 @@ void estimator::estimate_missing_variables(std::vector<model *>& models, user_da
 
 void estimator::estimate_lambda_per_family(model *p_model, ostream& ost)
 {
+    auto families = data.gene_families;
     vector<lambda*> result(data.gene_families.size());
     std::transform(data.gene_families.begin(), data.gene_families.end(), result.begin(),
         [this, p_model](gene_transcript& fam)
@@ -115,7 +116,8 @@ void estimator::estimate_lambda_per_family(model *p_model, ostream& ost)
 #endif
         vector<gene_transcript> v({ fam });
         vector<model *> models{ p_model };
-        p_model->set_families(&v);
+        throw std::runtime_error("Not implemented yet");
+        //p_model->set_families(&v);
         data.p_lambda = nullptr;
         estimate_missing_variables(models, data);
         return p_model->get_lambda();
@@ -161,7 +163,7 @@ void estimator::execute(std::vector<model *>& models)
                 auto pvalues = compute_pvalues(p, data.gene_families, 1000 );
 
                 matrix_cache cache;
-                std::unique_ptr<reconstruction> rec(p_model->reconstruct_ancestral_states(data.gene_families, &cache, &data.prior));
+                std::unique_ptr<reconstruction> rec(p_model->reconstruct_ancestral_states(data, &cache));
 
                 branch_probabilities probs;
 
