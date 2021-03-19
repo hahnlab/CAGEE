@@ -19,7 +19,7 @@ struct input_parameters;
 /// Class holding data defined by the user, or derived from data defined by the user
 class user_data {
 public:
-    user_data() : prior(100)
+    user_data() : prior(size_t(100))
     {
 
     }

@@ -83,7 +83,7 @@ double base_model::infer_family_likelihoods(const user_data& ud, const lambda *p
         std::vector<double> full(partial_likelihood.size());
 
         for (size_t j = 0; j < partial_likelihood.size(); ++j) {
-            double eq_freq = ud.prior.compute(j);
+            double eq_freq = ud.prior.compute(ud.gene_families.at(i), j);
 
             full[j] = std::log(partial_likelihood[j]) + std::log(eq_freq);
         }

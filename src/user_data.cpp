@@ -197,10 +197,14 @@ void user_data::create_prior(const input_parameters& params)
         LOG(INFO) << "\nEstimating Poisson root distribution from gene families";
         prior = root_equilibrium_distribution(gene_families, DISCRETIZATION_RANGE);
     }
+    else if (params.fixed_root_value > 0)
+    {
+        prior = root_equilibrium_distribution(params.fixed_root_value);
+    }
     else 
     {
         LOG(WARNING) << "\nNo root family size distribution specified, using uniform distribution";
-        prior = root_equilibrium_distribution(DISCRETIZATION_RANGE);
+        prior = root_equilibrium_distribution(size_t(DISCRETIZATION_RANGE));
     }
 
     if (params.nsims > 0)
@@ -212,9 +216,10 @@ TEST_CASE("create_prior__creates__uniform_distribution")
     input_parameters params;
     user_data ud;
     ud.create_prior(params);
-    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(1));
-    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(99));
-    CHECK_EQ(0, ud.prior.compute(DISCRETIZATION_RANGE+50));
+    gene_transcript gf;
+    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(gf, 1));
+    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(gf, 99));
+    CHECK_EQ(0, ud.prior.compute(gf, DISCRETIZATION_RANGE+50));
 }
 
 TEST_CASE("create_prior__creates__specifed_distribution_if_given")
@@ -227,11 +232,12 @@ TEST_CASE("create_prior__creates__specifed_distribution_if_given")
     ud.rootdist[6] = 2;
     ud.max_root_family_size = 10;
     ud.create_prior(params);
-    CHECK_EQ(doctest::Approx(0.44), ud.prior.compute(2));
-    CHECK_EQ(doctest::Approx(0.2), ud.prior.compute(3));
-    CHECK_EQ(doctest::Approx(0.28), ud.prior.compute(4));
-    CHECK_EQ(0, ud.prior.compute(5));
-    CHECK_EQ(doctest::Approx(.08), ud.prior.compute(6));
+    gene_transcript gf;
+    CHECK_EQ(doctest::Approx(0.44), ud.prior.compute(gf, 2));
+    CHECK_EQ(doctest::Approx(0.2), ud.prior.compute(gf, 3));
+    CHECK_EQ(doctest::Approx(0.28), ud.prior.compute(gf, 4));
+    CHECK_EQ(0, ud.prior.compute(gf, 5));
+    CHECK_EQ(doctest::Approx(.08), ud.prior.compute(gf, 6));
 }
 
 
@@ -242,8 +248,9 @@ TEST_CASE("create_prior__creates__poisson_distribution_if_given")
     params.poisson_lambda = 0.75;
     user_data ud;
     ud.create_prior(params);
-    CHECK_EQ(doctest::Approx(0.47237f), ud.prior.compute(0));
-    CHECK_EQ(doctest::Approx(0.35427f), ud.prior.compute(1));
+    gene_transcript gf;
+    CHECK_EQ(doctest::Approx(0.47237f), ud.prior.compute(gf, 0));
+    CHECK_EQ(doctest::Approx(0.35427f), ud.prior.compute(gf, 1));
     vector<int> r(100);
     int i = 0;
     generate(r.begin(), r.end(), [&ud, &i]() mutable { i++; return ud.prior.select_root_size(i);  });
@@ -252,7 +259,7 @@ TEST_CASE("create_prior__creates__poisson_distribution_if_given")
     CHECK_EQ(0, count(r.begin(), r.end(), 3));
     CHECK_EQ(0, count(r.begin(), r.end(), 4));
 
-    CHECK_EQ(0, ud.prior.compute(11));
+    CHECK_EQ(0, ud.prior.compute(gf, 11));
 }
 
 TEST_CASE("create_prior__creates__poisson_distribution_if_given_distribution_and_poisson")
@@ -263,7 +270,8 @@ TEST_CASE("create_prior__creates__poisson_distribution_if_given_distribution_and
     user_data ud;
     ud.max_root_family_size = 100;
     ud.create_prior(params);
-    CHECK_EQ(doctest::Approx(0.35427f), ud.prior.compute(1));
+    gene_transcript gf;
+    CHECK_EQ(doctest::Approx(0.35427f), ud.prior.compute(gf, 1));
 
 }
 
@@ -278,7 +286,8 @@ TEST_CASE("create_prior__creates__poisson_distribution_from_families")
     ud.create_prior(params);
     // bogus value that serves the purpose
     // depends on optimizer and poisson_scorer
-    CHECK_EQ(doctest::Approx(0.74174f), ud.prior.compute(0));
+    gene_transcript gf;
+    CHECK_EQ(doctest::Approx(0.74174f), ud.prior.compute(gf, 0));
 }
 
 TEST_CASE("create_prior creates uniform distribution if poisson not specified")
@@ -292,10 +301,11 @@ TEST_CASE("create_prior creates uniform distribution if poisson not specified")
     ud.create_prior(params);
     // bogus value that serves the purpose
     // depends on optimizer and poisson_scorer
-    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(1));
-    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(10));
-    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(50));
-    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(100));
+    gene_transcript gf;
+    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(gf, 1));
+    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(gf, 10));
+    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(gf, 50));
+    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(gf, 100));
 }
 
 TEST_CASE("create_prior__resizes_distribution_if_nsims_specified")

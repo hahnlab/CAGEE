@@ -138,7 +138,7 @@ bool gamma_model::prune(const gene_transcript& family, const root_equilibrium_di
 
         std::vector<double> full(partial_likelihood.size());
         for (size_t j = 0; j < partial_likelihood.size(); ++j) {
-            double eq_freq = prior.compute(j);
+            double eq_freq = prior.compute(family, j);
             full[j] = partial_likelihood[j] * eq_freq;
         }
 

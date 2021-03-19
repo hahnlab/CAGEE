@@ -3,13 +3,17 @@
 #include <random>
 #include <algorithm>
 
+#include "doctest.h"
 #include "easylogging++.h"
 
 #include "root_equilibrium_distribution.h"
 #include "poisson.h"
 #include "io.h"
 #include "optimizer.h"
+#include "gene_transcript.h"
+#include "DiffMat.h"
 
+using namespace Eigen;
 using namespace std;
 
 extern std::mt19937 randomizer_engine; // seeding random number engine
@@ -34,6 +38,11 @@ root_equilibrium_distribution::root_equilibrium_distribution(size_t max_size)
     _vectorized_distribution.resize(max_size);
     iota(_vectorized_distribution.begin(), _vectorized_distribution.end(), 0);
     build_percentages();
+}
+
+root_equilibrium_distribution::root_equilibrium_distribution(double fixed_root_value) : _fixed_root_value(fixed_root_value)
+{
+
 }
 
 root_equilibrium_distribution::root_equilibrium_distribution(double poisson_lambda, size_t num_values)
@@ -80,8 +89,13 @@ void root_equilibrium_distribution::build_percentages()
     }
 }
 
-float root_equilibrium_distribution::compute(size_t val) const
+float root_equilibrium_distribution::compute(const gene_transcript& t, size_t val) const
 {
+    if (_fixed_root_value > 0)
+    {
+        VectorXd v = VectorPos_bounds(_fixed_root_value, DISCRETIZATION_RANGE, std::pair<double, double>(0, t.get_max_expression_value() * 1.5));
+        return v[val];
+    }
     if (val >= _frequency_percentage.size())
         return 0;
 
@@ -115,3 +129,70 @@ void root_equilibrium_distribution::resize(size_t new_size)
     }
     sort(v.begin(), v.end());
 }
+
+TEST_CASE("Inference: root_equilibrium_distribution__with_no_rootdist_is_uniform")
+{
+    root_equilibrium_distribution ef(size_t(10));
+    gene_transcript t;
+    CHECK_EQ(doctest::Approx(.1), ef.compute(t, 5));
+    CHECK_EQ(doctest::Approx(.1), ef.compute(t, 0));
+}
+
+TEST_CASE("root_equilibrium_distribution__resize")
+{
+    std::map<int, int> m;
+    m[2] = 5;
+    m[4] = 3;
+    m[8] = 3;
+    root_equilibrium_distribution rd(m);
+    rd.resize(15);
+    CHECK_EQ(rd.select_root_size(14), 8);
+    CHECK_EQ(rd.select_root_size(15), 0);
+}
+
+TEST_CASE("root_equilibrium_distribution__poisson_compute")
+{
+    root_equilibrium_distribution pd(0.75, 100);
+    gene_transcript t;
+
+    CHECK_EQ(doctest::Approx(0.47059).scale(1000), pd.compute(t, 0));
+    CHECK_EQ(doctest::Approx(0.13725f).scale(1000), pd.compute(t, 2));
+    CHECK_EQ(doctest::Approx(0.005).scale(1000), pd.compute(t, 4));
+    CHECK_EQ(0.0, pd.compute(t, 100));
+}
+
+TEST_CASE("root_equilibrium_distribution__poisson_select_root_size")
+{
+    root_equilibrium_distribution pd(0.75, 9);
+
+    CHECK_EQ(1, pd.select_root_size(1));
+    CHECK_EQ(1, pd.select_root_size(3));
+    CHECK_EQ(2, pd.select_root_size(5));
+    CHECK_EQ(2, pd.select_root_size(7));
+    CHECK_EQ(0, pd.select_root_size(100));
+}
+
+TEST_CASE("root_equilibrium_distribution fixed_root_value")
+{
+    root_equilibrium_distribution pd(4.3);
+
+    gene_transcript t;
+    t.set_expression_value("A", 5.8);
+    t.set_expression_value("B", 9.6);
+    CHECK_EQ(doctest::Approx(7.96537), pd.compute(t, 59));
+    CHECK_EQ(doctest::Approx(5.85407), pd.compute(t, 60));
+    CHECK_EQ(0.0, pd.compute(t, 100));
+
+}
+
+TEST_CASE("Simulation: uniform_distribution__select_root_size__returns_sequential_values")
+{
+    root_equilibrium_distribution ud(size_t(20));
+    CHECK_EQ(1, ud.select_root_size(1));
+    CHECK_EQ(2, ud.select_root_size(2));
+    CHECK_EQ(3, ud.select_root_size(3));
+    CHECK_EQ(4, ud.select_root_size(4));
+    CHECK_EQ(5, ud.select_root_size(5));
+    CHECK_EQ(0, ud.select_root_size(20));
+}
+

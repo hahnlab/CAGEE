@@ -132,158 +132,9 @@ public:
 };
 
 
-input_parameters read_arguments(int argc, char *const argv[]);
-
-struct option_test
-{
-    char* values[100];
-    size_t argc;
-
-    option_test(vector<string> arguments)
-    {
-        optind = 0;
-        argc = arguments.size();
-        for (size_t i = 0; i < arguments.size(); ++i)
-        {
-            values[i] = strdup(arguments[i].c_str());
-        }
-    }
-
-    ~option_test()
-    {
-        for (size_t i = 0; i < argc; ++i)
-        {
-            free(values[i]);
-        }
-    }
-};
 
 #define STRCMP_EQUAL(x, y) CHECK(strcmp(x,y) == 0)
 #define STRCMP_CONTAINS(x, y) CHECK(strstr(y,x) != nullptr)
-
-TEST_CASE("read_arguments translates short values ") {
-    option_test c({ "cafe5", "-ifile" });
-
-    auto actual = read_arguments(c.argc, c.values);
-    CHECK(actual.input_file_path.compare("file") == 0);
-}
-
-TEST_CASE("read_arguments translates long values ") {
-    option_test c({ "cafe5", "--infile", "file" });
-
-    auto actual = read_arguments(c.argc, c.values);
-    CHECK(actual.input_file_path.compare("file") == 0);
-}
-TEST_CASE("Options, input_short_space_separated")
-{
-    option_test c({ "cafe5", "-i", "file" });
-
-    auto actual = read_arguments(c.argc, c.values);
-    CHECK(actual.input_file_path.compare("file") == 0);
-}
-TEST_CASE("Options, simulate_long")
-{
-    option_test c({ "cafe5", "--simulate=1000", "-l", "0.05" });
-
-    auto actual = read_arguments(c.argc, c.values);
-    CHECK_EQ(1000, actual.nsims);
-}
-
-TEST_CASE("Options, simulate_short")
-{
-    option_test c({ "cafe5", "-s1000", "-l", "0.05" });
-
-    auto actual = read_arguments(c.argc, c.values);
-    CHECK_EQ(1000, actual.nsims);
-}
-
-TEST_CASE("Options, pvalue_long")
-{
-    option_test c({ "cafe5", "--pvalue=0.01" });
-
-    auto actual = read_arguments(c.argc, c.values);
-    CHECK_EQ(0.01, actual.pvalue);
-}
-
-TEST_CASE("Options, pvalue_short")
-{
-    option_test c({ "cafe5", "-P0.01" });
-
-    auto actual = read_arguments(c.argc, c.values);
-    CHECK_EQ(0.01, actual.pvalue);
-}
-
-TEST_CASE("Options, optimizer_long")
-{
-    option_test c({ "cafe5", "--optimizer_expansion=0.05", "--optimizer_reflection=3.2", "--optimizer_iterations=5" });
-
-    auto actual = read_arguments(c.argc, c.values);
-    CHECK_EQ(0.05, actual.optimizer_params.neldermead_expansion);
-    CHECK_EQ(3.2, actual.optimizer_params.neldermead_reflection);
-    CHECK_EQ(5, actual.optimizer_params.neldermead_iterations);
-}
-
-TEST_CASE("Options, optimizer_short")
-{
-    option_test c({ "cafe5", "-E", "0.05", "-R", "3.2", "-I", "5" });
-
-    auto actual = read_arguments(c.argc, c.values);
-    CHECK_EQ(0.05, actual.optimizer_params.neldermead_expansion);
-    CHECK_EQ(3.2, actual.optimizer_params.neldermead_reflection);
-    CHECK_EQ(5, actual.optimizer_params.neldermead_iterations);
-}
-
-TEST_CASE("Options, cores_long")
-{
-    option_test c({ "cafe5", "--cores=6" });
-
-    auto actual = read_arguments(c.argc, c.values);
-    CHECK_EQ(6, actual.cores);
-}
-
-TEST_CASE("Options, cores_short")
-{
-    option_test c({ "cafe5", "-c", "8" });
-
-    auto actual = read_arguments(c.argc, c.values);
-    CHECK_EQ(8, actual.cores);
-}
-
-TEST_CASE("Options, errormodel_accepts_argument")
-{
-    option_test c({ "cafe5", "-eerror.txt" });
-
-    auto actual = read_arguments(c.argc, c.values);
-    CHECK(actual.use_error_model);
-    STRCMP_EQUAL("error.txt", actual.error_model_file_path.c_str());
-}
-
-TEST_CASE("Options, errormodel_accepts_no_argument")
-{
-    option_test c({ "cafe5", "-e" });
-
-    auto actual = read_arguments(c.argc, c.values);
-    CHECK(actual.use_error_model);
-    CHECK(actual.error_model_file_path.empty());
-}
-
-TEST_CASE("Options, zero_root_familes")
-{
-    input_parameters by_default;
-    CHECK_FALSE(by_default.exclude_zero_root_families);
-
-    option_test c({ "cafe5", "-z" });
-
-    auto actual = read_arguments(c.argc, c.values);
-    CHECK(actual.exclude_zero_root_families);
-}
-
-TEST_CASE("Options: cannot_have_space_before_optional_parameter")
-{
-    option_test c({ "cafe5", "-s", "1000" });
-
-    CHECK_THROWS_WITH(read_arguments(c.argc, c.values), "Unrecognized parameter: '1000'");
-}
 
 TEST_CASE("GeneFamilies: read_gene_families_reads_cafe_files")
 {
@@ -384,21 +235,15 @@ TEST_CASE_FIXTURE(Inference, "infer_processes"
     CHECK_EQ(doctest::Approx(46.56632), multi);
 }
 
-TEST_CASE("Inference: root_equilibrium_distribution__with_no_rootdist_is_uniform")
-{
-    root_equilibrium_distribution ef(10);
-    CHECK_EQ(doctest::Approx(.1), ef.compute(5));
-    CHECK_EQ(doctest::Approx(.1), ef.compute(0));
-}
-
 TEST_CASE_FIXTURE(Inference, "root_equilibrium_distribution__with_rootdist_uses_rootdist")
 {
     _user_data.rootdist[1] = 3;
     _user_data.rootdist[2] = 5;
 
     root_equilibrium_distribution ef(_user_data.rootdist);
+    gene_transcript t;
 
-    CHECK_EQ(0.375, ef.compute(1));
+    CHECK_EQ(0.375, ef.compute(t, 1));
 }
 
 TEST_CASE("Inference: gamma_set_alpha")
@@ -661,7 +506,7 @@ TEST_CASE_FIXTURE(Inference, "base_model_reconstruction")
 
     matrix_cache calc;
     calc.precalculate_matrices(get_lambda_values(&sl), set<double>({ 1 }));
-    root_equilibrium_distribution dist(_user_data.max_root_family_size);
+    root_equilibrium_distribution dist(size_t(_user_data.max_root_family_size));
 
     std::unique_ptr<base_model_reconstruction> rec(dynamic_cast<base_model_reconstruction*>(model.reconstruct_ancestral_states(_user_data, &calc)));
 
@@ -1507,17 +1352,6 @@ TEST_CASE("Inference: multiple_lambda_returns_correct_values")
     CHECK_EQ(.011, ml.get_value_for_clade(p_tree->find_descendant("B")));
 }
 
-TEST_CASE("Simulation: uniform_distribution__select_root_size__returns_sequential_values")
-{
-    root_equilibrium_distribution ud(20);
-    CHECK_EQ(1, ud.select_root_size(1));
-    CHECK_EQ(2, ud.select_root_size(2));
-    CHECK_EQ(3, ud.select_root_size(3));
-    CHECK_EQ(4, ud.select_root_size(4));
-    CHECK_EQ(5, ud.select_root_size(5));
-    CHECK_EQ(0, ud.select_root_size(20));
-}
-
 TEST_CASE("Simulation: specified_distribution__select_root_size__returns_exact_selection")
 {
     user_data data;
@@ -1738,7 +1572,7 @@ TEST_CASE("Inference: lambda_per_family" * doctest::skip(true))
     ud.max_root_family_size = 10;
     ud.max_family_size = 10;
     ud.gene_families.resize(1);
-    ud.prior = root_equilibrium_distribution(ud.max_root_family_size);
+    ud.prior = root_equilibrium_distribution(size_t(ud.max_root_family_size));
 
     gene_transcript& family = ud.gene_families[0];
     family.set_id("test");
@@ -1772,7 +1606,7 @@ TEST_CASE_FIXTURE(Inference, "estimator_compute_pvalues" * doctest::skip(true))
 TEST_CASE_FIXTURE(Inference, "gamma_lambda_optimizer updates model alpha and lambda")
 {
     _user_data.max_root_family_size = 10;
-    _user_data.prior = root_equilibrium_distribution(_user_data.max_root_family_size);
+    _user_data.prior = root_equilibrium_distribution(size_t(_user_data.max_root_family_size));
 
 //    gamma_model m(_user_data.p_lambda, _user_data.p_tree, &_user_data.gene_families, 10, _user_data.max_root_family_size, 4, 0.25, NULL);
     vector<double> gamma_categories{ 0.3, 0.7 };
@@ -2028,7 +1862,7 @@ TEST_CASE("Simulation, simulate_processes" * doctest::skip(true))
     user_data ud;
     ud.p_tree = p_tree.get();
     ud.p_lambda = &lam;
-    ud.prior = root_equilibrium_distribution(100);
+    ud.prior = root_equilibrium_distribution(size_t(100));
     ud.max_family_size = 101;
     ud.max_root_family_size = 101;
 
@@ -2038,39 +1872,6 @@ TEST_CASE("Simulation, simulate_processes" * doctest::skip(true))
     vector<simulated_family> results(1);
     sim.simulate_processes(&m, results);
     CHECK_EQ(100, results.size());
-}
-
-TEST_CASE("root_equilibrium_distribution__resize")
-{
-    std::map<int, int> m;
-    m[2] = 5;
-    m[4] = 3;
-    m[8] = 3;
-    root_equilibrium_distribution rd(m);
-    rd.resize(15);
-    CHECK_EQ(rd.select_root_size(14), 8);
-    CHECK_EQ(rd.select_root_size(15), 0);
-}
-
-TEST_CASE("root_equilibrium_distribution__poisson_compute")
-{
-    root_equilibrium_distribution pd(0.75, 100);
-
-    CHECK_EQ(doctest::Approx(0.47059).scale(1000), pd.compute(0));
-    CHECK_EQ(doctest::Approx(0.13725f).scale(1000), pd.compute(2));
-    CHECK_EQ(doctest::Approx(0.005).scale(1000), pd.compute(4));
-    CHECK_EQ(0.0, pd.compute(100));
-}
-
-TEST_CASE("root_equilibrium_distribution__poisson_select_root_size")
-{
-    root_equilibrium_distribution pd(0.75, 9);
-
-    CHECK_EQ(1, pd.select_root_size(1));
-    CHECK_EQ(1, pd.select_root_size(3));
-    CHECK_EQ(2, pd.select_root_size(5));
-    CHECK_EQ(2, pd.select_root_size(7));
-    CHECK_EQ(0, pd.select_root_size(100));
 }
 
 

@@ -6,14 +6,14 @@
 
 #include <getopt.h>
 
+#include "easylogging++.h"
+
 #include "execute.h"
 #include "simulator.h"
 
 #include "user_data.h"
 #include "root_equilibrium_distribution.h"
 #include "core.h"
-
-#include "easylogging++.h"
 
 
 
@@ -31,7 +31,7 @@ input_parameters read_arguments(int argc, char *const argv[])
     int args; // getopt_long returns int or char
     int prev_arg;
 
-    while (prev_arg = optind, (args = getopt_long(argc, argv, "c:v:i:e::o:t:y:n:f:E:R:L:P:I:l:m:k:a:g:s::p::zbh", longopts, NULL)) != -1) {
+    while (prev_arg = optind, (args = getopt_long(argc, argv, "c:v:i:e::o:t:y:n:f:E:F:R:L:P:I:l:m:k:a:g:s::p::zbh", longopts, NULL)) != -1) {
         if (optind == prev_arg + 2 && optarg && *optarg == '-') {
             LOG(ERROR) << "You specified option " << argv[prev_arg] << " but it requires an argument. Exiting..." << endl;
             exit(EXIT_FAILURE);
@@ -97,6 +97,9 @@ input_parameters read_arguments(int argc, char *const argv[])
             break;
         case 'E':
             my_input_parameters.optimizer_params.neldermead_expansion = atof(optarg);
+            break;
+        case 'F':
+            my_input_parameters.fixed_root_value = atof(optarg);
             break;
         case 'I':
             my_input_parameters.optimizer_params.neldermead_iterations = atoi(optarg);
@@ -239,4 +242,4 @@ int cagee(int argc, char *const argv[]) {
         LOG(ERROR) << err.what() << endl;
         return EXIT_FAILURE;
     }
-} // end main
+} 
