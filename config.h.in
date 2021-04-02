@@ -58,6 +58,8 @@
 
 #define DISCRETIZATION_RANGE 200
 
+#define MINIMUM_UPPER_BOUND 20.0
+
 /* Verbose log keys for various aspects of the application */
 #define PVALUE 2
 #define SIMULATOR 3

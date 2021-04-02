@@ -12,6 +12,7 @@
 #include "optimizer.h"
 #include "gene_transcript.h"
 #include "DiffMat.h"
+#include "probability.h"
 
 using namespace Eigen;
 using namespace std;
@@ -93,7 +94,7 @@ float root_equilibrium_distribution::compute(const gene_transcript& t, size_t va
 {
     if (_fixed_root_value > 0)
     {
-        VectorXd v = VectorPos_bounds(_fixed_root_value, DISCRETIZATION_RANGE, std::pair<double, double>(0, t.get_max_expression_value() * 1.5));
+        VectorXd v = VectorPos_bounds(_fixed_root_value, DISCRETIZATION_RANGE, bounds(t));
         return v[val];
     }
     if (val >= _frequency_percentage.size())
@@ -178,9 +179,9 @@ TEST_CASE("root_equilibrium_distribution fixed_root_value")
 
     gene_transcript t;
     t.set_expression_value("A", 5.8);
-    t.set_expression_value("B", 9.6);
-    CHECK_EQ(doctest::Approx(7.96537), pd.compute(t, 59));
-    CHECK_EQ(doctest::Approx(5.85407), pd.compute(t, 60));
+    t.set_expression_value("B", 19.6);
+    CHECK_EQ(doctest::Approx(6.055), pd.compute(t, 29));
+    CHECK_EQ(doctest::Approx(0.713707), pd.compute(t, 30));
     CHECK_EQ(0.0, pd.compute(t, 100));
 
 }

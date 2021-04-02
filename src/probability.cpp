@@ -96,6 +96,11 @@ double chooseln(double n, double r)
 
 /* END: Math tools ----------------------- */
 
+std::pair<double, double> bounds(const gene_transcript& gt)
+{
+    return std::pair<double, double>(0, max(MINIMUM_UPPER_BOUND, gt.get_max_expression_value() * 1.5));
+}
+
 //! Calculates the probabilities of a given node for a given family size.
 //! The probability of a leaf node is given from the family size at that node (1 for the family
 //! size, and 0 for all other sizes). Internal nodes are calculated based on the probabilities
@@ -108,8 +113,6 @@ void compute_node_probability(const clade* node,
     const lambda* p_sigma,
     const DiffMat& diff_mat)
 {
-    double upper_bound = gene_transcript.get_max_expression_value() * 1.5;
-
     if (node->is_leaf()) {
         double species_size = gene_transcript.get_expression_value(node->get_taxon_name());
 
@@ -128,7 +131,7 @@ void compute_node_probability(const clade* node,
         else
         {
             // cout << "Leaf node " << node->get_taxon_name() << " has " << _probabilities[node].size() << " probabilities" << endl;
-            probabilities[node] = VectorPos_bounds(species_size, DISCRETIZATION_RANGE, std::pair<double, double>(0, upper_bound));
+            probabilities[node] = VectorPos_bounds(species_size, DISCRETIZATION_RANGE, bounds(gene_transcript));
         }
     }
     else  {
@@ -137,7 +140,7 @@ void compute_node_probability(const clade* node,
 
         for (auto it = node->descendant_begin(); it != node->descendant_end(); ++it) {
             double sigma = p_sigma->get_value_for_clade(*it);
-            MatrixXd m = ConvProp_bounds((*it)->get_branch_length(), sigma * sigma / 2, diff_mat, pair<double, double>(0.0, upper_bound));
+            MatrixXd m = ConvProp_bounds((*it)->get_branch_length(), sigma * sigma / 2, diff_mat, bounds(gene_transcript));
 
             auto result = m * probabilities[*it];
             for (VectorXd::Index i = 0; i < node_probs.size(); i++) {
@@ -365,8 +368,8 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
 {
     ostringstream ost;
     gene_transcript family;
-    family.set_expression_value("A", 3);
-    family.set_expression_value("B", 6);
+    family.set_expression_value("A", 18.7);
+    family.set_expression_value("B", 17.3);
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
@@ -382,8 +385,8 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     auto& actual = probabilities[A];
 
     vector<double> expected(DISCRETIZATION_RANGE);
-    expected[66] = 14.74074;
-    expected[67] = 7.370370;
+    expected[132] = 2.3648247178;
+    expected[133] = 4.7296494355;
 
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
@@ -396,8 +399,8 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     actual = probabilities[B];
 
     expected = vector<double>(DISCRETIZATION_RANGE);
-    expected[133] = 14.74074;
-    expected[132] = 7.370370;
+    expected[122] = 1.8842721013;
+    expected[123] = 5.210202052;
 
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
@@ -406,12 +409,12 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     }
 }
 
-TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly" * doctest::skip(true))
+TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly")
 {
     ostringstream ost;
     gene_transcript family;
-    family.set_expression_value("A", 3);
-    family.set_expression_value("B", 6);
+    family.set_expression_value("A", 14.7);
+    family.set_expression_value("B", 22.3);
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
@@ -428,24 +431,39 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly" * doctest::
 
     auto& actual = probabilities[AB];
 
-    vector<double> log_expected{ -19.7743, -11.6688, -5.85672, -5.66748, -6.61256, -8.59725, -12.2301, -16.4424, -20.9882, -25.7574,
-        -30.6888, -35.7439, -40.8971, -46.1299, -51.4289, -56.7837, -62.1863, -67.6304, -73.1106, -78.6228
-    };
+    vector<double> log_expected{ -66.4219, 0, 0, -66.8466, 0, 0, -67.096, -66.329, -70.0349, 0, 0, -68.3869, -68.4423, 
+        -67.1088, -66.2025, -66.8473, -66.0945, -64.5148, -66.5815, 0, 0, -66.0014, -66.223, -64.8469, -64.657, -63.7389, 
+        -64.433, -63.5415, -64.7889, -64.3111, -65.196, -64.9831, -64.6298, -64.4811, -65.1228, -66.1118, -64.9687, -64.732, 
+        0, -64.741, -63.7931, -68.3619, -64.5943, -66.4444, -67.8272, 0, 0, -65.2325, -67.2193, -64.6081, -64.9244, -66.2062, 
+        -65.7929, -66.3603, -64.758, 0, -65.2886, 0, 0, -68.2456, 0, 0, 0, -65.1009, -68.2307, 0, 0, 0, 0, 0, 0, 0, -68.617, 
+        -65.3815, 0, 0, -65.3037, -64.6843, -63.6293, -63.5527, -62.5329, -62.0993, -56.5957, -50.6543, -45.059, -40.2523, 
+        -35.0069, -32.2052, -33.8425, 0, -41.4722, 0, 0, 0, 0, 0, 0, 0, -65.7564, -64.8329, -65.9083, -65.5358, -65.4076, 0, 
+        -65.0766, 0, -64.7112, -66.9606, -63.7636, -63.0357, -65.2137, -63.7861, -64.2556, -63.1412, -64.0444, -65.3151, -64.2548, 
+        0, -65.704, -66.1756, -68.0584, 0, -66.5487, -64.5289, -63.9844, -62.1403, -56.6698, -52.1955, -47.3497, -43.9988, 
+        -38.4148, -36.4739, -31.9516, -36.4862, -34.3808, -37.8846, -42.5443, -46.8135, -52.5553, -55.63, -60.4883, -64.3569, 
+        -63.5735, -63.877, -63.1429, -64.1253, -63.6983, 0, 0, 0, -66.1998, -66.0283, 0, -66.153, -64.8137, -64.6064, -65.8656, 
+        0, -64.644, -64.2391, -64.918, -64.4069, -66.9272, -66.105, -67.6675, -65.9502, -66.5633, -68.9167, -65.3415, -66.0731, 
+        -65.168, 0, 0, -66.6985, -65.6405, -65.5385, 0, -69.325, 0, 0, -66.0726, -67.129, -67.0262, 0, -65.2442, -66.4824, 
+        -68.5107, -66.3439, -65.8262, -65.8284, 0, -64.6632, -66.084, -64.6411, 0, -64.9771, -65.7483, -66.5957, 0, 0 };
 
     CHECK_EQ(log_expected.size(), actual.size());
     for (size_t i = 0; i < log_expected.size(); ++i)
     {
-        CHECK_EQ(doctest::Approx(log_expected[i]), log(actual[i]));
+
+        if (log_expected[i] == 0)
+            CHECK_MESSAGE(0 == actual[i], "At index " + to_string(i));
+        else
+            CHECK_MESSAGE(doctest::Approx(log_expected[i]) == log(actual[i]), "At index " + to_string(i));
     }
 }
 
-TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_from_error_model_if_provided" * doctest::skip(true))
+TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_from_error_model_if_provided")
 {
     ostringstream ost;
 
     gene_transcript family;
-    family.set_expression_value("A", 3);
-    family.set_expression_value("B", 6);
+    family.set_expression_value("A", 17.4);
+    family.set_expression_value("B", 22.9);
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
@@ -465,15 +483,17 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_from_error_model_if_pr
 
     auto A = p_tree->find_descendant("A");
     compute_node_probability(A, family, &model, probabilities, &lambda, DiffMat::instance());
-    auto& actual = probabilities[A];
+    VectorXd& actual = probabilities[A];
 
-    vector<double> expected{ 0, 0, 0.2, 0.6, 0.2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    vector<double> expected(DISCRETIZATION_RANGE);
+    expected[16] = 0.2;
+    expected[17] = 0.6;
+    expected[18] = 0.2;
 
-    CHECK_EQ(expected.size(), actual.size());
+    REQUIRE(expected.size() == actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
     {
-        //cout << actual[i] << endl;
-        CHECK_EQ(expected[i], actual[i]);
+        CHECK_MESSAGE(doctest::Approx(expected[i]) == actual[i], "At index " + to_string(i));
     }
 }
 
@@ -583,4 +603,22 @@ TEST_CASE("Inference: prune" * doctest::skip(true))
     {
         CHECK_EQ(doctest::Approx(log_expected[i]), log(actual[i]));
     }
+}
+
+TEST_CASE("Bounds returns largest value times 1.5")
+{
+    gene_transcript gt;
+    gt.set_expression_value("A", 12);
+    gt.set_expression_value("B", 24);
+    CHECK_EQ(0, bounds(gt).first);
+    CHECK_EQ(36, bounds(gt).second);
+}
+
+TEST_CASE("Bounds never returns less than 20")
+{
+    gene_transcript gt;
+    gt.set_expression_value("A", 12);
+    gt.set_expression_value("B", 4);
+    CHECK_EQ(0, bounds(gt).first);
+    CHECK_EQ(20, bounds(gt).second);
 }
