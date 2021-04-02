@@ -83,7 +83,7 @@ void sigma_optimizer_scorer::prepare_calculation(const double *values)
 
 void sigma_optimizer_scorer::report_precalculation()
 {
-    LOG(INFO) << "Sigma: " << *_p_sigma;
+    LOG(INFO) << "Sigma^2: " << *_p_sigma;
 }
 
 void sigma_optimizer_scorer::finalize(double *results)
