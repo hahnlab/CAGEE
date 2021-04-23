@@ -99,8 +99,7 @@ public:
         _user_data.p_lambda = _p_lambda;
         _user_data.max_family_size = 10;
         _user_data.max_root_family_size = 8;
-        _user_data.gene_families.resize(1);
-        _user_data.gene_families[0].set_id("TestFamily1");
+        _user_data.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
         _user_data.gene_families[0].set_expression_value("A", 1);
         _user_data.gene_families[0].set_expression_value("B", 2);
 
@@ -136,52 +135,7 @@ public:
 #define STRCMP_EQUAL(x, y) CHECK(strcmp(x,y) == 0)
 #define STRCMP_CONTAINS(x, y) CHECK(strstr(y,x) != nullptr)
 
-TEST_CASE("GeneFamilies: read_gene_families_reads_cafe_files")
-{
-    std::string str = "Desc\tFamily ID\tA\tB\tC\tD\n\t (null)1\t5\t10\t2\t6\n\t (null)2\t5\t10\t2\t6\n\t (null)3\t5\t10\t2\t6\n\t (null)4\t5\t10\t2\t6";
-    std::istringstream ist(str);
-    std::vector<gene_transcript> families;
-    read_gene_families(ist, NULL, families);
-    CHECK_EQ(5, families.at(0).get_expression_value("A"));
-    CHECK_EQ(10, families.at(0).get_expression_value("B"));
-    CHECK_EQ(2, families.at(0).get_expression_value("C"));
-    CHECK_EQ(6, families.at(0).get_expression_value("D"));
-}
 
-TEST_CASE("GeneFamilies: read_gene_families_reads_simulation_files")
-{
-    std::string str = "#A\n#B\n#AB\n#CD\n#C\n#ABCD\n#D\n35\t36\t35\t35\t36\t34\t34\t1\n98\t96\t97\t98\t98\t98\t98\t1\n";
-    std::istringstream ist(str);
-
-    clade* p_tree = parse_newick("((A:1,B:1):1,(C:1,D:1):1);");
-
-    std::vector<gene_transcript> families;
-    read_gene_families(ist, p_tree, families);
-    CHECK_EQ(35, families.at(0).get_expression_value("A"));
-    CHECK_EQ(36, families.at(0).get_expression_value("B"));
-    CHECK_EQ(36, families.at(0).get_expression_value("C"));
-    CHECK_EQ(34, families.at(0).get_expression_value("D"));
-    delete p_tree;
-}
-
-TEST_CASE("GeneFamilies: read_gene_families_throws_if_no_families_found")
-{
-    std::string empty;
-    std::istringstream ist(empty);
-
-    unique_ptr<clade> p_tree(parse_newick("((A:1,B:1):1,(C:1,D:1):1);"));
-    std::vector<gene_transcript> families;
-    CHECK_THROWS_WITH_AS(read_gene_families(ist, p_tree.get(), families), "No families found", runtime_error);
-}
-
-TEST_CASE("GeneFamilies: read_gene_families skips blank lines in input")
-{
-    std::string str = "Desc\tFamily ID\tA\tB\tC\tD\n\n\n\n\t (null)1\t5\t10\t2\t6\n\n\n\n";
-    std::istringstream ist(str);
-    std::vector<gene_transcript> families;
-    read_gene_families(ist, NULL, families);
-    CHECK_EQ(1, families.size());
-}
 
 TEST_CASE("GeneFamilies: species_size_is_case_insensitive")
 {
@@ -425,8 +379,7 @@ TEST_CASE("Inference: gamma_model__creates__lambda_optimizer__if_alpha_provided"
     gamma_model model(NULL, NULL, 4, 0.25, NULL);
 
     user_data data;
-    data.gene_families.resize(1);
-    data.gene_families[0].set_id("TestFamily1");
+    data.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
     data.gene_families[0].set_expression_value("A", 1);
     data.gene_families[0].set_expression_value("B", 2);
     data.p_tree = p_tree.get();
@@ -525,7 +478,7 @@ TEST_CASE("Inference: branch_length_finder")
 TEST_CASE("Inference: increase_decrease")
 {
     base_model_reconstruction bmr;
-    gene_transcript gf;
+    gene_transcript gf("myid", "", "");
 
     unique_ptr<clade> p_tree(parse_newick("((A:1,B:3):7,(C:11,D:17):23);"));
 
@@ -534,7 +487,6 @@ TEST_CASE("Inference: increase_decrease")
     auto ab = p_tree->find_descendant("AB");
     auto abcd = p_tree->find_descendant("ABCD");
 
-    gf.set_id("myid");
     gf.set_expression_value("A", 4);
     gf.set_expression_value("B", 2);
     bmr._reconstructions["myid"][ab] = 3;
@@ -561,11 +513,10 @@ public:
     unique_ptr<clade> p_tree;
     cladevector order;
 
-    Reconstruction()
+    Reconstruction() : fam("Family5", "", "")
     {
         p_tree.reset(parse_newick("((A:1,B:3):7,(C:11,D:17):23);"));
 
-        fam.set_id("Family5");
         fam.set_expression_value("A", 11);
         fam.set_expression_value("B", 2);
         fam.set_expression_value("C", 5);
@@ -607,8 +558,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_leaf_node" * doctest::skip(true))
 
 TEST_CASE_FIXTURE(Reconstruction, "print_reconstructed_states__prints_star_for_significant_values")
 {
-    gene_transcript gf;
-    gf.set_id("Family5");
+    gene_transcript gf("Family5", "", "");
     base_model_reconstruction bmr;
     auto& values = bmr._reconstructions[gf.id()];
 
@@ -865,8 +815,7 @@ TEST_CASE_FIXTURE(Reconstruction, "clade_index_or_name__returns_node_name_plus_i
 
 TEST_CASE_FIXTURE(Reconstruction, "print_branch_probabilities__shows_NA_for_invalids")
 {
-    gene_transcript gf;
-    gf.set_id("Family5");
+    gene_transcript gf("Family5", "", "");
     std::ostringstream ost;
     branch_probabilities probs;
     for (auto c : order)
@@ -1397,8 +1346,7 @@ TEST_CASE_FIXTURE(Reconstruction, "gene_transcript_reconstrctor__print_increases
     ostringstream insignificant;
     base_model_reconstruction bmr;
     bmr._reconstructions["myid"][p_tree->find_descendant("AB")] = 5;
-    gene_transcript gf;
-    gf.set_id("myid");
+    gene_transcript gf("myid", "", "");
     gf.set_expression_value("A", 7);
     order.clear();
     bmr.print_increases_decreases_by_family(insignificant, order, { gf }, { 0.03 }, 0.01);
@@ -1434,8 +1382,7 @@ TEST_CASE("Reconstruction: base_model_print_increases_decreases_by_family")
 
     bmr._reconstructions["myid"][p_tree->find_descendant("AB")] = 5;
 
-    gene_transcript gf;
-    gf.set_id("myid");
+    gene_transcript gf("myid", "", "");
     gf.set_expression_value("A", 7);
     gf.set_expression_value("B", 2);
 
@@ -1463,8 +1410,7 @@ TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_family")
 
     gmr._reconstructions["myid"].reconstruction[p_tree->find_descendant("AB")] = 5;
 
-    gene_transcript gf;
-    gf.set_id("myid");
+    gene_transcript gf("myid", "", "");
     gf.set_expression_value("A", 7);
     gf.set_expression_value("B", 2);
 
@@ -1494,8 +1440,7 @@ TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade")
 
     gmr._reconstructions["myid"].reconstruction[p_tree->find_descendant("AB")] = 5;
 
-    gene_transcript gf;
-    gf.set_id("myid");
+    gene_transcript gf("myid", "", "");
     gf.set_expression_value("A", 7);
     gf.set_expression_value("B", 2);
 
@@ -1526,8 +1471,7 @@ TEST_CASE("Reconstruction: base_model_print_increases_decreases_by_clade")
     //    bmr._reconstructions["myid"][p_tree->find_descendant("B")] = -3;
     bmr._reconstructions["myid"][p_tree->find_descendant("AB")] = 5;
 
-    gene_transcript gf;
-    gf.set_id("myid");
+    gene_transcript gf("myid", "", "");
     gf.set_expression_value("A", 7);
     gf.set_expression_value("B", 2);
 
@@ -1575,7 +1519,6 @@ TEST_CASE("Inference: lambda_per_family" * doctest::skip(true))
     ud.prior = root_equilibrium_distribution(size_t(ud.max_root_family_size));
 
     gene_transcript& family = ud.gene_families[0];
-    family.set_id("test");
     family.set_expression_value("A", 3);
     family.set_expression_value("B", 6);
     input_parameters params;
@@ -1659,8 +1602,7 @@ TEST_CASE_FIXTURE(Inference, "poisson_scorer__lnlPoisson")
 
 TEST_CASE_FIXTURE(Inference, "poisson_scorer__lnlPoisson_skips_incalculable_family_sizes")
 {
-    _user_data.gene_families.resize(2);
-    _user_data.gene_families[1].set_id("TestFamily2");
+    _user_data.gene_families.push_back(gene_transcript("TestFamily2", "", ""));
     _user_data.gene_families[1].set_expression_value("A", 3);
     _user_data.gene_families[1].set_expression_value("B", 175);
 
@@ -1788,8 +1730,7 @@ TEST_CASE("Inference, event_monitor_does_not_show_decent_performing_families")
 TEST_CASE_FIXTURE(Inference, "initialization_failure_advice_shows_20_families_with_largest_differentials")
 {
     std::ostringstream ost;
-    _user_data.gene_families.resize(2);
-    _user_data.gene_families[1].set_id("TestFamily2");
+    _user_data.gene_families.push_back(gene_transcript("TestFamily2", "", ""));
     _user_data.gene_families[1].set_expression_value("A", 34);
     _user_data.gene_families[1].set_expression_value("B", 86);
 

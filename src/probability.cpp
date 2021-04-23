@@ -499,8 +499,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_from_error_model_if_pr
 
 TEST_CASE("find_best_pvalue")
 {
-    gene_transcript gt;
-    gt.set_id("TestFamily1");
+    gene_transcript gt("TestFamily1", "", "");
     gt.set_expression_value("A", 1);
     gt.set_expression_value("B", 2);
 
@@ -516,8 +515,7 @@ TEST_CASE("find_best_pvalue")
 
 TEST_CASE("find_best_pvalue_skips_values_outside_of_range")
 {
-    gene_transcript gt;
-    gt.set_id("TestFamily1");
+    gene_transcript gt("TestFamily1", "", "");
     gt.set_expression_value("A", 1);
     gt.set_expression_value("B", 2);
 
@@ -535,8 +533,7 @@ TEST_CASE("find_best_pvalue_skips_values_outside_of_range")
 
 TEST_CASE("find_best_pvalue_selects_largest_value_in_range")
 {
-    gene_transcript gt;
-    gt.set_id("TestFamily1");
+    gene_transcript gt("TestFamily1", "", "");
     gt.set_expression_value("A", 1);
     gt.set_expression_value("B", 2);
 
@@ -561,8 +558,7 @@ TEST_CASE("compute_family_probabilities")
     vector<simulated_family> v(1);
     v[0].values[p_tree.get()] = 5;
 
-    gene_transcript fam;
-    fam.set_id("Family5");
+    gene_transcript fam("Family5", "", "");
     fam.set_expression_value("A", 11);
     fam.set_expression_value("B", 2);
     fam.set_expression_value("C", 5);

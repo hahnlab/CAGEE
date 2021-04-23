@@ -29,22 +29,22 @@ class gene_transcript {
 private:
     std::string _id; //!< Gene family ID
     std::string _desc; //!< Gene family description
-
+    std::string _tissue;
     std::map<std::string, double, ci_less> _species_size_map; //!< Map that stores each species gene family count: {sp1_name:count1, ...}
 
 public:
     gene_transcript() { }
-    gene_transcript(const gene_transcript& other) : _id(other._id), _desc(other._desc), _species_size_map(other._species_size_map)
+    gene_transcript(std::string id, std::string desc, std::string tissue) : _id(id), _desc(desc), _tissue(tissue)
+    { 
+    }
+
+    gene_transcript(const gene_transcript& other) : _id(other._id), _desc(other._desc), _tissue(other._tissue), _species_size_map(other._species_size_map)
     {
     }
-    gene_transcript(gene_transcript&& other)
+    gene_transcript(gene_transcript&& other) noexcept
     {
         *this = std::move(other);
     }
-
-    void set_desc(std::string desc) { _desc = desc; }
-
-    void set_id(std::string id) { _id = id; }
 
     void set_expression_value(std::string species, double val) {
         _species_size_map[species] = val;
@@ -55,6 +55,7 @@ public:
     double get_max_expression_value() const;
 
     std::string id() const { return _id; }
+    std::string tissue() const { return _tissue; }
 
     double get_expression_value(std::string species) const;
 
@@ -71,11 +72,12 @@ public:
     double species_size_differential() const;
 
     // move assignment operator
-    gene_transcript& operator=(gene_transcript&& other)
+    gene_transcript& operator=(gene_transcript&& other) noexcept
     {
         _species_size_map = std::move(other._species_size_map);
         _id = std::move(other._id);
         _desc = std::move(other._desc);
+        _tissue = std::move(other._tissue);
         return *this;
     }
 

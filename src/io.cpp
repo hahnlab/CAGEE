@@ -137,79 +137,33 @@ clade* read_tree(string tree_file_path, bool lambda_tree) {
 */
 void read_gene_families(std::istream& input_file, clade *p_tree, std::vector<gene_transcript> &gene_families) {
     map<int, std::string> sp_col_map; // For dealing with CAFE input format, {col_idx: sp_name} 
-    map<int, string> leaf_indices; // For dealing with CAFExp input format, {idx: sp_name}, idx goes from 0 to number of species
     std::string line;
     bool is_header = true;
-    int index = 0;
-    
+    int first_gene_index = 2;
+
     while (getline(input_file, line)) {
         if (line.empty()) continue;
 
         std::vector<std::string> tokens = tokenize_str(line, '\t');
-        // Check if we are done reading the headers
-        if (!leaf_indices.empty() && line[0] != '#') { is_header = false; }
 
         // If still reading header
         if (is_header) {
-            
-            // Reading header lines, CAFExp input format
-            if (line[0] == '#') {
-                if (p_tree == NULL) { throw std::runtime_error("No tree was provided."); }
-                string taxon_name = line.substr(1); // Grabs from character 1 and on
-                if (taxon_name.back() == '\r')
-                    taxon_name.pop_back();
-
-                auto p_descendant = p_tree->find_descendant(taxon_name); // Searches (from root down) and grabs clade "taxon_name" root
+            if (tokens[2] == "Treatment_Tissue")
+                first_gene_index = 3;
+            is_header = false;
                 
-                if (p_descendant == NULL) { throw std::runtime_error(taxon_name + " not located in tree"); }
-                if (p_descendant->is_leaf()) { leaf_indices[index] = taxon_name; } // Only leaves matter for computation or estimation
-                index++;
-            }
-            
-            // Reading single header line, CAFE input format
-            else {
-                is_header = false;
-                
-                // If reading CAFE input format, leaf_indices (which is for CAFExp input format) should be empty
-                if (leaf_indices.empty()) {
-                    for (size_t i = 0; i < tokens.size(); ++i) {
-                        if (i == 0 || i == 1) {} // Ignoring description and ID columns
-                        sp_col_map[i] = tokens[i];
-                    }
-                }
+            for (size_t i = first_gene_index; i < tokens.size(); ++i) {
+                sp_col_map[i] = tokens[i];
             }
         }
         
         // Header has ended, reading gene family counts
         else {
-            gene_transcript genfam; 
+            gene_transcript genfam(tokens[0], tokens[1], first_gene_index == 3 ? tokens[2] : "");
             
-            for (size_t i = 0; i < tokens.size(); ++i) {                
-                // If reading CAFE input format, leaf_indices (which is for CAFExp input format) should be empty
-                if (leaf_indices.empty()) {
-                    if (i == 0) { genfam.set_desc(tokens[i]); }
-                    else if (i == 1) { genfam.set_id(tokens[i]); }
-                    else {
-                        std::string sp_name = sp_col_map[i];
-                        genfam.set_expression_value(sp_name, atof(tokens[i].c_str()));
-                        // cout << "Species " << sp_name << " has " << tokens[i] << "gene members." << endl;
-                    }
-                }
-                
-                // If reading CAFExp input format
-                else {
-                    // If index i is in leaf_indices
-                    if (leaf_indices.find(i) != leaf_indices.end()) { // This should always be true...
-                        std::string sp_name = leaf_indices[i];
-                        genfam.set_expression_value(sp_name, atof(tokens[i].c_str()));
-                        // cout << "Species " << sp_name << " has " << tokens[i] << "gene members." << endl;
-                    }
-                    else
-                    {
-                        if (i == tokens.size() - 1)
-                            genfam.set_id(tokens[i]);
-                    }
-                }
+            for (size_t i = first_gene_index; i < tokens.size(); ++i) {
+                std::string sp_name = sp_col_map[i];
+                genfam.set_expression_value(sp_name, atof(tokens[i].c_str()));
             }
             
             gene_families.push_back(genfam);
@@ -590,3 +544,47 @@ TEST_CASE("Options: Cannot specify rootdist for simulations with rootdist file a
 
 }
 
+TEST_CASE("GeneFamilies: read_gene_families_throws_if_no_families_found")
+{
+    std::string empty;
+    std::istringstream ist(empty);
+
+    unique_ptr<clade> p_tree(parse_newick("((A:1,B:1):1,(C:1,D:1):1);"));
+    std::vector<gene_transcript> families;
+    CHECK_THROWS_WITH_AS(read_gene_families(ist, p_tree.get(), families), "No families found", runtime_error);
+}
+
+TEST_CASE("GeneFamilies: read_gene_families skips blank lines in input")
+{
+    std::string str = "Desc\tFamily ID\tA\tB\tC\tD\n\n\n\n\t (null)1\t5\t10\t2\t6\n\n\n\n";
+    std::istringstream ist(str);
+    std::vector<gene_transcript> families;
+    read_gene_families(ist, NULL, families);
+    CHECK_EQ(1, families.size());
+}
+
+TEST_CASE("GeneFamilies: read_gene_families_reads_cafe_files")
+{
+    std::string str = "Desc\tFamily ID\tA\tB\tC\tD\n\t (null)1\t5\t10\t2\t6\n\t (null)2\t5\t10\t2\t6\n\t (null)3\t5\t10\t2\t6\n\t (null)4\t5\t10\t2\t6";
+    std::istringstream ist(str);
+    std::vector<gene_transcript> families;
+    read_gene_families(ist, NULL, families);
+    CHECK_EQ(5, families.at(0).get_expression_value("A"));
+    CHECK_EQ(10, families.at(0).get_expression_value("B"));
+    CHECK_EQ(2, families.at(0).get_expression_value("C"));
+    CHECK_EQ(6, families.at(0).get_expression_value("D"));
+}
+
+TEST_CASE("read_gene_families reads Treatment Tissue header")
+{
+    std::string str = "Desc\tFamily ID\tTreatment_Tissue\tA\tB\tC\tD\n\t (null)1\tovary\t5\t10\t2\t6\n\t (null)2\tlung\t5\t10\t2\t6\n\t (null)3\tbreast\t5\t10\t2\t6\n\t (null)4\tbrain\t5\t10\t2\t6";
+    std::istringstream ist(str);
+    std::vector<gene_transcript> families;
+    read_gene_families(ist, NULL, families);
+    REQUIRE_EQ(4, families.size());
+
+    CHECK(families[0].tissue() == "ovary");
+    CHECK(families[1].tissue() == "lung");
+    CHECK(families[2].tissue() == "breast");
+    CHECK(families[3].tissue() == "brain");
+}
