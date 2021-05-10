@@ -40,17 +40,21 @@ const DiffMat& DiffMat::instance()
 
 
 MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, pair<double, double> bounds) {
-    auto tP = dMat.passage.transpose();
-
+    // Calculate the transition density (dMat.diff to the power of cCoeff * t * (n-1)^2 / (b-a)^2
+    // using eigenvectors to speed up the calculation
     int Npts = dMat.Diff.cols();
     double tau = pow((bounds.second - bounds.first) / (Npts - 1), 2);
-    MatrixXd expD(Npts, Npts);
-    expD.setZero();
+    vector<double> expD(Npts);
     for (int i = 0; i < Npts; ++i)
     {
-        expD(i, i) = exp(cCoeff * (t / tau) * dMat.eig[i].real());
+        expD[i] = exp(cCoeff * (t / tau) * dMat.eig[i].real());
     }
-    MatrixXcd a = dMat.passage * expD * tP;
+    MatrixXcd temp(Npts, Npts);
+    for (int i = 0; i < Npts; ++i)
+        for (int j = 0; j < Npts; ++j)
+            temp(i, j) = dMat.passage(i, j) * expD[j];
+
+    MatrixXcd a = temp * dMat.passage.transpose();
     MatrixXd result = a.unaryExpr([](complex<double> x) {return max(x.real(), 0.0); });
     VLOG(MATRIX) << "Matrix for cCoeff: " << cCoeff << ", t: " << t << ", Max value: " << bounds.second;
     VLOG(MATRIX) << result;
@@ -104,3 +108,4 @@ TEST_CASE("ConvProp_bounds")
         for (int j = 0; j < 3; ++j)
             CHECK(actual(i, j) == doctest::Approx(expected(i, j)));
 }
+
