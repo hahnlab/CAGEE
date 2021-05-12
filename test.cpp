@@ -1,12 +1,14 @@
-
 #include <numeric>
 #include <cmath>
-#include <getopt.h>
 #include <sstream>
 #include <random>
 #include <algorithm>
 
 #include <string.h>
+
+#ifdef HAVE_GETOPT_H
+#include <getopt.h>
+#endif
 
 #define ELPP_NO_CHECK_MACROS
 #include "src/easylogging++.h"

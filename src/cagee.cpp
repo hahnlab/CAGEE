@@ -1,10 +1,12 @@
 #include <map>
 #include <random>
-#include <algorithm>
+#include <numeric>
 #include <fstream>
 #include <omp.h>
 
+#ifdef HAVE_GETOPT_H
 #include <getopt.h>
+#endif
 
 #include "easylogging++.h"
 
@@ -31,6 +33,7 @@ input_parameters read_arguments(int argc, char *const argv[])
     int args; // getopt_long returns int or char
     int prev_arg;
 
+#ifdef HAVE_GETOPT_H
     while (prev_arg = optind, (args = getopt_long(argc, argv, "c:v:i:e::o:t:y:n:f:E:F:R:L:P:I:l:m:k:a:g:s::p::zbh", longopts, NULL)) != -1) {
         if (optind == prev_arg + 2 && optarg && *optarg == '-') {
             LOG(ERROR) << "You specified option " << argv[prev_arg] << " but it requires an argument. Exiting..." << endl;
@@ -127,6 +130,7 @@ input_parameters read_arguments(int argc, char *const argv[])
     {
         throw std::runtime_error(string("Unrecognized parameter: '") + argv[optind] + "'");
     }
+#endif
 
     my_input_parameters.check_input(); // seeing if options are not mutually exclusive              
 
