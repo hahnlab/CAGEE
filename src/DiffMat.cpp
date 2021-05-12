@@ -55,7 +55,14 @@ MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, pair<doub
             temp(i, j) = dMat.passage(i, j) * expD[j];
 
     MatrixXcd a = temp * dMat.passage.transpose();
+#ifdef _WIN32
+    MatrixXd result(Npts, Npts);
+    for (int i = 0; i < Npts; ++i)
+        for (int j = 0; j < Npts; ++j)
+            result(i, j) = max(a(i, j).real(), 0.0);
+#else
     MatrixXd result = a.unaryExpr([](complex<double> x) {return max(x.real(), 0.0); });
+#endif
     VLOG(MATRIX) << "Matrix for cCoeff: " << cCoeff << ", t: " << t << ", Max value: " << bounds.second;
     VLOG(MATRIX) << result;
     VLOG(MATRIX) << "Matrix end";

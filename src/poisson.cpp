@@ -1,6 +1,7 @@
 #include <vector>
 #include <cmath>
 #include <random>
+#include <numeric>
 
 #include "easylogging++.h"
 
