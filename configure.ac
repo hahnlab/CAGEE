@@ -7,6 +7,7 @@ AC_PROG_CXX([icc g++])
 AC_OPENMP
 
 AC_CHECK_LIB([m], [floor])
+AC_CHECK_HEADERS([getopt.h])
 
 ax_blas_ok=no
 

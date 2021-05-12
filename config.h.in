@@ -12,6 +12,9 @@
 /* OpenBLAS for matrix multiplication */
 #undef HAVE_OPENBLAS
 
+/* GetOpt for command line parameters */
+#undef HAVE_GETOPT_H
+
 /* Have a vector exponential function */
 #undef HAVE_VECTOR_EXP
 
@@ -61,6 +64,5 @@
 #define MINIMUM_UPPER_BOUND 20.0
 
 /* Verbose log keys for various aspects of the application */
-#define PVALUE 2
 #define SIMULATOR 3
 #define MATRIX 6
