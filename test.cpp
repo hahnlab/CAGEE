@@ -539,7 +539,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_leaf_node" * doctest::skip(true))
 
     matrix_cache calc;
     calc.precalculate_matrices({ .1 }, set<double>({ 7 }));
-    clademap<std::vector<int>> all_node_Cs;
+    clademap<std::vector<double>> all_node_Cs;
     clademap<std::vector<double>> all_node_Ls;
     all_node_Cs[&leaf].resize(8);
     all_node_Ls[&leaf].resize(8);
@@ -667,7 +667,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruction_process_internal_node" * docte
     matrix_cache calc;
     calc.precalculate_matrices({ 0.1 }, set<double>({ 1, 3, 7, 11, 17, 23 }));
 
-    clademap<std::vector<int>> all_node_Cs;
+    clademap<std::vector<double>> all_node_Cs;
     clademap<std::vector<double>> all_node_Ls;
     all_node_Cs[p_tree->find_descendant("A")].resize(25);
     all_node_Ls[p_tree->find_descendant("A")].resize(25);
@@ -700,7 +700,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruction_process_internal_node with 0s 
     matrix_cache calc;
     calc.precalculate_matrices({ 0.1 }, set<double>({ 1, 3, 7, 11, 17, 23 }));
 
-    clademap<std::vector<int>> all_node_Cs;
+    clademap<std::vector<double>> all_node_Cs;
     clademap<std::vector<double>> all_node_Ls;
     all_node_Cs[p_tree->find_descendant("A")].resize(25);
     all_node_Ls[p_tree->find_descendant("A")].resize(25);
@@ -743,7 +743,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript" * doctest::skip(
     root_equilibrium_distribution dist(ud.rootdist);
 
     clademap<int> result;
-    clademap<std::vector<int>> all_node_Cs;
+    clademap<std::vector<double>> all_node_Cs;
     clademap<std::vector<double>> all_node_Ls;
     std::function <void(const clade*)> pupko_initializer = [this, &all_node_Cs, &all_node_Ls, &ud](const clade* c) {
         pupko_reconstructor::initialize_at_node(c, all_node_Cs, all_node_Ls, 10, ud.max_root_family_size);

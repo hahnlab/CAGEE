@@ -8,19 +8,19 @@ class matrix_cache;
 
 namespace pupko_reconstructor {
 
-void reconstruct_leaf_node(const clade * c, const lambda * _lambda, clademap<std::vector<int>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const gene_transcript* _gene_family, const matrix_cache *_p_calc);
-void reconstruct_at_node(const clade *c, const gene_transcript& t, const lambda *_lambda, clademap<std::vector<int>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache* p_calc, const root_equilibrium_distribution* p_prior, const gene_transcript *p_family);
-void reconstruct_internal_node(const clade * c, const lambda * _lambda, clademap<std::vector<int>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache *_p_calc);
-void initialize_at_node(const clade* c, clademap<std::vector<int>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, int max_family_size, int max_root_family_size);
+void reconstruct_leaf_node(const clade * c, const lambda * _lambda, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const gene_transcript* _gene_family, const matrix_cache *_p_calc);
+void reconstruct_at_node(const clade *c, const gene_transcript& t, const lambda *_lambda, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache* p_calc, const root_equilibrium_distribution* p_prior, const gene_transcript *p_family);
+void reconstruct_internal_node(const clade * c, const lambda * _lambda, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache *_p_calc);
+void initialize_at_node(const clade* c, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, int max_family_size, int max_root_family_size);
 
 /// Structure holding required memory to calculate Pupko reconstructions
 struct pupko_data {
-    std::vector<clademap<std::vector<int>>> v_all_node_Cs;
+    std::vector<clademap<std::vector<double>>> v_all_node_Cs;
     std::vector<clademap<std::vector<double>>> v_all_node_Ls;
 
     pupko_data(size_t num_families, const clade* p_tree, int max_family_size, int max_root_family_size);
 
-    clademap<std::vector<int>>& C(size_t i) { return v_all_node_Cs.at(i); }
+    clademap<std::vector<double>>& C(size_t i) { return v_all_node_Cs.at(i); }
     clademap<std::vector<double>>& L(size_t i) { return v_all_node_Ls.at(i); }
 };
 
@@ -32,7 +32,7 @@ void reconstruct_gene_transcript(const lambda* lambda, const clade *p_tree,
     matrix_cache *p_calc,
     const root_equilibrium_distribution* p_prior, 
     clademap<int>& reconstructed_states,
-    clademap<std::vector<int>>& all_node_Cs,
+    clademap<std::vector<double>>& all_node_Cs,
     clademap<std::vector<double>>& all_node_Ls);
 }
 
