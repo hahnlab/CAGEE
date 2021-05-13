@@ -63,6 +63,9 @@
 
 #define MINIMUM_UPPER_BOUND 20.0
 
+/* Required for Windows compatibility
+#define NOMINMAX
+
 /* Verbose log keys for various aspects of the application */
 #define SIMULATOR 3
 #define MATRIX 6

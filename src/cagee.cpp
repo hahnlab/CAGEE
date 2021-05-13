@@ -1,10 +1,16 @@
 #include <map>
 #include <random>
-#include <algorithm>
+#include <numeric>
 #include <fstream>
 #include <omp.h>
 
+#ifdef HAVE_GETOPT_H
 #include <getopt.h>
+#else
+#include <boost/program_options.hpp>
+
+namespace po = boost::program_options;
+#endif
 
 #include "easylogging++.h"
 
@@ -28,6 +34,7 @@ input_parameters read_arguments(int argc, char *const argv[])
         return my_input_parameters;
     }
 
+#ifdef HAVE_GETOPT_H
     int args; // getopt_long returns int or char
     int prev_arg;
 
@@ -127,6 +134,30 @@ input_parameters read_arguments(int argc, char *const argv[])
     {
         throw std::runtime_error(string("Unrecognized parameter: '") + argv[optind] + "'");
     }
+#else
+    string config_file;
+    po::options_description generic("Generic options");
+    generic.add_options()
+        ("infile,i", po::value<string>(), "input file")
+        ("tree,t", po::value<string>(), "Tree file in Newick format")
+        ("output_prefix,o", po::value<string>(), "Output prefix")
+        ("pvalue", po::value<float>(), "PValue")
+        ("fixed_root_value", po::value<float>(), "Fixed Root Value")
+        ("help", "produce help message")
+        ("config,c", po::value<string>(&config_file),
+            "Configuration file containing additional options");
+    po::options_description cmdline_options;
+    cmdline_options.add(generic);
+    po::variables_map vm;
+    store(po::command_line_parser(argc, argv).
+        options(cmdline_options).run(), vm);
+    notify(vm);
+    my_input_parameters.input_file_path = vm["infile"].as<string>();
+    my_input_parameters.tree_file_path = vm["tree"].as<string>();
+    my_input_parameters.output_prefix = vm["output_prefix"].as<string>();
+    my_input_parameters.fixed_root_value = vm["fixed_root_value"].as<float>();
+    my_input_parameters.pvalue = vm["pvalue"].as<float>();
+#endif
 
     my_input_parameters.check_input(); // seeing if options are not mutually exclusive              
 

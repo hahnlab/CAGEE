@@ -1,7 +1,6 @@
 #include <string>
 #include <fstream>
 #include <iostream>
-#include <getopt.h>
 #include <sstream>
 #include <cstring>
 #include <set>
@@ -21,6 +20,9 @@
 #include "clade.h"
 
 using namespace std;
+
+#ifdef HAVE_GETOPT_H
+#include <getopt.h>
 
 struct option longopts[] = {
   { "infile", required_argument, NULL, 'i' },
@@ -47,6 +49,7 @@ struct option longopts[] = {
   { "help", no_argument, NULL, 'h'},
   { 0, 0, 0, 0 }
 };
+#endif
 
 void input_parameters::check_input() {
     //! Options -l and -m cannot both specified.
@@ -272,11 +275,13 @@ std::vector<std::string> tokenize_str(std::string some_string, char some_delim) 
 /// If it failed for some other reason, throw an exception.
 void create_directory(std::string& dir)
 {
+#ifndef _WIN32
     if (mkdir(dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1)
     {
         if (errno != EEXIST)
             throw std::runtime_error("Failed to create directory");
     }
+#endif
 }
 
 std::ostream& operator<<(std::ostream& ost, const gene_transcript& family)
@@ -301,7 +306,9 @@ struct option_test
 
     option_test(vector<string> arguments)
     {
+#ifdef HAVE_GETOPT_H
         optind = 0;
+#endif
         argc = arguments.size();
         for (size_t i = 0; i < arguments.size(); ++i)
         {

@@ -17,8 +17,9 @@ class root_distribution;
 class inference_optimizer_scorer;
 class gene_transcript;
 class root_equilibrium_distribution;
-class input_parameters;
 class matrix_cache;
+
+struct input_parameters;
 
 struct family_info_stash {
     family_info_stash() : lambda_multiplier(0.0), category_likelihood(0.0), family_likelihood(0.0), 
