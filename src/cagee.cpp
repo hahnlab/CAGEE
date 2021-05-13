@@ -34,10 +34,10 @@ input_parameters read_arguments(int argc, char *const argv[])
         return my_input_parameters;
     }
 
+#ifdef HAVE_GETOPT_H
     int args; // getopt_long returns int or char
     int prev_arg;
 
-#ifdef HAVE_GETOPT_H
     while (prev_arg = optind, (args = getopt_long(argc, argv, "c:v:i:e::o:t:y:n:f:E:F:R:L:P:I:l:m:k:a:g:s::p::zbh", longopts, NULL)) != -1) {
         if (optind == prev_arg + 2 && optarg && *optarg == '-') {
             LOG(ERROR) << "You specified option " << argv[prev_arg] << " but it requires an argument. Exiting..." << endl;
