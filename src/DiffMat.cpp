@@ -2,9 +2,15 @@
 
 #include "doctest.h"
 #include "easylogging++.h"
+#include "mkl.h"
+#include <cuda_runtime_api.h>
+#include <cublas_v2.h>
 
 using namespace Eigen;
 using namespace std;
+
+cublasHandle_t handle;
+cuDoubleComplex* d_matrix, * d_matrixT, * d_matrixResult;
 
 DiffMat::DiffMat(int Npts) {
     // Npts is the number of points in which the interval is discretized
@@ -26,6 +32,11 @@ DiffMat::DiffMat(int Npts) {
     VLOG(MATRIX) << eig;
     VLOG(MATRIX) << "Eigenvalues end";
 
+#ifdef HAVE_CUDA
+    cudaMalloc((void**)&d_matrixT, Npts * Npts * sizeof(complex<double>));
+    cudaMalloc((void**)&d_matrix, Npts * Npts * sizeof(complex<double>));
+    cudaMalloc((void**)&d_matrixResult, Npts * Npts * sizeof(complex<double>));
+#endif
 }
 
 DiffMat* p_diffmat = nullptr;
@@ -54,7 +65,29 @@ MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, boundarie
         for (int j = 0; j < Npts; ++j)
             temp(i, j) = dMat.passage(i, j) * expD[j];
 
+    MatrixXcd transpose = dMat.passage.transpose();
+#ifdef HAVE_CUDA
+    const complex<double> alpha = 1.0;
+    const complex<double> beta = 0.0;
+    cudaMemcpy(d_matrix, temp.data(), Npts * Npts * sizeof(complex<double>), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_matrixT, transpose.data(), Npts * Npts * sizeof(complex<double>), cudaMemcpyHostToDevice);
+    //auto status = cublasZgemmBatched(handle, CUBLAS_OP_N, CUBLAS_OP_N, Npts, Npts, Npts, reinterpret_cast<const cuDoubleComplex*>(&alpha),
+    auto status = cublasZgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, Npts, Npts, Npts, reinterpret_cast<const cuDoubleComplex*>(&alpha),
+        d_matrix, Npts,
+        d_matrixT, Npts,
+        reinterpret_cast<const cuDoubleComplex*>(&beta), d_matrixResult, Npts);
+    MatrixXcd a(Npts, Npts);
+    cudaMemcpy(a.data(), d_matrixResult, Npts * Npts * sizeof(complex<double>), cudaMemcpyDeviceToHost);
+#elif defined HAVE_MKL
+    const complex<double> alpha = 1.0;
+    const complex<double> beta = 0.0;
+    MatrixXcd a(Npts, Npts);
+    cblas_zgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, Npts, Npts, Npts, &alpha,
+        temp.data(), Npts, transpose.data(), Npts, &beta, a.data(), Npts);
+#else
     MatrixXcd a = temp * dMat.passage.transpose();
+#endif
+
 #ifdef _WIN32
     MatrixXd result(Npts, Npts);
     for (int i = 0; i < Npts; ++i)
