@@ -194,10 +194,10 @@ void estimator::execute(std::vector<model *>& models)
 //Calculate the difference between the Max and Min count for each family, report the 20 families with the largest difference.
 void initialization_failure_advice(std::ostream& ost, const std::vector<gene_transcript>& families)
 {
-    std::vector<std::pair<std::string, int>> m;
+    std::vector<std::pair<std::string, double>> m;
     transform(families.begin(), families.end(), std::inserter(m, m.end()),
         [](const gene_transcript& gf) { return std::make_pair(gf.id(), gf.species_size_differential()); });
-    auto compare = [](const std::pair<string, int>& a, const std::pair<string, int>& b) { return a.second > b.second; };
+    auto compare = [](const std::pair<string, double>& a, const std::pair<string, double>& b) { return a.second > b.second; };
     sort(m.begin(), m.end(), compare);
     if (m.size() > 20)
         m.resize(20);

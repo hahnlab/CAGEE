@@ -325,6 +325,7 @@ struct option_test
     }
 };
 
+#ifdef HAVE_GETOPT_H
 TEST_CASE("read_arguments translates short values ") {
     option_test c({ "cafe5", "-ifile" });
 
@@ -338,6 +339,7 @@ TEST_CASE("read_arguments translates long values ") {
     auto actual = read_arguments(c.argc, c.values);
     CHECK(actual.input_file_path.compare("file") == 0);
 }
+
 TEST_CASE("Options, input_short_space_separated")
 {
     option_test c({ "cafe5", "-i", "file" });
@@ -550,6 +552,7 @@ TEST_CASE("Options: Cannot specify rootdist for simulations with rootdist file a
     CHECK_THROWS_WITH_AS(params.check_input(), "Options -i and -f are mutually exclusive.", runtime_error);
 
 }
+#endif
 
 TEST_CASE("GeneFamilies: read_gene_families_throws_if_no_families_found")
 {

@@ -42,16 +42,10 @@ double gene_transcript::get_expression_value(std::string species) const {
     return _species_size_map.at(species);
 }
 
-//! Return first element of pair
-template <typename type1, typename type2>
-type1 do_get_species(const std::pair<type1, type2> & p1) {
-    return p1.first;
-}
-
 //! Return vector of species names
 vector<std::string> gene_transcript::get_species() const {
     vector<std::string> species_names(_species_size_map.size());
-    transform(_species_size_map.begin(), _species_size_map.end(), species_names.begin(), do_get_species<string, int>); // Transform performs an operation on all elements of a container (here, the operation is the template)
+    transform(_species_size_map.begin(), _species_size_map.end(), species_names.begin(), [](const std::pair<string, double>& p1) { return p1.first; });
 
     return species_names;
 }
@@ -90,7 +84,7 @@ bool gene_transcript::exists_at_root(const clade *p_tree) const
 
 double gene_transcript::species_size_differential() const
 {
-    auto compare = [](const std::pair<string, int>& a, const std::pair<string, int>& b) { return a.second < b.second; };
+    auto compare = [](const std::pair<string, double>& a, const std::pair<string, double>& b) { return a.second < b.second; };
     double max_species_size = max_element(_species_size_map.begin(), _species_size_map.end(), compare)->second;
     double min_species_size = min_element(_species_size_map.begin(), _species_size_map.end(), compare)->second;
     return max_species_size - min_species_size;

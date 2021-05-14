@@ -771,10 +771,10 @@ const struct {
 } kTimeFormats[] = {
   { 1000.0f, ELPP_LITERAL("us") },
   { 1000.0f, ELPP_LITERAL("ms") },
-  { 60.0f, ELPP_LITERAL("seconds") },
-  { 60.0f, ELPP_LITERAL("minutes") },
-  { 24.0f, ELPP_LITERAL("hours") },
-  { 7.0f, ELPP_LITERAL("days") }
+  { 60.0f, ELPP_LITERAL("seconds") }//,
+//  { 60.0f, ELPP_LITERAL("minutes") },
+//  { 24.0f, ELPP_LITERAL("hours") },
+//  { 7.0f, ELPP_LITERAL("days") }
 };
 static const int kTimeFormatsCount                           =      sizeof(kTimeFormats) / sizeof(kTimeFormats[0]);
 const struct {
