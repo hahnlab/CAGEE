@@ -49,7 +49,7 @@ std::string multiple_lambda::to_string() const
     return ost.str();
 }
 
-bool multiple_lambda::is_valid()
+bool multiple_lambda::is_valid() const
 {
     return std::none_of(_lambdas.begin(), _lambdas.end(), [](double d) { return d < 0; });
 }
