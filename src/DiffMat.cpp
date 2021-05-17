@@ -39,7 +39,7 @@ const DiffMat& DiffMat::instance()
 }
 
 
-MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, pair<double, double> bounds) {
+MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, boundaries bounds) {
     // Calculate the transition density (dMat.diff to the power of cCoeff * t * (n-1)^2 / (b-a)^2
     // using eigenvectors to speed up the calculation
     int Npts = dMat.Diff.cols();
@@ -70,7 +70,7 @@ MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, pair<doub
     return result;
 }
 
-VectorXd VectorPos_bounds(double x, int Npts, pair<double, double> bounds) {
+VectorXd VectorPos_bounds(double x, int Npts, boundaries bounds) {
     VectorXd X = VectorXd::Zero(Npts);
     if (x == bounds.second)
     {
@@ -103,7 +103,7 @@ TEST_CASE("DiffMat creates the expected matrix")
 TEST_CASE("ConvProp_bounds")
 {
     DiffMat dMat(3);
-    MatrixXd actual = ConvProp_bounds(2.0, 3.0, dMat, pair<double, double>(0.0, 3.0));
+    MatrixXd actual = ConvProp_bounds(2.0, 3.0, dMat, boundaries(0.0, 3.0));
 
     Matrix3d expected;
     expected <<

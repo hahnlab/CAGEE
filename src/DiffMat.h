@@ -4,6 +4,9 @@
 #include <Eigen/Dense>
 #include <utility>
 
+using boundaries = std::pair<double, double>;
+
+
 class DiffMat {
 public:
     Eigen::MatrixXd Diff;
@@ -15,7 +18,7 @@ public:
     static const DiffMat& instance();
 };
 
-Eigen::MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, std::pair<double, double> bounds);
-Eigen::VectorXd VectorPos_bounds(double x, int Npts, std::pair<double, double> bounds);
+Eigen::MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, boundaries bounds);
+Eigen::VectorXd VectorPos_bounds(double x, int Npts, boundaries bounds);
 
 #endif
