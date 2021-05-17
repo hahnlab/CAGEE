@@ -40,8 +40,6 @@ public:
 
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache *p_calc);
 
-    virtual void prepare_matrices_for_simulation(clade *p_tree, matrix_cache& cache);
-
     virtual lambda* get_simulation_lambda();
 
 };

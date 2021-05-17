@@ -75,11 +75,6 @@ public:
         _p_lambda = lambda;
     }
     void set_invalid_likelihood() { _invalid_likelihood = true;  }
-    // Inherited via model
-    virtual void prepare_matrices_for_simulation(clade* p_tree, matrix_cache& cache) override
-    {
-        cache.precalculate_matrices(get_lambda_values(_p_lambda), p_tree->get_branch_lengths());
-    }
 
     // Inherited via model
     virtual double infer_family_likelihoods(const user_data& ud, const lambda* p_lambda) override
@@ -1740,26 +1735,6 @@ TEST_CASE_FIXTURE(Inference, "initialization_failure_advice_shows_20_families_wi
     STRCMP_CONTAINS("Families with largest size differentials:", ost.str().c_str());
     STRCMP_CONTAINS("\nYou may want to try removing the top few families with the largest difference\nbetween the max and min counts and then re-run the analysis.\n", ost.str().c_str());
     STRCMP_CONTAINS("TestFamily2: 52\nTestFamily1: 1", ost.str().c_str());
-}
-
-TEST_CASE("Simulation, base_prepare_matrices_for_simulation_creates_matrix_for_each_branch")
-{
-    single_lambda lam(0.05);
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-    base_model b(&lam, NULL, NULL);
-    matrix_cache m;
-    b.prepare_matrices_for_simulation(p_tree.get(), m);
-    CHECK_EQ(3, m.get_cache_size());
-}
-
-TEST_CASE("Simulation, gamma_prepare_matrices_for_simulation_creates_matrix_for_each_branch_and_category")
-{
-    single_lambda lam(0.05);
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-    gamma_model g(&lam, NULL, 2, 0.5, NULL);
-    matrix_cache m;
-    g.prepare_matrices_for_simulation(p_tree.get(), m);
-    CHECK_EQ(6, m.get_cache_size());
 }
 
 TEST_CASE("Simulation, specified_distribution__with_rootdist_creates_matching_vector")

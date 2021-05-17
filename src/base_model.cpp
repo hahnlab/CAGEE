@@ -168,11 +168,6 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
     return result;
 }
 
-void base_model::prepare_matrices_for_simulation(clade *p_tree, matrix_cache& cache)
-{
-    unique_ptr<lambda> perturbed_lambda(get_simulation_lambda());
-    cache.precalculate_matrices(get_lambda_values(_p_lambda), p_tree->get_branch_lengths());
-}
 
 lambda* base_model::get_simulation_lambda()
 {

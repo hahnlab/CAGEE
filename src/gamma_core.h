@@ -89,8 +89,6 @@ public:
         return _lambda_multipliers;
     }
 
-    void prepare_matrices_for_simulation(clade *p_tree, matrix_cache& cache) override;
-
     bool can_infer() const;
 
     bool prune(const gene_transcript& family, const root_equilibrium_distribution& eq, const DiffMat& calc, const lambda *p_lambda,

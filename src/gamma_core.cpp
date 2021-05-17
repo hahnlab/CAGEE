@@ -102,18 +102,6 @@ std::vector<double> gamma_model::get_posterior_probabilities(std::vector<double>
     return posterior_probabilities;
 }
 
-void gamma_model::prepare_matrices_for_simulation(clade *p_tree, matrix_cache& cache)
-{
-    vector<double> multipliers;
-    for (auto multiplier : _lambda_multipliers)
-    {
-        unique_ptr<lambda> mult(_p_lambda->multiply(multiplier));
-        auto values = get_lambda_values(mult.get());
-        multipliers.insert(multipliers.end(), values.begin(), values.end());
-    }
-    cache.precalculate_matrices(multipliers, p_tree->get_branch_lengths());
-}
-
 bool gamma_model::can_infer() const
 {
     if (!_p_lambda->is_valid())

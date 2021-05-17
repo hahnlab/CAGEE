@@ -154,8 +154,6 @@ public:
     //! Returns a lambda suitable for creating a simulated family. Default case is simply to return the lambda provided by the user.
     virtual lambda* get_simulation_lambda();
 
-    virtual void prepare_matrices_for_simulation(clade *p_tree, matrix_cache& cache) = 0;
-
     virtual double infer_family_likelihoods(const user_data& ud, const lambda *p_lambda) = 0;  // return vector of likelihoods
     
     virtual std::string name() const = 0;
