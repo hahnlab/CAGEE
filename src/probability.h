@@ -4,7 +4,6 @@
 #include <vector>
 #include <Eigen/Dense>
 
-class matrix;
 class DiffMat;
 class gene_transcript;
 class lambda;

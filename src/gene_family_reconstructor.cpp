@@ -42,7 +42,7 @@ namespace pupko_reconstructor {
         // i will be the parent size
         for (size_t i = 0; i < L.size(); ++i)
         {
-            L[i] = matrix->get(i, observed_count);
+            L[i] = (*matrix)(i, observed_count);
         }
     }
 
@@ -85,9 +85,6 @@ namespace pupko_reconstructor {
 
         auto matrix = _p_calc->get_matrix(branch_length, _lambda->get_value_for_clade(c));
 
-        if (matrix->is_zero())
-            throw runtime_error("Zero matrix found");
-
         size_t j = 0;
         double value = 0.0;
         // i is the parent, j is the child
@@ -101,7 +98,7 @@ namespace pupko_reconstructor {
                 for (auto it = c->descendant_begin(); it != c->descendant_end(); ++it)
                     value *= all_node_Ls[*it][j];
 
-                double val = value * matrix->get(i, j);
+                double val = value * (*matrix)(i, j);
                 if (val > max_val)
                 {
                     max_j = j;
@@ -404,15 +401,15 @@ branch_probabilities::branch_probability compute_viterbi_sum(const clade* c,
         return branch_probabilities::invalid();
     }
 
-    const matrix* probs = cache.get_matrix(c->get_branch_length(), p_lambda->get_value_for_clade(c));
+    auto probs = cache.get_matrix(c->get_branch_length(), p_lambda->get_value_for_clade(c));
 
     int parent_size = rec->get_node_count(family, c->get_parent());
     int child_size = rec->get_node_count(family, c);
     double result = 0;
-    double calculated_probability = probs->get(parent_size, child_size);
+    double calculated_probability = (*probs)(parent_size, child_size);
     for (int m = 0; m < max_family_size; m++)
     {
-        double probability_to_m = probs->get(parent_size, m);
+        double probability_to_m = (*probs)(parent_size, m);
         if (probability_to_m == calculated_probability)
         {
             result += probability_to_m / 2.0;

@@ -25,69 +25,6 @@ extern std::mt19937 randomizer_engine;
 using namespace Eigen;
 using namespace std;
 
-bool matrix::is_zero() const
-{
-    return *max_element(values.begin(), values.end()) == 0;
-}
-
-//! Take in a matrix and a vector, compute product, return it
-/*!
-This function returns a likelihood vector by multiplying an initial likelihood vector and a transition probability matrix.
-A minimum and maximum on the parent's and child's family sizes is provided. Because the root is forced to be >=1, for example, s_min_family_size for the root could be set to 1.
-*/
-void matrix::multiply(const vector<double>& v, int s_min_family_size, int s_max_family_size, int c_min_family_size, int c_max_family_size, double* result) const
-{
-    assert(c_min_family_size < c_max_family_size);
-    if (v.size() <= size_t(c_max_family_size - c_min_family_size))
-    {
-        std::ostringstream ost;
-        ost << "Matrix error: size " << v.size() << " less than max family size (" << c_max_family_size << ") - min family size (" << c_min_family_size << ")";
-        throw std::runtime_error(ost.str());
-    }
-#ifdef HAVE_BLAS
-    double alpha = 1.0, beta = 0.;
-    int m = s_max_family_size - s_min_family_size + 1;
-    int k = c_max_family_size - c_min_family_size + 1;
-    int n = 1;
-    const double *sub = &values[0] + s_min_family_size*_size + c_min_family_size;
-    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m, n, k, alpha, sub, _size, &v[0], n, beta, result, n);
-#else
-    //cout << "Matrix multiply " << matrix.size() << "x" << v.size() << " (submatrix " << s_min_family_size << ":" << s_max_family_size;
-    //cout << " " << c_min_family_size << ":" << c_max_family_size << ")" << endl;
-
-    //assert(s_max_family_size - s_min_family_size == c_max_family_size - c_min_family_size);
-
-    for (int s = s_min_family_size; s <= s_max_family_size; s++) {
-        result[s - s_min_family_size] = 0;
-
-        for (int c = c_min_family_size; c <= c_max_family_size; c++) {
-            result[s - s_min_family_size] += get(s, c) * v[c - c_min_family_size];
-        }
-    }
-#endif
-}
-
-int matrix::select_random_y(int x, int max) const
-{
-    assert(x < _size);
-    assert(max < _size);
-    el::Logger* l = el::Loggers::getLogger("default");
-    bool enabled = l->typedConfigurations()->enabled(el::Level::Trace);
-    if (enabled)
-    {
-        ostringstream ost;
-        ost << "Selecting random value from: ";
-        for (int i = 0; i < max; ++i)
-        {
-            ost << *(values.begin() + x * _size + i) << " ";
-        }
-        LOG(TRACE) << ost.str();
-    }
-
-    std::discrete_distribution<int> distribution(values.begin() + x*_size, values.begin() + x*_size + max);
-    return distribution(randomizer_engine);
-}
-
 matrix_cache::matrix_cache() : _matrix_size(DISCRETIZATION_RANGE)
 {
 }
@@ -100,10 +37,10 @@ matrix_cache::~matrix_cache()
     }
 }
 
-const matrix* matrix_cache::get_matrix(double branch_length, double lambda) const {
+const Eigen::MatrixXd* matrix_cache::get_matrix(double branch_length, double lambda) const {
     // cout << "Matrix request " << size << "," << branch_length << "," << lambda << endl;
 
-    matrix *result = NULL;
+    Eigen::MatrixXd*result = NULL;
     matrix_cache_key key(_matrix_size, lambda, branch_length);
     if (_matrix_cache.find(key) != _matrix_cache.end())
     {
@@ -136,8 +73,8 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& lambdas, con
     }
 
     // calculate matrices in parallel
-    vector<matrix*> matrices(keys.size());
-    generate(matrices.begin(), matrices.end(), [this] { return new matrix(this->_matrix_size); });
+    vector<Eigen::MatrixXd*> matrices(keys.size());
+    generate(matrices.begin(), matrices.end(), [this] { return new Eigen::MatrixXd(this->_matrix_size, this->_matrix_size); });
 
     size_t i = 0;
     size_t num_keys = keys.size();
@@ -148,10 +85,10 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& lambdas, con
         double branch_length = keys[i].branch_length();
         MatrixXd mxd = ConvProp_bounds(branch_length, sigma*sigma/2, DiffMat::instance(), pair<double, double>(0.0, _matrix_size));
 
-        matrix* m = matrices[i];
+        Eigen::MatrixXd* m = matrices[i];
         for (int j = 0; j < DISCRETIZATION_RANGE; ++j)
             for (int k = 0; k < DISCRETIZATION_RANGE; ++k)
-                m->set(j, k, mxd(j, k));
+                (*m)(j, k) = mxd(j, k);
     }
 
     // copy matrices to our internal map

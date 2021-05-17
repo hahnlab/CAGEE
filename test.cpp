@@ -39,6 +39,7 @@ INITIALIZE_EASYLOGGINGPP
 #include "src/DiffMat.h"
 
 using namespace std;
+using namespace Eigen;
 
 #define NEED_TO_CONVERT_TO_MATRIX_ALGORITHM // note tests that are failing because they rely on the CAFE transition matrix algorithm
 
@@ -245,11 +246,11 @@ TEST_CASE("Probability:matrices_take_fractional_branch_lengths_into_account" * d
     single_lambda lambda(0.006335);
     std::set<double> branch_lengths{ 68, 68.7105 };
     calc.precalculate_matrices(get_lambda_values(&lambda), branch_lengths);
-    CHECK_EQ(doctest::Approx(0.194661).epsilon(0.0001), calc.get_matrix(68.7105, 0.006335)->get(5, 5)); // a value 
-    CHECK_EQ(doctest::Approx(0.195791).epsilon(0.0001), calc.get_matrix(68, 0.006335)->get(5, 5));
+    CHECK_EQ(doctest::Approx(0.194661).epsilon(0.0001), (*calc.get_matrix(68.7105, 0.006335))(5, 5)); // a value 
+    CHECK_EQ(doctest::Approx(0.195791).epsilon(0.0001), (*calc.get_matrix(68, 0.006335))(5, 5));
 }
 
-bool operator==(const matrix& m1, const matrix& m2)
+bool operator==(const MatrixXd& m1, const MatrixXd& m2)
 {
     if (m1.size() != m2.size())
         return false;
@@ -257,7 +258,7 @@ bool operator==(const matrix& m1, const matrix& m2)
     for (int i = 0; i < m1.size(); ++i)
     {
         for (int j = 0; j < m1.size(); ++j)
-            if (abs(m1.get(i, j) - m2.get(i, j)) > 0.00001)
+            if (abs(m1(i, j) - m2(i, j)) > 0.00001)
                 return false;
     }
 
@@ -272,7 +273,7 @@ TEST_CASE("Probability: probability_of_matrix" * doctest::skip(true))
     std::set<double> branch_lengths{ 5 };
     calc.precalculate_matrices(get_lambda_values(&lambda), branch_lengths);
     auto actual = calc.get_matrix(5, lambda.get_single_lambda());
-    matrix expected(5);
+    MatrixXd expected(5, 5);
     double values[5][5] = {
     {1,0,0,0,0},
     { 0.2,0.64,0.128,0.0256,0.00512 },
@@ -281,7 +282,7 @@ TEST_CASE("Probability: probability_of_matrix" * doctest::skip(true))
     { 0.0016,0.02048,0.1024,0.249856,0.305562 } };
     for (int i = 0; i < 5; ++i)
         for (int j = 0; j < 5; ++j)
-            expected.set(i, j, values[i][j]);
+            expected(i, j) = values[i][j];
     CHECK(*actual == expected);
 
     // a second call should get the same results as the first
@@ -299,32 +300,6 @@ TEST_CASE("Probability: get_random_probabilities" * doctest::skip(true))
     auto probs = get_random_probabilities(p, 10, 3);
     CHECK_EQ(10, probs.size());
     CHECK_EQ(doctest::Approx(0.001905924).scale(10000), probs[0]);
-}
-
-TEST_CASE("Matrix__get_random_y")
-{
-    randomizer_engine.seed(10);
-
-    matrix m(10);
-    m.set(1, 1, 1);
-    CHECK_EQ(1, m.select_random_y(1, 9));
-
-    m.set(2, 1, .5);
-    m.set(2, 2, .5);
-    int ones = 0, twos = 0;
-    for (int i = 0; i < 1000; ++i)
-    {
-        int val = m.select_random_y(2, 9);
-        if (val == 1)
-            ones++;
-        if (val == 2)
-            twos++;
-    }
-    CHECK_EQ(515, ones);
-    CHECK_EQ(485, twos);
-
-    m.set(5, 5, 1);
-    CHECK_EQ(5, m.select_random_y(5, 9));
 }
 
 TEST_CASE_FIXTURE(Inference, "base_optimizer_guesses_lambda_only")
@@ -1002,7 +977,7 @@ TEST_CASE("Inference: build_models__creates_default_error_model_if_needed")
     delete model;
 }
 
-
+#if 0
 void build_matrix(matrix& m)
 {
     m.set(0, 0, 1);
@@ -1048,6 +1023,7 @@ TEST_CASE("Probability, matrix_multiply")
     CHECK_EQ(139, result[1]);
     CHECK_EQ(220, result[2]);
 }
+#endif
 
 TEST_CASE("Probability: error_model_set_probs")
 {

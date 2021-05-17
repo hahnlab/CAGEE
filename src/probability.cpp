@@ -60,7 +60,7 @@ double gammaln(double a)
 
 vector<double> lgamma_cache;
 
-matrix chooseln_cache(100);
+Eigen::MatrixXd chooseln_cache(100,100);
 
 inline double lgamma2(double n)
 {
@@ -78,9 +78,9 @@ void init_lgamma_cache()
         lgamma_cache[i] = lgamma(i);
     }
 
-    for (int i = 0; i < chooseln_cache.size(); ++i)
-        for (int j = 0; j < chooseln_cache.size(); ++j)
-            chooseln_cache.set(i, j, lgamma2(i + 1) - lgamma2(j + 1) - lgamma2(i - j + 1));
+    for (int i = 0; i < chooseln_cache.rows(); ++i)
+        for (int j = 0; j < chooseln_cache.cols(); ++j)
+            chooseln_cache(i, j) = lgamma2(i + 1) - lgamma2(j + 1) - lgamma2(i - j + 1);
 }
 
 double chooseln(double n, double r)
@@ -89,7 +89,7 @@ double chooseln(double n, double r)
   else if (n <= 0 || r <= 0) return log(0);
 
   if (n >= 0 && r >= 0 && n < chooseln_cache.size() && r < chooseln_cache.size() && (n - int(n) < 0.00000000001) && (r - int(r) < 0.00000000001))
-      return chooseln_cache.get(n, r);
+      return chooseln_cache(n, r);
 
   return lgamma2(n + 1) - lgamma2(r + 1) - lgamma2(n - r + 1);
 }
