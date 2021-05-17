@@ -159,10 +159,10 @@ void estimator::execute(std::vector<model *>& models)
                 /// For Gamma models, we tried using the most rapidly changing lambda multiplier here, but that
                 /// caused issues in the pvalue calculation. It should be best to use the original lambda
                 /// instead
+                matrix_cache cache(p_model->get_lambda());
                 pvalue_parameters p = { data.p_tree, p_model->get_lambda(), data.max_family_size, data.max_root_family_size, DiffMat::instance() };
                 auto pvalues = compute_pvalues(p, data.gene_families, 1000 );
 
-                matrix_cache cache;
                 std::unique_ptr<reconstruction> rec(p_model->reconstruct_ancestral_states(data, &cache));
 
                 branch_probabilities probs;

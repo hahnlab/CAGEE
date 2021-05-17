@@ -12,6 +12,7 @@
 #include "doctest.h"
 #include "easylogging++.h"
 #include "DiffMat.h"
+#include "lambda.h"
 
 #ifdef HAVE_BLAS
 #ifdef HAVE_OPENBLAS
@@ -25,46 +26,48 @@ extern std::mt19937 randomizer_engine;
 using namespace Eigen;
 using namespace std;
 
-matrix_cache::matrix_cache() : _matrix_size(DISCRETIZATION_RANGE)
+std::ostream& operator<<(std::ostream& ost, const matrix_cache_key& k)
 {
+    ost << "(" << k.branch_length() << ", (" << k.bounds().first << "," << k.bounds().second << "));";
+    return ost;
+}
+
+matrix_cache::matrix_cache(const lambda *p_sigma)
+{
+    _sigma_squared = dynamic_cast<const single_lambda*>(p_sigma)->get_single_lambda();
 }
 
 matrix_cache::~matrix_cache()
 {
-    for (auto m : _matrix_cache)
-    {
-        delete m.second;
-    }
+
 }
 
-const Eigen::MatrixXd* matrix_cache::get_matrix(double branch_length, double lambda) const {
+const Eigen::MatrixXd& matrix_cache::get_matrix(double branch_length, boundaries bounds) const
+{
     // cout << "Matrix request " << size << "," << branch_length << "," << lambda << endl;
 
-    Eigen::MatrixXd*result = NULL;
-    matrix_cache_key key(_matrix_size, lambda, branch_length);
+    matrix_cache_key key(bounds, branch_length);
     if (_matrix_cache.find(key) != _matrix_cache.end())
     {
-        result = _matrix_cache.at(key);
+       return _matrix_cache.at(key);
     }
-
-    if (result == NULL)
+    else
     {
         ostringstream ost;
-        ost << "Failed to find matrix for " << _matrix_size << "," << branch_length << "," << lambda;
+        ost << "Failed to find matrix for " << key;
         throw std::runtime_error(ost.str());
     }
-    return result;
 }
 
-void matrix_cache::precalculate_matrices(const std::vector<double>& lambdas, const std::set<double>& branch_lengths)
+void matrix_cache::precalculate_matrices(const set<boundaries>& boundses, const std::set<double>& branch_lengths)
 {
     // build a list of required matrices
     vector<matrix_cache_key> keys;
-    for (double lambda : lambdas)
+    for (auto bounds : boundses)
     {
         for (double branch_length : branch_lengths)
         {
-            matrix_cache_key key(_matrix_size, lambda, branch_length);
+            matrix_cache_key key(bounds, branch_length);
             if (_matrix_cache.find(key) == _matrix_cache.end())
             {
                 keys.push_back(key);
@@ -73,29 +76,15 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& lambdas, con
     }
 
     // calculate matrices in parallel
-    vector<Eigen::MatrixXd*> matrices(keys.size());
-    generate(matrices.begin(), matrices.end(), [this] { return new Eigen::MatrixXd(this->_matrix_size, this->_matrix_size); });
-
     size_t i = 0;
     size_t num_keys = keys.size();
 
     for (i = 0; i < num_keys; ++i)
     {
-        double sigma = keys[i].lambda();
         double branch_length = keys[i].branch_length();
-        MatrixXd mxd = ConvProp_bounds(branch_length, sigma*sigma/2, DiffMat::instance(), pair<double, double>(0.0, _matrix_size));
-
-        Eigen::MatrixXd* m = matrices[i];
-        for (int j = 0; j < DISCRETIZATION_RANGE; ++j)
-            for (int k = 0; k < DISCRETIZATION_RANGE; ++k)
-                (*m)(j, k) = mxd(j, k);
+        _matrix_cache[keys[i]] = ConvProp_bounds(branch_length, _sigma_squared * _sigma_squared /2, DiffMat::instance(), keys[i].bounds());
     }
 
-    // copy matrices to our internal map
-    for (size_t i = 0; i < keys.size(); ++i)
-    {
-        _matrix_cache[keys[i]] = matrices[i];
-    }
 }
 
 std::ostream& operator<<(std::ostream& ost, matrix_cache& c)
@@ -103,7 +92,7 @@ std::ostream& operator<<(std::ostream& ost, matrix_cache& c)
     ost << c.get_cache_size() << " matrices. Keys: ";
     for (auto& kv : c._matrix_cache)
     {
-        ost << "(" << kv.first.branch_length() << "," << kv.first.lambda() << "),";
+        ost << kv.first;
     }
     return ost;
 }

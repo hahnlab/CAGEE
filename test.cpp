@@ -242,12 +242,12 @@ TEST_CASE("Inference: stash_stream")
 
 TEST_CASE("Probability:matrices_take_fractional_branch_lengths_into_account" * doctest::skip(true))
 {
-    matrix_cache calc;
     single_lambda lambda(0.006335);
+    matrix_cache calc(&lambda);
     std::set<double> branch_lengths{ 68, 68.7105 };
-    calc.precalculate_matrices(get_lambda_values(&lambda), branch_lengths);
-    CHECK_EQ(doctest::Approx(0.194661).epsilon(0.0001), (*calc.get_matrix(68.7105, 0.006335))(5, 5)); // a value 
-    CHECK_EQ(doctest::Approx(0.195791).epsilon(0.0001), (*calc.get_matrix(68, 0.006335))(5, 5));
+    calc.precalculate_matrices(set<boundaries>{boundaries(0,3)}, branch_lengths);
+    CHECK_EQ(doctest::Approx(0.194661).epsilon(0.0001), calc.get_matrix(68.7105, boundaries(0,0.006335))(5, 5)); // a value 
+    CHECK_EQ(doctest::Approx(0.195791).epsilon(0.0001), calc.get_matrix(68, boundaries(0, 0.006335))(5, 5));
 }
 
 bool operator==(const MatrixXd& m1, const MatrixXd& m2)
@@ -268,12 +268,12 @@ bool operator==(const MatrixXd& m1, const MatrixXd& m2)
 
 TEST_CASE("Probability: probability_of_matrix" * doctest::skip(true))
 {
-    matrix_cache calc;
     single_lambda lambda(0.05);
+    matrix_cache calc(&lambda);
     std::set<double> branch_lengths{ 5 };
-    calc.precalculate_matrices(get_lambda_values(&lambda), branch_lengths);
-    auto actual = calc.get_matrix(5, lambda.get_single_lambda());
-    MatrixXd expected(5, 5);
+    calc.precalculate_matrices(set<boundaries>(), branch_lengths);
+    auto actual = calc.get_matrix(5, boundaries());
+    MatrixXd expected(5,5);
     double values[5][5] = {
     {1,0,0,0,0},
     { 0.2,0.64,0.128,0.0256,0.00512 },
@@ -283,11 +283,11 @@ TEST_CASE("Probability: probability_of_matrix" * doctest::skip(true))
     for (int i = 0; i < 5; ++i)
         for (int j = 0; j < 5; ++j)
             expected(i, j) = values[i][j];
-    CHECK(*actual == expected);
+    CHECK(actual == expected);
 
     // a second call should get the same results as the first
-    actual = calc.get_matrix(5, lambda.get_single_lambda());
-    CHECK(*actual == expected);
+    actual = calc.get_matrix(5, boundaries());
+    CHECK(actual == expected);
 }
 
 TEST_CASE("Probability: get_random_probabilities" * doctest::skip(true))
@@ -429,8 +429,8 @@ TEST_CASE_FIXTURE(Inference, "base_model_reconstruction")
 
     base_model model(&sl, &families, NULL);
 
-    matrix_cache calc;
-    calc.precalculate_matrices(get_lambda_values(&sl), set<double>({ 1 }));
+    matrix_cache calc(&sl);
+    calc.precalculate_matrices(set<boundaries>(), set<double>({ 1 }));
     root_equilibrium_distribution dist(size_t(_user_data.max_root_family_size));
 
     std::unique_ptr<base_model_reconstruction> rec(dynamic_cast<base_model_reconstruction*>(model.reconstruct_ancestral_states(_user_data, &calc)));
@@ -469,12 +469,12 @@ TEST_CASE("Inference: increase_decrease")
     CHECK_EQ(0, bmr.get_difference_from_parent(gf, ab));
 }
 
-TEST_CASE( "Inference: precalculate_matrices_calculates_all_lambdas_all_branchlengths")
+TEST_CASE( "Inference: precalculate_matrices_calculates_all_boundaries_all_branchlengths")
 {
-    matrix_cache calc;
-    std::map<std::string, int> m;
-    multiple_lambda lambda(m, vector<double>({ .1, .2, .3, .4 }));
-    calc.precalculate_matrices(get_lambda_values(&lambda), set<double>({ 1,2,3 }));
+    single_lambda s(0.05);
+    matrix_cache calc(&s);
+    set<boundaries> b{ boundaries(0,0.5), boundaries(0, 0.25), boundaries(0, 0.1), boundaries(0, 0.2) };
+    calc.precalculate_matrices(b, set<double>({ 1,2,3 }));
     CHECK_EQ(12, calc.get_cache_size());
 }
 
@@ -509,14 +509,14 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_leaf_node" * doctest::skip(true))
 
     clade leaf("Mouse", 7);
 
-    matrix_cache calc;
-    calc.precalculate_matrices({ .1 }, set<double>({ 7 }));
+    matrix_cache calc(&lambda);
+    calc.precalculate_matrices(set<boundaries>(), set<double>({ 7 }));
     clademap<std::vector<double>> all_node_Cs;
     clademap<std::vector<double>> all_node_Ls;
     all_node_Cs[&leaf].resize(8);
     all_node_Ls[&leaf].resize(8);
 
-    pupko_reconstructor::reconstruct_leaf_node(&leaf, &lambda, all_node_Cs, all_node_Ls, &fam, &calc);
+    pupko_reconstructor::reconstruct_leaf_node(&leaf, fam, all_node_Cs, all_node_Ls, &calc);
 
     // L holds the probability of the leaf moving from size 3 to size n
     auto L = all_node_Ls[&leaf];
@@ -636,8 +636,8 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruction_process_internal_node" * docte
     fam.set_expression_value("A", 3);
     fam.set_expression_value("B", 6);
 
-    matrix_cache calc;
-    calc.precalculate_matrices({ 0.1 }, set<double>({ 1, 3, 7, 11, 17, 23 }));
+    matrix_cache calc(&s_lambda);
+    calc.precalculate_matrices(set<boundaries>(), set<double>({ 1, 3, 7, 11, 17, 23 }));
 
     clademap<std::vector<double>> all_node_Cs;
     clademap<std::vector<double>> all_node_Ls;
@@ -648,11 +648,11 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruction_process_internal_node" * docte
     all_node_Cs[p_tree->find_descendant("AB")].resize(25);
     all_node_Ls[p_tree->find_descendant("AB")].resize(25);
 
-    pupko_reconstructor::reconstruct_leaf_node(p_tree->find_descendant("A"), &s_lambda, all_node_Cs, all_node_Ls, &fam, &calc);
-    pupko_reconstructor::reconstruct_leaf_node(p_tree->find_descendant("B"), &s_lambda, all_node_Cs, all_node_Ls, &fam, &calc);
+    pupko_reconstructor::reconstruct_leaf_node(p_tree->find_descendant("A"), fam, all_node_Cs, all_node_Ls, &calc);
+    pupko_reconstructor::reconstruct_leaf_node(p_tree->find_descendant("B"), fam, all_node_Cs, all_node_Ls, &calc);
 
     auto internal_node = p_tree->find_descendant("AB");
-    pupko_reconstructor::reconstruct_internal_node(internal_node, &s_lambda, all_node_Cs, all_node_Ls, &calc);
+    pupko_reconstructor::reconstruct_internal_node(internal_node, fam, all_node_Cs, all_node_Ls, &calc);
     auto L = all_node_Ls[internal_node];
 
     // L holds the probability of the node moving from size 3 to size n
@@ -669,8 +669,8 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruction_process_internal_node with 0s 
     fam.set_expression_value("A", 0);
     fam.set_expression_value("B", 0);
 
-    matrix_cache calc;
-    calc.precalculate_matrices({ 0.1 }, set<double>({ 1, 3, 7, 11, 17, 23 }));
+    matrix_cache calc(&s_lambda);
+    calc.precalculate_matrices(set<boundaries>(), set<double>({ 1, 3, 7, 11, 17, 23 }));
 
     clademap<std::vector<double>> all_node_Cs;
     clademap<std::vector<double>> all_node_Ls;
@@ -681,11 +681,11 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruction_process_internal_node with 0s 
     all_node_Cs[p_tree->find_descendant("AB")].resize(25);
     all_node_Ls[p_tree->find_descendant("AB")].resize(25);
 
-    pupko_reconstructor::reconstruct_leaf_node(p_tree->find_descendant("A"), &s_lambda, all_node_Cs, all_node_Ls, &fam, &calc);
-    pupko_reconstructor::reconstruct_leaf_node(p_tree->find_descendant("B"), &s_lambda, all_node_Cs, all_node_Ls, &fam, &calc);
+    pupko_reconstructor::reconstruct_leaf_node(p_tree->find_descendant("A"), fam, all_node_Cs, all_node_Ls, &calc);
+    pupko_reconstructor::reconstruct_leaf_node(p_tree->find_descendant("B"), fam, all_node_Cs, all_node_Ls, &calc);
 
     auto internal_node = p_tree->find_descendant("AB");
-    pupko_reconstructor::reconstruct_internal_node(internal_node, &s_lambda, all_node_Cs, all_node_Ls, &calc);
+    pupko_reconstructor::reconstruct_internal_node(internal_node, fam, all_node_Cs, all_node_Ls, &calc);
     auto L = all_node_Ls[internal_node];
 
     // L holds the probability of the node moving from size 3 to size n
@@ -703,9 +703,9 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript" * doctest::skip(
     fam.set_expression_value("B", 6);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     single_lambda lambda(0.005);
-    matrix_cache cache;
+    matrix_cache cache(&lambda);
 
-    cache.precalculate_matrices(get_lambda_values(&lambda), set<double>{1, 3, 7});
+    cache.precalculate_matrices(set<boundaries>(), set<double>{1, 3, 7});
 
     user_data ud;
     vector<int> v({ 1,2,3,4,5,4,3,2,1 });
@@ -811,22 +811,22 @@ TEST_CASE_FIXTURE(Reconstruction, "print_branch_probabilities__skips_families_wi
 
 TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities" * doctest::skip(true))
 {
-    matrix_cache cache;
-    cache.precalculate_matrices({ 0.05 }, { 1,3,7 });
+    single_lambda lm(0.05);
+    matrix_cache cache(&lm);
+    cache.precalculate_matrices(set<boundaries>(), { 1,3,7 });
     base_model_reconstruction rec;
     rec._reconstructions[fam.id()][p_tree->find_descendant("AB")] = 10;
     rec._reconstructions[fam.id()][p_tree->find_descendant("ABCD")] = 12;
-    single_lambda lm(0.05);
     CHECK_EQ(doctest::Approx(0.537681), compute_viterbi_sum(p_tree->find_descendant("AB"), fam, &rec, 24, cache, &lm)._value);
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities_returns_invalid_if_root")
 {
-    matrix_cache cache;
-    cache.precalculate_matrices({ 0.05 }, { 1,3,7 });
+    single_lambda lm(0.05);
+    matrix_cache cache(&lm);
+    cache.precalculate_matrices(set<boundaries>(), { 1,3,7 });
     base_model_reconstruction rec;
     rec._reconstructions[fam.id()][p_tree.get()] = 11;
-    single_lambda lm(0.05);
     CHECK_FALSE(compute_viterbi_sum(p_tree.get(), fam, &rec, 24, cache, &lm)._is_valid);
 }
 
@@ -895,12 +895,12 @@ TEST_CASE("Inference: matrix_cache_key_handles_floating_point_imprecision")
     for (int i = 0; i < 31; i++)
     {
         t += 0.1;
-        matrix_cache_key key(1, t, 0.3);
+        matrix_cache_key key(boundaries(0,t), 0.3);
         keys.insert(key);
     }
     CHECK_EQ(31, keys.size());
 
-    matrix_cache_key key(1, 3.0, 0.3);
+    matrix_cache_key key(boundaries(0, 3.0), 0.3);
     CHECK_EQ(1, keys.count(key));
 }
 
@@ -978,22 +978,22 @@ TEST_CASE("Inference: build_models__creates_default_error_model_if_needed")
 }
 
 #if 0
-void build_matrix(matrix& m)
+void build_matrix(Matrix3d& m)
 {
-    m.set(0, 0, 1);
-    m.set(0, 1, 2);
-    m.set(0, 2, 3);
-    m.set(1, 0, 4);
-    m.set(1, 1, 5);
-    m.set(1, 2, 6);
-    m.set(2, 0, 7);
-    m.set(2, 1, 8);
-    m.set(2, 2, 9);
+    m(0, 0) = 1;
+    m(0, 1) = 2;
+    m(0, 2) = 3;
+    m(1, 0) = 4;
+    m(1, 1) = 5;
+    m(1, 2) = 6;
+    m(2, 0) = 7;
+    m(2, 1) = 8;
+    m(2, 2) = 9;
 }
 
 TEST_CASE("Probability, matrix_multiply")
 {
-    matrix m1(3);
+    Matrix3d m1;
     build_matrix(m1);
     vector<double> m2({ 7, 9, 11 });
     vector<double> result;
@@ -1510,7 +1510,8 @@ TEST_CASE("Inference: lambda_per_family" * doctest::skip(true))
 TEST_CASE_FIXTURE(Inference, "estimator_compute_pvalues" * doctest::skip(true))
 {
     input_parameters params;
-    matrix_cache cache;
+    single_lambda s(0.05);
+    matrix_cache cache(&s);
 
     pvalue_parameters p = { _user_data.p_tree,  _user_data.p_lambda, _user_data.max_family_size, _user_data.max_root_family_size, DiffMat::instance() };
 

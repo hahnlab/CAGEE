@@ -55,10 +55,22 @@ vector<size_t> build_reference_list(const vector<gene_transcript>& families)
     return reff;
 }
 
-double base_model::infer_family_likelihoods(const user_data& ud, const lambda *p_lambda) {
+set<pair<double, double>> get_all_bounds(const vector<gene_transcript>& transcripts)
+{
+    vector<pair<double, double>> boundses(transcripts.size());
+    transform(transcripts.begin(), transcripts.end(), boundses.begin(), [](const gene_transcript& gf) {
+        return bounds(gf);
+        });
+
+    return set<pair<double, double>>(boundses.begin(), boundses.end());
+
+}
+
+double base_model::infer_family_likelihoods(const user_data& ud, const lambda *p_sigma) {
+    //TIMED_FUNC(timerObj);
     _monitor.Event_InferenceAttempt_Started();
 
-    if (!_p_lambda->is_valid())
+    if (!p_sigma->is_valid())
     {
         _monitor.Event_InferenceAttempt_InvalidValues();
         return -log(0);
@@ -67,11 +79,14 @@ double base_model::infer_family_likelihoods(const user_data& ud, const lambda *p
     results.resize(ud.gene_families.size());
     std::vector<double> all_families_likelihood(ud.gene_families.size());
 
+    matrix_cache calc(_p_lambda);
+    calc.precalculate_matrices(get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
+
     vector<vector<double>> partial_likelihoods(ud.gene_families.size());
 #pragma omp parallel for
     for (size_t i = 0; i < ud.gene_families.size(); ++i) {
         if (references[i] == i)
-            partial_likelihoods[i] = inference_prune(ud.gene_families.at(i), DiffMat::instance(), _p_lambda, _p_error_model, ud.p_tree, 1.0);
+            partial_likelihoods[i] = inference_prune(ud.gene_families.at(i), DiffMat::instance(), p_sigma, _p_error_model, ud.p_tree, 1.0);
             // probabilities of various family sizes
     }
 
@@ -135,7 +150,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
     auto result = new base_model_reconstruction();
 
-    p_calc->precalculate_matrices(get_lambda_values(_p_lambda), ud.p_tree->get_branch_lengths());
+    p_calc->precalculate_matrices(get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
 
     pupko_reconstructor::pupko_data data(ud.gene_families.size(), ud.p_tree, ud.max_family_size, ud.max_root_family_size);
 
@@ -167,7 +182,6 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
     return result;
 }
-
 
 lambda* base_model::get_simulation_lambda()
 {

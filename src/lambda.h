@@ -85,6 +85,7 @@ public:
     }
     virtual std::string to_string() const override;
     virtual double get_value_for_clade(const clade* c) const override;
+
     virtual bool is_valid() const override;
 
     std::vector<double> get_lambdas() const {

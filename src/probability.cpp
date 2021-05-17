@@ -22,6 +22,7 @@
 #include "simulator.h"
 #include "lambda.h"
 #include "DiffMat.h"
+#include "core.h"
 
 using namespace std;
 using namespace Eigen;
@@ -93,6 +94,7 @@ double chooseln(double n, double r)
 
   return lgamma2(n + 1) - lgamma2(r + 1) - lgamma2(n - r + 1);
 }
+
 
 /* END: Math tools ----------------------- */
 
@@ -587,8 +589,8 @@ TEST_CASE("Inference: prune" * doctest::skip(true))
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
     single_lambda lambda(0.03);
-    matrix_cache cache;
-    cache.precalculate_matrices({ 0.045 }, { 1.0,3.0,7.0 });
+    matrix_cache cache(&lambda);
+    cache.precalculate_matrices(get_all_bounds(vector<gene_transcript>{fam}), set<double>{1, 3, 7});
     auto actual = inference_prune(fam, DiffMat::instance(), &lambda, nullptr, p_tree.get(), 1.5);
 
     vector<double> log_expected{ -17.2771, -10.0323 , -5.0695 , -4.91426 , -5.86062 , -7.75163 , -10.7347 , -14.2334 , -18.0458 ,
