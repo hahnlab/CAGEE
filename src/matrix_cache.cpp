@@ -78,11 +78,14 @@ void matrix_cache::precalculate_matrices(const set<boundaries>& boundses, const 
     // calculate matrices in parallel
     size_t i = 0;
     size_t num_keys = keys.size();
-
+    vector<boundaries> vBounds(keys.size());
+    vector<double> vBranches(keys.size());
+    transform(keys.begin(), keys.end(), vBounds.begin(), [](matrix_cache_key k) { return k.bounds(); });
+    transform(keys.begin(), keys.end(), vBranches.begin(), [](matrix_cache_key k) { return k.branch_length(); });
+    auto matrices = ConvProp_bounds_batched(vBranches, _sigma_squared * _sigma_squared / 2, DiffMat::instance(), vBounds);
     for (i = 0; i < num_keys; ++i)
     {
-        double branch_length = keys[i].branch_length();
-        _matrix_cache[keys[i]] = ConvProp_bounds(branch_length, _sigma_squared * _sigma_squared /2, DiffMat::instance(), keys[i].bounds());
+        _matrix_cache[keys[i]] = matrices[i];
     }
 
 }

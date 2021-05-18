@@ -32,6 +32,8 @@ DiffMat::DiffMat(int Npts) {
     VLOG(MATRIX) << eig;
     VLOG(MATRIX) << "Eigenvalues end";
 
+    cublasCreate(&handle);
+
 #ifdef HAVE_CUDA
     cudaMalloc((void**)&d_matrixT, Npts * Npts * sizeof(complex<double>));
     cudaMalloc((void**)&d_matrix, Npts * Npts * sizeof(complex<double>));
@@ -49,6 +51,59 @@ const DiffMat& DiffMat::instance()
     return *p_diffmat;
 }
 
+vector<MatrixXd> ConvProp_bounds_batched(vector<double> vt, double cCoeff, const DiffMat& dMat, vector<boundaries> vbounds) {
+    size_t count = vt.size();
+    vector<MatrixXcd> vTemp(count);
+    int Npts = dMat.Diff.cols();
+
+    for (size_t k = 0; k < count; ++k)
+    {
+        double tau = pow((vbounds[k].second - vbounds[k].first) / (Npts - 1), 2);
+        vector<double> expD(Npts);
+        for (int i = 0; i < Npts; ++i)
+        {
+            expD[i] = exp(cCoeff * (vt[k] / tau) * dMat.eig[i].real());
+        }
+        MatrixXcd temp(Npts, Npts);
+        for (int i = 0; i < Npts; ++i)
+            for (int j = 0; j < Npts; ++j)
+                temp(i, j) = dMat.passage(i, j) * expD[j];
+        vTemp[k] = temp;
+    }
+    MatrixXcd transpose = dMat.passage.transpose();
+    const complex<double> alpha = 1.0;
+    const complex<double> beta = 0.0;
+    vector<cuDoubleComplex*> d_matrix(count), d_matrixT(count), d_matrixResult(count);
+    for (size_t i = 0; i < count; ++i)
+    {
+        cudaMalloc((void**)&d_matrixT[i], Npts * Npts * sizeof(complex<double>));
+        cudaMalloc((void**)&d_matrix[i], Npts * Npts * sizeof(complex<double>));
+        cudaMalloc((void**)&d_matrixResult[i], Npts * Npts * sizeof(complex<double>));
+        cudaMemcpy(d_matrixT[i], transpose.data(), Npts * Npts * sizeof(complex<double>), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_matrix[i], vTemp[i].data(), Npts * Npts * sizeof(complex<double>), cudaMemcpyHostToDevice);
+    }
+    auto status = cublasZgemmBatched(handle, CUBLAS_OP_N, CUBLAS_OP_N, Npts, Npts, Npts, reinterpret_cast<const cuDoubleComplex*>(&alpha),
+        d_matrix.data(), Npts,
+        d_matrixT.data(), Npts,
+        reinterpret_cast<const cuDoubleComplex*>(&beta), d_matrixResult.data(), Npts, vt.size());
+
+    vector<MatrixXd> vResult(count);
+    for (size_t k = 0; k < count; ++k)
+    {
+        MatrixXcd a(Npts, Npts);
+        vResult[k] = MatrixXd(Npts, Npts);
+        cudaMemcpy(a.data(), d_matrixResult[k], Npts * Npts * sizeof(complex<double>), cudaMemcpyDeviceToHost);
+
+#ifdef _WIN32
+        for (int i = 0; i < Npts; ++i)
+            for (int j = 0; j < Npts; ++j)
+                vResult[k](i, j) = max(a(i, j).real(), 0.0);
+#else
+        vResult[k] = a.unaryExpr([](complex<double> x) {return max(x.real(), 0.0); });
+#endif
+    }
+    return vResult;
+}
 
 MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, boundaries bounds) {
     // Calculate the transition density (dMat.diff to the power of cCoeff * t * (n-1)^2 / (b-a)^2
