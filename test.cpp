@@ -295,8 +295,9 @@ TEST_CASE("Probability: get_random_probabilities" * doctest::skip(true))
     unique_ptr<clade> p_tree(parse_newick("((A:1,B:1):1,(C:1,D:1):1);"));
 
     single_lambda lam(0.05);
+    matrix_cache cache(&lam);
 
-    pvalue_parameters p = { p_tree.get(),  &lam, 12, 8, DiffMat::instance() };
+    pvalue_parameters p = { p_tree.get(),  &lam, 12, 8, cache };
     auto probs = get_random_probabilities(p, 10, 3);
     CHECK_EQ(10, probs.size());
     CHECK_EQ(doctest::Approx(0.001905924).scale(10000), probs[0]);
@@ -855,6 +856,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_prune" * doctest::skip(true))
     families[0].set_expression_value("B", 6);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     single_lambda lambda(0.005);
+    matrix_cache cache(&lambda);
 
     _user_data.rootdist[1] = 2;
     _user_data.rootdist[2] = 2;
@@ -866,7 +868,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_prune" * doctest::skip(true))
     gamma_model model(&lambda, &families, { 0.01, 0.05 }, { 0.1, 0.5 }, NULL);
 
     vector<double> cat_likelihoods;
-    CHECK(model.prune(families[0], dist, DiffMat::instance(), &lambda, p_tree.get(), cat_likelihoods));
+    CHECK(model.prune(families[0], dist, cache, &lambda, p_tree.get(), cat_likelihoods));
 
     CHECK_EQ(2, cat_likelihoods.size());
     CHECK_EQ(doctest::Approx(-23.04433), log(cat_likelihoods[0]));
@@ -880,12 +882,13 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_prune_returns_false_if_saturated" * do
     families[0].set_expression_value("B", 6);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     single_lambda lambda(0.9);
+    matrix_cache cache(&lambda);
 
     vector<double> cat_likelihoods;
 
     gamma_model model(&lambda, &families, { 1.0,1.0 }, { 0.1, 0.5 }, NULL);
 
-    CHECK(!model.prune(families[0], _user_data.prior, DiffMat::instance(), &lambda, p_tree.get(), cat_likelihoods));
+    CHECK(!model.prune(families[0], _user_data.prior, cache, &lambda, p_tree.get(), cat_likelihoods));
 }
 
 TEST_CASE("Inference: matrix_cache_key_handles_floating_point_imprecision")
@@ -1513,7 +1516,7 @@ TEST_CASE_FIXTURE(Inference, "estimator_compute_pvalues" * doctest::skip(true))
     single_lambda s(0.05);
     matrix_cache cache(&s);
 
-    pvalue_parameters p = { _user_data.p_tree,  _user_data.p_lambda, _user_data.max_family_size, _user_data.max_root_family_size, DiffMat::instance() };
+    pvalue_parameters p = { _user_data.p_tree,  _user_data.p_lambda, _user_data.max_family_size, _user_data.max_root_family_size, cache };
 
     auto values = compute_pvalues(p, _user_data.gene_families, 3);
     CHECK_EQ(1, values.size());

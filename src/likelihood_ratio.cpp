@@ -40,7 +40,8 @@ namespace LikelihoodRatioTest
                 lambda_cache[lambda_index] = new single_lambda(result.values[0]);
         }
 
-        auto probs = inference_prune(gf, DiffMat::instance(), lambda_cache[lambda_index], nullptr, adjusted_tree.get(), 1.0);
+        matrix_cache cache(lambda_cache[lambda_index]);
+        auto probs = inference_prune(gf, cache, lambda_cache[lambda_index], nullptr, adjusted_tree.get(), 1.0);
         return *max_element(probs.begin(), probs.end());
     }
 
@@ -53,12 +54,14 @@ namespace LikelihoodRatioTest
     {
         auto references = build_reference_list(data.gene_families);
 
+        matrix_cache cache(data.p_lambda);
         for (size_t i = 0; i < data.gene_families.size(); i += 1)
         {
             auto& pitem = data.gene_families[i];
             if (references[i] != i) continue;
 
-            auto values = inference_prune(pitem, DiffMat::instance(), data.p_lambda, data.p_error_model, data.p_tree, 1.0);
+            //cache.precalculate_matrices(get_lambda_values(data.p_lambda), data.p_tree->get_branch_lengths());
+            auto values = inference_prune(pitem, cache, data.p_lambda, data.p_error_model, data.p_tree, 1.0);
             double maxlh1 = *max_element(values.begin(), values.end());
             double prev = -1;
             double next = get_likelihood_for_diff_lambdas(pitem, data.p_tree, data.p_lambda_tree, 0, lambda_cache, p_opt, data.max_root_family_size, data.max_family_size);

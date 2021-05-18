@@ -79,14 +79,14 @@ double base_model::infer_family_likelihoods(const user_data& ud, const lambda *p
     results.resize(ud.gene_families.size());
     std::vector<double> all_families_likelihood(ud.gene_families.size());
 
-    matrix_cache calc(_p_lambda);
+    matrix_cache calc(p_sigma);
     calc.precalculate_matrices(get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
 
     vector<vector<double>> partial_likelihoods(ud.gene_families.size());
 #pragma omp parallel for
     for (size_t i = 0; i < ud.gene_families.size(); ++i) {
         if (references[i] == i)
-            partial_likelihoods[i] = inference_prune(ud.gene_families.at(i), DiffMat::instance(), p_sigma, _p_error_model, ud.p_tree, 1.0);
+            partial_likelihoods[i] = inference_prune(ud.gene_families.at(i), calc, p_sigma, _p_error_model, ud.p_tree, 1.0);
             // probabilities of various family sizes
     }
 

@@ -91,7 +91,7 @@ public:
 
     bool can_infer() const;
 
-    bool prune(const gene_transcript& family, const root_equilibrium_distribution& eq, const DiffMat& calc, const lambda *p_lambda,
+    bool prune(const gene_transcript& family, const root_equilibrium_distribution& eq, const matrix_cache& calc, const lambda *p_lambda,
         const clade *p_tree, std::vector<double>& category_likelihoods);
 };
 

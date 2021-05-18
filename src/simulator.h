@@ -5,7 +5,7 @@
 #include "clade.h"
 
 class root_distribution;
-class DiffMat;
+class matrix_cache;
 
 struct simulated_family
 {
@@ -36,7 +36,7 @@ struct simulated_family
     }
 };
 
-simulated_family create_simulated_family(const clade* p_tree, const lambda* p_sigma, double root_value, const DiffMat& cache);
+simulated_family create_simulated_family(const clade* p_tree, const lambda* p_sigma, double root_value, const matrix_cache& cache);
 
 /*! @brief Build simulated families based on the user's input
 
@@ -68,7 +68,7 @@ class simulator : public action
 public:
     simulator(user_data& d, const input_parameters& ui);
 
-    simulated_family create_trial(const lambda *p_lambda, int family_number, const DiffMat& cache);
+    simulated_family create_trial(const lambda *p_lambda, int family_number, const matrix_cache& cache);
 
     virtual void execute(std::vector<model *>& models);
     void print_simulations(std::ostream& ost, bool include_internal_nodes, const std::vector<simulated_family>& results);

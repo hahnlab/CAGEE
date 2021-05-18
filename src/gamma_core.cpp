@@ -113,7 +113,7 @@ bool gamma_model::can_infer() const
     return true;
 }
 
-bool gamma_model::prune(const gene_transcript& family, const root_equilibrium_distribution& prior, const DiffMat& diff_mat, const lambda *p_lambda,
+bool gamma_model::prune(const gene_transcript& family, const root_equilibrium_distribution& prior, const matrix_cache& diff_mat, const lambda *p_lambda,
     const clade *p_tree, std::vector<double>& category_likelihoods) 
 {
     category_likelihoods.clear();
@@ -157,12 +157,14 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const lambda *
     vector<bool> failure(ud.gene_families.size());
 
     vector<vector<family_info_stash>> pruning_results(ud.gene_families.size());
+    matrix_cache cache(p_lambda);
+    cache.precalculate_matrices(get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
 
 #pragma omp parallel for
     for (size_t i = 0; i < ud.gene_families.size(); i++) {
         auto& cat_likelihoods = _category_likelihoods[i];
 
-        if (prune(ud.gene_families.at(i), ud.prior, DiffMat::instance(), p_lambda, ud.p_tree, cat_likelihoods))
+        if (prune(ud.gene_families.at(i), ud.prior, cache, p_lambda, ud.p_tree, cat_likelihoods))
         {
             double family_likelihood = accumulate(cat_likelihoods.begin(), cat_likelihoods.end(), 0.0);
 

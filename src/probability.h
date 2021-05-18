@@ -9,6 +9,7 @@ class gene_transcript;
 class lambda;
 class clade;
 class error_model;
+class matrix_cache;
 
 struct pvalue_parameters
 {
@@ -16,7 +17,7 @@ struct pvalue_parameters
     const lambda* p_lambda;
     const int max_family_size;
     const int max_root_family_size;
-    const DiffMat& diff_mat;
+    const matrix_cache& cache;
 };
 
 double chooseln(double n, double k);
@@ -31,7 +32,7 @@ double pvalue(double v, const std::vector<double>& conddist);
 //! computes a pvalue for each family. Returns a vector of pvalues matching the list of families
 std::vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_transcript>& families, int number_of_simulations);
 
-std::vector<double> inference_prune(const gene_transcript& gf, const DiffMat& diff_mat, const lambda* _lambda, const error_model* p_error_model, const clade* _p_tree, double _lambda_multiplier);
+std::vector<double> inference_prune(const gene_transcript& gf, const matrix_cache& cache, const lambda* _lambda, const error_model* p_error_model, const clade* _p_tree, double _lambda_multiplier);
 
 std::pair<double, double> bounds(const gene_transcript& gt);
 

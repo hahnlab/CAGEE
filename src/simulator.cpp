@@ -60,7 +60,7 @@ void simulator::execute(std::vector<model *>& models)
     simulate(models, _user_input);
 }
 
-simulated_family create_simulated_family(const clade *p_tree, const lambda* p_sigma, double root_value, const DiffMat& diff_mat)
+simulated_family create_simulated_family(const clade *p_tree, const lambda* p_sigma, double root_value, const matrix_cache& cache)
 {
     simulated_family sim;
     sim.lambda = get_lambda_values(p_sigma)[0];
@@ -72,8 +72,8 @@ simulated_family create_simulated_family(const clade *p_tree, const lambda* p_si
     std::function <void(const clade*)> get_child_value;
     get_child_value = [&](const clade* c) {
         double sigma = p_sigma->get_value_for_clade(c);
-        MatrixXd m = ConvProp_bounds(c->get_branch_length(), sigma * sigma / 2, diff_mat, pair<double, double>(0.0, b.max_value()));
-        VectorXd v = VectorPos_bounds(sim.values[c->get_parent()], DISCRETIZATION_RANGE, std::pair<double, double>(0, b.max_value()));
+        MatrixXd m = ConvProp_bounds(c->get_branch_length(), sigma * sigma / 2, DiffMat::instance(), boundaries(0.0, b.max_value()));
+        VectorXd v = VectorPos_bounds(sim.values[c->get_parent()], DISCRETIZATION_RANGE, boundaries(0, b.max_value()));
         VectorXd probs = m * v;
         std::discrete_distribution<int> distribution(probs.data(), probs.data() + probs.size());
         sim.values[c] = b.value(distribution(randomizer_engine));
@@ -88,13 +88,13 @@ simulated_family create_simulated_family(const clade *p_tree, const lambda* p_si
 // At the root, we have a vector of length DISCRETIZATION_RANGE. This has probability 1 at the size of the root
 // and 0 everywhere else
 // for each child, generate the transition matrix and multiply
-simulated_family simulator::create_trial(const lambda *p_sigma, int family_number, const DiffMat& diff_mat) {
+simulated_family simulator::create_trial(const lambda *p_sigma, int family_number, const matrix_cache& cache) {
     double root_size = data.prior.select_root_size(family_number);
 
     if (data.p_tree == NULL)
         throw runtime_error("No tree specified for simulation");
 
-    return create_simulated_family(data.p_tree, p_sigma, root_size, diff_mat);
+    return create_simulated_family(data.p_tree, p_sigma, root_size, cache);
 }
 
 void simulator::simulate_processes(model *p_model, std::vector<simulated_family>& results) {
@@ -114,12 +114,14 @@ void simulator::simulate_processes(model *p_model, std::vector<simulated_family>
     for (size_t i = 0; i < results.size(); i+= LAMBDA_PERTURBATION_STEP_SIZE)
     {
         unique_ptr<lambda> sim_lambda(p_model->get_simulation_lambda());
-        
+        matrix_cache cache(sim_lambda.get());
+        //cache.precalculate_matrices(get_lambda_values(sim_lambda.get()), this->data.p_tree->get_branch_lengths());
+
         int n = 0;
 
         auto end_it = i + LAMBDA_PERTURBATION_STEP_SIZE > results.size() ? results.end() : results.begin() + i + LAMBDA_PERTURBATION_STEP_SIZE;
-        generate(results.begin()+i, end_it, [this, &sim_lambda, i, &n]() mutable {
-            return create_trial(sim_lambda.get(), i+n++, DiffMat::instance());
+        generate(results.begin()+i, end_it, [this, &sim_lambda, i, &n, cache]() mutable {
+            return create_trial(sim_lambda.get(), i+n++, cache);
         });
     }
 }
@@ -216,8 +218,9 @@ TEST_CASE("create_trial")
     data.prior = root_equilibrium_distribution(data.rootdist);
     input_parameters params;
     simulator sim(data, params);
+    matrix_cache cache(&lam);
 
-    simulated_family actual = sim.create_trial(&lam, 2, DiffMat::instance());
+    simulated_family actual = sim.create_trial(&lam, 2, cache);
 
     CHECK_EQ(doctest::Approx(5.0), actual.values.at(p_tree.get()));
     CHECK_EQ(doctest::Approx(4.85931), actual.values.at(p_tree->find_descendant("A")));
@@ -293,10 +296,11 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
     single_lambda sigma(10);
     auto a = p_tree->find_descendant("A");
 
+    matrix_cache cache(&sigma);
     size_t sz = 3;  // make this larger when simulations are faster
     vector<double> v(sz);
     generate(v.begin(), v.end(), [&]() {
-        auto sim = create_simulated_family(p_tree.get(), &sigma, 10, DiffMat::instance());
+        auto sim = create_simulated_family(p_tree.get(), &sigma, 10, cache);
         return sim.values[a];
         });
 
