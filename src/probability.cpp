@@ -144,7 +144,7 @@ void compute_node_probability(const clade* node,
             const MatrixXd& m = cache.get_matrix((*it)->get_branch_length(), bounds(gene_transcript));
             //MatrixXd m = ConvProp_bounds(, sigma * sigma / 2, diff_mat, bounds(gene_transcript));
 
-            auto result = m * probabilities[*it];
+            VectorXd result = m * probabilities[*it];
             for (VectorXd::Index i = 0; i < node_probs.size(); i++) {
                 node_probs[i] *= result[i];
             }
