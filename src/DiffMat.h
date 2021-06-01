@@ -5,6 +5,8 @@
 #include <utility>
 #include <vector>
 
+class gpu_multiplier;
+
 using boundaries = std::pair<double, double>;
 
 
@@ -17,6 +19,10 @@ public:
     DiffMat(int Npts);
 
     static const DiffMat& instance();
+
+#ifdef HAVE_CUDA
+    gpu_multiplier* multiplier;
+#endif
 };
 
 Eigen::MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, boundaries bounds);

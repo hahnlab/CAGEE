@@ -3,14 +3,10 @@
 #include "doctest.h"
 #include "easylogging++.h"
 #include "mkl.h"
-#include <cuda_runtime_api.h>
-#include <cublas_v2.h>
+#include "gpu_multiplier.h"
 
 using namespace Eigen;
 using namespace std;
-
-cublasHandle_t handle;
-cuDoubleComplex* d_matrix, * d_matrixT, * d_matrixResult;
 
 DiffMat::DiffMat(int Npts) {
     // Npts is the number of points in which the interval is discretized
@@ -32,12 +28,8 @@ DiffMat::DiffMat(int Npts) {
     VLOG(MATRIX) << eig;
     VLOG(MATRIX) << "Eigenvalues end";
 
-    cublasCreate(&handle);
-
 #ifdef HAVE_CUDA
-    cudaMalloc((void**)&d_matrixT, Npts * Npts * sizeof(complex<double>));
-    cudaMalloc((void**)&d_matrix, Npts * Npts * sizeof(complex<double>));
-    cudaMalloc((void**)&d_matrixResult, Npts * Npts * sizeof(complex<double>));
+    multiplier = new gpu_multiplier(Npts);
 #endif
 }
 
@@ -71,63 +63,8 @@ vector<MatrixXd> ConvProp_bounds_batched(vector<double> vt, double cCoeff, const
         vTemp[k] = temp;
     }
     MatrixXcd transpose = dMat.passage.transpose();
-    const complex<double> alpha = 1.0;
-    const complex<double> beta = 0.0;
-    vector<cuDoubleComplex*> d_matrix(count), d_matrixT(count), d_matrixResult(count);
-    for (size_t i = 0; i < count; ++i)
-    {
-        cudaMalloc((void**)&d_matrixT[i], Npts * Npts * sizeof(complex<double>));
-        cudaMalloc((void**)&d_matrix[i], Npts * Npts * sizeof(complex<double>));
-        cudaMalloc((void**)&d_matrixResult[i], Npts * Npts * sizeof(complex<double>));
-        cudaMemcpy(d_matrixT[i], transpose.data(), Npts * Npts * sizeof(complex<double>), cudaMemcpyHostToDevice);
-        cudaMemcpy(d_matrix[i], vTemp[i].data(), Npts * Npts * sizeof(complex<double>), cudaMemcpyHostToDevice);
-    }
-    cuDoubleComplex** d_A, ** d_B, ** d_C;
-    cudaMalloc((void**)&d_A, count * sizeof(cuDoubleComplex*));
-    cudaMalloc((void**)&d_B, count * sizeof(cuDoubleComplex*));
-    cudaMalloc((void**)&d_C, count * sizeof(cuDoubleComplex*));
-    cudaMemcpy(d_A, d_matrix.data(), count * sizeof(cuDoubleComplex*), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_B, d_matrixT.data(), count * sizeof(cuDoubleComplex*), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_C, d_matrixResult.data(), count * sizeof(cuDoubleComplex*), cudaMemcpyHostToDevice);
-#if 1
-    auto status = cublasZgemmBatched(handle, CUBLAS_OP_N, CUBLAS_OP_N, Npts, Npts, Npts, reinterpret_cast<const cuDoubleComplex*>(&alpha),
-        d_A, Npts,
-        d_B, Npts,
-        reinterpret_cast<const cuDoubleComplex*>(&beta), d_C, Npts, vt.size());
-    if (status != CUBLAS_STATUS_SUCCESS)
-        throw std::runtime_error("CUDA failure");
-#else
-    for (size_t i = 0; i < count; ++i)
-    {
-        auto status = cublasZgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, Npts, Npts, Npts, reinterpret_cast<const cuDoubleComplex*>(&alpha),
-            d_matrix[i], Npts,
-            d_matrixT[i], Npts,
-            reinterpret_cast<const cuDoubleComplex*>(&beta), d_matrixResult[i], Npts);
-        if (status != CUBLAS_STATUS_SUCCESS)
-            throw std::runtime_error("CUDA failure");
-    }
 
-#endif
-
-    vector<MatrixXd> vResult(count);
-    for (size_t k = 0; k < count; ++k)
-    {
-        MatrixXcd a(Npts, Npts);
-        vResult[k] = MatrixXd(Npts, Npts);
-        cudaMemcpy(a.data(), d_matrixResult[k], Npts * Npts * sizeof(complex<double>), cudaMemcpyDeviceToHost);
-
-       // cout << "Complex array:" << a;
-
-#ifdef _WIN32
-        for (int i = 0; i < Npts; ++i)
-            for (int j = 0; j < Npts; ++j)
-                vResult[k](i, j) = max(a(i, j).real(), 0.0);
-#else
-        vResult[k] = a.unaryExpr([](complex<double> x) {return max(x.real(), 0.0); });
-#endif
-        //cout << vResult[k];
-    }
-    return vResult;
+    return dMat.multiplier->doit(vTemp, transpose);
 }
 
 MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, boundaries bounds) {
@@ -146,19 +83,7 @@ MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, boundarie
             temp(i, j) = dMat.passage(i, j) * expD[j];
 
     MatrixXcd transpose = dMat.passage.transpose();
-#ifdef HAVE_CUDA
-    const complex<double> alpha = 1.0;
-    const complex<double> beta = 0.0;
-    cudaMemcpy(d_matrix, temp.data(), Npts * Npts * sizeof(complex<double>), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_matrixT, transpose.data(), Npts * Npts * sizeof(complex<double>), cudaMemcpyHostToDevice);
-    //auto status = cublasZgemmBatched(handle, CUBLAS_OP_N, CUBLAS_OP_N, Npts, Npts, Npts, reinterpret_cast<const cuDoubleComplex*>(&alpha),
-    auto status = cublasZgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, Npts, Npts, Npts, reinterpret_cast<const cuDoubleComplex*>(&alpha),
-        d_matrix, Npts,
-        d_matrixT, Npts,
-        reinterpret_cast<const cuDoubleComplex*>(&beta), d_matrixResult, Npts);
-    MatrixXcd a(Npts, Npts);
-    cudaMemcpy(a.data(), d_matrixResult, Npts * Npts * sizeof(complex<double>), cudaMemcpyDeviceToHost);
-#elif defined HAVE_MKL
+#ifdef HAVE_MKL
     const complex<double> alpha = 1.0;
     const complex<double> beta = 0.0;
     MatrixXcd a(Npts, Npts);
