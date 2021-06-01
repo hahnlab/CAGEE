@@ -82,10 +82,32 @@ vector<MatrixXd> ConvProp_bounds_batched(vector<double> vt, double cCoeff, const
         cudaMemcpy(d_matrixT[i], transpose.data(), Npts * Npts * sizeof(complex<double>), cudaMemcpyHostToDevice);
         cudaMemcpy(d_matrix[i], vTemp[i].data(), Npts * Npts * sizeof(complex<double>), cudaMemcpyHostToDevice);
     }
+    cuDoubleComplex** d_A, ** d_B, ** d_C;
+    cudaMalloc((void**)&d_A, count * sizeof(cuDoubleComplex*));
+    cudaMalloc((void**)&d_B, count * sizeof(cuDoubleComplex*));
+    cudaMalloc((void**)&d_C, count * sizeof(cuDoubleComplex*));
+    cudaMemcpy(d_A, d_matrix.data(), count * sizeof(cuDoubleComplex*), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_B, d_matrixT.data(), count * sizeof(cuDoubleComplex*), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_C, d_matrixResult.data(), count * sizeof(cuDoubleComplex*), cudaMemcpyHostToDevice);
+#if 1
     auto status = cublasZgemmBatched(handle, CUBLAS_OP_N, CUBLAS_OP_N, Npts, Npts, Npts, reinterpret_cast<const cuDoubleComplex*>(&alpha),
-        d_matrix.data(), Npts,
-        d_matrixT.data(), Npts,
-        reinterpret_cast<const cuDoubleComplex*>(&beta), d_matrixResult.data(), Npts, vt.size());
+        d_A, Npts,
+        d_B, Npts,
+        reinterpret_cast<const cuDoubleComplex*>(&beta), d_C, Npts, vt.size());
+    if (status != CUBLAS_STATUS_SUCCESS)
+        throw std::runtime_error("CUDA failure");
+#else
+    for (size_t i = 0; i < count; ++i)
+    {
+        auto status = cublasZgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, Npts, Npts, Npts, reinterpret_cast<const cuDoubleComplex*>(&alpha),
+            d_matrix[i], Npts,
+            d_matrixT[i], Npts,
+            reinterpret_cast<const cuDoubleComplex*>(&beta), d_matrixResult[i], Npts);
+        if (status != CUBLAS_STATUS_SUCCESS)
+            throw std::runtime_error("CUDA failure");
+    }
+
+#endif
 
     vector<MatrixXd> vResult(count);
     for (size_t k = 0; k < count; ++k)
@@ -94,6 +116,8 @@ vector<MatrixXd> ConvProp_bounds_batched(vector<double> vt, double cCoeff, const
         vResult[k] = MatrixXd(Npts, Npts);
         cudaMemcpy(a.data(), d_matrixResult[k], Npts * Npts * sizeof(complex<double>), cudaMemcpyDeviceToHost);
 
+       // cout << "Complex array:" << a;
+
 #ifdef _WIN32
         for (int i = 0; i < Npts; ++i)
             for (int j = 0; j < Npts; ++j)
@@ -101,6 +125,7 @@ vector<MatrixXd> ConvProp_bounds_batched(vector<double> vt, double cCoeff, const
 #else
         vResult[k] = a.unaryExpr([](complex<double> x) {return max(x.real(), 0.0); });
 #endif
+        //cout << vResult[k];
     }
     return vResult;
 }
