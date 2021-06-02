@@ -5,7 +5,9 @@
 #include <utility>
 #include <vector>
 
+class eigen_multiplier;
 class gpu_multiplier;
+class mkl_multiplier;
 
 using boundaries = std::pair<double, double>;
 
@@ -22,6 +24,10 @@ public:
 
 #ifdef HAVE_CUDA
     gpu_multiplier* multiplier;
+#elif defined HAVE_MKL
+    mkl_multiplier* multiplier;
+#else
+    eigen_multiplier* multiplier;
 #endif
 };
 

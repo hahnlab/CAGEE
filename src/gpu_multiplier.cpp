@@ -1,5 +1,6 @@
 #include "gpu_multiplier.h"
 
+#ifdef HAVE_CUDA
 #include <complex>
 #include <vector>
 
@@ -40,36 +41,21 @@ vector<MatrixXd> gpu_multiplier::doit(const vector<MatrixXcd>& matrices, const M
     cudaMemcpy(d_A, d_matrixA.data(), count * sizeof(cuDoubleComplex*), cudaMemcpyHostToDevice);
     cudaMemcpy(d_B, d_matrixB.data(), count * sizeof(cuDoubleComplex*), cudaMemcpyHostToDevice);
     cudaMemcpy(d_C, d_matrixResult.data(), count * sizeof(cuDoubleComplex*), cudaMemcpyHostToDevice);
-#if 1
     auto status = cublasZgemmBatched(handle, CUBLAS_OP_N, CUBLAS_OP_N, Npts, Npts, Npts, reinterpret_cast<const cuDoubleComplex*>(&alpha),
-        d_A, Npts,
-        d_B, Npts,
+        const_cast<const cuDoubleComplex**>(d_A), Npts,
+        const_cast<const cuDoubleComplex**>(d_B), Npts,
         reinterpret_cast<const cuDoubleComplex*>(&beta), d_C, Npts, matrices.size());
     if (status != CUBLAS_STATUS_SUCCESS)
         throw std::runtime_error("CUDA failure");
-#else
-    for (size_t i = 0; i < count; ++i)
-    {
-        auto status = cublasZgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, Npts, Npts, Npts, reinterpret_cast<const cuDoubleComplex*>(&alpha),
-            d_matrix[i], Npts,
-            d_matrixT[i], Npts,
-            reinterpret_cast<const cuDoubleComplex*>(&beta), d_matrixResult[i], Npts);
-        if (status != CUBLAS_STATUS_SUCCESS)
-            throw std::runtime_error("CUDA failure");
-    }
-
-#endif
 
     vector<MatrixXd> vResult(count);
     for (size_t k = 0; k < count; ++k)
     {
         MatrixXcd a(Npts, Npts);
-        vResult[k] = MatrixXd(Npts, Npts);
         cudaMemcpy(a.data(), d_matrixResult[k], Npts * Npts * sizeof(complex<double>), cudaMemcpyDeviceToHost);
 
-        // cout << "Complex array:" << a;
-
 #ifdef _WIN32
+        vResult[k] = MatrixXd(Npts, Npts);
         for (int i = 0; i < Npts; ++i)
             for (int j = 0; j < Npts; ++j)
                 vResult[k](i, j) = max(a(i, j).real(), 0.0);
@@ -81,5 +67,4 @@ vector<MatrixXd> gpu_multiplier::doit(const vector<MatrixXcd>& matrices, const M
 
     return vResult;
 }
-
-
+#endif
