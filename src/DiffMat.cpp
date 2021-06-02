@@ -3,8 +3,22 @@
 #include "doctest.h"
 #include "easylogging++.h"
 
+#ifdef HAVE_CUDA
+#include "gpu_multiplier.h"
+#endif
+
+#ifdef HAVE_MKL
+#include "mkl_multiplier.h"
+#endif
+
 using namespace Eigen;
 using namespace std;
+
+class eigen_multiplier
+{
+public:
+    vector<MatrixXd> doit(const vector<MatrixXcd>& matrices, const MatrixXcd& transpose);
+};
 
 DiffMat::DiffMat(int Npts) {
     // Npts is the number of points in which the interval is discretized
@@ -26,6 +40,13 @@ DiffMat::DiffMat(int Npts) {
     VLOG(MATRIX) << eig;
     VLOG(MATRIX) << "Eigenvalues end";
 
+#ifdef HAVE_MKL
+    multiplier = new mkl_multiplier();
+#elif defined HAVE_CUDA    
+    multiplier = new gpu_multiplier(Npts);
+#else
+    multiplier = new eigen_multiplier();
+#endif
 }
 
 DiffMat* p_diffmat = nullptr;
@@ -38,36 +59,34 @@ const DiffMat& DiffMat::instance()
     return *p_diffmat;
 }
 
-
-MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, boundaries bounds) {
+vector<MatrixXd> ConvProp_bounds_batched(vector<double> vt, double cCoeff, const DiffMat& dMat, vector<boundaries> vbounds) {
     // Calculate the transition density (dMat.diff to the power of cCoeff * t * (n-1)^2 / (b-a)^2
     // using eigenvectors to speed up the calculation
+    size_t count = vt.size();
+    vector<MatrixXcd> vTemp(count);
     int Npts = dMat.Diff.cols();
-    double tau = pow((bounds.second - bounds.first) / (Npts - 1), 2);
-    vector<double> expD(Npts);
-    for (int i = 0; i < Npts; ++i)
+
+    for (size_t k = 0; k < count; ++k)
     {
-        expD[i] = exp(cCoeff * (t / tau) * dMat.eig[i].real());
+        double tau = pow((vbounds[k].second - vbounds[k].first) / (Npts - 1), 2);
+        vector<double> expD(Npts);
+        for (int i = 0; i < Npts; ++i)
+        {
+            expD[i] = exp(cCoeff * (vt[k] / tau) * dMat.eig[i].real());
+        }
+        MatrixXcd temp(Npts, Npts);
+        for (int i = 0; i < Npts; ++i)
+            for (int j = 0; j < Npts; ++j)
+                temp(i, j) = dMat.passage(i, j) * expD[j];
+        vTemp[k] = temp;
     }
-    MatrixXcd temp(Npts, Npts);
-    for (int i = 0; i < Npts; ++i)
-        for (int j = 0; j < Npts; ++j)
-            temp(i, j) = dMat.passage(i, j) * expD[j];
+    MatrixXcd transpose = dMat.passage.transpose();
 
-    MatrixXcd a = temp * dMat.passage.transpose();
-#ifdef _WIN32
-    MatrixXd result(Npts, Npts);
-    for (int i = 0; i < Npts; ++i)
-        for (int j = 0; j < Npts; ++j)
-            result(i, j) = max(a(i, j).real(), 0.0);
-#else
-    MatrixXd result = a.unaryExpr([](complex<double> x) {return max(x.real(), 0.0); });
-#endif
-    VLOG(MATRIX) << "Matrix for cCoeff: " << cCoeff << ", t: " << t << ", Max value: " << bounds.second;
-    VLOG(MATRIX) << result;
-    VLOG(MATRIX) << "Matrix end";
+    return dMat.multiplier->doit(vTemp, transpose);
+}
 
-    return result;
+MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, boundaries bounds) {
+    return ConvProp_bounds_batched(vector<double>({ t }), cCoeff, dMat, vector<boundaries>({ bounds }))[0];
 }
 
 VectorXd VectorPos_bounds(double x, int Npts, boundaries bounds) {
@@ -85,6 +104,28 @@ VectorXd VectorPos_bounds(double x, int Npts, boundaries bounds) {
         X[ix] = 1 - ux;
     }
     return X.unaryExpr([Npts, bounds](double x) {return x * (Npts - 1) / double(bounds.second - bounds.first); });
+}
+
+vector<MatrixXd> eigen_multiplier::doit(const vector<MatrixXcd>& matrices, const MatrixXcd& transpose)
+{
+    int Npts = transpose.rows();
+    MatrixXcd a(Npts, Npts);
+
+    size_t count = matrices.size();
+    vector<MatrixXd> vResult(count);
+    for (size_t k = 0; k < count; ++k)
+    {
+        MatrixXcd a = matrices[k] * transpose;
+#ifdef _WIN32
+        vResult[k] = MatrixXd(Npts, Npts);
+        for (int i = 0; i < Npts; ++i)
+            for (int j = 0; j < Npts; ++j)
+                vResult[k](i, j) = max(a(i, j).real(), 0.0);
+#else
+        vResult[k] = a.unaryExpr([](complex<double> x) {return max(x.real(), 0.0); });
+#endif
+    }
+    return vResult;
 }
 
 TEST_CASE("DiffMat creates the expected matrix")
