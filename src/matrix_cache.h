@@ -40,6 +40,7 @@ private:
 public:
     void precalculate_matrices(const std::set<boundaries>& boundses, const std::set<double>& branch_lengths);
     const Eigen::MatrixXd& get_matrix(double branch_length, boundaries bounds) const;
+    void set_matrix(double branch_length, boundaries bounds, const Eigen::MatrixXd& m);
 
     int get_cache_size() const {
         return _matrix_cache.size();

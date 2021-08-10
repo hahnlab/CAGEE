@@ -421,44 +421,30 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly")
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
+    double prob = 0.005;
+    VectorXd equal_probs = VectorXd::Constant(DISCRETIZATION_RANGE, prob);
+    MatrixXd doubler = MatrixXd::Identity(DISCRETIZATION_RANGE, DISCRETIZATION_RANGE) * 2;
     single_lambda lambda(0.03);
     matrix_cache cache(&lambda);
-    cache.precalculate_matrices(set<boundaries>{bounds(family)}, set<double>{1, 3, 7});
-
+    cache.set_matrix(1, bounds(family), doubler);
+    cache.set_matrix(3, bounds(family), doubler);
     std::map<const clade*, VectorXd> probabilities;
     auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(DISCRETIZATION_RANGE); };
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
 
     auto AB = p_tree->find_descendant("AB");
-    compute_node_probability(p_tree->find_descendant("A"), family, NULL, probabilities, &lambda, cache);
-    compute_node_probability(p_tree->find_descendant("B"), family, NULL, probabilities, &lambda, cache);
+    probabilities[p_tree->find_descendant("A")] = equal_probs;
+    probabilities[p_tree->find_descendant("B")] = equal_probs;
+
     compute_node_probability(AB, family, NULL, probabilities, &lambda, cache);
 
     auto& actual = probabilities[AB];
+    double expected = (2 * prob) * (2 * prob);
 
-    vector<double> log_expected{ -66.4219, 0, 0, -66.8466, 0, 0, -67.096, -66.329, -70.0349, 0, 0, -68.3869, -68.4423, 
-        -67.1088, -66.2025, -66.8473, -66.0945, -64.5148, -66.5815, 0, 0, -66.0014, -66.223, -64.8469, -64.657, -63.7389, 
-        -64.433, -63.5415, -64.7889, -64.3111, -65.196, -64.9831, -64.6298, -64.4811, -65.1228, -66.1118, -64.9687, -64.732, 
-        0, -64.741, -63.7931, -68.3619, -64.5943, -66.4444, -67.8272, 0, 0, -65.2325, -67.2193, -64.6081, -64.9244, -66.2062, 
-        -65.7929, -66.3603, -64.758, 0, -65.2886, 0, 0, -68.2456, 0, 0, 0, -65.1009, -68.2307, 0, 0, 0, 0, 0, 0, 0, -68.617, 
-        -65.3815, 0, 0, -65.3037, -64.6843, -63.6293, -63.5527, -62.5329, -62.0993, -56.5957, -50.6543, -45.059, -40.2523, 
-        -35.0069, -32.2052, -33.8425, 0, -41.4722, 0, 0, 0, 0, 0, 0, 0, -65.7564, -64.8329, -65.9083, -65.5358, -65.4076, 0, 
-        -65.0766, 0, -64.7112, -66.9606, -63.7636, -63.0357, -65.2137, -63.7861, -64.2556, -63.1412, -64.0444, -65.3151, -64.2548, 
-        0, -65.704, -66.1756, -68.0584, 0, -66.5487, -64.5289, -63.9844, -62.1403, -56.6698, -52.1955, -47.3497, -43.9988, 
-        -38.4148, -36.4739, -31.9516, -36.4862, -34.3808, -37.8846, -42.5443, -46.8135, -52.5553, -55.63, -60.4883, -64.3569, 
-        -63.5735, -63.877, -63.1429, -64.1253, -63.6983, 0, 0, 0, -66.1998, -66.0283, 0, -66.153, -64.8137, -64.6064, -65.8656, 
-        0, -64.644, -64.2391, -64.918, -64.4069, -66.9272, -66.105, -67.6675, -65.9502, -66.5633, -68.9167, -65.3415, -66.0731, 
-        -65.168, 0, 0, -66.6985, -65.6405, -65.5385, 0, -69.325, 0, 0, -66.0726, -67.129, -67.0262, 0, -65.2442, -66.4824, 
-        -68.5107, -66.3439, -65.8262, -65.8284, 0, -64.6632, -66.084, -64.6411, 0, -64.9771, -65.7483, -66.5957, 0, 0 };
-
-    CHECK_EQ(log_expected.size(), actual.size());
-    for (size_t i = 0; i < log_expected.size(); ++i)
+    CHECK_EQ(DISCRETIZATION_RANGE, actual.size());
+    for (Eigen::Index i = 0; i < actual.size(); ++i)
     {
-
-        if (log_expected[i] == 0)
-            CHECK_MESSAGE(0 == actual[i], "At index " + to_string(i));
-        else
-            CHECK_MESSAGE(doctest::Approx(log_expected[i]) == log(actual[i]), "At index " + to_string(i));
+        CHECK_MESSAGE(doctest::Approx(expected) == actual[i], "At index " + to_string(i));
     }
 }
 

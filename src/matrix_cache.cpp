@@ -90,6 +90,12 @@ void matrix_cache::precalculate_matrices(const set<boundaries>& boundses, const 
 
 }
 
+void matrix_cache::set_matrix(double branch_length, boundaries bounds, const Eigen::MatrixXd& m)
+{
+    matrix_cache_key key(bounds, branch_length);
+    _matrix_cache[key] = m;
+}
+
 std::ostream& operator<<(std::ostream& ost, matrix_cache& c)
 {
     ost << c.get_cache_size() << " matrices. Keys: ";
