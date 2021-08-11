@@ -10,10 +10,11 @@
 #include "doctest.h"
 #include "easylogging++.h"
 
-#include "io.h"
+#include "arguments.h"
 #include "lambda.h"
 #include "clade.h"
 #include "error_model.h"
+#include "io.h"
 
 using namespace std;
 

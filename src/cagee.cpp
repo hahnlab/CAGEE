@@ -4,13 +4,6 @@
 #include <fstream>
 #include <omp.h>
 
-#ifdef HAVE_GETOPT_H
-#include <getopt.h>
-#else
-#include <boost/program_options.hpp>
-
-namespace po = boost::program_options;
-#endif
 
 #include "easylogging++.h"
 
@@ -20,149 +13,10 @@ namespace po = boost::program_options;
 #include "user_data.h"
 #include "root_equilibrium_distribution.h"
 #include "core.h"
-
+#include "arguments.h"
 
 
 using namespace std;
-
-input_parameters read_arguments(int argc, char *const argv[])
-{
-    input_parameters my_input_parameters;
-    if (argc == 1)
-    {
-        my_input_parameters.help = true;
-        return my_input_parameters;
-    }
-
-#ifdef HAVE_GETOPT_H
-    int args; // getopt_long returns int or char
-    int prev_arg;
-
-    while (prev_arg = optind, (args = getopt_long(argc, argv, "c:v:i:e::o:t:y:n:f:E:F:R:L:P:I:l:m:k:a:g:s::p::zbh", longopts, NULL)) != -1) {
-        if (optind == prev_arg + 2 && optarg && *optarg == '-') {
-            LOG(ERROR) << "You specified option " << argv[prev_arg] << " but it requires an argument. Exiting..." << endl;
-            exit(EXIT_FAILURE);
-        }
-
-        switch (args) {
-        case 'a':
-            my_input_parameters.fixed_alpha = atof(optarg);
-            break;
-        case 'b':
-            my_input_parameters.lambda_per_family = true;
-            break;
-        case 'c':
-            my_input_parameters.cores = atoi(optarg);
-            break;
-        case 'e':
-            my_input_parameters.use_error_model = true;
-            if (optarg)
-                my_input_parameters.error_model_file_path = optarg;
-            break;
-        case 'f':
-            my_input_parameters.rootdist = optarg;
-            break;
-        case 'h':
-            my_input_parameters.help = true;
-            break;
-        case 'i':
-            my_input_parameters.input_file_path = optarg;
-            break;
-        case 'k':
-            if (optarg != NULL) { my_input_parameters.n_gamma_cats = atoi(optarg); }
-            break;
-        case 'l':
-            my_input_parameters.fixed_lambda = atof(optarg);
-            break;
-        case 'm':
-            my_input_parameters.fixed_multiple_lambdas = optarg;
-            break;
-        case 'o':
-            my_input_parameters.output_prefix = optarg;
-            break;
-        case 'p':
-            my_input_parameters.use_poisson_dist_for_prior = true; // If the user types '-p', the root eq freq dist will not be a uniform
-                                                             // If the user provides an argument to -p, then we do not estimate it
-            if (optarg != NULL) { my_input_parameters.poisson_lambda = atof(optarg); }
-            break;
-        case 's':
-            // Number of fams simulated defaults to 0 if -f is not provided
-            my_input_parameters.is_simulating = true;
-            if (optarg != NULL) { my_input_parameters.nsims = atoi(optarg); }
-            break;
-        case 't':
-            my_input_parameters.tree_file_path = optarg;
-            break;
-        case 'v':
-            my_input_parameters.verbose_logging_level = atoi(optarg);
-            break;
-        case 'y':
-            my_input_parameters.lambda_tree_file_path = optarg;
-            break;
-        case 'z':
-            my_input_parameters.exclude_zero_root_families = true;
-            break;
-        case 'E':
-            my_input_parameters.optimizer_params.neldermead_expansion = atof(optarg);
-            break;
-        case 'F':
-            my_input_parameters.fixed_root_value = atof(optarg);
-            break;
-        case 'I':
-            my_input_parameters.optimizer_params.neldermead_iterations = atoi(optarg);
-            break;
-        case 'L':
-            my_input_parameters.log_config_file = optarg;
-            break;
-        case 'P':
-            my_input_parameters.pvalue = atof(optarg);
-            break;
-        case 'R':
-            my_input_parameters.optimizer_params.neldermead_reflection = atof(optarg);
-            break;
-        case ':':   // missing argument
-            fprintf(stderr, "%s: option `-%c' requires an argument",
-                argv[0], optopt);
-            break;
-        default: // '?' is parsed (
-            throw std::runtime_error(string("Unrecognized parameter: '") + (char)args + "'");
-            
-        }
-    }
-
-    if (optind < argc)
-    {
-        throw std::runtime_error(string("Unrecognized parameter: '") + argv[optind] + "'");
-    }
-#else
-    string config_file;
-    po::options_description generic("Generic options");
-    generic.add_options()
-        ("infile,i", po::value<string>(), "input file")
-        ("tree,t", po::value<string>(), "Tree file in Newick format")
-        ("output_prefix,o", po::value<string>(), "Output prefix")
-        ("pvalue", po::value<float>(), "PValue")
-        ("fixed_root_value", po::value<float>(), "Fixed Root Value")
-        ("help", "produce help message")
-        ("config,c", po::value<string>(&config_file),
-            "Configuration file containing additional options");
-    po::options_description cmdline_options;
-    cmdline_options.add(generic);
-    po::variables_map vm;
-    store(po::command_line_parser(argc, argv).
-        options(cmdline_options).run(), vm);
-    notify(vm);
-    my_input_parameters.input_file_path = vm["infile"].as<string>();
-    my_input_parameters.tree_file_path = vm["tree"].as<string>();
-    my_input_parameters.output_prefix = vm["output_prefix"].as<string>();
-    my_input_parameters.fixed_root_value = vm["fixed_root_value"].as<float>();
-    my_input_parameters.pvalue = vm["pvalue"].as<float>();
-#endif
-
-    my_input_parameters.check_input(); // seeing if options are not mutually exclusive              
-
-    return my_input_parameters;
-}
 
 void init_lgamma_cache();
 

@@ -37,6 +37,7 @@ INITIALIZE_EASYLOGGINGPP
 #include "src/likelihood_ratio.h"
 #include "src/lambda.h"
 #include "src/DiffMat.h"
+#include "src/arguments.h"
 
 using namespace std;
 using namespace Eigen;

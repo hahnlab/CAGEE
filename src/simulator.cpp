@@ -15,6 +15,7 @@
 #include "probability.h"
 #include "lambda.h"
 #include "DiffMat.h"
+#include "arguments.h"
 
 using namespace std;
 using namespace Eigen;

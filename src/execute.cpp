@@ -16,7 +16,7 @@
 #include "gene_family_reconstructor.h"
 #include "error_model.h"
 #include "likelihood_ratio.h"
-#include "io.h"
+#include "arguments.h"
 #include "root_equilibrium_distribution.h"
 #include "lambda.h"
 #include "DiffMat.h"
