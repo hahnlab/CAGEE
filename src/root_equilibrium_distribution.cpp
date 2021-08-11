@@ -113,6 +113,9 @@ int root_equilibrium_distribution::select_root_size(int family_number) const
 
 void root_equilibrium_distribution::resize(size_t new_size)
 {
+    if (_fixed_root_value > 0)
+        return;
+
     auto& v = _vectorized_distribution;
     if (new_size < v.size())
     {
@@ -131,6 +134,13 @@ void root_equilibrium_distribution::resize(size_t new_size)
     sort(v.begin(), v.end());
 }
 
+TEST_CASE("Initializing with a fixed_root_value and resizing should not crash")
+{
+    root_equilibrium_distribution ef(5.3);
+    ef.resize(9.2);
+    CHECK(true);
+
+}
 TEST_CASE("Inference: root_equilibrium_distribution__with_no_rootdist_is_uniform")
 {
     root_equilibrium_distribution ef(size_t(10));
