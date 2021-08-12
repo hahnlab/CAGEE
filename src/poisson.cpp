@@ -19,7 +19,7 @@ using namespace std;
 /***********************************************************************
 * Poisson Distribution
 ***********************************************************************/
-double poisspdf(int x, double lambda)
+double poisspdf(double x, double lambda)
 {
   return exp(x*log(lambda) - lgamma(x + 1) - lambda);
 }
@@ -69,7 +69,7 @@ double poisson_scorer::lnLPoisson(const double* plambda)
         return -log(0);
 
     double score = accumulate(leaf_family_sizes.begin(), leaf_family_sizes.end(), 0.0, [lambda](double x, double sz) {
-        double ll = poisspdf((double)sz, lambda);
+        double ll = poisspdf(sz, lambda);
         if (std::isnan(ll) || std::isinf(ll) || ll == 0) {
             return x;
         }
