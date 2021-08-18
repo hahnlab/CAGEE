@@ -16,7 +16,6 @@
 INITIALIZE_EASYLOGGINGPP
 
 #define DOCTEST_CONFIG_IMPLEMENT
-#define DOCTEST_CONFIG_IMPLEMENT
 #include "src/doctest.h"
 
 #include "src/io.h"

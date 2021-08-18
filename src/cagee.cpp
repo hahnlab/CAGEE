@@ -35,7 +35,7 @@ action* get_executor(input_parameters& user_input, user_data& data)
 
 void show_help()
 {
-    const char *text = ""
+    const char *text = PROJECT_NAME " " PROJECT_VER
         "\n\nUsage: cagee [options]\n\n"
         "CAGEE is a software that provides a statistical foundation for evolutionary inferences about changes in gene family size.\n "
         "The program employs a birth and death process to model gene gain and loss across a user-specified phylogenetic tree,\n "

@@ -9,14 +9,11 @@ bin/
 # Data
 data/
 
-# autoconf artificats
-Makefile
-autom4te.cache/
-config.h
-config.log
-config.status
-configure
+# CMake artificacts
+build/
+CMakeLists.txt.user
 
+# 
 # Doxygen artifacts
 src_docs/html/
 src_docs/latex/
