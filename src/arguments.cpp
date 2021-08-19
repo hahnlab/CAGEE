@@ -1,12 +1,14 @@
 #include <string>
 #include <fstream>
 
-#ifdef HAVE_GETOPT_H
-#include <getopt.h>
-#else
+#ifdef Boost_FOUND
 #include <boost/program_options.hpp>
 
 namespace po = boost::program_options;
+#elif defined(HAVE_GETOPT_H)
+#include <getopt.h>
+#else
+#error Either Boost or GetOpt must be available
 #endif
 
 #include "doctest.h"
@@ -17,7 +19,7 @@ namespace po = boost::program_options;
 using namespace std;
 
 
-#ifdef HAVE_GETOPT_H
+#ifndef Boost_FOUND
 #include <getopt.h>
 
 struct option longopts[] = {
@@ -55,7 +57,7 @@ void maybe_set(const po::variables_map& vm, string key, T& value)
 }
 #endif
 
-#ifdef HAVE_GETOPT_H
+#ifndef Boost_FOUND
 input_parameters read_arguments(int argc, char* const argv[])
 {
     input_parameters my_input_parameters;
@@ -192,14 +194,20 @@ input_parameters read_arguments(int argc, char* const argv[])
         ("infile,i", po::value<string>(), "input file")
         ("tree,t", po::value<string>(), "Tree file in Newick format")
         ("output_prefix,o", po::value<string>(), "Output prefix")
-        ("pvalue", po::value<double>(), "PValue")
+        ("pvalue,P", po::value<double>(), "PValue")
+        ("cores", po::value<int>(), "Number of processing cores to use, requires an integer argument. Default=All available cores.")
+        ("optimizer_expansion,E", po::value<double>())
+        ("optimizer_reflection,R", po::value<double>())
+        ("optimizer_iterations,I", po::value<int>())
+        ("error,e", po::value<string>()->implicit_value("false"))
+        ("zero_root,z", po::value<bool>()->implicit_value(true))
         ("fixed_root_value", po::value<double>(), "Fixed Root Value")
         ("sigma_tree,y", po::value<string>(), "Path to sigma tree, for use with multiple sigmas")
         ("simulate,s", po::value<string>()->default_value("false"), "Simulate families. Optionally provide the number of simulations to generate")
         ("poisson,p", po::value<string>()->default_value("false"), "Use a Poisson distribution for the root frequency distribution. Without specifying this, a uniform distribution will be used. A value can be specified -p10 (no space) or --poisson = 10, otherwise the distribution will be estimated from the gene families.")
         ("fixed_sigma,l", po::value<double>(), "Value for a single user provided sigma value, otherwise sigma is estimated.")
         ;
-
+    
     po::options_description config_file_options;
     config_file_options.add(config);
 
@@ -426,14 +434,6 @@ TEST_CASE("Options, cores_long")
     CHECK_EQ(6, actual.cores);
 }
 
-TEST_CASE("Options, cores_short")
-{
-    option_test c({ "cafe5", "-c", "8" });
-
-    auto actual = read_arguments(c.argc, c.values);
-    CHECK_EQ(8, actual.cores);
-}
-
 TEST_CASE("Options: errormodel_accepts_argument")
 {
     option_test c({ "cafe5", "-eerror.txt" });
@@ -470,14 +470,6 @@ TEST_CASE("Options: zero_root_familes")
     auto actual = read_arguments(c.argc, c.values);
     CHECK(actual.exclude_zero_root_families);
 }
-
-TEST_CASE("Options: cannot_have_space_before_optional_parameter")
-{
-    option_test c({ "cafe5", "-s", "1000" });
-
-    CHECK_THROWS_WITH(read_arguments(c.argc, c.values), "Unrecognized parameter: '1000'");
-}
-
 
 TEST_CASE("Options: must_specify_sigma_for_simulation")
 {

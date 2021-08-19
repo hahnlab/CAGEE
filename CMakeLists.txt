@@ -13,7 +13,7 @@ set(LAMBDA_PERTURBATION_STEP_SIZE 1)
 
 CHECK_INCLUDE_FILE(getopt.h HAVE_GETOPT_H)
 find_package(BLAS)
-find_package(Boost)
+find_package(Boost COMPONENTS program_options)
 
 configure_file(config.h.in config.h)
 
@@ -25,16 +25,20 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 add_executable(cagee main.cpp)
 add_executable(tests EXCLUDE_FROM_ALL test.cpp)
 
-target_compile_definitions(cagee PUBLIC DOCTEST_CONFIG_DISABLE)
+target_compile_definitions(cagee PRIVATE DOCTEST_CONFIG_DISABLE)
 
 add_subdirectory(src)
 
 find_package(OpenMP)
 if(OpenMP_CXX_FOUND)
-    target_link_libraries(cagee PUBLIC OpenMP::OpenMP_CXX)
-    target_link_libraries(tests PUBLIC OpenMP::OpenMP_CXX)
+    target_link_libraries(cagee PRIVATE OpenMP::OpenMP_CXX)
+    target_link_libraries(tests PRIVATE OpenMP::OpenMP_CXX)
 endif()
 
+if(Boost_FOUND)
+    target_link_libraries(cagee PRIVATE Boost::program_options)
+    target_link_libraries(tests PRIVATE Boost::program_options)
+endif()
 
 set(CMAKE_CXX_FLAGS "-include config.h")
 
