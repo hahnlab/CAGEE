@@ -289,7 +289,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
 #pragma omp parallel for
         for (size_t i = 0; i < ud.gene_families.size(); ++i)
         {
-            pupko_reconstructor::reconstruct_gene_transcript(ml.get(), ud.p_tree, &ud.gene_families[i], calc, &ud.prior,
+            pupko_reconstructor::reconstruct_gene_transcript(ml.get(), ud.p_tree, &ud.gene_families[i], calc, 
                 recs[i]->category_reconstruction[k], data.C(i), data.L(i));
         }
     }

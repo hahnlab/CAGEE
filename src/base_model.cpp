@@ -165,7 +165,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 #pragma omp parallel for
     for (size_t i = 0; i< ud.gene_families.size(); ++i)
     {
-        pupko_reconstructor::reconstruct_gene_transcript(_p_lambda, ud.p_tree, &ud.gene_families[i], p_calc, &ud.prior, result->_reconstructions[ud.gene_families[i].id()], data.C(i), data.L(i));
+        pupko_reconstructor::reconstruct_gene_transcript(_p_lambda, ud.p_tree, &ud.gene_families[i], p_calc, result->_reconstructions[ud.gene_families[i].id()], data.C(i), data.L(i));
     }
 
     size_t success = count_if(data.v_all_node_Ls.begin(), data.v_all_node_Ls.end(), [this, &ud](const clademap<std::vector<double>>& L)

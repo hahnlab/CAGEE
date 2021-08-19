@@ -46,7 +46,7 @@ namespace pupko_reconstructor {
         }
     }
 
-    void reconstruct_root_node(const clade* c, const gene_transcript& t, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const root_equilibrium_distribution* _p_prior)
+    void reconstruct_root_node(const clade* c, const gene_transcript& t, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls)
     {
         auto& C = all_node_Cs[c];
         auto& L = all_node_Ls[c];
@@ -63,10 +63,10 @@ namespace pupko_reconstructor {
                     value *= all_node_Ls[child][j];
                 };
                 c->apply_to_descendants(child_multiplier);
-                double val = value * _p_prior->compute(t, j);
-                if (val > max_val)
+                // TODO: Take into account a prior root distribution here
+                if (value > max_val)
                 {
-                    max_val = val;
+                    max_val = value;
                     C[0] = j;
                 }
             }
@@ -112,7 +112,7 @@ namespace pupko_reconstructor {
     }
 
 
-    void reconstruct_at_node(const clade* c, const gene_transcript& t, const lambda* _lambda, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache* p_calc, const root_equilibrium_distribution* p_prior)
+    void reconstruct_at_node(const clade* c, const gene_transcript& t, const lambda* _lambda, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache* p_calc)
     {
         if (c->is_leaf())
         {
@@ -120,7 +120,7 @@ namespace pupko_reconstructor {
         }
         else if (c->is_root())
         {
-            reconstruct_root_node(c, t, all_node_Cs, all_node_Ls, p_prior);
+            reconstruct_root_node(c, t, all_node_Cs, all_node_Ls);
         }
         else
         {
@@ -159,13 +159,12 @@ namespace pupko_reconstructor {
     void reconstruct_gene_transcript(const lambda* lambda, const clade* p_tree,
         const gene_transcript* gf,
         matrix_cache* p_calc,
-        const root_equilibrium_distribution* p_prior,
         clademap<int>& reconstructed_states,
         clademap<std::vector<double>>& all_node_Cs,
         clademap<std::vector<double>>& all_node_Ls)
     {
         std::function <void(const clade*)> pupko_reconstructor = [&](const clade* c) {
-            reconstruct_at_node(c, *gf, lambda, all_node_Cs, all_node_Ls, p_calc, p_prior);
+            reconstruct_at_node(c, *gf, lambda, all_node_Cs, all_node_Ls, p_calc);
         };
 
         std::function<void(const clade * child)> backtracker = [&reconstructed_states, &all_node_Cs, &backtracker](const clade* child) {
@@ -180,7 +179,7 @@ namespace pupko_reconstructor {
 
         // Pupko's joint reconstruction algorithm
         for (auto it = p_tree->reverse_level_begin(); it != p_tree->reverse_level_end(); ++it)
-            reconstruct_at_node(*it, *gf, lambda, all_node_Cs, all_node_Ls, p_calc, p_prior);
+            reconstruct_at_node(*it, *gf, lambda, all_node_Cs, all_node_Ls, p_calc);
 
         reconstructed_states[p_tree] = all_node_Cs[p_tree][0];
         p_tree->apply_to_descendants(backtracker);

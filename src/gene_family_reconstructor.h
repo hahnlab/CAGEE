@@ -9,7 +9,7 @@ class matrix_cache;
 namespace pupko_reconstructor {
 
 void reconstruct_leaf_node(const clade * c, const gene_transcript& t, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache *_p_calc);
-void reconstruct_at_node(const clade *c, const gene_transcript& t, const lambda *_lambda, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache* p_calc, const root_equilibrium_distribution* p_prior);
+void reconstruct_at_node(const clade *c, const gene_transcript& t, const lambda *_lambda, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache* p_calc);
 void reconstruct_internal_node(const clade * c, const gene_transcript& t, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache *_p_calc);
 void initialize_at_node(const clade* c, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, int max_family_size, int max_root_family_size);
 
@@ -30,7 +30,6 @@ struct pupko_data {
 void reconstruct_gene_transcript(const lambda* lambda, const clade *p_tree,
     const gene_transcript *gf,
     matrix_cache *p_calc,
-    const root_equilibrium_distribution* p_prior, 
     clademap<int>& reconstructed_states,
     clademap<std::vector<double>>& all_node_Cs,
     clademap<std::vector<double>>& all_node_Ls);

@@ -709,11 +709,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript" * doctest::skip(
     cache.precalculate_matrices(set<boundaries>(), set<double>{1, 3, 7});
 
     user_data ud;
-    vector<int> v({ 1,2,3,4,5,4,3,2,1 });
-    for (size_t i = 0; i < v.size(); ++i)
-        ud.rootdist[i] = v[i];
     ud.max_root_family_size = 8;
-    root_equilibrium_distribution dist(ud.rootdist);
 
     clademap<int> result;
     clademap<std::vector<double>> all_node_Cs;
@@ -722,7 +718,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript" * doctest::skip(
         pupko_reconstructor::initialize_at_node(c, all_node_Cs, all_node_Ls, 10, ud.max_root_family_size);
     };
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), pupko_initializer);
-    pupko_reconstructor::reconstruct_gene_transcript(&lambda, p_tree.get(), &fam, &cache, &dist, result, all_node_Cs, all_node_Ls);
+    pupko_reconstructor::reconstruct_gene_transcript(&lambda, p_tree.get(), &fam, &cache, result, all_node_Cs, all_node_Ls);
     auto AB = p_tree->find_descendant("AB");
     CHECK_EQ(4, result[AB]);
 }
