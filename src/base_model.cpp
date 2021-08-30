@@ -84,7 +84,7 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma *p_
 
     vector<vector<double>> partial_likelihoods(ud.gene_families.size());
 #pragma omp parallel for
-    for (size_t i = 0; i < ud.gene_families.size(); ++i) {
+    for (int i = 0; i < ud.gene_families.size(); ++i) {
         if (references[i] == i)
             partial_likelihoods[i] = inference_prune(ud.gene_families.at(i), calc, p_sigma, _p_error_model, ud.p_tree, 1.0);
             // probabilities of various family sizes
@@ -92,13 +92,13 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma *p_
 
     // prune all the families with the same lambda
 #pragma omp parallel for
-    for (size_t i = 0; i < ud.gene_families.size(); ++i) {
+    for (int i = 0; i < ud.gene_families.size(); ++i) {
 
         auto& partial_likelihood = partial_likelihoods[references[i]];
         std::vector<double> full(partial_likelihood.size());
 
         for (size_t j = 0; j < partial_likelihood.size(); ++j) {
-            double eq_freq = ud.prior.compute(ud.gene_families.at(i), j);
+            double eq_freq = ud.p_prior->compute(ud.gene_families.at(i), j);
 
             full[j] = std::log(partial_likelihood[j]) + std::log(eq_freq);
         }
@@ -163,7 +163,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
     }
 
 #pragma omp parallel for
-    for (size_t i = 0; i< ud.gene_families.size(); ++i)
+    for (int i = 0; i< ud.gene_families.size(); ++i)
     {
         pupko_reconstructor::reconstruct_gene_transcript(_p_lambda, ud.p_tree, &ud.gene_families[i], p_calc, result->_reconstructions[ud.gene_families[i].id()], data.C(i), data.L(i));
     }

@@ -14,10 +14,42 @@
 #include "DiffMat.h"
 #include "probability.h"
 
-using namespace Eigen;
-using namespace std;
-
 extern std::mt19937 randomizer_engine; // seeding random number engine
+using namespace std;
+using namespace Eigen;
+
+#if 1
+float root_distribution_fixed::compute(const gene_transcript& t, size_t val) const
+{
+    VectorXd v = VectorPos_bounds(_fixed_root_value, DISCRETIZATION_RANGE, bounds(t));
+    return v[val];
+}
+
+void root_distribution_fixed::resize(size_t new_size)
+{
+
+}
+
+float root_distribution_fixed::select_root_value(int family_number) const
+{
+    return _fixed_root_value;
+}
+float root_distribution_uniform::compute(const gene_transcript& t, size_t val) const
+{
+    return 1.0 / _max_value;
+}
+
+void root_distribution_uniform::resize(size_t new_size)
+{
+
+}
+
+float root_distribution_uniform::select_root_value(int family_number) const
+{
+    return 0.0;
+}
+#else
+
 
 root_equilibrium_distribution::root_equilibrium_distribution(const map<int, int>& root_distribution)
 {
@@ -133,17 +165,20 @@ void root_equilibrium_distribution::resize(size_t new_size)
     }
     sort(v.begin(), v.end());
 }
+#endif
 
 TEST_CASE("Initializing with a fixed_root_value and resizing should not crash")
 {
-    root_equilibrium_distribution ef(5.3);
+    c_root_equilibrium_distribution ef;
+//    root_equilibrium_distribution ef(5.3);
     ef.resize(9.2);
     CHECK(true);
 
 }
 TEST_CASE("Inference: root_equilibrium_distribution__with_no_rootdist_is_uniform")
 {
-    root_equilibrium_distribution ef(size_t(10));
+    c_root_equilibrium_distribution ef;
+//    root_equilibrium_distribution ef(size_t(10));
     gene_transcript t;
     CHECK_EQ(doctest::Approx(.1), ef.compute(t, 5));
     CHECK_EQ(doctest::Approx(.1), ef.compute(t, 0));
@@ -155,15 +190,17 @@ TEST_CASE("root_equilibrium_distribution__resize")
     m[2] = 5;
     m[4] = 3;
     m[8] = 3;
-    root_equilibrium_distribution rd(m);
+    c_root_equilibrium_distribution rd;
+   // root_equilibrium_distribution rd(m);
     rd.resize(15);
-    CHECK_EQ(rd.select_root_size(14), 8);
-    CHECK_EQ(rd.select_root_size(15), 0);
+    CHECK_EQ(rd.select_root_value(14), 8);
+    CHECK_EQ(rd.select_root_value(15), 0);
 }
 
 TEST_CASE("root_equilibrium_distribution__poisson_compute")
 {
-    root_equilibrium_distribution pd(0.75, 100);
+    c_root_equilibrium_distribution pd;
+    //root_equilibrium_distribution pd(0.75, 100);
     gene_transcript t;
 
     CHECK_EQ(doctest::Approx(0.47059).scale(1000), pd.compute(t, 0));
@@ -174,18 +211,20 @@ TEST_CASE("root_equilibrium_distribution__poisson_compute")
 
 TEST_CASE("root_equilibrium_distribution__poisson_select_root_size")
 {
-    root_equilibrium_distribution pd(0.75, 9);
+    c_root_equilibrium_distribution pd;
+//    root_equilibrium_distribution pd(0.75, 9);
 
-    CHECK_EQ(1, pd.select_root_size(1));
-    CHECK_EQ(1, pd.select_root_size(3));
-    CHECK_EQ(2, pd.select_root_size(5));
-    CHECK_EQ(2, pd.select_root_size(7));
-    CHECK_EQ(0, pd.select_root_size(100));
+    CHECK_EQ(1, pd.select_root_value(1));
+    CHECK_EQ(1, pd.select_root_value(3));
+    CHECK_EQ(2, pd.select_root_value(5));
+    CHECK_EQ(2, pd.select_root_value(7));
+    CHECK_EQ(0, pd.select_root_value(100));
 }
 
 TEST_CASE("root_equilibrium_distribution fixed_root_value")
 {
-    root_equilibrium_distribution pd(4.3);
+    c_root_equilibrium_distribution pd;
+    //root_equilibrium_distribution pd(4.3);
 
     gene_transcript t;
     t.set_expression_value("A", 5.8);
@@ -198,12 +237,73 @@ TEST_CASE("root_equilibrium_distribution fixed_root_value")
 
 TEST_CASE("Simulation: uniform_distribution__select_root_size__returns_sequential_values")
 {
-    root_equilibrium_distribution ud(size_t(20));
-    CHECK_EQ(1, ud.select_root_size(1));
-    CHECK_EQ(2, ud.select_root_size(2));
-    CHECK_EQ(3, ud.select_root_size(3));
-    CHECK_EQ(4, ud.select_root_size(4));
-    CHECK_EQ(5, ud.select_root_size(5));
-    CHECK_EQ(0, ud.select_root_size(20));
+    c_root_equilibrium_distribution ud;
+//  root_equilibrium_distribution ud(size_t(20));
+    CHECK_EQ(1, ud.select_root_value(1));
+    CHECK_EQ(2, ud.select_root_value(2));
+    CHECK_EQ(3, ud.select_root_value(3));
+    CHECK_EQ(4, ud.select_root_value(4));
+    CHECK_EQ(5, ud.select_root_value(5));
+    CHECK_EQ(0, ud.select_root_value(20));
 }
+
+TEST_CASE("root_equilibrium_distribution__with_rootdist_uses_rootdist")
+{
+    std::map<int, int> rootdist;
+    rootdist[1] = 3;
+    rootdist[2] = 5;
+
+    //root_equilibrium_distribution ef(_user_data.rootdist);
+    c_root_equilibrium_distribution ef;
+    gene_transcript t;
+
+    CHECK_EQ(0.375, ef.compute(t, 1));
+}
+
+TEST_CASE("Simulation: specified_distribution__select_root_size__returns_exact_selection")
+{
+    std::map<int, int> rootdist;
+    for (int i = 0; i < 20; ++i)
+        rootdist[i] = 1;
+
+    c_root_equilibrium_distribution sd;
+    //    root_equilibrium_distribution sd(data.rootdist);
+    for (size_t i = 0; i < 20; ++i)
+        CHECK_EQ(i, sd.select_root_value(i));
+}
+
+TEST_CASE("Simulation, specified_distribution__with_rootdist_creates_matching_vector")
+{
+    std::map<int, int> m;
+    m[2] = 3;
+    m[4] = 1;
+    m[8] = 1;
+    c_root_equilibrium_distribution rd;
+    CHECK_EQ(rd.select_root_value(0), 2);
+    CHECK_EQ(rd.select_root_value(1), 2);
+    CHECK_EQ(rd.select_root_value(2), 2);
+    CHECK_EQ(rd.select_root_value(3), 4);
+    CHECK_EQ(rd.select_root_value(4), 8);
+    CHECK_EQ(rd.select_root_value(5), 0);
+}
+
+TEST_CASE("Simulation, specified_distribution__pare")
+{
+    randomizer_engine.seed(10);
+
+    std::map<int, int> m;
+    m[2] = 5;
+    m[4] = 3;
+    m[8] = 3;
+    c_root_equilibrium_distribution rd;
+    //    root_equilibrium_distribution rd(m);
+    rd.resize(5);
+    CHECK_EQ(rd.select_root_value(0), 2);
+    CHECK_EQ(rd.select_root_value(1), 2);
+    CHECK_EQ(rd.select_root_value(2), 2);
+    CHECK_EQ(rd.select_root_value(3), 4);
+    CHECK_EQ(rd.select_root_value(4), 8);
+    CHECK_EQ(rd.select_root_value(5), 0);
+}
+
 

@@ -161,10 +161,10 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma*p_
     cache.precalculate_matrices(p_lambda->get_lambdas(), get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
 
 #pragma omp parallel for
-    for (size_t i = 0; i < ud.gene_families.size(); i++) {
+    for (int i = 0; i < ud.gene_families.size(); i++) {
         auto& cat_likelihoods = _category_likelihoods[i];
 
-        if (prune(ud.gene_families.at(i), ud.prior, cache, p_lambda, ud.p_tree, cat_likelihoods))
+        if (prune(ud.gene_families.at(i), *ud.p_prior, cache, p_lambda, ud.p_tree, cat_likelihoods))
         {
             double family_likelihood = accumulate(cat_likelihoods.begin(), cat_likelihoods.end(), 0.0);
 
@@ -287,9 +287,9 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
         pupko_reconstructor::pupko_data data(ud.gene_families.size(), ud.p_tree, ud.max_family_size, ud.max_root_family_size);
 
 #pragma omp parallel for
-        for (size_t i = 0; i < ud.gene_families.size(); ++i)
+        for (int i = 0; i < ud.gene_families.size(); ++i)
         {
-            pupko_reconstructor::reconstruct_gene_transcript(ml.get(), ud.p_tree, &ud.gene_families[i], calc, 
+            pupko_reconstructor::reconstruct_gene_transcript(ml.get(), ud.p_tree, &ud.gene_families[i], calc,
                 recs[i]->category_reconstruction[k], data.C(i), data.L(i));
         }
     }
