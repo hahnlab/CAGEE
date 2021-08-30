@@ -90,7 +90,7 @@ simulated_family create_simulated_family(const clade *p_tree, const lambda* p_si
 // and 0 everywhere else
 // for each child, generate the transition matrix and multiply
 simulated_family simulator::create_trial(const lambda *p_sigma, int family_number, const matrix_cache& cache) {
-    double root_size = data.prior.select_root_size(family_number);
+    auto root_size = data.p_prior->select_root_value(family_number);
 
     if (data.p_tree == NULL)
         throw runtime_error("No tree specified for simulation");
@@ -216,7 +216,8 @@ TEST_CASE("create_trial")
     data.max_family_size = 10;
     data.max_root_family_size = 10;
 
-    data.prior = root_equilibrium_distribution(data.rootdist);
+    data.p_prior = new c_root_equilibrium_distribution();
+//    data.p_prior = new root_equilibrium_distribution(data.rootdist);
     input_parameters params;
     simulator sim(data, params);
     matrix_cache cache(&lam);

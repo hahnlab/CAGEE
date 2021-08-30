@@ -20,14 +20,18 @@ configure_file(config.h.in config.h)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-
 # add the executable
 add_executable(cagee main.cpp)
 add_executable(tests EXCLUDE_FROM_ALL test.cpp)
 
+include_directories(${Eigen3_DIR})
+
 target_compile_definitions(cagee PRIVATE DOCTEST_CONFIG_DISABLE)
+target_compile_definitions(tests PRIVATE SILENT ELPP_NO_CHECK_MACROS)
 
 add_subdirectory(src)
+
+link_libraries(Eigen3::Eigen)
 
 find_package(OpenMP)
 if(OpenMP_CXX_FOUND)
@@ -40,7 +44,14 @@ if(Boost_FOUND)
     target_link_libraries(tests PRIVATE Boost::program_options)
 endif()
 
-set(CMAKE_CXX_FLAGS "-include config.h")
+if(MSVC)
+    add_definitions(/FI"C:\\Users\\befulton\\Documents\\GIT\\CAGEE\\out\\build\\x64-Debug\\config.h")
+else()
+    # GCC or Clang
+    add_definitions(-include config.h)
+    target_compile_options(tests PRIVATE -g -rdynamic)
+endif()
+
 
 install(TARGETS cagee DESTINATION bin)
 

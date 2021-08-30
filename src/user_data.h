@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "gene_transcript.h"
-#include "root_equilibrium_distribution.h"
 
 class root_equilibrium_distribution;
 class clade;
@@ -19,7 +18,7 @@ struct input_parameters;
 /// Class holding data defined by the user, or derived from data defined by the user
 class user_data {
 public:
-    user_data() : prior(size_t(100))
+    user_data()
     {
 
     }
@@ -30,7 +29,7 @@ public:
     lambda *p_lambda = NULL;
     clade *p_lambda_tree = NULL;
     error_model *p_error_model = NULL;
-    root_equilibrium_distribution prior;
+    root_equilibrium_distribution* p_prior = NULL;
 
     std::vector<gene_transcript> gene_families;
     std::map<int, int> rootdist;

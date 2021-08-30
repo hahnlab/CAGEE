@@ -200,7 +200,7 @@ vector<double> compute_family_probabilities(pvalue_parameters p, vector<simulate
 
     // do math
 #pragma omp parallel for
-    for (size_t i = 0; i < result.size(); ++i)
+    for (int i = 0; i < result.size(); ++i)
     {
         for (auto it = p.p_tree->reverse_level_begin(); it != p.p_tree->reverse_level_end(); ++it)
             compute_node_probability(*it, families[i], NULL, pruners[i], p.p_lambda, p.cache);
@@ -309,7 +309,7 @@ vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_trans
     }
 
 #pragma omp parallel for
-    for (size_t i = 0; i < families.size(); ++i)
+    for (int i = 0; i < families.size(); ++i)
     {
         for (auto it = p.p_tree->reverse_level_begin(); it != p.p_tree->reverse_level_end(); ++it)
             compute_node_probability(*it, families[i], NULL, pruners[i], p.p_lambda, p.cache);
