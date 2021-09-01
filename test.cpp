@@ -100,7 +100,7 @@ public:
         _user_data.gene_families[0].set_expression_value("A", 1);
         _user_data.gene_families[0].set_expression_value("B", 2);
         //_user_data.p_prior = new root_equilibrium_distribution(size_t(100));
-        _user_data.p_prior = new c_root_equilibrium_distribution();
+        _user_data.p_prior = new root_distribution_uniform(100);
         randomizer_engine.seed(10);
     }
 
@@ -421,7 +421,7 @@ TEST_CASE_FIXTURE(Inference, "base_model_reconstruction")
 
     matrix_cache calc;
     calc.precalculate_matrices(sl.get_lambdas(), set<boundaries>(), set<double>({ 1 }));
-    root_equilibrium_distribution dist(size_t(_user_data.max_root_family_size));
+    root_distribution_uniform dist(size_t(_user_data.max_root_family_size));
 
     std::unique_ptr<base_model_reconstruction> rec(dynamic_cast<base_model_reconstruction*>(model.reconstruct_ancestral_states(_user_data, &calc)));
 
@@ -699,6 +699,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript" * doctest::skip(
 
     user_data ud;
     ud.max_root_family_size = 8;
+    root_distribution_specific dist(ud.rootdist);
 
     clademap<int> result;
     clademap<std::vector<double>> all_node_Cs;
@@ -848,8 +849,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_prune" * doctest::skip(true))
     _user_data.rootdist[3] = 2;
     _user_data.rootdist[4] = 2;
     _user_data.rootdist[5] = 1;
-    c_root_equilibrium_distribution dist;
-//    root_equilibrium_distribution dist(_user_data.rootdist);
+    root_distribution_specific dist(_user_data.rootdist);
 
     gamma_model model(&lambda, &families, { 0.01, 0.05 }, { 0.1, 0.5 }, NULL);
 
@@ -1452,8 +1452,7 @@ TEST_CASE("Inference: lambda_per_family" * doctest::skip(true))
     ud.max_root_family_size = 10;
     ud.max_family_size = 10;
     ud.gene_families.resize(1);
-    ud.p_prior = new c_root_equilibrium_distribution();
-//    ud.p_prior = new root_equilibrium_distribution(size_t(ud.max_root_family_size));
+    ud.p_prior = new root_distribution_uniform(size_t(ud.max_root_family_size));
 
     gene_transcript& family = ud.gene_families[0];
     family.set_expression_value("A", 3);
@@ -1487,8 +1486,7 @@ TEST_CASE_FIXTURE(Inference, "estimator_compute_pvalues" * doctest::skip(true))
 TEST_CASE_FIXTURE(Inference, "gamma_lambda_optimizer updates model alpha and lambda")
 {
     _user_data.max_root_family_size = 10;
-//    _user_data.p_prior = new root_equilibrium_distribution(size_t(_user_data.max_root_family_size));
-    _user_data.p_prior = new c_root_equilibrium_distribution();
+    _user_data.p_prior = new root_distribution_uniform(size_t(_user_data.max_root_family_size));
 
 //    gamma_model m(_user_data.p_lambda, _user_data.p_tree, &_user_data.gene_families, 10, _user_data.max_root_family_size, 4, 0.25, NULL);
     vector<double> gamma_categories{ 0.3, 0.7 };
@@ -1689,8 +1687,7 @@ TEST_CASE("Simulation, simulate_processes" * doctest::skip(true))
     user_data ud;
     ud.p_tree = p_tree.get();
     ud.p_lambda = &lam;
-    ud.p_prior = new c_root_equilibrium_distribution();
-//    ud.p_prior = new root_equilibrium_distribution(size_t(100));
+    ud.p_prior = new root_distribution_uniform(size_t(100));
     ud.max_family_size = 101;
     ud.max_root_family_size = 101;
 

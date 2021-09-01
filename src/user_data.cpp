@@ -187,30 +187,26 @@ void user_data::create_prior(const input_parameters& params)
         }
 
         LOG(INFO) << "\nUsing Poisson root distribution with user provided lambda " << params.poisson_lambda;
-//        p_prior = new root_equilibrium_distribution(params.poisson_lambda, DISCRETIZATION_RANGE);
-        p_prior = new c_root_equilibrium_distribution();
+        p_prior = new root_distribution_poisson(params.poisson_lambda, DISCRETIZATION_RANGE);
     }
     else if (!rootdist.empty())
     {
         LOG(INFO) << "\nRoot distribution set by user provided file";
-  //      p_prior = new root_equilibrium_distribution(rootdist);
-        p_prior = new c_root_equilibrium_distribution();
+        p_prior = new root_distribution_specific(rootdist);
     }
     else if (!gene_families.empty() && params.use_poisson_dist_for_prior)
     {
         LOG(INFO) << "\nEstimating Poisson root distribution from gene families";
-    //    p_prior = new root_equilibrium_distribution(gene_families, DISCRETIZATION_RANGE);
-        p_prior = new c_root_equilibrium_distribution();
+
+        p_prior = new root_distribution_poisson(gene_families, DISCRETIZATION_RANGE);
     }
     else if (params.fixed_root_value > 0)
     {
-      //  p_prior = new root_equilibrium_distribution(params.fixed_root_value);
-        p_prior = new c_root_equilibrium_distribution();
+        p_prior = new root_distribution_fixed(params.fixed_root_value);
     }
     else 
     {
         LOG(WARNING) << "\nNo root family size distribution specified, using uniform distribution";
-        //p_prior = new root_equilibrium_distribution(size_t(DISCRETIZATION_RANGE));
         p_prior = new root_distribution_uniform(50);
     }
 
@@ -218,56 +214,16 @@ void user_data::create_prior(const input_parameters& params)
         p_prior->resize(params.nsims);
 }
 
-TEST_CASE("create_prior__creates__uniform_distribution")
-{
-    input_parameters params;
-    user_data ud;
-    ud.create_prior(params);
-    gene_transcript gf;
-    CHECK_EQ(doctest::Approx(0.005), ud.p_prior->compute(gf, 1));
-    CHECK_EQ(doctest::Approx(0.005), ud.p_prior->compute(gf, 99));
-    CHECK_EQ(0, ud.p_prior->compute(gf, DISCRETIZATION_RANGE+50));
-}
-
 TEST_CASE("create_prior__creates__specifed_distribution_if_given")
 {
     input_parameters params;
     user_data ud;
     ud.rootdist[2] = 11;
-    ud.rootdist[3] = 5;
-    ud.rootdist[4] = 7;
-    ud.rootdist[6] = 2;
     ud.max_root_family_size = 10;
     ud.create_prior(params);
-    gene_transcript gf;
-    CHECK_EQ(doctest::Approx(0.44), ud.p_prior->compute(gf, 2));
-    CHECK_EQ(doctest::Approx(0.2), ud.p_prior->compute(gf, 3));
-    CHECK_EQ(doctest::Approx(0.28), ud.p_prior->compute(gf, 4));
-    CHECK_EQ(0, ud.p_prior->compute(gf, 5));
-    CHECK_EQ(doctest::Approx(.08), ud.p_prior->compute(gf, 6));
+    CHECK(dynamic_cast<root_distribution_specific*>(ud.p_prior));
 }
 
-
-TEST_CASE("create_prior__creates__poisson_distribution_if_given")
-{
-    input_parameters params;
-    params.use_poisson_dist_for_prior = true;
-    params.poisson_lambda = 0.75;
-    user_data ud;
-    ud.create_prior(params);
-    gene_transcript gf;
-    CHECK_EQ(doctest::Approx(0.47237f), ud.p_prior->compute(gf, 0));
-    CHECK_EQ(doctest::Approx(0.35427f), ud.p_prior->compute(gf, 1));
-    vector<int> r(100);
-    int i = 0;
-    generate(r.begin(), r.end(), [&ud, &i]() mutable { i++; return ud.p_prior->select_root_value(i);  });
-    CHECK_EQ(94, count(r.begin(), r.end(), 1));
-    CHECK_EQ(6, count(r.begin(), r.end(), 2));
-    CHECK_EQ(0, count(r.begin(), r.end(), 3));
-    CHECK_EQ(0, count(r.begin(), r.end(), 4));
-
-    CHECK_EQ(0, ud.p_prior->compute(gf, 11));
-}
 
 TEST_CASE("create_prior__creates__poisson_distribution_if_given_distribution_and_poisson")
 {
@@ -277,24 +233,18 @@ TEST_CASE("create_prior__creates__poisson_distribution_if_given_distribution_and
     user_data ud;
     ud.max_root_family_size = 100;
     ud.create_prior(params);
-    gene_transcript gf;
-    CHECK_EQ(doctest::Approx(0.35427f), ud.p_prior->compute(gf, 1));
+    CHECK(dynamic_cast<root_distribution_poisson *>(ud.p_prior));
 
 }
 
 TEST_CASE("create_prior__creates__poisson_distribution_from_families")
 {
-    randomizer_engine.seed(10);
-
     input_parameters params;
     params.use_poisson_dist_for_prior = true;
     user_data ud;
     ud.gene_families.resize(1);
     ud.create_prior(params);
-    // bogus value that serves the purpose
-    // depends on optimizer and poisson_scorer
-    gene_transcript gf;
-    CHECK_EQ(doctest::Approx(0.74174f), ud.p_prior->compute(gf, 0));
+    CHECK(dynamic_cast<root_distribution_poisson*>(ud.p_prior));
 }
 
 TEST_CASE("create_prior creates uniform distribution if poisson not specified")
@@ -309,10 +259,10 @@ TEST_CASE("create_prior creates uniform distribution if poisson not specified")
     // bogus value that serves the purpose
     // depends on optimizer and poisson_scorer
     gene_transcript gf;
-    CHECK_EQ(doctest::Approx(0.005), ud.p_prior->compute(gf, 1));
-    CHECK_EQ(doctest::Approx(0.005), ud.p_prior->compute(gf, 10));
-    CHECK_EQ(doctest::Approx(0.005), ud.p_prior->compute(gf, 50));
-    CHECK_EQ(doctest::Approx(0.005), ud.p_prior->compute(gf, 100));
+    CHECK_EQ(doctest::Approx(0.02), ud.p_prior->compute(gf, 1));
+    CHECK_EQ(doctest::Approx(0.02), ud.p_prior->compute(gf, 10));
+    CHECK_EQ(doctest::Approx(0.02), ud.p_prior->compute(gf, 50));
+    CHECK_EQ(doctest::Approx(0.02), ud.p_prior->compute(gf, 100));
 }
 
 TEST_CASE("create_prior__resizes_distribution_if_nsims_specified")
@@ -324,13 +274,7 @@ TEST_CASE("create_prior__resizes_distribution_if_nsims_specified")
     user_data ud;
     ud.max_root_family_size = 100;
     ud.create_prior(params);
-    /// GCC's implementation of shuffle changed so the numbers that are
-    /// returned are in a slightly different order, even with the same seed
-#if __GNUC__ >= 7
-    CHECK_EQ(152, ud.p_prior->select_root_value(9));
-#else
-    CHECK_EQ(80, ud.p_prior->select_root_value(9));
-#endif
+    CHECK_EQ(doctest::Approx(7.71321f), ud.p_prior->select_root_value(9));
     CHECK_EQ(0, ud.p_prior->select_root_value(10));
 }
 
