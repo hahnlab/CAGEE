@@ -13,7 +13,7 @@
 #include "gamma_core.h"
 #include "base_model.h"
 #include "error_model.h"
-#include "lambda.h"
+#include "sigma.h"
 #include "arguments.h"
 
 using namespace std;
@@ -61,7 +61,7 @@ std::ostream& operator<<(std::ostream& ost, const family_info_stash& r)
     return ost;
 }
 
-model::model(lambda* p_lambda,
+model::model(sigma* p_lambda,
     const vector<gene_transcript> *p_gene_families,
     error_model *p_error_model) :
     _ost(cout), _p_lambda(p_lambda),  _p_error_model(p_error_model) 
@@ -72,19 +72,19 @@ model::model(lambda* p_lambda,
 
 void model::initialize_lambda(clade *p_lambda_tree)
 {
-    lambda *p_lambda = NULL;
+    sigma*p_lambda = NULL;
     if (p_lambda_tree != NULL)
     {
         std::set<int> unique_lambdas;
         auto fn = [&unique_lambdas](const clade *p_node) { unique_lambdas.insert(p_node->get_lambda_index()); };
         p_lambda_tree->apply_prefix_order(fn);
         auto node_name_to_lambda_index = p_lambda_tree->get_lambda_index_map();
-        p_lambda = new lambda(node_name_to_lambda_index, std::vector<double>(unique_lambdas.size()));
+        p_lambda = new sigma(node_name_to_lambda_index, std::vector<double>(unique_lambdas.size()));
         LOG(INFO) << "Searching for " << unique_lambdas.size() << " lambdas" << endl;
     }
     else
     {
-        p_lambda = new lambda(0.0);
+        p_lambda = new sigma(0.0);
     }
 
     _p_lambda = p_lambda;
@@ -107,7 +107,7 @@ void model::write_vital_statistics(std::ostream& ost, const clade *p_tree, doubl
 
 }
 
-lambda* model::get_simulation_lambda()
+sigma* model::get_simulation_lambda()
 {
     return _p_lambda->clone();
 }

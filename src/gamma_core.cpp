@@ -19,14 +19,14 @@
 #include "user_data.h"
 #include "optimizer_scorer.h"
 #include "simulator.h"
-#include "lambda.h"
+#include "sigma.h"
 #include "DiffMat.h"
 
 using namespace std;
 
 extern mt19937 randomizer_engine;
 
-gamma_model::gamma_model(lambda* p_lambda, std::vector<gene_transcript>* p_gene_families, int n_gamma_cats, double fixed_alpha, error_model* p_error_model) :
+gamma_model::gamma_model(sigma* p_lambda, std::vector<gene_transcript>* p_gene_families, int n_gamma_cats, double fixed_alpha, error_model* p_error_model) :
     model(p_lambda, p_gene_families, p_error_model) {
 
     _gamma_cat_probs.resize(n_gamma_cats);
@@ -36,7 +36,7 @@ gamma_model::gamma_model(lambda* p_lambda, std::vector<gene_transcript>* p_gene_
     set_alpha(fixed_alpha);
 }
 
-gamma_model::gamma_model(lambda* p_lambda, std::vector<gene_transcript>* p_gene_families, std::vector<double> gamma_categories, std::vector<double> multipliers, error_model *p_error_model) :
+gamma_model::gamma_model(sigma* p_lambda, std::vector<gene_transcript>* p_gene_families, std::vector<double> gamma_categories, std::vector<double> multipliers, error_model *p_error_model) :
     model(p_lambda, p_gene_families,  p_error_model)
 {
     _gamma_cat_probs = gamma_categories;
@@ -82,7 +82,7 @@ void gamma_model::write_probabilities(ostream& ost)
     ost << "Lambda multipliers are: " << comma_separated(_lambda_multipliers) << endl;
 }
 
-lambda* gamma_model::get_simulation_lambda()
+sigma* gamma_model::get_simulation_lambda()
 {
     discrete_distribution<int> dist(_gamma_cat_probs.begin(), _gamma_cat_probs.end());
     return _p_lambda->multiply(_lambda_multipliers[dist(randomizer_engine)]);
@@ -113,7 +113,7 @@ bool gamma_model::can_infer() const
     return true;
 }
 
-bool gamma_model::prune(const gene_transcript& family, const root_equilibrium_distribution& prior, const matrix_cache& diff_mat, const lambda *p_lambda,
+bool gamma_model::prune(const gene_transcript& family, const root_equilibrium_distribution& prior, const matrix_cache& diff_mat, const sigma*p_lambda,
     const clade *p_tree, std::vector<double>& category_likelihoods) 
 {
     category_likelihoods.clear();
@@ -138,7 +138,7 @@ bool gamma_model::prune(const gene_transcript& family, const root_equilibrium_di
 }
 
 //! Infer bundle
-double gamma_model::infer_family_likelihoods(const user_data& ud, const lambda *p_lambda) {
+double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma*p_lambda) {
 
     _monitor.Event_InferenceAttempt_Started();
 
@@ -282,7 +282,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
     for (size_t k = 0; k < _gamma_cat_probs.size(); ++k)
     {
         VLOG(1) << "Reconstructing for multiplier " << _lambda_multipliers[k];
-        unique_ptr<lambda> ml(_p_lambda->multiply(_lambda_multipliers[k]));
+        unique_ptr<sigma> ml(_p_lambda->multiply(_lambda_multipliers[k]));
 
         pupko_reconstructor::pupko_data data(ud.gene_families.size(), ud.p_tree, ud.max_family_size, ud.max_root_family_size);
 

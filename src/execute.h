@@ -6,7 +6,7 @@
 #include "io.h"
 
 struct input_parameters;
-class lambda;
+class sigma;
 class matrix_cache;
 class model;
 class root_equilibrium_distribution;

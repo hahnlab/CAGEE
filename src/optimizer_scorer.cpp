@@ -9,7 +9,7 @@
 
 #include "optimizer_scorer.h"
 #include "clade.h"
-#include "lambda.h"
+#include "sigma.h"
 #include "base_model.h"
 #include "gamma_core.h"
 #include "gamma.h"
@@ -40,7 +40,7 @@ double inference_optimizer_scorer::calculate_score(const double *values)
     return score;
 }
 
-sigma_optimizer_scorer::sigma_optimizer_scorer(lambda* p_lambda, model* p_model, const user_data& user_data) :
+sigma_optimizer_scorer::sigma_optimizer_scorer(sigma* p_lambda, model* p_model, const user_data& user_data) :
     inference_optimizer_scorer(p_lambda, p_model, user_data)
 {
     if (user_data.gene_families.empty()) throw runtime_error("No gene transcripts provided");
@@ -166,14 +166,14 @@ double gamma_optimizer::get_alpha() const
     return _p_gamma_model->get_alpha();
 }
 
-gamma_lambda_optimizer::gamma_lambda_optimizer(lambda *p_lambda, gamma_model * p_model, const user_data& user_data, double tree_length, double species_variance) :
+gamma_lambda_optimizer::gamma_lambda_optimizer(sigma*p_lambda, gamma_model * p_model, const user_data& user_data, double tree_length, double species_variance) :
     inference_optimizer_scorer(p_lambda, p_model, user_data),
     _lambda_optimizer(p_lambda, p_model, user_data, tree_length, species_variance),
     _gamma_optimizer(p_model, user_data)
 {
 }
 
-gamma_lambda_optimizer::gamma_lambda_optimizer(lambda* p_lambda, gamma_model* p_model, const user_data& user_data) :
+gamma_lambda_optimizer::gamma_lambda_optimizer(sigma* p_lambda, gamma_model* p_model, const user_data& user_data) :
     inference_optimizer_scorer(p_lambda, p_model, user_data),
     _lambda_optimizer(p_lambda, p_model, user_data),
     _gamma_optimizer(p_model, user_data)
@@ -219,7 +219,7 @@ TEST_CASE("sigma_optimizer_scorer constructor calculates tree length and varianc
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     ud.p_tree = p_tree.get();
-    lambda s(5);
+    sigma s(5);
     sigma_optimizer_scorer soc(&s, nullptr, ud);
 
     auto guesses = soc.initial_guesses();
@@ -246,7 +246,7 @@ TEST_CASE("sigma_optimizer_scorer constructor averages variances across all tran
     ud.gene_families[1].set_expression_value("A", 5);
     ud.gene_families[1].set_expression_value("B", 8);
 
-    lambda s(5);
+    sigma s(5);
     sigma_optimizer_scorer soc(&s, nullptr, ud);
 
     auto guesses = soc.initial_guesses();
@@ -263,7 +263,7 @@ TEST_CASE("lambda_epsilon_optimizer guesses lambda and unique epsilons")
     err.set_probabilities(0, { .0, .7, .3 });
     err.set_probabilities(1, { .4, .2, .4 });
 
-    lambda s(10);
+    sigma s(10);
     user_data ud;
     lambda_epsilon_optimizer leo(nullptr, &err, ud, &s, 10, 1);
     auto guesses = leo.initial_guesses();

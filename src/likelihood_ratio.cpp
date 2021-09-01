@@ -9,7 +9,7 @@
 #include "optimizer_scorer.h"
 #include "root_equilibrium_distribution.h"
 #include "optimizer.h"
-#include "lambda.h"
+#include "sigma.h"
 #include "DiffMat.h"
 
 namespace LikelihoodRatioTest
@@ -24,7 +24,7 @@ namespace LikelihoodRatioTest
 
     double get_likelihood_for_diff_lambdas(const gene_transcript & gf, const clade * p_tree, const clade * p_lambda_tree, 
         int lambda_index, 
-        std::vector<lambda*> & lambda_cache, 
+        std::vector<sigma*> & lambda_cache,
         optimizer *opt,
         int max_root_family_size,
         int max_family_size)
@@ -35,9 +35,9 @@ namespace LikelihoodRatioTest
         {
             auto result = opt->optimize(optimizer_parameters());
             if (p_lambda_tree)
-                lambda_cache[lambda_index] = new lambda(map<string, int>(), result.values);
+                lambda_cache[lambda_index] = new sigma(map<string, int>(), result.values);
             else
-                lambda_cache[lambda_index] = new lambda(result.values[0]);
+                lambda_cache[lambda_index] = new sigma(result.values[0]);
         }
 
         matrix_cache cache(lambda_cache[lambda_index]);
@@ -48,7 +48,7 @@ namespace LikelihoodRatioTest
     void compute_for_diff_lambdas_i(const user_data & data,
         std::vector<int> & lambda_index,
         std::vector<double> & pvalues,
-        std::vector<lambda*> & lambda_cache,
+        std::vector<sigma*> & lambda_cache,
         optimizer* p_opt
     )
     {
@@ -80,7 +80,7 @@ namespace LikelihoodRatioTest
         const clade * pcafe,
         const std::vector<double> & pvalues,
         const std::vector<int> & plambda,
-        const std::vector<lambda*> & lambda_cache)
+        const std::vector<sigma*> & lambda_cache)
     {
         for (size_t i = 0; i < families.size(); ++i)
         {
@@ -93,7 +93,7 @@ namespace LikelihoodRatioTest
 
     void lhr_for_diff_lambdas(const user_data & data, model *p_model)
     {
-        std::vector<lambda*> lambda_cache(100);
+        std::vector<sigma*> lambda_cache(100);
 
         cout << "Running Likelihood Ratio Test 2....\n";
 

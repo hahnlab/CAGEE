@@ -123,7 +123,7 @@ public:
 class model {
 protected:
     std::ostream & _ost; 
-    lambda *_p_lambda;
+    sigma*_p_lambda;
     error_model* _p_error_model;
     std::vector<std::vector<int> > _rootdist_bins; // holds the distribution for each lambda bin
 
@@ -141,20 +141,20 @@ protected:
     /// tree
     void initialize_lambda(clade *p_lambda_tree);
 public:
-    model(lambda* p_lambda,
+    model(sigma* p_lambda,
         const std::vector<gene_transcript>* p_gene_families,
         error_model *p_error_model);
     
     virtual ~model() {}
     
-    lambda * get_lambda() const {
+    sigma* get_lambda() const {
         return _p_lambda;
     }
 
     //! Returns a lambda suitable for creating a simulated family. Default case is simply to return the lambda provided by the user.
-    virtual lambda* get_simulation_lambda();
+    virtual sigma* get_simulation_lambda();
 
-    virtual double infer_family_likelihoods(const user_data& ud, const lambda *p_lambda) = 0;  // return vector of likelihoods
+    virtual double infer_family_likelihoods(const user_data& ud, const sigma*p_lambda) = 0;  // return vector of likelihoods
     
     virtual std::string name() const = 0;
     virtual void write_family_likelihoods(std::ostream& ost) = 0;

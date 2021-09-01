@@ -13,7 +13,7 @@
 #include "matrix_cache.h"
 #include "root_equilibrium_distribution.h"
 #include "probability.h"
-#include "lambda.h"
+#include "sigma.h"
 #include "DiffMat.h"
 #include "arguments.h"
 
@@ -27,7 +27,7 @@ class binner
 {
     double _max_value;
 public:
-    binner(const lambda* p_lambda, const clade* p_tree, double root_size)
+    binner(const sigma* p_lambda, const clade* p_tree, double root_size)
     {
         double t = p_tree->distance_from_root_to_tip();
         double sigma = p_lambda->get_value_for_clade(p_tree);
@@ -61,7 +61,7 @@ void simulator::execute(std::vector<model *>& models)
     simulate(models, _user_input);
 }
 
-simulated_family create_simulated_family(const clade *p_tree, const lambda* p_sigma, double root_value, const matrix_cache& cache)
+simulated_family create_simulated_family(const clade *p_tree, const sigma* p_sigma, double root_value, const matrix_cache& cache)
 {
     simulated_family sim;
     sim.lambda = p_sigma->get_lambdas()[0];
@@ -89,7 +89,7 @@ simulated_family create_simulated_family(const clade *p_tree, const lambda* p_si
 // At the root, we have a vector of length DISCRETIZATION_RANGE. This has probability 1 at the size of the root
 // and 0 everywhere else
 // for each child, generate the transition matrix and multiply
-simulated_family simulator::create_trial(const lambda *p_sigma, int family_number, const matrix_cache& cache) {
+simulated_family simulator::create_trial(const sigma*p_sigma, int family_number, const matrix_cache& cache) {
     double root_size = data.prior.select_root_size(family_number);
 
     if (data.p_tree == NULL)
@@ -114,7 +114,7 @@ void simulator::simulate_processes(model *p_model, std::vector<simulated_family>
 
     for (size_t i = 0; i < results.size(); i+= LAMBDA_PERTURBATION_STEP_SIZE)
     {
-        unique_ptr<lambda> sim_lambda(p_model->get_simulation_lambda());
+        unique_ptr<sigma> sim_lambda(p_model->get_simulation_lambda());
         matrix_cache cache(sim_lambda.get());
         //cache.precalculate_matrices(get_lambda_values(sim_lambda.get()), this->data.p_tree->get_branch_lengths());
 
@@ -205,7 +205,7 @@ TEST_CASE("create_trial")
 {
     randomizer_engine.seed(10);
 
-    lambda lam(0.25);
+    sigma lam(0.25);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
     user_data data;
@@ -230,7 +230,7 @@ TEST_CASE("create_trial")
 
 TEST_CASE("binner")
 {
-    lambda lam(0.25);
+    sigma lam(0.25);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     binner b(&lam, p_tree.get(), 5);
 
@@ -294,7 +294,7 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
     randomizer_engine.seed(10);
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:1):1"));
-    lambda sigma(10);
+    sigma sigma(10);
     auto a = p_tree->find_descendant("A");
 
     matrix_cache cache(&sigma);

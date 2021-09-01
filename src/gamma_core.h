@@ -51,10 +51,10 @@ private:
 public:
 
     //! Calculate gamma categories and lambda multipliers based on category count and a fixed alpha
-    gamma_model(lambda* p_lambda, std::vector<gene_transcript>* p_gene_families, int n_gamma_cats, double fixed_alpha, error_model *p_error_model);
+    gamma_model(sigma* p_lambda, std::vector<gene_transcript>* p_gene_families, int n_gamma_cats, double fixed_alpha, error_model *p_error_model);
 
     //! Specify gamma categories and lambda multipliers explicitly
-    gamma_model(lambda* p_lambda, std::vector<gene_transcript>* p_gene_families, std::vector<double> gamma_categories, std::vector<double> multipliers, error_model *p_error_model);
+    gamma_model(sigma* p_lambda, std::vector<gene_transcript>* p_gene_families, std::vector<double> gamma_categories, std::vector<double> multipliers, error_model *p_error_model);
 
     void set_alpha(double alpha);
     double get_alpha() const { return _alpha; }
@@ -62,9 +62,9 @@ public:
     void write_probabilities(std::ostream& ost);
 
     //! Randomly select one of the multipliers to apply to the simulation
-    virtual lambda* get_simulation_lambda() override;
+    virtual sigma* get_simulation_lambda() override;
 
-    double infer_family_likelihoods(const user_data& ud, const lambda *p_lambda) override;
+    double infer_family_likelihoods(const user_data& ud, const sigma*p_lambda) override;
 
     virtual inference_optimizer_scorer *get_lambda_optimizer(const user_data& data) override;
 
@@ -91,7 +91,7 @@ public:
 
     bool can_infer() const;
 
-    bool prune(const gene_transcript& family, const root_equilibrium_distribution& eq, const matrix_cache& calc, const lambda *p_lambda,
+    bool prune(const gene_transcript& family, const root_equilibrium_distribution& eq, const matrix_cache& calc, const sigma*p_lambda,
         const clade *p_tree, std::vector<double>& category_likelihoods);
 };
 

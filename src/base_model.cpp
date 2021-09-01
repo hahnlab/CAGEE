@@ -14,7 +14,7 @@
 #include "root_equilibrium_distribution.h"
 #include "optimizer_scorer.h"
 #include "simulator.h"
-#include "lambda.h"
+#include "sigma.h"
 #include "io.h"
 #include "DiffMat.h"
 
@@ -22,7 +22,7 @@ using namespace std;
 
 extern mt19937 randomizer_engine;
 
-base_model::base_model(lambda* p_lambda, const vector<gene_transcript>* p_gene_families,
+base_model::base_model(sigma* p_lambda, const vector<gene_transcript>* p_gene_families,
     error_model *p_error_model) :
     model(p_lambda, p_gene_families, p_error_model)
 {
@@ -66,7 +66,7 @@ set<pair<double, double>> get_all_bounds(const vector<gene_transcript>& transcri
 
 }
 
-double base_model::infer_family_likelihoods(const user_data& ud, const lambda *p_sigma) {
+double base_model::infer_family_likelihoods(const user_data& ud, const sigma *p_sigma) {
     //TIMED_FUNC(timerObj);
     _monitor.Event_InferenceAttempt_Started();
 
@@ -183,7 +183,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
     return result;
 }
 
-lambda* base_model::get_simulation_lambda()
+sigma* base_model::get_simulation_lambda()
 {
     return _p_lambda->multiply(simulation_lambda_multiplier);
 }

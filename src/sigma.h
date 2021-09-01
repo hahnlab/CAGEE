@@ -5,35 +5,29 @@
 #include <map>
 
 class clade;
-class matrix_cache;
-class root_equilibrium_distribution;
-class model;
 
-struct FMinSearch;
-
-//! (lambda) Derived class 2: multiple lambdas
-class lambda {
+class sigma {
 private:
     std::map<std::string, int> _node_name_to_lambda_index;
     std::vector<double> _lambdas;
 
 public:
-    lambda(double lam)
+    sigma(double lam)
     {
         _lambdas.push_back(lam);
     }
 
-    lambda(std::map<std::string, int> nodename_index_map, std::vector<double> lambda_vector) :
+    sigma(std::map<std::string, int> nodename_index_map, std::vector<double> lambda_vector) :
         _node_name_to_lambda_index(nodename_index_map), _lambdas(lambda_vector) { } //!< Constructor
 
-    lambda* multiply(double factor) const 
+    sigma* multiply(double factor) const
     {
         auto npi = _lambdas;
 
         for (auto& i : npi)
             i *= factor;
 
-        return new lambda(_node_name_to_lambda_index, npi);
+        return new sigma(_node_name_to_lambda_index, npi);
     }
     void update(const double* values) ;
     int count() const  {
@@ -47,15 +41,15 @@ public:
     std::vector<double> get_lambdas() const {
         return _lambdas;
     }
-    virtual lambda* clone() const  {
-        return new lambda(_node_name_to_lambda_index, _lambdas);
+    virtual sigma* clone() const  {
+        return new sigma(_node_name_to_lambda_index, _lambdas);
     }
 
 };
 
-inline std::ostream& operator<<(std::ostream& ost, const lambda& lambda)
+inline std::ostream& operator<<(std::ostream& ost, const sigma& sigma)
 {
-    ost << lambda.to_string();
+    ost << sigma.to_string();
     return ost;
 }
 

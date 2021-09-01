@@ -2,18 +2,18 @@
 #include <iomanip>
 #include <sstream>
 
-#include "lambda.h"
+#include "sigma.h"
 #include "matrix_cache.h"
 #include "clade.h"
 
 using namespace std;
 
-void lambda::update(const double* values)
+void sigma::update(const double* values)
 {
     std::copy(values, values + _lambdas.size(), _lambdas.begin());
 }
 
-std::string lambda::to_string() const
+std::string sigma::to_string() const
 {
     ostringstream ost;
     ost << setw(15) << setprecision(14);
@@ -25,12 +25,12 @@ std::string lambda::to_string() const
     return ost.str();
 }
 
-bool lambda::is_valid() const
+bool sigma::is_valid() const
 {
     return std::none_of(_lambdas.begin(), _lambdas.end(), [](double d) { return d < 0; });
 }
 
-double lambda::get_value_for_clade(const clade *c) const {
+double sigma::get_value_for_clade(const clade *c) const {
     if (count() == 1)
         return _lambdas[0];
 

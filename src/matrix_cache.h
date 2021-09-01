@@ -7,7 +7,7 @@
 
 #include "DiffMat.h"
 
-class lambda;
+class sigma;
 
 class matrix_cache_key {
     std::pair<long, long> _bounds;
@@ -46,7 +46,7 @@ public:
         return _matrix_cache.size();
     }
 
-    matrix_cache(const lambda* p_lambda);
+    matrix_cache(const sigma* p_lambda);
     ~matrix_cache();
 
     friend std::ostream& operator<<(std::ostream& ost, matrix_cache& c);

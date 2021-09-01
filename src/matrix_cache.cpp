@@ -12,7 +12,7 @@
 #include "doctest.h"
 #include "easylogging++.h"
 #include "DiffMat.h"
-#include "lambda.h"
+#include "sigma.h"
 
 #ifdef HAVE_BLAS
 #ifdef HAVE_OPENBLAS
@@ -32,7 +32,7 @@ std::ostream& operator<<(std::ostream& ost, const matrix_cache_key& k)
     return ost;
 }
 
-matrix_cache::matrix_cache(const lambda *p_sigma)
+matrix_cache::matrix_cache(const sigma*p_sigma)
 {
     _sigma_squared = p_sigma->get_lambdas()[0];
 }

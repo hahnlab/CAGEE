@@ -6,7 +6,7 @@
 #include "easylogging++.h"
 
 #include "gene_family_reconstructor.h"
-#include "lambda.h"
+#include "sigma.h"
 #include "matrix_cache.h"
 #include "root_equilibrium_distribution.h"
 #include "gene_transcript.h"
@@ -112,7 +112,7 @@ namespace pupko_reconstructor {
     }
 
 
-    void reconstruct_at_node(const clade* c, const gene_transcript& t, const lambda* _lambda, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache* p_calc)
+    void reconstruct_at_node(const clade* c, const gene_transcript& t, const sigma* _lambda, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache* p_calc)
     {
         if (c->is_leaf())
         {
@@ -156,7 +156,7 @@ namespace pupko_reconstructor {
         }
     }
 
-    void reconstruct_gene_transcript(const lambda* lambda, const clade* p_tree,
+    void reconstruct_gene_transcript(const sigma* lambda, const clade* p_tree,
         const gene_transcript* gf,
         matrix_cache* p_calc,
         clademap<int>& reconstructed_states,
@@ -393,7 +393,7 @@ branch_probabilities::branch_probability compute_viterbi_sum(const clade* c,
     const reconstruction* rec, 
     int max_family_size, 
     const matrix_cache& cache, 
-    const lambda* p_lambda)
+    const sigma* p_lambda)
 {
     if (c->is_root())
     {

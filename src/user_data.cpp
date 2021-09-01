@@ -11,7 +11,7 @@
 #include "easylogging++.h"
 
 #include "arguments.h"
-#include "lambda.h"
+#include "sigma.h"
 #include "clade.h"
 #include "error_model.h"
 #include "io.h"
@@ -79,13 +79,13 @@ clade * user_data::read_lambda_tree(const input_parameters &my_input_parameters)
 }
 
 //! Read user provided single or multiple lambdas
-lambda * user_data::read_lambda(const input_parameters &my_input_parameters, clade *p_lambda_tree) {
+sigma* user_data::read_lambda(const input_parameters &my_input_parameters, clade *p_lambda_tree) {
 
-    lambda *p_lambda = NULL; // lambda is an abstract class, and so we can only instantiate it as single_lambda or multiple lambda -- therefore initializing it to NULL
+    sigma*p_lambda = NULL; // lambda is an abstract class, and so we can only instantiate it as single_lambda or multiple lambda -- therefore initializing it to NULL
 
                              // -l
     if (my_input_parameters.fixed_lambda > 0.0) {
-        p_lambda = new lambda(my_input_parameters.fixed_lambda);
+        p_lambda = new sigma(my_input_parameters.fixed_lambda);
         // call_viterbi(max_family_size, max_root_family_size, 15, p_lambda, *p_gene_families, p_tree);
     }
 
@@ -100,7 +100,7 @@ lambda * user_data::read_lambda(const input_parameters &my_input_parameters, cla
             [](string const& val) { return stod(val); } // this is the equivalent of a Python's lambda function
         );
 
-        p_lambda = new lambda(node_name_to_lambda_index, lambdas);
+        p_lambda = new sigma(node_name_to_lambda_index, lambdas);
     }
 
     return p_lambda;
