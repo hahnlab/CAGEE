@@ -199,7 +199,7 @@ input_parameters read_arguments(int argc, char* const argv[])
         ("optimizer_expansion,E", po::value<double>())
         ("optimizer_reflection,R", po::value<double>())
         ("optimizer_iterations,I", po::value<int>())
-        ("error,e", po::value<string>()->implicit_value("false"))
+        ("error,e", po::value<string>()->default_value("false")->implicit_value("true"))
         ("zero_root,z", po::value<bool>()->implicit_value(true))
         ("fixed_root_value", po::value<double>(), "Fixed Root Value")
         ("sigma_tree,y", po::value<string>(), "Path to sigma tree, for use with multiple sigmas")
@@ -246,6 +246,11 @@ input_parameters read_arguments(int argc, char* const argv[])
     maybe_set(vm, "infile", my_input_parameters.input_file_path);
     maybe_set(vm, "output_prefix", my_input_parameters.output_prefix);
     maybe_set(vm, "tree", my_input_parameters.tree_file_path);
+    maybe_set(vm, "zero_root", my_input_parameters.exclude_zero_root_families);
+    maybe_set(vm, "cores", my_input_parameters.cores);
+    maybe_set(vm, "optimizer_expansion", my_input_parameters.optimizer_params.neldermead_expansion);
+    maybe_set(vm, "optimizer_reflection", my_input_parameters.optimizer_params.neldermead_reflection);
+    maybe_set(vm, "optimizer_iterations", my_input_parameters.optimizer_params.neldermead_iterations);
 
     string simulate_string = vm["simulate"].as<string>();
     my_input_parameters.is_simulating = simulate_string != "false";
@@ -262,6 +267,13 @@ input_parameters read_arguments(int argc, char* const argv[])
     {
         if (poisson_string.find_first_not_of("0123456789.") == std::string::npos)
             my_input_parameters.poisson_lambda = stof(poisson_string);
+    }
+
+    string error = vm["error"].as<string>();
+    my_input_parameters.use_error_model = error != "false";
+    if (my_input_parameters.use_error_model && error != "true")
+    {
+        my_input_parameters.error_model_file_path = error;
     }
 
     my_input_parameters.check_input(); // seeing if options are not mutually exclusive              

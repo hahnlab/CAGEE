@@ -10,7 +10,6 @@
 #include <getopt.h>
 #endif
 
-#define ELPP_NO_CHECK_MACROS
 #include "src/easylogging++.h"
 
 INITIALIZE_EASYLOGGINGPP
