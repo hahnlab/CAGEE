@@ -258,7 +258,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
 {
     LOG(INFO) << "Starting reconstruction processes for Gamma model";
 
-    auto values = get_lambda_values(_p_lambda);
+    auto values = _p_lambda->get_lambdas();
     vector<double> all;
     for (double multiplier : _lambda_multipliers)
     {

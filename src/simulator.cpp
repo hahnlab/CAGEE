@@ -64,7 +64,7 @@ void simulator::execute(std::vector<model *>& models)
 simulated_family create_simulated_family(const clade *p_tree, const lambda* p_sigma, double root_value, const matrix_cache& cache)
 {
     simulated_family sim;
-    sim.lambda = get_lambda_values(p_sigma)[0];
+    sim.lambda = p_sigma->get_lambdas()[0];
 
     binner b(p_sigma, p_tree, root_value);
 
@@ -205,7 +205,7 @@ TEST_CASE("create_trial")
 {
     randomizer_engine.seed(10);
 
-    single_lambda lam(0.25);
+    lambda lam(0.25);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
     user_data data;
@@ -230,7 +230,7 @@ TEST_CASE("create_trial")
 
 TEST_CASE("binner")
 {
-    single_lambda lam(0.25);
+    lambda lam(0.25);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     binner b(&lam, p_tree.get(), 5);
 
@@ -294,7 +294,7 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
     randomizer_engine.seed(10);
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:1):1"));
-    single_lambda sigma(10);
+    lambda sigma(10);
     auto a = p_tree->find_descendant("A");
 
     matrix_cache cache(&sigma);

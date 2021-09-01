@@ -375,7 +375,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
-    single_lambda lambda(0.03);
+    lambda lambda(0.03);
     matrix_cache cache(&lambda);
 
     std::map<const clade*, VectorXd> probabilities;
@@ -424,7 +424,7 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly")
     double prob = 0.005;
     VectorXd equal_probs = VectorXd::Constant(DISCRETIZATION_RANGE, prob);
     MatrixXd doubler = MatrixXd::Identity(DISCRETIZATION_RANGE, DISCRETIZATION_RANGE) * 2;
-    single_lambda lambda(0.03);
+    lambda lambda(0.03);
     matrix_cache cache(&lambda);
     cache.set_matrix(1, bounds(family), doubler);
     cache.set_matrix(3, bounds(family), doubler);
@@ -458,7 +458,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_from_error_model_if_pr
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
-    single_lambda lambda(0.03);
+    lambda lambda(0.03);
     matrix_cache cache(&lambda);
 
     string input = "maxcnt: 20\ncntdiff: -1 0 1\n"
@@ -544,7 +544,7 @@ TEST_CASE("compute_family_probabilities")
 {
     unique_ptr<clade> p_tree(parse_newick("((A:1,B:3):7,(C:11,D:17):23);"));
 
-    single_lambda lambda(0.03);
+    lambda lambda(0.03);
     matrix_cache cache(&lambda);
     pvalue_parameters p = { p_tree.get(),  &lambda, 20, 15, cache };
 
@@ -580,7 +580,7 @@ TEST_CASE("Inference: prune" * doctest::skip(true))
     fam.set_expression_value("B", 6);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
-    single_lambda lambda(0.03);
+    lambda lambda(0.03);
     matrix_cache cache(&lambda);
     cache.precalculate_matrices(get_all_bounds(vector<gene_transcript>{fam}), set<double>{1, 3, 7});
     auto actual = inference_prune(fam, cache, &lambda, nullptr, p_tree.get(), 1.5);

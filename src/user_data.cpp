@@ -85,7 +85,7 @@ lambda * user_data::read_lambda(const input_parameters &my_input_parameters, cla
 
                              // -l
     if (my_input_parameters.fixed_lambda > 0.0) {
-        p_lambda = new single_lambda(my_input_parameters.fixed_lambda);
+        p_lambda = new lambda(my_input_parameters.fixed_lambda);
         // call_viterbi(max_family_size, max_root_family_size, 15, p_lambda, *p_gene_families, p_tree);
     }
 
@@ -100,7 +100,7 @@ lambda * user_data::read_lambda(const input_parameters &my_input_parameters, cla
             [](string const& val) { return stod(val); } // this is the equivalent of a Python's lambda function
         );
 
-        p_lambda = new multiple_lambda(node_name_to_lambda_index, lambdas);
+        p_lambda = new lambda(node_name_to_lambda_index, lambdas);
     }
 
     return p_lambda;

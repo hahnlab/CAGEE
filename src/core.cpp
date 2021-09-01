@@ -79,12 +79,12 @@ void model::initialize_lambda(clade *p_lambda_tree)
         auto fn = [&unique_lambdas](const clade *p_node) { unique_lambdas.insert(p_node->get_lambda_index()); };
         p_lambda_tree->apply_prefix_order(fn);
         auto node_name_to_lambda_index = p_lambda_tree->get_lambda_index_map();
-        p_lambda = new multiple_lambda(node_name_to_lambda_index, std::vector<double>(unique_lambdas.size()));
+        p_lambda = new lambda(node_name_to_lambda_index, std::vector<double>(unique_lambdas.size()));
         LOG(INFO) << "Searching for " << unique_lambdas.size() << " lambdas" << endl;
     }
     else
     {
-        p_lambda = new single_lambda(0.0);
+        p_lambda = new lambda(0.0);
     }
 
     _p_lambda = p_lambda;

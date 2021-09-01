@@ -8,36 +8,12 @@
 
 using namespace std;
 
-vector<double> get_lambda_values(const lambda* p_lambda)
-{
-    vector<double> lambdas;
-    auto sl = dynamic_cast<const single_lambda*>(p_lambda);
-    if (sl)
-    {
-        lambdas.push_back(sl->get_single_lambda());
-    }
-    else
-    {
-        auto ml = dynamic_cast<const multiple_lambda*>(p_lambda);
-        lambdas = ml->get_lambdas();
-    }
-    return lambdas;
-}
-
-
-std::string single_lambda::to_string() const
-{
-    ostringstream ost;
-    ost << setw(15) << setprecision(14) << _lambda;
-    return ost.str();
-}
-
-void multiple_lambda::update(const double* values)
+void lambda::update(const double* values)
 {
     std::copy(values, values + _lambdas.size(), _lambdas.begin());
 }
 
-std::string multiple_lambda::to_string() const
+std::string lambda::to_string() const
 {
     ostringstream ost;
     ost << setw(15) << setprecision(14);
@@ -49,12 +25,15 @@ std::string multiple_lambda::to_string() const
     return ost.str();
 }
 
-bool multiple_lambda::is_valid() const
+bool lambda::is_valid() const
 {
     return std::none_of(_lambdas.begin(), _lambdas.end(), [](double d) { return d < 0; });
 }
 
-double multiple_lambda::get_value_for_clade(const clade *c) const {
+double lambda::get_value_for_clade(const clade *c) const {
+    if (count() == 1)
+        return _lambdas[0];
+
     int index = _node_name_to_lambda_index.at(c->get_taxon_name());
     return _lambdas[index];
 }

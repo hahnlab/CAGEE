@@ -219,7 +219,7 @@ TEST_CASE("sigma_optimizer_scorer constructor calculates tree length and varianc
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     ud.p_tree = p_tree.get();
-    single_lambda s(5);
+    lambda s(5);
     sigma_optimizer_scorer soc(&s, nullptr, ud);
 
     auto guesses = soc.initial_guesses();
@@ -246,7 +246,7 @@ TEST_CASE("sigma_optimizer_scorer constructor averages variances across all tran
     ud.gene_families[1].set_expression_value("A", 5);
     ud.gene_families[1].set_expression_value("B", 8);
 
-    single_lambda s(5);
+    lambda s(5);
     sigma_optimizer_scorer soc(&s, nullptr, ud);
 
     auto guesses = soc.initial_guesses();
@@ -263,7 +263,7 @@ TEST_CASE("lambda_epsilon_optimizer guesses lambda and unique epsilons")
     err.set_probabilities(0, { .0, .7, .3 });
     err.set_probabilities(1, { .4, .2, .4 });
 
-    single_lambda s(10);
+    lambda s(10);
     user_data ud;
     lambda_epsilon_optimizer leo(nullptr, &err, ud, &s, 10, 1);
     auto guesses = leo.initial_guesses();

@@ -35,9 +35,9 @@ namespace LikelihoodRatioTest
         {
             auto result = opt->optimize(optimizer_parameters());
             if (p_lambda_tree)
-                lambda_cache[lambda_index] = new multiple_lambda(map<string, int>(), result.values);
+                lambda_cache[lambda_index] = new lambda(map<string, int>(), result.values);
             else
-                lambda_cache[lambda_index] = new single_lambda(result.values[0]);
+                lambda_cache[lambda_index] = new lambda(result.values[0]);
         }
 
         matrix_cache cache(lambda_cache[lambda_index]);

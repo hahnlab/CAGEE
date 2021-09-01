@@ -34,7 +34,7 @@ std::ostream& operator<<(std::ostream& ost, const matrix_cache_key& k)
 
 matrix_cache::matrix_cache(const lambda *p_sigma)
 {
-    _sigma_squared = dynamic_cast<const single_lambda*>(p_sigma)->get_single_lambda();
+    _sigma_squared = p_sigma->get_lambdas()[0];
 }
 
 matrix_cache::~matrix_cache()
