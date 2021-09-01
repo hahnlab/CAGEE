@@ -79,8 +79,8 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma *p_
     results.resize(ud.gene_families.size());
     std::vector<double> all_families_likelihood(ud.gene_families.size());
 
-    matrix_cache calc(p_sigma);
-    calc.precalculate_matrices(get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
+    matrix_cache calc;
+    calc.precalculate_matrices(p_sigma->get_lambdas(), get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
 
     vector<vector<double>> partial_likelihoods(ud.gene_families.size());
 #pragma omp parallel for
@@ -150,7 +150,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
     auto result = new base_model_reconstruction();
 
-    p_calc->precalculate_matrices(get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
+    p_calc->precalculate_matrices(_p_lambda->get_lambdas(), get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
 
     pupko_reconstructor::pupko_data data(ud.gene_families.size(), ud.p_tree, ud.max_family_size, ud.max_root_family_size);
 

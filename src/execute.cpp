@@ -159,7 +159,7 @@ void estimator::execute(std::vector<model *>& models)
                 /// For Gamma models, we tried using the most rapidly changing lambda multiplier here, but that
                 /// caused issues in the pvalue calculation. It should be best to use the original lambda
                 /// instead
-                matrix_cache cache(p_model->get_lambda());
+                matrix_cache cache;
                 pvalue_parameters p = { data.p_tree, p_model->get_lambda(), data.max_family_size, data.max_root_family_size, cache };
                 auto pvalues = compute_pvalues(p, data.gene_families, 1000 );
 

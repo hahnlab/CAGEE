@@ -157,8 +157,8 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma*p_
     vector<bool> failure(ud.gene_families.size());
 
     vector<vector<family_info_stash>> pruning_results(ud.gene_families.size());
-    matrix_cache cache(p_lambda);
-    cache.precalculate_matrices(get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
+    matrix_cache cache;
+    cache.precalculate_matrices(p_lambda->get_lambdas(), get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
 
 #pragma omp parallel for
     for (size_t i = 0; i < ud.gene_families.size(); i++) {
@@ -268,7 +268,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
         }
     }
 
-    calc->precalculate_matrices(get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
+    calc->precalculate_matrices(_p_lambda->get_lambdas(), get_all_bounds(ud.gene_families),  ud.p_tree->get_branch_lengths());
 
     gamma_model_reconstruction* result = new gamma_model_reconstruction(_lambda_multipliers);
     vector<gamma_model_reconstruction::gamma_reconstruction *> recs(ud.gene_families.size());

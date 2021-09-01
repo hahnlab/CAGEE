@@ -28,25 +28,16 @@ using namespace std;
 
 std::ostream& operator<<(std::ostream& ost, const matrix_cache_key& k)
 {
-    ost << "(" << k.branch_length() << ", (" << k.bounds().first << "," << k.bounds().second << "));";
+    ost << "(" << k.branch_length() << ", " << k.branch_length() << ", (" << k.bounds().first << "," << k.bounds().second << "));";
     return ost;
 }
 
-matrix_cache::matrix_cache(const sigma*p_sigma)
-{
-    _sigma_squared = p_sigma->get_lambdas()[0];
-}
 
-matrix_cache::~matrix_cache()
-{
-
-}
-
-const Eigen::MatrixXd& matrix_cache::get_matrix(double branch_length, boundaries bounds) const
+const Eigen::MatrixXd& matrix_cache::get_matrix(double branch_length, double sigma, boundaries bounds) const
 {
     // cout << "Matrix request " << size << "," << branch_length << "," << lambda << endl;
 
-    matrix_cache_key key(bounds, branch_length);
+    matrix_cache_key key(bounds, sigma, branch_length);
     if (_matrix_cache.find(key) != _matrix_cache.end())
     {
        return _matrix_cache.at(key);
@@ -59,7 +50,7 @@ const Eigen::MatrixXd& matrix_cache::get_matrix(double branch_length, boundaries
     }
 }
 
-void matrix_cache::precalculate_matrices(const set<boundaries>& boundses, const std::set<double>& branch_lengths)
+void matrix_cache::precalculate_matrices(const std::vector<double>& sigmas, const set<boundaries>& boundses, const std::set<double>& branch_lengths)
 {
     // build a list of required matrices
     vector<matrix_cache_key> keys;
@@ -67,10 +58,13 @@ void matrix_cache::precalculate_matrices(const set<boundaries>& boundses, const 
     {
         for (double branch_length : branch_lengths)
         {
-            matrix_cache_key key(bounds, branch_length);
-            if (_matrix_cache.find(key) == _matrix_cache.end())
+            for (double sigma : sigmas)
             {
-                keys.push_back(key);
+                matrix_cache_key key(bounds, sigma, branch_length);
+                if (_matrix_cache.find(key) == _matrix_cache.end())
+                {
+                    keys.push_back(key);
+                }
             }
         }
     }
@@ -90,9 +84,9 @@ void matrix_cache::precalculate_matrices(const set<boundaries>& boundses, const 
 
 }
 
-void matrix_cache::set_matrix(double branch_length, boundaries bounds, const Eigen::MatrixXd& m)
+void matrix_cache::set_matrix(double branch_length, double sigma, boundaries bounds, const Eigen::MatrixXd& m)
 {
-    matrix_cache_key key(bounds, branch_length);
+    matrix_cache_key key(bounds, sigma, branch_length);
     _matrix_cache[key] = m;
 }
 
@@ -106,3 +100,19 @@ std::ostream& operator<<(std::ostream& ost, matrix_cache& c)
     return ost;
 }
 
+
+TEST_CASE(" matrix_cache_key handles floating point imprecision")
+{
+    set<matrix_cache_key> keys;
+    double t = 0.0;
+    for (int i = 0; i < 31; i++)
+    {
+        t += 0.1;
+        matrix_cache_key key(boundaries(0, t), 0.01, 0.3);
+        keys.insert(key);
+    }
+    CHECK_EQ(31, keys.size());
+
+    matrix_cache_key key(boundaries(0, 3.0), 0.01, 0.3);
+    CHECK_EQ(1, keys.count(key));
+}

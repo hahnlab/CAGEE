@@ -9,9 +9,9 @@ class sigma;
 
 namespace pupko_reconstructor {
 
-void reconstruct_leaf_node(const clade * c, const gene_transcript& t, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache *_p_calc);
+void reconstruct_leaf_node(const clade * c, const sigma *p_sigma, const gene_transcript& t, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache *_p_calc);
 void reconstruct_at_node(const clade *c, const gene_transcript& t, const sigma*_lambda, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache* p_calc);
-void reconstruct_internal_node(const clade * c, const gene_transcript& t, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache *_p_calc);
+void reconstruct_internal_node(const clade * c, const sigma* p_sigma, const gene_transcript& t, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache *_p_calc);
 void initialize_at_node(const clade* c, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, int max_family_size, int max_root_family_size);
 
 /// Structure holding required memory to calculate Pupko reconstructions

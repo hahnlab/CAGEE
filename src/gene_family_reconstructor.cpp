@@ -28,7 +28,7 @@ namespace pupko_reconstructor {
 
     }
 
-    void reconstruct_leaf_node(const clade* c, const gene_transcript& t, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache* _p_calc)
+    void reconstruct_leaf_node(const clade* c, const sigma* p_sigma, const gene_transcript& t, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache* _p_calc)
     {
         auto& C = all_node_Cs[c];
         auto& L = all_node_Ls[c];
@@ -38,7 +38,7 @@ namespace pupko_reconstructor {
         double observed_count = t.get_expression_value(c->get_taxon_name());
         fill(C.begin(), C.end(), observed_count);
 
-        auto matrix = _p_calc->get_matrix(branch_length, bounds(t));
+        auto matrix = _p_calc->get_matrix(branch_length, p_sigma->get_value_for_clade(c), bounds(t));
         // i will be the parent size
         for (size_t i = 0; i < L.size(); ++i)
         {
@@ -76,14 +76,14 @@ namespace pupko_reconstructor {
 
     }
 
-    void reconstruct_internal_node(const clade* c, const gene_transcript& t, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache* _p_calc)
+    void reconstruct_internal_node(const clade* c, const sigma* p_sigma, const gene_transcript& t, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache* _p_calc)
     {
         auto& C = all_node_Cs[c];
         auto& L = all_node_Ls[c];
 
         double branch_length = c->get_branch_length();
 
-        auto matrix = _p_calc->get_matrix(branch_length, bounds(t));
+        auto matrix = _p_calc->get_matrix(branch_length, p_sigma->get_value_for_clade(c), bounds(t));
 
         size_t j = 0;
         double value = 0.0;
@@ -112,11 +112,11 @@ namespace pupko_reconstructor {
     }
 
 
-    void reconstruct_at_node(const clade* c, const gene_transcript& t, const sigma* _lambda, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache* p_calc)
+    void reconstruct_at_node(const clade* c, const gene_transcript& t, const sigma* p_sigma, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache* p_calc)
     {
         if (c->is_leaf())
         {
-            reconstruct_leaf_node(c, t, all_node_Cs, all_node_Ls, p_calc);
+            reconstruct_leaf_node(c, p_sigma, t, all_node_Cs, all_node_Ls, p_calc);
         }
         else if (c->is_root())
         {
@@ -124,7 +124,7 @@ namespace pupko_reconstructor {
         }
         else
         {
-            reconstruct_internal_node(c, t, all_node_Cs, all_node_Ls, p_calc);
+            reconstruct_internal_node(c, p_sigma, t, all_node_Cs, all_node_Ls, p_calc);
         }
     }
 
@@ -400,7 +400,7 @@ branch_probabilities::branch_probability compute_viterbi_sum(const clade* c,
         return branch_probabilities::invalid();
     }
 
-    auto probs = cache.get_matrix(c->get_branch_length(), bounds(family));
+    auto probs = cache.get_matrix(c->get_branch_length(), p_lambda->get_value_for_clade(c), bounds(family));
 
     int parent_size = rec->get_node_count(family, c->get_parent());
     int child_size = rec->get_node_count(family, c);

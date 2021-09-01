@@ -141,8 +141,7 @@ void compute_node_probability(const clade* node,
         node_probs = VectorXd::Constant(DISCRETIZATION_RANGE, 1);
 
         for (auto it = node->descendant_begin(); it != node->descendant_end(); ++it) {
-            const MatrixXd& m = cache.get_matrix((*it)->get_branch_length(), bounds(gene_transcript));
-            //MatrixXd m = ConvProp_bounds(, sigma * sigma / 2, diff_mat, bounds(gene_transcript));
+            const MatrixXd& m = cache.get_matrix((*it)->get_branch_length(), p_sigma->get_value_for_clade(*it), bounds(gene_transcript));
 
             VectorXd result = m * probabilities[*it];
             for (VectorXd::Index i = 0; i < node_probs.size(); i++) {
@@ -223,7 +222,7 @@ std::vector<double> get_random_probabilities(pvalue_parameters p, int number_of_
 {
     vector<simulated_family> families(number_of_simulations);
 
-    generate(families.begin(), families.end(), [p, root_family_size]() { return create_simulated_family(p.p_tree, p.p_lambda, root_family_size, p.cache); });
+    generate(families.begin(), families.end(), [p, root_family_size]() { return create_simulated_family(p.p_tree, p.p_lambda, root_family_size); });
 
     auto result = compute_family_probabilities(p, families, root_family_size);
 
@@ -376,7 +375,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
     sigma lambda(0.03);
-    matrix_cache cache(&lambda);
+    matrix_cache cache;
 
     std::map<const clade*, VectorXd> probabilities;
 
@@ -425,9 +424,9 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly")
     VectorXd equal_probs = VectorXd::Constant(DISCRETIZATION_RANGE, prob);
     MatrixXd doubler = MatrixXd::Identity(DISCRETIZATION_RANGE, DISCRETIZATION_RANGE) * 2;
     sigma lambda(0.03);
-    matrix_cache cache(&lambda);
-    cache.set_matrix(1, bounds(family), doubler);
-    cache.set_matrix(3, bounds(family), doubler);
+    matrix_cache cache;
+    cache.set_matrix(1, 0.03, bounds(family), doubler);
+    cache.set_matrix(3, 0.03, bounds(family), doubler);
     std::map<const clade*, VectorXd> probabilities;
     auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(DISCRETIZATION_RANGE); };
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
@@ -459,7 +458,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_from_error_model_if_pr
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
     sigma lambda(0.03);
-    matrix_cache cache(&lambda);
+    matrix_cache cache;
 
     string input = "maxcnt: 20\ncntdiff: -1 0 1\n"
         "0 0.0 0.8 0.2\n"
@@ -545,7 +544,7 @@ TEST_CASE("compute_family_probabilities")
     unique_ptr<clade> p_tree(parse_newick("((A:1,B:3):7,(C:11,D:17):23);"));
 
     sigma lambda(0.03);
-    matrix_cache cache(&lambda);
+    matrix_cache cache;
     pvalue_parameters p = { p_tree.get(),  &lambda, 20, 15, cache };
 
     vector<simulated_family> v(1);
@@ -556,7 +555,7 @@ TEST_CASE("compute_family_probabilities")
     fam.set_expression_value("B", 2);
     fam.set_expression_value("C", 5);
     fam.set_expression_value("D", 6);
-    cache.precalculate_matrices(set<boundaries>{bounds(fam)}, set<double>{1, 3, 7, 11, 17, 23});
+    cache.precalculate_matrices(lambda.get_lambdas(), set<boundaries>{bounds(fam)}, set<double>{1, 3, 7, 11, 17, 23});
 
     // note we do not use an error model for creating family sizes. See architecture decision #6
     p.p_tree->apply_prefix_order([&v, &fam](const clade* c)
@@ -581,8 +580,8 @@ TEST_CASE("Inference: prune" * doctest::skip(true))
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
     sigma lambda(0.03);
-    matrix_cache cache(&lambda);
-    cache.precalculate_matrices(get_all_bounds(vector<gene_transcript>{fam}), set<double>{1, 3, 7});
+    matrix_cache cache;
+    cache.precalculate_matrices(lambda.get_lambdas(), get_all_bounds(vector<gene_transcript>{fam}), set<double>{1, 3, 7});
     auto actual = inference_prune(fam, cache, &lambda, nullptr, p_tree.get(), 1.5);
 
     vector<double> log_expected{ -17.2771, -10.0323 , -5.0695 , -4.91426 , -5.86062 , -7.75163 , -10.7347 , -14.2334 , -18.0458 ,

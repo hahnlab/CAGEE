@@ -40,7 +40,7 @@ namespace LikelihoodRatioTest
                 lambda_cache[lambda_index] = new sigma(result.values[0]);
         }
 
-        matrix_cache cache(lambda_cache[lambda_index]);
+        matrix_cache cache;
         auto probs = inference_prune(gf, cache, lambda_cache[lambda_index], nullptr, adjusted_tree.get(), 1.0);
         return *max_element(probs.begin(), probs.end());
     }
@@ -54,7 +54,7 @@ namespace LikelihoodRatioTest
     {
         auto references = build_reference_list(data.gene_families);
 
-        matrix_cache cache(data.p_lambda);
+        matrix_cache cache;
         for (size_t i = 0; i < data.gene_families.size(); i += 1)
         {
             auto& pitem = data.gene_families[i];
