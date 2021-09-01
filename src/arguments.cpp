@@ -194,6 +194,7 @@ input_parameters read_arguments(int argc, char* const argv[])
         ("infile,i", po::value<string>(), "input file")
         ("tree,t", po::value<string>(), "Tree file in Newick format")
         ("output_prefix,o", po::value<string>(), "Output prefix")
+        ("fixed_multiple_sigmas,m", po::value<string>(), "Output prefix")
         ("pvalue,P", po::value<double>(), "PValue")
         ("cores", po::value<int>(), "Number of processing cores to use, requires an integer argument. Default=All available cores.")
         ("optimizer_expansion,E", po::value<double>())
@@ -251,6 +252,8 @@ input_parameters read_arguments(int argc, char* const argv[])
     maybe_set(vm, "optimizer_expansion", my_input_parameters.optimizer_params.neldermead_expansion);
     maybe_set(vm, "optimizer_reflection", my_input_parameters.optimizer_params.neldermead_reflection);
     maybe_set(vm, "optimizer_iterations", my_input_parameters.optimizer_params.neldermead_iterations);
+    maybe_set(vm, "fixed_multiple_sigmas", my_input_parameters.fixed_multiple_lambdas);
+    maybe_set(vm, "sigma_tree", my_input_parameters.lambda_tree_file_path);
 
     string simulate_string = vm["simulate"].as<string>();
     my_input_parameters.is_simulating = simulate_string != "false";
@@ -444,6 +447,14 @@ TEST_CASE("Options, cores_long")
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK_EQ(6, actual.cores);
+}
+
+TEST_CASE("Options, multiple_sigmas_long")
+{
+    option_test c({ "cafe5", "--fixed_multiple_sigmas=5,10,15", "--sigma_tree=foo.txt" });
+
+    auto actual = read_arguments(c.argc, c.values);
+    CHECK_EQ("5,10,15", actual.fixed_multiple_lambdas);
 }
 
 TEST_CASE("Options: errormodel_accepts_argument")
