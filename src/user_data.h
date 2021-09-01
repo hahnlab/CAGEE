@@ -32,7 +32,7 @@ public:
     root_equilibrium_distribution* p_prior = NULL;
 
     std::vector<gene_transcript> gene_families;
-    std::map<int, int> rootdist;
+    std::map<int, float> rootdist;
 
     void read_datafiles(const input_parameters& my_input_parameters);
 

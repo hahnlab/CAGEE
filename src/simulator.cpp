@@ -216,8 +216,7 @@ TEST_CASE("create_trial")
     data.max_family_size = 10;
     data.max_root_family_size = 10;
 
-    data.p_prior = new c_root_equilibrium_distribution();
-//    data.p_prior = new root_equilibrium_distribution(data.rootdist);
+    data.p_prior = new root_distribution_specific(data.rootdist);
     input_parameters params;
     simulator sim(data, params);
     matrix_cache cache(&lam);
