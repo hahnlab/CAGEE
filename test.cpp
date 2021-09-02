@@ -29,7 +29,6 @@ INITIALIZE_EASYLOGGINGPP
 #include "src/user_data.h"
 #include "src/optimizer_scorer.h"
 #include "src/simulator.h"
-#include "src/poisson.h"
 #include "src/optimizer.h"
 #include "src/error_model.h"
 #include "src/likelihood_ratio.h"
@@ -1509,43 +1508,6 @@ TEST_CASE("Inference: inference_optimizer_scorer__calculate_score__translates_na
     user_data ud;
     sigma_optimizer_scorer opt(&lam, &m, ud, 0, 0);
     CHECK(std::isinf(opt.calculate_score(&val)));
-}
-
-TEST_CASE_FIXTURE(Inference, "poisson_scorer_optimizes_correct_value")
-{
-    poisson_scorer scorer(_user_data.gene_families);
-    optimizer opt(&scorer);
-    optimizer_parameters params;
-    auto result = opt.optimize(params);
-
-    // DOUBLES_EQUAL(0.5, result.values[0], 0.0001)
-}
-
-TEST_CASE("poisson_scorer returns invalid for negative lambda")
-{
-    vector<gene_transcript> _;
-    poisson_scorer scorer(_);
-    double lambda = -1;
-    double actual = scorer.lnLPoisson(&lambda);
-    CHECK(std::isinf(actual));
-}
-
-TEST_CASE_FIXTURE(Inference, "poisson_scorer__lnlPoisson")
-{
-    poisson_scorer scorer(_user_data.gene_families);
-    double lambda = 0.05;
-    CHECK_EQ(doctest::Approx(3.095732), scorer.lnLPoisson(&lambda));
-}
-
-TEST_CASE_FIXTURE(Inference, "poisson_scorer__lnlPoisson_skips_incalculable_family_sizes")
-{
-    _user_data.gene_families.push_back(gene_transcript("TestFamily2", "", ""));
-    _user_data.gene_families[1].set_expression_value("A", 3);
-    _user_data.gene_families[1].set_expression_value("B", 175);
-
-    poisson_scorer scorer(_user_data.gene_families);
-    double lambda = 0.05;
-    CHECK_EQ(doctest::Approx(9.830344), scorer.lnLPoisson(&lambda));
 }
 
 class mock_scorer : public optimizer_scorer

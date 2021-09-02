@@ -30,5 +30,7 @@
 
 
 /* Verbose log keys for various aspects of the application */
+#define ROOT_SIZE_ESTIMATION 2
 #define SIMULATOR 3
 #define MATRIX 6
+

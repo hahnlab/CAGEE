@@ -1,4 +1,3 @@
-#define _USE_MATH_DEFINES
 
 #include <numeric>
 #include <iostream>
@@ -9,7 +8,7 @@
 #include "easylogging++.h"
 
 #include "root_equilibrium_distribution.h"
-#include "poisson.h"
+#include "rootdist_estimator.h"
 #include "io.h"
 #include "optimizer.h"
 #include "gene_transcript.h"
@@ -169,29 +168,26 @@ float root_distribution_specific::select_root_value(int family_number) const
 
 root_distribution_gamma::root_distribution_gamma(const std::vector<gene_transcript>& gene_families, size_t num_values)
 {
-    poisson_scorer scorer(gene_families);
+    gamma_scorer scorer(gene_families);
     optimizer opt(&scorer);
     optimizer_parameters params;
     auto result = opt.optimize(params);
-    auto poisson_lambda = result.values[0];
+    auto alpha = result.values[0];
+    auto beta = result.values[1];
 
     LOG(INFO) << "Empirical Prior Estimation Result : (" << result.num_iterations << " iterations)";
-    LOG(INFO) << "Poisson lambda: " << poisson_lambda << " &  Score: " << result.score;
+    LOG(INFO) << "Gamma (" << alpha << "," << beta << ") score: " << result.score;
 
-    for (int i = 0; _vectorized_distribution.size() < num_values; ++i)
+    for (int i = 1; _vectorized_distribution.size() <= num_values; ++i)
     {
-        double pct = poisspdf(i, poisson_lambda);
+        double pct = gammapdf(i, alpha, beta);
         for (size_t j = 0; j < pct * num_values; ++j)
-            _vectorized_distribution.push_back(i + 1);
+            _vectorized_distribution.push_back(i);
         _frequency_percentage.push_back(pct);
     }
     // set a few extra percentages beyond the maximum size in the distribution
     for (int i = 0; i < 5; ++i)
-        _frequency_percentage.push_back(poisspdf(_frequency_percentage.size(), poisson_lambda));
-}
-
-double gammapdf(double value, double alpha, double beta) {
-    return (std::pow(beta, alpha) * std::pow(value, (alpha - 1)) * std::pow(M_E, (-1 * beta * value))) / tgamma(alpha);
+        _frequency_percentage.push_back(gammapdf(_frequency_percentage.size(), alpha, beta));
 }
 
 root_distribution_gamma::root_distribution_gamma(double alpha, double beta, size_t num_values)
