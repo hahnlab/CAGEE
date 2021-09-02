@@ -1,3 +1,5 @@
+#define _USE_MATH_DEFINES
+
 #include <numeric>
 #include <iostream>
 #include <random>
@@ -165,6 +167,67 @@ float root_distribution_specific::select_root_value(int family_number) const
     return _vectorized_distribution[family_number];
 }
 
+root_distribution_gamma::root_distribution_gamma(const std::vector<gene_transcript>& gene_families, size_t num_values)
+{
+    poisson_scorer scorer(gene_families);
+    optimizer opt(&scorer);
+    optimizer_parameters params;
+    auto result = opt.optimize(params);
+    auto poisson_lambda = result.values[0];
+
+    LOG(INFO) << "Empirical Prior Estimation Result : (" << result.num_iterations << " iterations)";
+    LOG(INFO) << "Poisson lambda: " << poisson_lambda << " &  Score: " << result.score;
+
+    for (int i = 0; _vectorized_distribution.size() < num_values; ++i)
+    {
+        double pct = poisspdf(i, poisson_lambda);
+        for (size_t j = 0; j < pct * num_values; ++j)
+            _vectorized_distribution.push_back(i + 1);
+        _frequency_percentage.push_back(pct);
+    }
+    // set a few extra percentages beyond the maximum size in the distribution
+    for (int i = 0; i < 5; ++i)
+        _frequency_percentage.push_back(poisspdf(_frequency_percentage.size(), poisson_lambda));
+}
+
+double gammapdf(double value, double alpha, double beta) {
+    return (std::pow(beta, alpha) * std::pow(value, (alpha - 1)) * std::pow(M_E, (-1 * beta * value))) / tgamma(alpha);
+}
+
+root_distribution_gamma::root_distribution_gamma(double alpha, double beta, size_t num_values)
+{
+    for (int i = 1; _vectorized_distribution.size() <= num_values; ++i)
+    {
+        double pct = gammapdf(i, alpha, beta);
+        for (size_t j = 0; j < pct * num_values; ++j)
+            _vectorized_distribution.push_back(i);
+        _frequency_percentage.push_back(pct);
+    }
+    // set a few extra percentages beyond the maximum size in the distribution
+    for (int i = 0; i < 5; ++i)
+        _frequency_percentage.push_back(gammapdf(_frequency_percentage.size(), alpha, beta));
+}
+
+float root_distribution_gamma::compute(const gene_transcript& t, size_t val) const
+{
+    if (val >= _frequency_percentage.size())
+        return 0;
+
+    return _frequency_percentage[val];
+}
+
+void root_distribution_gamma::resize(size_t new_size)
+{
+}
+
+float root_distribution_gamma::select_root_value(int family_number) const
+{
+    if ((size_t)family_number >= _vectorized_distribution.size())
+        return 0;
+
+    return _vectorized_distribution[family_number];
+}
+
 
 TEST_CASE("Initializing with a fixed_root_value and resizing should not crash")
 {
@@ -262,4 +325,24 @@ TEST_CASE("root_distribution_specific returns correct root values")
     CHECK_EQ(rd.select_root_value(5), 0);
 }
 
+TEST_CASE("root_distribution_gamma select_root_value")
+{
+    root_distribution_gamma pd(0.75, 2.5, 9);
 
+    CHECK_EQ(1, pd.select_root_value(1));
+    CHECK_EQ(3, pd.select_root_value(3));
+    CHECK_EQ(5, pd.select_root_value(5));
+    CHECK_EQ(7, pd.select_root_value(7));
+    CHECK_EQ(0, pd.select_root_value(100));
+}
+
+TEST_CASE("root_distribution_gamma compute")
+{
+    root_distribution_gamma pd(0.75, 2.5, 9);
+    gene_transcript t;
+
+    CHECK_EQ(doctest::Approx(0.13318f).scale(1000), pd.compute(t, 0));
+    CHECK_EQ(doctest::Approx(0.00068f).scale(1000), pd.compute(t, 2));
+    CHECK_EQ(doctest::Approx(0.005).scale(1000), pd.compute(t, 4));
+    CHECK_EQ(0.0, pd.compute(t, 100));
+}
