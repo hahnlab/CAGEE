@@ -19,7 +19,7 @@ struct input_parameters;
 /// Class holding data defined by the user, or derived from data defined by the user
 class user_data {
 public:
-    user_data() : prior(size_t(100))
+    user_data()
     {
 
     }
@@ -30,10 +30,10 @@ public:
     sigma*p_lambda = NULL;
     clade *p_lambda_tree = NULL;
     error_model *p_error_model = NULL;
-    root_equilibrium_distribution prior;
+    root_equilibrium_distribution* p_prior = NULL;
 
     std::vector<gene_transcript> gene_families;
-    std::map<int, int> rootdist;
+    std::map<int, float> rootdist;
 
     void read_datafiles(const input_parameters& my_input_parameters);
 
@@ -54,7 +54,7 @@ public:
 
     void read_rootdist(std::string rootdist_file_path);
 
-    void create_prior(const input_parameters& params);
+    void create_prior(rootdist_options params);
 };
 
 #endif

@@ -29,7 +29,6 @@ INITIALIZE_EASYLOGGINGPP
 #include "src/user_data.h"
 #include "src/optimizer_scorer.h"
 #include "src/simulator.h"
-#include "src/poisson.h"
 #include "src/optimizer.h"
 #include "src/error_model.h"
 #include "src/likelihood_ratio.h"
@@ -99,7 +98,8 @@ public:
         _user_data.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
         _user_data.gene_families[0].set_expression_value("A", 1);
         _user_data.gene_families[0].set_expression_value("B", 2);
-
+        //_user_data.p_prior = new root_equilibrium_distribution(size_t(100));
+        _user_data.p_prior = new root_distribution_uniform(100);
         randomizer_engine.seed(10);
     }
 
@@ -184,17 +184,6 @@ TEST_CASE_FIXTURE(Inference, "infer_processes"
     double multi = core.infer_family_likelihoods(_user_data, &lambda);
 
     CHECK_EQ(doctest::Approx(46.56632), multi);
-}
-
-TEST_CASE_FIXTURE(Inference, "root_equilibrium_distribution__with_rootdist_uses_rootdist")
-{
-    _user_data.rootdist[1] = 3;
-    _user_data.rootdist[2] = 5;
-
-    root_equilibrium_distribution ef(_user_data.rootdist);
-    gene_transcript t;
-
-    CHECK_EQ(0.375, ef.compute(t, 1));
 }
 
 TEST_CASE("Inference: gamma_set_alpha")
@@ -431,7 +420,7 @@ TEST_CASE_FIXTURE(Inference, "base_model_reconstruction")
 
     matrix_cache calc;
     calc.precalculate_matrices(sl.get_lambdas(), set<boundaries>(), set<double>({ 1 }));
-    root_equilibrium_distribution dist(size_t(_user_data.max_root_family_size));
+    root_distribution_uniform dist(size_t(_user_data.max_root_family_size));
 
     std::unique_ptr<base_model_reconstruction> rec(dynamic_cast<base_model_reconstruction*>(model.reconstruct_ancestral_states(_user_data, &calc)));
 
@@ -709,6 +698,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript" * doctest::skip(
 
     user_data ud;
     ud.max_root_family_size = 8;
+    root_distribution_specific dist(ud.rootdist);
 
     clademap<int> result;
     clademap<std::vector<double>> all_node_Cs;
@@ -858,7 +848,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_prune" * doctest::skip(true))
     _user_data.rootdist[3] = 2;
     _user_data.rootdist[4] = 2;
     _user_data.rootdist[5] = 1;
-    root_equilibrium_distribution dist(_user_data.rootdist);
+    root_distribution_specific dist(_user_data.rootdist);
 
     gamma_model model(&lambda, &families, { 0.01, 0.05 }, { 0.1, 0.5 }, NULL);
 
@@ -883,7 +873,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_prune_returns_false_if_saturated" * do
 
     gamma_model model(&lambda, &families, { 1.0,1.0 }, { 0.1, 0.5 }, NULL);
 
-    CHECK(!model.prune(families[0], _user_data.prior, cache, &lambda, p_tree.get(), cat_likelihoods));
+    CHECK(!model.prune(families[0], *_user_data.p_prior, cache, &lambda, p_tree.get(), cat_likelihoods));
 }
 
 
@@ -1257,17 +1247,6 @@ TEST_CASE("Inference: multiple_lambda_returns_correct_values")
     CHECK_EQ(.011, ml.get_value_for_clade(p_tree->find_descendant("B")));
 }
 
-TEST_CASE("Simulation: specified_distribution__select_root_size__returns_exact_selection")
-{
-    user_data data;
-    for (int i = 0; i < 20; ++i)
-        data.rootdist[i] = 1;
-
-    root_equilibrium_distribution sd(data.rootdist);
-    for (size_t i = 0; i < 20; ++i)
-        CHECK_EQ(i, sd.select_root_size(i));
-}
-
 TEST_CASE("Simulation: gamma_model_get_simulation_lambda_uses_multiplier_based_on_category_probability")
 {
     vector<double> gamma_categories{ 0.3, 0.7 };
@@ -1472,7 +1451,7 @@ TEST_CASE("Inference: lambda_per_family" * doctest::skip(true))
     ud.max_root_family_size = 10;
     ud.max_family_size = 10;
     ud.gene_families.resize(1);
-    ud.prior = root_equilibrium_distribution(size_t(ud.max_root_family_size));
+    ud.p_prior = new root_distribution_uniform(size_t(ud.max_root_family_size));
 
     gene_transcript& family = ud.gene_families[0];
     family.set_expression_value("A", 3);
@@ -1506,7 +1485,7 @@ TEST_CASE_FIXTURE(Inference, "estimator_compute_pvalues" * doctest::skip(true))
 TEST_CASE_FIXTURE(Inference, "gamma_lambda_optimizer updates model alpha and lambda")
 {
     _user_data.max_root_family_size = 10;
-    _user_data.prior = root_equilibrium_distribution(size_t(_user_data.max_root_family_size));
+    _user_data.p_prior = new root_distribution_uniform(size_t(_user_data.max_root_family_size));
 
 //    gamma_model m(_user_data.p_lambda, _user_data.p_tree, &_user_data.gene_families, 10, _user_data.max_root_family_size, 4, 0.25, NULL);
     vector<double> gamma_categories{ 0.3, 0.7 };
@@ -1529,43 +1508,6 @@ TEST_CASE("Inference: inference_optimizer_scorer__calculate_score__translates_na
     user_data ud;
     sigma_optimizer_scorer opt(&lam, &m, ud, 0, 0);
     CHECK(std::isinf(opt.calculate_score(&val)));
-}
-
-TEST_CASE_FIXTURE(Inference, "poisson_scorer_optimizes_correct_value")
-{
-    poisson_scorer scorer(_user_data.gene_families);
-    optimizer opt(&scorer);
-    optimizer_parameters params;
-    auto result = opt.optimize(params);
-
-    // DOUBLES_EQUAL(0.5, result.values[0], 0.0001)
-}
-
-TEST_CASE("poisson_scorer returns invalid for negative lambda")
-{
-    vector<gene_transcript> _;
-    poisson_scorer scorer(_);
-    double lambda = -1;
-    double actual = scorer.lnLPoisson(&lambda);
-    CHECK(std::isinf(actual));
-}
-
-TEST_CASE_FIXTURE(Inference, "poisson_scorer__lnlPoisson")
-{
-    poisson_scorer scorer(_user_data.gene_families);
-    double lambda = 0.05;
-    CHECK_EQ(doctest::Approx(3.095732), scorer.lnLPoisson(&lambda));
-}
-
-TEST_CASE_FIXTURE(Inference, "poisson_scorer__lnlPoisson_skips_incalculable_family_sizes")
-{
-    _user_data.gene_families.push_back(gene_transcript("TestFamily2", "", ""));
-    _user_data.gene_families[1].set_expression_value("A", 3);
-    _user_data.gene_families[1].set_expression_value("B", 175);
-
-    poisson_scorer scorer(_user_data.gene_families);
-    double lambda = 0.05;
-    CHECK_EQ(doctest::Approx(9.830344), scorer.lnLPoisson(&lambda));
 }
 
 class mock_scorer : public optimizer_scorer
@@ -1697,39 +1639,6 @@ TEST_CASE_FIXTURE(Inference, "initialization_failure_advice_shows_20_families_wi
     STRCMP_CONTAINS("TestFamily2: 52\nTestFamily1: 1", ost.str().c_str());
 }
 
-TEST_CASE("Simulation, specified_distribution__with_rootdist_creates_matching_vector")
-{
-    std::map<int, int> m;
-    m[2] = 3;
-    m[4] = 1;
-    m[8] = 1;
-    root_equilibrium_distribution rd(m);
-    CHECK_EQ(rd.select_root_size(0), 2);
-    CHECK_EQ(rd.select_root_size(1), 2);
-    CHECK_EQ(rd.select_root_size(2), 2);
-    CHECK_EQ(rd.select_root_size(3), 4);
-    CHECK_EQ(rd.select_root_size(4), 8);
-    CHECK_EQ(rd.select_root_size(5), 0);
-}
-
-TEST_CASE("Simulation, specified_distribution__pare")
-{
-    randomizer_engine.seed(10);
-
-    std::map<int, int> m;
-    m[2] = 5;
-    m[4] = 3;
-    m[8] = 3;
-    root_equilibrium_distribution rd(m);
-    rd.resize(5);
-    CHECK_EQ(rd.select_root_size(0), 2);
-    CHECK_EQ(rd.select_root_size(1), 2);
-    CHECK_EQ(rd.select_root_size(2), 2);
-    CHECK_EQ(rd.select_root_size(3), 4);
-    CHECK_EQ(rd.select_root_size(4), 8);
-    CHECK_EQ(rd.select_root_size(5), 0);
-}
-
 TEST_CASE("Simulation, simulate_processes" * doctest::skip(true))
 {
     sigma lam(0.05);
@@ -1740,7 +1649,7 @@ TEST_CASE("Simulation, simulate_processes" * doctest::skip(true))
     user_data ud;
     ud.p_tree = p_tree.get();
     ud.p_lambda = &lam;
-    ud.prior = root_equilibrium_distribution(size_t(100));
+    ud.p_prior = new root_distribution_uniform(size_t(100));
     ud.max_family_size = 101;
     ud.max_root_family_size = 101;
 

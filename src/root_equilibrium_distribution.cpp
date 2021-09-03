@@ -1,3 +1,4 @@
+
 #include <numeric>
 #include <iostream>
 #include <random>
@@ -7,65 +8,100 @@
 #include "easylogging++.h"
 
 #include "root_equilibrium_distribution.h"
-#include "poisson.h"
+#include "rootdist_estimator.h"
 #include "io.h"
 #include "optimizer.h"
 #include "gene_transcript.h"
 #include "DiffMat.h"
 #include "probability.h"
 
-using namespace Eigen;
-using namespace std;
-
 extern std::mt19937 randomizer_engine; // seeding random number engine
+using namespace std;
+using namespace Eigen;
 
-root_equilibrium_distribution::root_equilibrium_distribution(const map<int, int>& root_distribution)
+rootdist_options::rootdist_options(std::string cfg)
 {
-    if (root_distribution.empty())
-        throw std::runtime_error("No root distribution specified");
-
-    for (auto it = root_distribution.begin(); it != root_distribution.end(); ++it) {
-        for (int i = 0; i < it->second; ++i) {
-            _vectorized_distribution.push_back(it->first);
-        }
+    auto tokens = tokenize_str(cfg, ':');
+    if (tokens[0] == "fixed")
+    {
+        type = fixed;
+        fixed_value = stof(tokens[1]);
     }
-
-    build_percentages();
-
+    if (tokens[0] == "gamma")
+    {
+        type = gamma;
+        gamma_alpha = stof(tokens[1]);
+        gamma_beta = stof(tokens[2]);
+    }
+    if (tokens[0] == "file")
+    {
+        type = file;
+        filename = tokens[1];
+    }
+    if (tokens[0] == "estimate")
+    {
+        type = estimate;
+    }
 }
 
-root_equilibrium_distribution::root_equilibrium_distribution(size_t max_size)
+float root_distribution_fixed::compute(const gene_transcript& t, size_t val) const
 {
-    _vectorized_distribution.resize(max_size);
-    iota(_vectorized_distribution.begin(), _vectorized_distribution.end(), 0);
-    build_percentages();
+    VectorXd v = VectorPos_bounds(_fixed_root_value, DISCRETIZATION_RANGE, bounds(t));
+    return v[val];
 }
 
-root_equilibrium_distribution::root_equilibrium_distribution(double fixed_root_value) : _fixed_root_value(fixed_root_value)
+void root_distribution_fixed::resize(size_t new_size)
 {
 
 }
 
-root_equilibrium_distribution::root_equilibrium_distribution(double poisson_lambda, size_t num_values)
+float root_distribution_fixed::select_root_value(int family_number) const
 {
-    create_from_poisson(poisson_lambda, num_values);
+    return _fixed_root_value;
+}
+float root_distribution_uniform::compute(const gene_transcript& t, size_t val) const
+{
+    return 1.0 / _max_value;
 }
 
-root_equilibrium_distribution::root_equilibrium_distribution(const std::vector<gene_transcript>& gene_families, size_t num_values)
+void root_distribution_uniform::resize(size_t new_size)
+{
+    _max_value = new_size;
+}
+
+float root_distribution_uniform::select_root_value(int family_number) const
+{
+    if ((size_t)family_number >= _max_value)
+        return 0;
+
+    std::uniform_real_distribution<float> distribution(0.0, _max_value);
+    return distribution(randomizer_engine);
+}
+
+root_distribution_poisson::root_distribution_poisson(const std::vector<gene_transcript>& gene_families, size_t num_values)
 {
     poisson_scorer scorer(gene_families);
     optimizer opt(&scorer);
     optimizer_parameters params;
     auto result = opt.optimize(params);
+    auto poisson_lambda = result.values[0];
 
     LOG(INFO) << "Empirical Prior Estimation Result : (" << result.num_iterations << " iterations)";
-    LOG(INFO) << "Poisson lambda: " << result.values[0] << " &  Score: " << result.score;
+    LOG(INFO) << "Poisson lambda: " << poisson_lambda << " &  Score: " << result.score;
 
-    create_from_poisson(result.values[0], num_values);
-
+    for (int i = 0; _vectorized_distribution.size() < num_values; ++i)
+    {
+        double pct = poisspdf(i, poisson_lambda);
+        for (size_t j = 0; j < pct * num_values; ++j)
+            _vectorized_distribution.push_back(i + 1);
+        _frequency_percentage.push_back(pct);
+    }
+    // set a few extra percentages beyond the maximum size in the distribution
+    for (int i = 0; i < 5; ++i)
+        _frequency_percentage.push_back(poisspdf(_frequency_percentage.size(), poisson_lambda));
 }
 
-void root_equilibrium_distribution::create_from_poisson(double poisson_lambda, size_t num_values)
+root_distribution_poisson::root_distribution_poisson(double poisson_lambda, size_t num_values)
 {
     for (int i = 0; _vectorized_distribution.size() < num_values; ++i)
     {
@@ -75,12 +111,41 @@ void root_equilibrium_distribution::create_from_poisson(double poisson_lambda, s
         _frequency_percentage.push_back(pct);
     }
     // set a few extra percentages beyond the maximum size in the distribution
-    for (int i = 0; i<5; ++i)
+    for (int i = 0; i < 5; ++i)
         _frequency_percentage.push_back(poisspdf(_frequency_percentage.size(), poisson_lambda));
 }
 
-void root_equilibrium_distribution::build_percentages()
+float root_distribution_poisson::compute(const gene_transcript& t, size_t val) const
 {
+    if (val >= _frequency_percentage.size())
+        return 0;
+
+    return _frequency_percentage[val];
+}
+
+void root_distribution_poisson::resize(size_t new_size)
+{
+}
+
+float root_distribution_poisson::select_root_value(int family_number) const
+{
+    if ((size_t)family_number >= _vectorized_distribution.size())
+        return 0;
+
+    return _vectorized_distribution[family_number];
+}
+
+root_distribution_specific::root_distribution_specific(std::map<int, float> distribution)
+{
+    if (distribution.empty())
+        throw std::runtime_error("No root distribution specified");
+
+    for (auto it = distribution.begin(); it != distribution.end(); ++it) {
+        for (int i = 0; i < it->second; ++i) {
+            _vectorized_distribution.push_back(it->first);
+        }
+    }
+    
     auto max = (size_t)*max_element(_vectorized_distribution.begin(), _vectorized_distribution.end()) + 1;
     _frequency_percentage.resize(max);
     for (size_t i = 0; i < max; ++i)
@@ -90,32 +155,16 @@ void root_equilibrium_distribution::build_percentages()
     }
 }
 
-float root_equilibrium_distribution::compute(const gene_transcript& t, size_t val) const
+float root_distribution_specific::compute(const gene_transcript& t, size_t val) const
 {
-    if (_fixed_root_value > 0)
-    {
-        VectorXd v = VectorPos_bounds(_fixed_root_value, DISCRETIZATION_RANGE, bounds(t));
-        return v[val];
-    }
     if (val >= _frequency_percentage.size())
         return 0;
 
     return _frequency_percentage[val];
 }
 
-int root_equilibrium_distribution::select_root_size(int family_number) const
+void root_distribution_specific::resize(size_t new_size)
 {
-    if ((size_t)family_number >= _vectorized_distribution.size())
-        return 0;
-
-    return _vectorized_distribution[family_number];
-}
-
-void root_equilibrium_distribution::resize(size_t new_size)
-{
-    if (_fixed_root_value > 0)
-        return;
-
     auto& v = _vectorized_distribution;
     if (new_size < v.size())
     {
@@ -134,16 +183,108 @@ void root_equilibrium_distribution::resize(size_t new_size)
     sort(v.begin(), v.end());
 }
 
+float root_distribution_specific::select_root_value(int family_number) const
+{
+    if ((size_t)family_number >= _vectorized_distribution.size())
+        return 0;
+
+    return _vectorized_distribution[family_number];
+}
+
+root_distribution_gamma::root_distribution_gamma(const std::vector<gene_transcript>& gene_families, size_t num_values)
+{
+    gamma_scorer scorer(gene_families);
+    optimizer opt(&scorer);
+    optimizer_parameters params;
+    auto result = opt.optimize(params);
+    auto alpha = result.values[0];
+    auto beta = result.values[1];
+
+    LOG(INFO) << "Empirical Prior Estimation Result : (" << result.num_iterations << " iterations)";
+    LOG(INFO) << "Gamma (" << alpha << "," << beta << ") score: " << result.score;
+
+    for (int i = 1; _vectorized_distribution.size() <= num_values; ++i)
+    {
+        double pct = gammapdf(i, alpha, beta);
+        for (size_t j = 0; j < pct * num_values; ++j)
+            _vectorized_distribution.push_back(i);
+        _frequency_percentage.push_back(pct);
+    }
+    // set a few extra percentages beyond the maximum size in the distribution
+    for (int i = 0; i < 5; ++i)
+        _frequency_percentage.push_back(gammapdf(_frequency_percentage.size(), alpha, beta));
+}
+
+root_distribution_gamma::root_distribution_gamma(double alpha, double beta, size_t num_values)
+{
+    if (alpha == 0 || beta == 0)
+        throw std::runtime_error("Invalid gamma distribution");
+
+    for (int i = 1; i<num_values; ++i)
+    {
+        double pct = gammapdf(i, alpha, beta);
+        if (std::isnan(pct) || std::isinf(pct))
+            throw std::runtime_error("Invalid gamma distribution");
+
+        for (size_t j = 0; j < pct * num_values; ++j)
+            _vectorized_distribution.push_back(i);
+        _frequency_percentage.push_back(pct);
+
+        if (_vectorized_distribution.size() > num_values)
+            break;
+    }
+    // set a few extra percentages beyond the maximum size in the distribution
+    for (int i = 0; i < 5; ++i)
+        _frequency_percentage.push_back(gammapdf(_frequency_percentage.size(), alpha, beta));
+}
+
+float root_distribution_gamma::compute(const gene_transcript& t, size_t val) const
+{
+    if (val >= _frequency_percentage.size())
+        return 0;
+
+    return _frequency_percentage[val];
+}
+
+void root_distribution_gamma::resize(size_t new_size)
+{
+    auto& v = _vectorized_distribution;
+    if (new_size < v.size())
+    {
+        // pare back the distribution randomly
+        shuffle(v.begin(), v.end(), randomizer_engine);
+        v.erase(v.begin() + new_size, v.end());
+    }
+    else
+    {
+        std::uniform_int_distribution<> dis(0, v.size() - 1);
+        for (size_t i = v.size(); i < new_size; ++i)
+        {
+            v.push_back(v.at(dis(randomizer_engine)));
+        }
+    }
+    sort(v.begin(), v.end());
+}
+
+float root_distribution_gamma::select_root_value(int family_number) const
+{
+    if ((size_t)family_number >= _vectorized_distribution.size())
+        return 0;
+
+    return _vectorized_distribution[family_number];
+}
+
+
 TEST_CASE("Initializing with a fixed_root_value and resizing should not crash")
 {
-    root_equilibrium_distribution ef(5.3);
+    root_distribution_fixed ef(5.3);
     ef.resize(9.2);
     CHECK(true);
 
 }
 TEST_CASE("Inference: root_equilibrium_distribution__with_no_rootdist_is_uniform")
 {
-    root_equilibrium_distribution ef(size_t(10));
+    root_distribution_uniform ef(size_t(10));
     gene_transcript t;
     CHECK_EQ(doctest::Approx(.1), ef.compute(t, 5));
     CHECK_EQ(doctest::Approx(.1), ef.compute(t, 0));
@@ -151,19 +292,19 @@ TEST_CASE("Inference: root_equilibrium_distribution__with_no_rootdist_is_uniform
 
 TEST_CASE("root_equilibrium_distribution__resize")
 {
-    std::map<int, int> m;
+    std::map<int, float> m;
     m[2] = 5;
     m[4] = 3;
     m[8] = 3;
-    root_equilibrium_distribution rd(m);
+    root_distribution_specific rd(m);
     rd.resize(15);
-    CHECK_EQ(rd.select_root_size(14), 8);
-    CHECK_EQ(rd.select_root_size(15), 0);
+    CHECK_EQ(rd.select_root_value(14), 8);
+    CHECK_EQ(rd.select_root_value(15), 0);
 }
 
 TEST_CASE("root_equilibrium_distribution__poisson_compute")
 {
-    root_equilibrium_distribution pd(0.75, 100);
+    root_distribution_poisson pd(0.75, 100);
     gene_transcript t;
 
     CHECK_EQ(doctest::Approx(0.47059).scale(1000), pd.compute(t, 0));
@@ -174,18 +315,18 @@ TEST_CASE("root_equilibrium_distribution__poisson_compute")
 
 TEST_CASE("root_equilibrium_distribution__poisson_select_root_size")
 {
-    root_equilibrium_distribution pd(0.75, 9);
+    root_distribution_poisson pd(0.75, 9);
 
-    CHECK_EQ(1, pd.select_root_size(1));
-    CHECK_EQ(1, pd.select_root_size(3));
-    CHECK_EQ(2, pd.select_root_size(5));
-    CHECK_EQ(2, pd.select_root_size(7));
-    CHECK_EQ(0, pd.select_root_size(100));
+    CHECK_EQ(1, pd.select_root_value(1));
+    CHECK_EQ(1, pd.select_root_value(3));
+    CHECK_EQ(2, pd.select_root_value(5));
+    CHECK_EQ(2, pd.select_root_value(7));
+    CHECK_EQ(0, pd.select_root_value(100));
 }
 
 TEST_CASE("root_equilibrium_distribution fixed_root_value")
 {
-    root_equilibrium_distribution pd(4.3);
+    root_distribution_fixed pd(4.3);
 
     gene_transcript t;
     t.set_expression_value("A", 5.8);
@@ -194,16 +335,66 @@ TEST_CASE("root_equilibrium_distribution fixed_root_value")
     CHECK_EQ(doctest::Approx(0.713707), pd.compute(t, 30));
     CHECK_EQ(0.0, pd.compute(t, 100));
 
+    CHECK_EQ(4.3f, pd.select_root_value(1));
+    CHECK_EQ(4.3f, pd.select_root_value(5));
+    CHECK_EQ(4.3f, pd.select_root_value(20));
 }
 
-TEST_CASE("Simulation: uniform_distribution__select_root_size__returns_sequential_values")
+TEST_CASE("root_distribution_specific computes prior correctly")
 {
-    root_equilibrium_distribution ud(size_t(20));
-    CHECK_EQ(1, ud.select_root_size(1));
-    CHECK_EQ(2, ud.select_root_size(2));
-    CHECK_EQ(3, ud.select_root_size(3));
-    CHECK_EQ(4, ud.select_root_size(4));
-    CHECK_EQ(5, ud.select_root_size(5));
-    CHECK_EQ(0, ud.select_root_size(20));
+    std::map<int, float> rootdist;
+    rootdist[1] = 3;
+    rootdist[2] = 5;
+
+    root_distribution_specific ef(rootdist);
+    gene_transcript t;
+
+    CHECK_EQ(0.375, ef.compute(t, 1));
 }
 
+TEST_CASE("root_distribution_specific returns correct root values")
+{
+    randomizer_engine.seed(10);
+
+    std::map<int, float> m;
+    m[2] = 5;
+    m[4] = 3;
+    m[8] = 3;
+    root_distribution_specific rd(m);
+    //    root_equilibrium_distribution rd(m);
+    rd.resize(5);
+    CHECK_EQ(rd.select_root_value(0), 2);
+    CHECK_EQ(rd.select_root_value(1), 2);
+    CHECK_EQ(rd.select_root_value(2), 2);
+    CHECK_EQ(rd.select_root_value(3), 4);
+    CHECK_EQ(rd.select_root_value(4), 8);
+    CHECK_EQ(rd.select_root_value(5), 0);
+}
+
+TEST_CASE("root_distribution_gamma select_root_value")
+{
+    root_distribution_gamma pd(0.75, 2.5, 9);
+
+    CHECK_EQ(1, pd.select_root_value(1));
+    CHECK_EQ(3, pd.select_root_value(3));
+    CHECK_EQ(5, pd.select_root_value(5));
+    CHECK_EQ(7, pd.select_root_value(7));
+    CHECK_EQ(0, pd.select_root_value(100));
+}
+
+TEST_CASE("root_distribution_gamma compute")
+{
+    root_distribution_gamma pd(0.75, 2.5, 9);
+    gene_transcript t;
+
+    CHECK_EQ(doctest::Approx(0.13318f).scale(1000), pd.compute(t, 0));
+    CHECK_EQ(doctest::Approx(0.00068f).scale(1000), pd.compute(t, 2));
+    CHECK_EQ(doctest::Approx(0.005).scale(1000), pd.compute(t, 4));
+    CHECK_EQ(0.0, pd.compute(t, 100));
+}
+
+TEST_CASE("root_distribution_gamma throws on zero alpha or beta")
+{
+    CHECK_THROWS_WITH(root_distribution_gamma pd(0, 1, 5), "Invalid gamma distribution");
+    CHECK_THROWS_WITH(root_distribution_gamma pd(1, 0, 5), "Invalid gamma distribution");
+}

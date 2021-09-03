@@ -15,6 +15,7 @@
 #include "clade.h"
 #include "error_model.h"
 #include "io.h"
+#include "root_equilibrium_distribution.h"
 
 using namespace std;
 
@@ -159,172 +160,89 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
     /* -l/-m (in the absence of -l, estimate) */
     p_lambda = read_lambda(my_input_parameters, p_lambda_tree);
 
-    if (!my_input_parameters.rootdist.empty())
-        read_rootdist(my_input_parameters.rootdist);
+    if (my_input_parameters.rootdist_params.type == rootdist_options::file)
+        read_rootdist(my_input_parameters.rootdist_params.filename);
 }
 
-/// Root distributions are affected by three parameters: -p, -i, -f
-/// If a rootdist file is specified (-f), those values will be used for the root distribution and the other flags
-/// are ignored. Otherwise, if a poisson distribution is specified (-p) with a value, the root
-/// distribution will be based on that poisson distribution, with the provided mean. If no poisson value
-/// is specified, a family file must be given (-i) and those families will be used to calculate a
-/// poisson distribution. If a Poisson distribution is used, values above a max family size
-/// will be considered to be 0. The max family size defaults to 100, but is calculated from
-/// family file if one is given.
-
-/// priority: -p specified on command line  (poisson with specified value)
-///           -f specified on command line  (specified root distribution to use)
-///           -i + -p specified on command line  (poisson estimated from file)
-///           -i Uniform distribution
-void user_data::create_prior(const input_parameters& params)
+void user_data::create_prior(rootdist_options params)
 {
-    if (params.poisson_lambda > 0)
+    switch (params.type)
     {
-        if (!rootdist.empty())
+    case rootdist_options::file:
+        LOG(INFO) << "Root distribution set by user provided file";
+        p_prior = new root_distribution_specific(rootdist);
+        break;
+    case rootdist_options::fixed:
+        LOG(INFO) << "Root distribution fixed at " << params.fixed;
+        p_prior = new root_distribution_fixed(params.fixed);
+        break;
+    case rootdist_options::gamma:
+        LOG(INFO) << "Using user provided gamma root distribution (" << params.gamma_alpha << "," << params.gamma_beta << ")";
+        p_prior = new root_distribution_gamma(params.gamma_alpha, params.gamma_beta, DISCRETIZATION_RANGE);
+        break;
+    case rootdist_options::estimate:
+    default:
+        if (!gene_families.empty())
         {
-            LOG(WARNING) << "\nBoth root distribution and Poisson distribution specified";
+            LOG(INFO) << "Estimating Gamma root distribution from gene families";
+            p_prior = new root_distribution_gamma(gene_families, DISCRETIZATION_RANGE);
         }
-
-        LOG(INFO) << "\nUsing Poisson root distribution with user provided lambda " << params.poisson_lambda;
-        prior = root_equilibrium_distribution(params.poisson_lambda, DISCRETIZATION_RANGE);
+        else
+        {
+            LOG(WARNING) << "No root family size distribution specified, using gamma distribution (0.25, 10)";
+            p_prior = new root_distribution_gamma(0.25, 10, DISCRETIZATION_RANGE);
+        }
     }
-    else if (!rootdist.empty())
-    {
-        LOG(INFO) << "\nRoot distribution set by user provided file";
-        prior = root_equilibrium_distribution(rootdist);
-    }
-    else if (!gene_families.empty() && params.use_poisson_dist_for_prior)
-    {
-        LOG(INFO) << "\nEstimating Poisson root distribution from gene families";
-        prior = root_equilibrium_distribution(gene_families, DISCRETIZATION_RANGE);
-    }
-    else if (params.fixed_root_value > 0)
-    {
-        prior = root_equilibrium_distribution(params.fixed_root_value);
-    }
-    else 
-    {
-        LOG(WARNING) << "\nNo root family size distribution specified, using uniform distribution";
-        prior = root_equilibrium_distribution(size_t(DISCRETIZATION_RANGE));
-    }
-
-    if (params.nsims > 0)
-        prior.resize(params.nsims);
-}
-
-TEST_CASE("create_prior__creates__uniform_distribution")
-{
-    input_parameters params;
-    user_data ud;
-    ud.create_prior(params);
-    gene_transcript gf;
-    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(gf, 1));
-    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(gf, 99));
-    CHECK_EQ(0, ud.prior.compute(gf, DISCRETIZATION_RANGE+50));
 }
 
 TEST_CASE("create_prior__creates__specifed_distribution_if_given")
 {
     input_parameters params;
     user_data ud;
+    params.rootdist_params.type = rootdist_options::file;
     ud.rootdist[2] = 11;
-    ud.rootdist[3] = 5;
-    ud.rootdist[4] = 7;
-    ud.rootdist[6] = 2;
     ud.max_root_family_size = 10;
-    ud.create_prior(params);
-    gene_transcript gf;
-    CHECK_EQ(doctest::Approx(0.44), ud.prior.compute(gf, 2));
-    CHECK_EQ(doctest::Approx(0.2), ud.prior.compute(gf, 3));
-    CHECK_EQ(doctest::Approx(0.28), ud.prior.compute(gf, 4));
-    CHECK_EQ(0, ud.prior.compute(gf, 5));
-    CHECK_EQ(doctest::Approx(.08), ud.prior.compute(gf, 6));
+    ud.create_prior(params.rootdist_params);
+    CHECK(dynamic_cast<root_distribution_specific*>(ud.p_prior));
 }
 
 
-TEST_CASE("create_prior__creates__poisson_distribution_if_given")
+TEST_CASE("create_prior creates gamma distribution if given distribution")
 {
-    input_parameters params;
-    params.use_poisson_dist_for_prior = true;
-    params.poisson_lambda = 0.75;
+    rootdist_options opts;
+    opts.type = rootdist_options::gamma;
+    opts.gamma_alpha = 1.0;
+    opts.gamma_beta = 1.0;
     user_data ud;
-    ud.create_prior(params);
-    gene_transcript gf;
-    CHECK_EQ(doctest::Approx(0.47237f), ud.prior.compute(gf, 0));
-    CHECK_EQ(doctest::Approx(0.35427f), ud.prior.compute(gf, 1));
-    vector<int> r(100);
-    int i = 0;
-    generate(r.begin(), r.end(), [&ud, &i]() mutable { i++; return ud.prior.select_root_size(i);  });
-    CHECK_EQ(94, count(r.begin(), r.end(), 1));
-    CHECK_EQ(6, count(r.begin(), r.end(), 2));
-    CHECK_EQ(0, count(r.begin(), r.end(), 3));
-    CHECK_EQ(0, count(r.begin(), r.end(), 4));
-
-    CHECK_EQ(0, ud.prior.compute(gf, 11));
-}
-
-TEST_CASE("create_prior__creates__poisson_distribution_if_given_distribution_and_poisson")
-{
-    input_parameters params;
-    params.use_poisson_dist_for_prior = true;
-    params.poisson_lambda = 0.75;
-    user_data ud;
-    ud.max_root_family_size = 100;
-    ud.create_prior(params);
-    gene_transcript gf;
-    CHECK_EQ(doctest::Approx(0.35427f), ud.prior.compute(gf, 1));
+    ud.create_prior(opts);
+    CHECK(dynamic_cast<root_distribution_gamma *>(ud.p_prior));
 
 }
 
-TEST_CASE("create_prior__creates__poisson_distribution_from_families")
+TEST_CASE("create_prior creates gamma distribution from families")
 {
-    randomizer_engine.seed(10);
-
-    input_parameters params;
-    params.use_poisson_dist_for_prior = true;
+    rootdist_options opts;
+    opts.type = rootdist_options::estimate;
     user_data ud;
     ud.gene_families.resize(1);
-    ud.create_prior(params);
-    // bogus value that serves the purpose
-    // depends on optimizer and poisson_scorer
-    gene_transcript gf;
-    CHECK_EQ(doctest::Approx(0.74174f), ud.prior.compute(gf, 0));
+    ud.create_prior(opts);
+    CHECK(dynamic_cast<root_distribution_gamma*>(ud.p_prior));
 }
 
-TEST_CASE("create_prior creates uniform distribution if poisson not specified")
+TEST_CASE("create_prior creates gamma distribution by default")
 {
-    randomizer_engine.seed(10);
-
-    input_parameters params;
-    params.use_poisson_dist_for_prior = false;
+    rootdist_options opts;
     user_data ud;
     ud.gene_families.resize(1);
-    ud.create_prior(params);
-    // bogus value that serves the purpose
-    // depends on optimizer and poisson_scorer
-    gene_transcript gf;
-    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(gf, 1));
-    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(gf, 10));
-    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(gf, 50));
-    CHECK_EQ(doctest::Approx(0.005), ud.prior.compute(gf, 100));
+    ud.create_prior(opts);
+    CHECK(dynamic_cast<root_distribution_gamma*>(ud.p_prior));
 }
 
-TEST_CASE("create_prior__resizes_distribution_if_nsims_specified")
+TEST_CASE("create_prior creates fixed root if requested")
 {
-    randomizer_engine.seed(10);
-
-    input_parameters params;
-    params.nsims = 10;
+    rootdist_options opts;
+    opts.type = rootdist_options::fixed;
     user_data ud;
-    ud.max_root_family_size = 100;
-    ud.create_prior(params);
-    /// GCC's implementation of shuffle changed so the numbers that are
-    /// returned are in a slightly different order, even with the same seed
-#if __GNUC__ >= 7
-    CHECK_EQ(152, ud.prior.select_root_size(9));
-#else
-    CHECK_EQ(80, ud.prior.select_root_size(9));
-#endif
-    CHECK_EQ(0, ud.prior.select_root_size(10));
+    ud.create_prior(opts);
+    CHECK(dynamic_cast<root_distribution_fixed*>(ud.p_prior));
 }
-

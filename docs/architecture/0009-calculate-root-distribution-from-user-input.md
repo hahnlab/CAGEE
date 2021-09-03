@@ -17,7 +17,7 @@ results for the user.
 
 A rootdist argument will be made available. The possible formats will be as follows:
 
-- rootdist=gamma:alpha,beta
+- rootdist=gamma:alpha:beta
 - rootdist=fixed:value
 - rootdist=file:filename
 - rootdist=estimate
@@ -29,7 +29,7 @@ The root distribution will be calculated from the sub-argument:
 - gamma: a gamma probability will be used with the specified alpha and beta
 - fixed: all root values will be identical. The correct prior probability is unclear.
 - file: The user has specified a root distribution. Use that.
-- estimate: estimate a gamma distribution from the --infile value. If no infile is specified, use a gamma distribution with defaults to be decided
+- estimate: estimate a gamma distribution from the --infile value. If no infile is specified, use a gamma distribution (0.25, 10)
 
 
 ## Consequences
