@@ -173,8 +173,8 @@ void user_data::create_prior(rootdist_options params)
         p_prior = new root_distribution_specific(rootdist);
         break;
     case rootdist_options::fixed:
-        LOG(INFO) << "Root distribution fixed at " << params.fixed;
-        p_prior = new root_distribution_fixed(params.fixed);
+        LOG(INFO) << "Root distribution fixed at " << params.fixed_value;
+        p_prior = new root_distribution_fixed(params.fixed_value);
         break;
     case rootdist_options::gamma:
         LOG(INFO) << "Using user provided gamma root distribution (" << params.gamma_alpha << "," << params.gamma_beta << ")";
