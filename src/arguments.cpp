@@ -32,9 +32,6 @@ struct option longopts[] = {
   { "sigma_tree", required_argument, NULL, 'y' },
   { "n_gamma_cats", required_argument, NULL, 'k' },
   { "fixed_alpha", required_argument, NULL, 'a' },
-  { "rootdist", required_argument, NULL, 'f'},
-  { "fixed_root_value", required_argument, NULL, 'F'},
-  { "poisson", optional_argument, NULL, 'p' },
   { "simulate", optional_argument, NULL, 's' },
   { "pvalue", required_argument, NULL, 'P' },
   { "zero_root", no_argument, NULL, 'z' },
@@ -201,11 +198,10 @@ input_parameters read_arguments(int argc, char* const argv[])
         ("optimizer_reflection,R", po::value<double>())
         ("optimizer_iterations,I", po::value<int>())
         ("error,e", po::value<string>()->default_value("false")->implicit_value("true"))
+        ("rootdist", po::value<string>())
         ("zero_root,z", po::value<bool>()->implicit_value(true))
-        ("fixed_root_value", po::value<double>(), "Fixed Root Value")
         ("sigma_tree,y", po::value<string>(), "Path to sigma tree, for use with multiple sigmas")
         ("simulate,s", po::value<string>()->default_value("false"), "Simulate families. Optionally provide the number of simulations to generate")
-        ("poisson,p", po::value<string>()->default_value("false"), "Use a Poisson distribution for the root frequency distribution. Without specifying this, a uniform distribution will be used. A value can be specified -p10 (no space) or --poisson = 10, otherwise the distribution will be estimated from the gene families.")
         ("fixed_sigma,l", po::value<double>(), "Value for a single user provided sigma value, otherwise sigma is estimated.")
         ;
     
@@ -241,7 +237,7 @@ input_parameters read_arguments(int argc, char* const argv[])
         }
     }
 
-    maybe_set(vm, "fixed_root_value", my_input_parameters.fixed_root_value);
+    //maybe_set(vm, "fixed_root_value", my_input_parameters.fixed_root_value);
     maybe_set(vm, "fixed_sigma", my_input_parameters.fixed_lambda);
     maybe_set(vm, "pvalue", my_input_parameters.pvalue);
     maybe_set(vm, "infile", my_input_parameters.input_file_path);
@@ -255,6 +251,9 @@ input_parameters read_arguments(int argc, char* const argv[])
     maybe_set(vm, "fixed_multiple_sigmas", my_input_parameters.fixed_multiple_lambdas);
     maybe_set(vm, "sigma_tree", my_input_parameters.lambda_tree_file_path);
 
+    if (vm.find("rootdist") != vm.end())
+        my_input_parameters.rootdist_params = rootdist_options(vm["rootdist"].as<string>());
+
     string simulate_string = vm["simulate"].as<string>();
     my_input_parameters.is_simulating = simulate_string != "false";
     if (my_input_parameters.is_simulating)
@@ -263,13 +262,6 @@ input_parameters read_arguments(int argc, char* const argv[])
             my_input_parameters.nsims = stoi(simulate_string);
         else
             my_input_parameters.nsims = 0;
-    }
-    string poisson_string = vm["poisson"].as<string>();
-    my_input_parameters.use_poisson_dist_for_prior = poisson_string != "false";
-    if (my_input_parameters.use_poisson_dist_for_prior)
-    {
-        if (poisson_string.find_first_not_of("0123456789.") == std::string::npos)
-            my_input_parameters.poisson_lambda = stof(poisson_string);
     }
 
     string error = vm["error"].as<string>();
@@ -313,7 +305,7 @@ void input_parameters::check_input() {
         }
 
         //! Options -i and -f cannot be both specified. Either one or the other is used to specify the root eq freq distr'n.
-        if (!input_file_path.empty() && !rootdist.empty()) {
+        if (!input_file_path.empty() && rootdist_params.type == rootdist_options::file) {
             throw runtime_error("Options -i and -f are mutually exclusive.");
         }
     }
@@ -468,10 +460,10 @@ TEST_CASE("Options: errormodel_accepts_argument")
 
 TEST_CASE("Options: fixed_root_value")
 {
-    option_test c({ "cafe5", "--fixed_root_value", "12.7" });
+    option_test c({ "cafe5", "--rootdist=fixed:12.7"});
 
     auto actual = read_arguments(c.argc, c.values);
-    CHECK_EQ(12.7, actual.fixed_root_value);
+    CHECK_EQ(doctest::Approx(12.7), actual.rootdist_params.fixed_value);
 }
 
 TEST_CASE("Options, errormodel_accepts_no_argument")
@@ -578,7 +570,7 @@ TEST_CASE("Options: Cannot specify rootdist for simulations with rootdist file a
     input_parameters params;
     params.fixed_lambda = 10;
     params.input_file_path = "transcripts.txt";
-    params.rootdist = "10 1";
+    params.rootdist_params.type = rootdist_options::file;
     params.check_input();
     CHECK(true);
 

@@ -109,7 +109,9 @@ int cagee(int argc, char *const argv[]) {
 
         }
 
-        data.create_prior(user_input);
+        data.create_prior(user_input.rootdist_params);
+        if (user_input.nsims > 0)
+            data.p_prior->resize(user_input.nsims);
 
         // When computing or simulating, only base or gamma model is used. When estimating, base and gamma model are used (to do: compare base and gamma w/ LRT)
         // Build model takes care of -f

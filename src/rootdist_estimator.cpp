@@ -1,5 +1,6 @@
-#include <vector>
 #define _USE_MATH_DEFINES
+
+#include <vector>
 #include <cmath>
 #include <random>
 #include <numeric>
@@ -24,7 +25,12 @@ double poisspdf(double x, double lambda)
 }
 
 double gammapdf(double value, double alpha, double beta) {
-    return (std::pow(beta, alpha) * std::pow(value, (alpha - 1)) * std::pow(M_E, (-1 * beta * value))) / tgamma(alpha);
+    double a = std::pow(beta, alpha);
+    double b = std::pow(value, (alpha - 1));
+    double c = std::pow(M_E, (-1 * beta * value));
+    double d = tgamma(alpha);
+    return (a * b * c) / d;
+//    return (std::pow(beta, alpha) * std::pow(value, (alpha - 1)) * std::pow(M_E, (-1 * beta * value))) / tgamma(alpha);
 }
 
 vector<double> get_prior_rfsize_poisson_lambda(int min_family_size, int max_family_size, double poisson_lambda)

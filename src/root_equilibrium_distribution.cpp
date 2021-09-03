@@ -19,6 +19,31 @@ extern std::mt19937 randomizer_engine; // seeding random number engine
 using namespace std;
 using namespace Eigen;
 
+rootdist_options::rootdist_options(std::string cfg)
+{
+    auto tokens = tokenize_str(cfg, ':');
+    if (tokens[0] == "fixed")
+    {
+        type = fixed;
+        fixed_value = stof(tokens[1]);
+    }
+    if (tokens[0] == "gamma")
+    {
+        type = gamma;
+        gamma_alpha = stof(tokens[1]);
+        gamma_beta = stof(tokens[2]);
+    }
+    if (tokens[0] == "file")
+    {
+        type = file;
+        filename = tokens[1];
+    }
+    if (tokens[0] == "estimate")
+    {
+        type = estimate;
+    }
+}
+
 float root_distribution_fixed::compute(const gene_transcript& t, size_t val) const
 {
     VectorXd v = VectorPos_bounds(_fixed_root_value, DISCRETIZATION_RANGE, bounds(t));
@@ -192,12 +217,21 @@ root_distribution_gamma::root_distribution_gamma(const std::vector<gene_transcri
 
 root_distribution_gamma::root_distribution_gamma(double alpha, double beta, size_t num_values)
 {
-    for (int i = 1; _vectorized_distribution.size() <= num_values; ++i)
+    if (alpha == 0 || beta == 0)
+        throw std::runtime_error("Invalid gamma distribution");
+
+    for (int i = 1; i<num_values; ++i)
     {
         double pct = gammapdf(i, alpha, beta);
+        if (std::isnan(pct) || std::isinf(pct))
+            throw std::runtime_error("Invalid gamma distribution");
+
         for (size_t j = 0; j < pct * num_values; ++j)
             _vectorized_distribution.push_back(i);
         _frequency_percentage.push_back(pct);
+
+        if (_vectorized_distribution.size() > num_values)
+            break;
     }
     // set a few extra percentages beyond the maximum size in the distribution
     for (int i = 0; i < 5; ++i)
@@ -214,6 +248,22 @@ float root_distribution_gamma::compute(const gene_transcript& t, size_t val) con
 
 void root_distribution_gamma::resize(size_t new_size)
 {
+    auto& v = _vectorized_distribution;
+    if (new_size < v.size())
+    {
+        // pare back the distribution randomly
+        shuffle(v.begin(), v.end(), randomizer_engine);
+        v.erase(v.begin() + new_size, v.end());
+    }
+    else
+    {
+        std::uniform_int_distribution<> dis(0, v.size() - 1);
+        for (size_t i = v.size(); i < new_size; ++i)
+        {
+            v.push_back(v.at(dis(randomizer_engine)));
+        }
+    }
+    sort(v.begin(), v.end());
 }
 
 float root_distribution_gamma::select_root_value(int family_number) const
@@ -341,4 +391,10 @@ TEST_CASE("root_distribution_gamma compute")
     CHECK_EQ(doctest::Approx(0.00068f).scale(1000), pd.compute(t, 2));
     CHECK_EQ(doctest::Approx(0.005).scale(1000), pd.compute(t, 4));
     CHECK_EQ(0.0, pd.compute(t, 100));
+}
+
+TEST_CASE("root_distribution_gamma throws on zero alpha or beta")
+{
+    CHECK_THROWS_WITH(root_distribution_gamma pd(0, 1, 5), "Invalid gamma distribution");
+    CHECK_THROWS_WITH(root_distribution_gamma pd(1, 0, 5), "Invalid gamma distribution");
 }

@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "gene_transcript.h"
+#include "root_equilibrium_distribution.h"
 
 class root_equilibrium_distribution;
 class clade;
@@ -53,7 +54,7 @@ public:
 
     void read_rootdist(std::string rootdist_file_path);
 
-    void create_prior(const input_parameters& params);
+    void create_prior(rootdist_options params);
 };
 
 #endif
