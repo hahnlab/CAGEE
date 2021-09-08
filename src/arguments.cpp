@@ -41,6 +41,7 @@ struct option longopts[] = {
   { "optimizer_expansion", optional_argument, NULL, 'E' },
   { "optimizer_reflection", optional_argument, NULL, 'R' },
   { "optimizer_iterations", optional_argument, NULL, 'I' },
+  { "rootdist", optional_argument, NULL, 'r' },
   { "help", no_argument, NULL, 'h'},
   { 0, 0, 0, 0 }
 };
@@ -67,7 +68,7 @@ input_parameters read_arguments(int argc, char* const argv[])
     int args; // getopt_long returns int or char
     int prev_arg;
 
-    while (prev_arg = optind, (args = getopt_long(argc, argv, "c:v:i:e::o:t:y:n:f:E:F:R:L:P:I:l:m:k:a:g:s::p::zbh", longopts, NULL)) != -1) {
+    while (prev_arg = optind, (args = getopt_long(argc, argv, "c:v:i:e::o:t:y:n:E:F:R:L:P:I:l:m:k:a:g:s::zbh", longopts, NULL)) != -1) {
         if (optind == prev_arg + 2 && optarg && *optarg == '-') {
             LOG(ERROR) << "You specified option " << argv[prev_arg] << " but it requires an argument. Exiting..." << endl;
             exit(EXIT_FAILURE);
@@ -88,9 +89,6 @@ input_parameters read_arguments(int argc, char* const argv[])
             if (optarg)
                 my_input_parameters.error_model_file_path = optarg;
             break;
-        case 'f':
-            my_input_parameters.rootdist = optarg;
-            break;
         case 'h':
             my_input_parameters.help = true;
             break;
@@ -109,10 +107,8 @@ input_parameters read_arguments(int argc, char* const argv[])
         case 'o':
             my_input_parameters.output_prefix = optarg;
             break;
-        case 'p':
-            my_input_parameters.use_poisson_dist_for_prior = true; // If the user types '-p', the root eq freq dist will not be a uniform
-                                                             // If the user provides an argument to -p, then we do not estimate it
-            if (optarg != NULL) { my_input_parameters.poisson_lambda = atof(optarg); }
+        case 'r':
+            my_input_parameters.rootdist_params = rootdist_options(optarg);
             break;
         case 's':
             // Number of fams simulated defaults to 0 if -f is not provided
@@ -133,9 +129,6 @@ input_parameters read_arguments(int argc, char* const argv[])
             break;
         case 'E':
             my_input_parameters.optimizer_params.neldermead_expansion = atof(optarg);
-            break;
-        case 'F':
-            my_input_parameters.fixed_root_value = atof(optarg);
             break;
         case 'I':
             my_input_parameters.optimizer_params.neldermead_iterations = atoi(optarg);
