@@ -5,6 +5,7 @@
 class inference_process_factory;
 class gamma_bundle;
 class DiffMat;
+class root_equilibrium_distribution;
 
 //! @brief Holds data for reconstructing a tree based on the Gamma model
 //! \ingroup gamma
@@ -91,7 +92,7 @@ public:
 
     bool can_infer() const;
 
-    bool prune(const gene_transcript& family, const root_equilibrium_distribution& eq, const matrix_cache& calc, const sigma*p_lambda,
+    bool prune(const gene_transcript& family, const root_distribution_gamma& eq, const matrix_cache& calc, const sigma*p_lambda,
         const clade *p_tree, std::vector<double>& category_likelihoods);
 };
 

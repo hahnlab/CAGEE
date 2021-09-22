@@ -113,7 +113,7 @@ bool gamma_model::can_infer() const
     return true;
 }
 
-bool gamma_model::prune(const gene_transcript& family, const root_equilibrium_distribution& prior, const matrix_cache& diff_mat, const sigma*p_lambda,
+bool gamma_model::prune(const gene_transcript& family, const root_distribution_gamma& prior, const matrix_cache& diff_mat, const sigma*p_lambda,
     const clade *p_tree, std::vector<double>& category_likelihoods) 
 {
     category_likelihoods.clear();

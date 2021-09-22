@@ -816,12 +816,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_prune" * doctest::skip(true))
     sigma lambda(0.005);
     matrix_cache cache;
 
-    _user_data.rootdist[1] = 2;
-    _user_data.rootdist[2] = 2;
-    _user_data.rootdist[3] = 2;
-    _user_data.rootdist[4] = 2;
-    _user_data.rootdist[5] = 1;
-    root_distribution_specific dist(_user_data.rootdist);
+    root_distribution_gamma dist(1,2, DISCRETIZATION_RANGE);
 
     gamma_model model(&lambda, &families, { 0.01, 0.05 }, { 0.1, 0.5 }, NULL);
 
@@ -833,7 +828,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_prune" * doctest::skip(true))
     CHECK_EQ(doctest::Approx(-16.68005), log(cat_likelihoods[1]));
 }
 
-TEST_CASE_FIXTURE(Inference, "gamma_model_prune_returns_false_if_saturated" * doctest::skip(true))
+TEST_CASE("gamma_model_prune_returns_false_if_saturated" * doctest::skip(true))
 {
     vector<gene_transcript> families(1);
     families[0].set_expression_value("A", 3);
@@ -846,7 +841,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_prune_returns_false_if_saturated" * do
 
     gamma_model model(&lambda, &families, { 1.0,1.0 }, { 0.1, 0.5 }, NULL);
 
-    CHECK(!model.prune(families[0], *_user_data.p_prior, cache, &lambda, p_tree.get(), cat_likelihoods));
+    CHECK(!model.prune(families[0], root_distribution_gamma(1, 2, DISCRETIZATION_RANGE), cache, &lambda, p_tree.get(), cat_likelihoods));
 }
 
 
