@@ -209,7 +209,7 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma*p_
     return final_likelihood;
 }
 
-inference_optimizer_scorer *gamma_model::get_lambda_optimizer(const user_data& data)
+inference_optimizer_scorer *gamma_model::get_lambda_optimizer(const user_data& data, const root_distribution_gamma& prior)
 {
     bool estimate_lambda = data.p_lambda == NULL;
     bool estimate_alpha = _alpha <= 0.0;
@@ -217,17 +217,17 @@ inference_optimizer_scorer *gamma_model::get_lambda_optimizer(const user_data& d
     if (estimate_lambda && estimate_alpha)
     {
         initialize_lambda(data.p_lambda_tree);
-        return new gamma_lambda_optimizer(_p_lambda, this, data, *dynamic_cast<root_distribution_gamma *>(data.p_prior));
+        return new gamma_lambda_optimizer(_p_lambda, this, data, prior);
     }
     else if (estimate_lambda && !estimate_alpha)
     {
         initialize_lambda(data.p_lambda_tree);
-        return new sigma_optimizer_scorer(_p_lambda, this, data, *dynamic_cast<root_distribution_gamma*>(data.p_prior));
+        return new sigma_optimizer_scorer(_p_lambda, this, data, prior);
     }
     else if (!estimate_lambda && estimate_alpha)
     {
         _p_lambda = data.p_lambda->clone();
-        return new gamma_optimizer(this, data, *dynamic_cast<root_distribution_gamma*>(data.p_prior));
+        return new gamma_optimizer(this, data, prior);
     }
     else
     {

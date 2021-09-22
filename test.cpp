@@ -56,10 +56,10 @@ class mock_model : public model {
     {
         return nullptr;
     }
-    virtual inference_optimizer_scorer* get_lambda_optimizer(const user_data& data) override
+    virtual inference_optimizer_scorer* get_lambda_optimizer(const user_data& data, const root_distribution_gamma& prior) override
     {
         initialize_lambda(data.p_lambda_tree);
-        auto result = new sigma_optimizer_scorer(_p_lambda, this, data, *dynamic_cast<root_distribution_gamma*>(data.p_prior), 10, 1);
+        auto result = new sigma_optimizer_scorer(_p_lambda, this, data, prior, 10, 1);
         result->quiet = true;
         return result;
     }
@@ -297,7 +297,7 @@ TEST_CASE_FIXTURE(Inference, "base_optimizer_guesses_lambda_only")
 
     base_model model(_user_data.p_lambda,  NULL, NULL);
 
-    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data));
+    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data, *dynamic_cast<root_distribution_gamma*>(_user_data.p_prior)));
     auto guesses = opt->initial_guesses();
     CHECK_EQ(1, guesses.size());
     CHECK_EQ(doctest::Approx(0.696853).epsilon(0.00001), guesses[0]);
@@ -315,7 +315,7 @@ TEST_CASE_FIXTURE(Inference, "base_model creates lambda_epsilon_optimizer if req
     _user_data.p_error_model = nullptr;
     _user_data.p_lambda = nullptr;
 
-    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data));
+    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data, *dynamic_cast<root_distribution_gamma*>(_user_data.p_prior)));
 
     CHECK(opt);
     CHECK(dynamic_cast<lambda_epsilon_optimizer*>(opt.get()) != nullptr);
@@ -326,7 +326,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_creates__gamma_lambda_optimizer_if_not
     gamma_model model(NULL, NULL,4, -1, NULL);
     _user_data.p_lambda = nullptr;
 
-    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data));
+    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data, * dynamic_cast<root_distribution_gamma*>(_user_data.p_prior)));
     REQUIRE(opt);
     CHECK(dynamic_cast<gamma_lambda_optimizer*>(opt.get()));
 
@@ -345,7 +345,7 @@ TEST_CASE("Inference: gamma_model__creates__lambda_optimizer__if_alpha_provided"
     data.gene_families[0].set_expression_value("B", 2);
     data.p_tree = p_tree.get();
 
-    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(data));
+    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(data, *dynamic_cast<root_distribution_gamma*>(data.p_prior)));
 
     CHECK(opt);
     CHECK(dynamic_cast<sigma_optimizer_scorer*>(opt.get()));
@@ -361,7 +361,7 @@ TEST_CASE("Inference: gamma_model__creates__gamma_optimizer__if_lambda_provided"
     sigma sl(0.05);
     data.p_lambda = &sl;
 
-    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(data));
+    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(data, *dynamic_cast<root_distribution_gamma*>(data.p_prior)));
 
     CHECK(opt);
     CHECK(dynamic_cast<gamma_optimizer*>(opt.get()));
@@ -378,7 +378,7 @@ TEST_CASE("Inference: gamma_model_creates_nothing_if_lambda_and_alpha_provided")
     sigma sl(0.05);
     data.p_lambda = &sl;
 
-    CHECK(model.get_lambda_optimizer(data) == nullptr);
+    CHECK(model.get_lambda_optimizer(data, root_distribution_gamma(1,2, DISCRETIZATION_RANGE)) == nullptr);
 }
 
 TEST_CASE_FIXTURE(Inference, "base_model_reconstruction")

@@ -165,7 +165,7 @@ public:
     //! Based on the model parameters, attempts to reconstruct the most likely counts of each family at each node
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache *p_calc) = 0;
 
-    virtual inference_optimizer_scorer *get_lambda_optimizer(const user_data& data) = 0;
+    virtual inference_optimizer_scorer *get_lambda_optimizer(const user_data& data, const root_distribution_gamma& prior) = 0;
 
     const event_monitor& get_monitor() { return _monitor;  }
 };

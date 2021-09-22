@@ -66,7 +66,7 @@ public:
 
     double infer_family_likelihoods(const user_data& ud, const sigma*p_lambda, const root_distribution_gamma& prior) override;
 
-    virtual inference_optimizer_scorer *get_lambda_optimizer(const user_data& data) override;
+    virtual inference_optimizer_scorer *get_lambda_optimizer(const user_data& data, const root_distribution_gamma& prior) override;
 
     virtual std::string name() const override {
         return "Gamma";
