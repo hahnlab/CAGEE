@@ -8,6 +8,7 @@ class user_data;
 class model;
 class sigma;
 class error_model;
+class root_distribution_gamma;
 
 /// @brief Base class for use by the optimizer
 //! \ingroup optimizer
@@ -31,12 +32,14 @@ protected:
     sigma*_p_sigma;
     model *_p_model;
     const user_data& _user_data;
+    const root_distribution_gamma& _prior;
 
 public:
-    inference_optimizer_scorer(sigma*p_sigma, model* p_model, const user_data& user_data) :
+    inference_optimizer_scorer(sigma*p_sigma, model* p_model, const user_data& user_data, const root_distribution_gamma& prior) :
         _p_sigma(p_sigma),
         _p_model(p_model),
         _user_data(user_data),
+        _prior(prior),
         quiet(false)
     {
 #ifdef SILENT
@@ -61,14 +64,14 @@ class sigma_optimizer_scorer : public inference_optimizer_scorer
     double _species_variance;
 
 public:
-    sigma_optimizer_scorer(sigma*p_lambda, model* p_model, const user_data& user_data, double tree_length, double species_variance) :
-        inference_optimizer_scorer(p_lambda, p_model, user_data),
+    sigma_optimizer_scorer(sigma*p_lambda, model* p_model, const user_data& user_data, const root_distribution_gamma& prior, double tree_length, double species_variance) :
+        inference_optimizer_scorer(p_lambda, p_model, user_data, prior),
         _tree_length(tree_length),
         _species_variance(species_variance)
     {
     }
 
-    sigma_optimizer_scorer(sigma* p_lambda, model* p_model, const user_data& user_data);
+    sigma_optimizer_scorer(sigma* p_lambda, model* p_model, const user_data& user_data, const root_distribution_gamma& prior);
     
     std::vector<double> initial_guesses() override;
 
@@ -91,11 +94,12 @@ public:
         model* p_model,
         error_model *p_error_model,
         const user_data& user_data,
+        const root_distribution_gamma& prior,
         sigma*p_lambda,
         double tree_length, 
         double species_variance) :
-        inference_optimizer_scorer(p_lambda, p_model, user_data),
-        _lambda_optimizer(p_lambda, p_model, user_data, tree_length, species_variance),
+        inference_optimizer_scorer(p_lambda, p_model, user_data, prior),
+        _lambda_optimizer(p_lambda, p_model, user_data, prior, tree_length, species_variance),
         _p_error_model(p_error_model)
     {
     }
@@ -104,9 +108,10 @@ public:
         model* p_model,
         error_model* p_error_model,
         const user_data& user_data,
+        const root_distribution_gamma& prior,
         sigma* p_lambda) :
-        inference_optimizer_scorer(p_lambda, p_model, user_data),
-        _lambda_optimizer(p_lambda, p_model, user_data),
+        inference_optimizer_scorer(p_lambda, p_model, user_data, prior),
+        _lambda_optimizer(p_lambda, p_model, user_data, prior),
         _p_error_model(p_error_model)
     {
     }
@@ -133,7 +138,7 @@ public:
     // Inherited via optimizer_scorer
     virtual std::vector<double> initial_guesses() override;
     virtual void finalize(double * result) override;
-    gamma_optimizer(gamma_model* p_model, const user_data& user_data);
+    gamma_optimizer(gamma_model* p_model, const user_data& user_data, const root_distribution_gamma& prior);
 
     double get_alpha() const;
 };
@@ -148,8 +153,8 @@ class gamma_lambda_optimizer : public inference_optimizer_scorer
     sigma_optimizer_scorer _lambda_optimizer;
     gamma_optimizer _gamma_optimizer;
 public:
-    gamma_lambda_optimizer(sigma*p_lambda, gamma_model * p_model, const user_data& user_data, double tree_length, double species_variance);
-    gamma_lambda_optimizer(sigma* p_lambda, gamma_model* p_model, const user_data& user_data);
+    gamma_lambda_optimizer(sigma*p_lambda, gamma_model * p_model, const user_data& user_data, const root_distribution_gamma& prior, double tree_length, double species_variance);
+    gamma_lambda_optimizer(sigma* p_lambda, gamma_model* p_model, const user_data& user_data, const root_distribution_gamma& prior);
 
     std::vector<double> initial_guesses() override;
 

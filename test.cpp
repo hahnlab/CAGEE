@@ -59,7 +59,7 @@ class mock_model : public model {
     virtual inference_optimizer_scorer* get_lambda_optimizer(const user_data& data) override
     {
         initialize_lambda(data.p_lambda_tree);
-        auto result = new sigma_optimizer_scorer(_p_lambda, this, data, 10, 1);
+        auto result = new sigma_optimizer_scorer(_p_lambda, this, data, *dynamic_cast<root_distribution_gamma*>(data.p_prior), 10, 1);
         result->quiet = true;
         return result;
     }
@@ -379,33 +379,6 @@ TEST_CASE("Inference: gamma_model_creates_nothing_if_lambda_and_alpha_provided")
     data.p_lambda = &sl;
 
     CHECK(model.get_lambda_optimizer(data) == nullptr);
-}
-
-TEST_CASE("Inference: gamma_lambda_optimizer__provides_two_guesses")
-{
-    sigma sl(0.05);
-    gamma_model model(NULL, NULL, 4, .25, NULL);
-    user_data ud;
-    gamma_lambda_optimizer glo(&sl, &model, ud, 5, 1);
-    auto guesses = glo.initial_guesses();
-    CHECK_EQ(2, guesses.size());
-
-    double lambda = guesses[0];
-    CHECK_GT(lambda, 0);
-    CHECK_LT(lambda, 1);
-
-    double alpha = guesses[1];
-    CHECK_GT(alpha, 0);
-    CHECK_LT(alpha, 10);
-}
-
-TEST_CASE("Inference: gamma_optimizer__creates_single_initial_guess")
-{
-    user_data ud;
-    gamma_model m(NULL, NULL, 0, 0, NULL);
-    gamma_optimizer optimizer(&m, ud);
-    auto initial = optimizer.initial_guesses();
-    CHECK_EQ(1, initial.size());
 }
 
 TEST_CASE_FIXTURE(Inference, "base_model_reconstruction")
@@ -1417,7 +1390,7 @@ TEST_CASE("Reconstruction: base_model_print_increases_decreases_by_clade")
     STRCMP_CONTAINS("B<1>\t0\t1", ost.str().c_str());
 }
 
-TEST_CASE("Inference: lambda_epsilon_optimizer")
+TEST_CASE("lambda_epsilon_optimizer")
 {
     const double initial_epsilon = 0.01;
     error_model err;
@@ -1428,7 +1401,7 @@ TEST_CASE("Inference: lambda_epsilon_optimizer")
 
     sigma lambda(0.05);
     user_data ud;
-    lambda_epsilon_optimizer optimizer(&model, &err, ud, &lambda, 10, 3);
+    lambda_epsilon_optimizer optimizer(&model, &err, ud, *dynamic_cast<root_distribution_gamma*>(ud.p_prior), &lambda, 10, 3);
     optimizer.initial_guesses();
     vector<double> values = { 0.05, 0.06 };
     optimizer.calculate_score(&values[0]);
@@ -1492,7 +1465,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_lambda_optimizer updates model alpha and lam
     vector<double> multipliers{ 0.5, 1.5 };
     gamma_model m(_user_data.p_lambda, &_user_data.gene_families, gamma_categories, multipliers, NULL);
 
-    gamma_lambda_optimizer optimizer(_user_data.p_lambda, &m, _user_data, 7, 1);
+    gamma_lambda_optimizer optimizer(_user_data.p_lambda, &m, _user_data, *dynamic_cast<root_distribution_gamma*>(_user_data.p_prior), 7, 1);
     vector<double> values{ 0.01, 0.25 };
     optimizer.calculate_score(&values[0]);
     CHECK_EQ(doctest::Approx(0.25), m.get_alpha());
@@ -1506,7 +1479,7 @@ TEST_CASE("Inference: inference_optimizer_scorer__calculate_score__translates_na
     m.set_invalid_likelihood();
     double val;
     user_data ud;
-    sigma_optimizer_scorer opt(&lam, &m, ud, 0, 0);
+    sigma_optimizer_scorer opt(&lam, &m, ud, *dynamic_cast<root_distribution_gamma*>(ud.p_prior), 0, 0);
     CHECK(std::isinf(opt.calculate_score(&val)));
 }
 

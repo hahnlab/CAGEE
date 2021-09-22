@@ -100,7 +100,7 @@ namespace LikelihoodRatioTest
         std::vector<double> pvalues(data.gene_families.size());
         std::vector<int> lambdas(data.gene_families.size());
 
-        auto scorer = new sigma_optimizer_scorer(data.p_lambda, p_model, data);
+        auto scorer = new sigma_optimizer_scorer(data.p_lambda, p_model, data, *dynamic_cast<root_distribution_gamma*>(data.p_prior));
 
         optimizer opt(scorer);
         opt.quiet = true;

@@ -134,11 +134,11 @@ inference_optimizer_scorer *base_model::get_lambda_optimizer(const user_data& da
 
     if (_p_error_model && !data.p_error_model)
     {
-        return new lambda_epsilon_optimizer(this, _p_error_model, data, _p_lambda);
+        return new lambda_epsilon_optimizer(this, _p_error_model, data, *dynamic_cast<root_distribution_gamma*>(data.p_prior), _p_lambda);
     }
     else
     {
-        return new sigma_optimizer_scorer(_p_lambda, this, data);
+        return new sigma_optimizer_scorer(_p_lambda, this, data, *dynamic_cast<root_distribution_gamma*>(data.p_prior));
     }
 }
 

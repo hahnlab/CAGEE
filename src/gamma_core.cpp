@@ -217,17 +217,17 @@ inference_optimizer_scorer *gamma_model::get_lambda_optimizer(const user_data& d
     if (estimate_lambda && estimate_alpha)
     {
         initialize_lambda(data.p_lambda_tree);
-        return new gamma_lambda_optimizer(_p_lambda, this, data);
+        return new gamma_lambda_optimizer(_p_lambda, this, data, *dynamic_cast<root_distribution_gamma *>(data.p_prior));
     }
     else if (estimate_lambda && !estimate_alpha)
     {
         initialize_lambda(data.p_lambda_tree);
-        return new sigma_optimizer_scorer(_p_lambda, this, data);
+        return new sigma_optimizer_scorer(_p_lambda, this, data, *dynamic_cast<root_distribution_gamma*>(data.p_prior));
     }
     else if (!estimate_lambda && estimate_alpha)
     {
         _p_lambda = data.p_lambda->clone();
-        return new gamma_optimizer(this, data);
+        return new gamma_optimizer(this, data, *dynamic_cast<root_distribution_gamma*>(data.p_prior));
     }
     else
     {
