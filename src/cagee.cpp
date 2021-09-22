@@ -109,7 +109,7 @@ int cagee(int argc, char *const argv[]) {
 
         }
 
-        data.create_prior(user_input.rootdist_params);
+        data.p_prior = data.create_prior(user_input.rootdist_params);
         if (user_input.nsims > 0)
             data.p_prior->resize(user_input.nsims);
 

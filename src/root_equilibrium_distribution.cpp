@@ -38,10 +38,7 @@ rootdist_options::rootdist_options(std::string cfg)
         type = file;
         filename = tokens[1];
     }
-    if (tokens[0] == "estimate")
-    {
-        type = estimate;
-    }
+
 }
 
 float root_distribution_fixed::compute(const gene_transcript& t, size_t val) const

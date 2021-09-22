@@ -54,7 +54,7 @@ public:
 
     void read_rootdist(std::string rootdist_file_path);
 
-    void create_prior(rootdist_options params);
+    root_equilibrium_distribution* create_prior(rootdist_options params) const;
 };
 
 #endif

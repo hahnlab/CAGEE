@@ -11,13 +11,13 @@ class gene_transcript;
 
 struct rootdist_options
 {
-    rootdist_options() : type(estimate)
+    rootdist_options() : type(gamma)
     {
 
     }
     rootdist_options(std::string cfg);
-    enum rootdist_type { gamma, fixed, file, estimate };
-    double gamma_alpha = 0.0, gamma_beta = 0.0;
+    enum rootdist_type { gamma, fixed, file };
+    double gamma_alpha = 0.25, gamma_beta = 10.0;
     double fixed_value = 0.0;
     std::string filename;
     rootdist_type type;

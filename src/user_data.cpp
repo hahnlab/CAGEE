@@ -164,8 +164,10 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
         read_rootdist(my_input_parameters.rootdist_params.filename);
 }
 
-void user_data::create_prior(rootdist_options params)
+root_equilibrium_distribution* user_data::create_prior(rootdist_options params) const
 {
+    root_equilibrium_distribution* p_prior;
+
     switch (params.type)
     {
     case rootdist_options::file:
@@ -180,19 +182,8 @@ void user_data::create_prior(rootdist_options params)
         LOG(INFO) << "Using user provided gamma root distribution (" << params.gamma_alpha << "," << params.gamma_beta << ")";
         p_prior = new root_distribution_gamma(params.gamma_alpha, params.gamma_beta, DISCRETIZATION_RANGE);
         break;
-    case rootdist_options::estimate:
-    default:
-        if (!gene_families.empty())
-        {
-            LOG(INFO) << "Estimating Gamma root distribution from gene families";
-            p_prior = new root_distribution_gamma(gene_families, DISCRETIZATION_RANGE);
-        }
-        else
-        {
-            LOG(WARNING) << "No root family size distribution specified, using gamma distribution (0.25, 10)";
-            p_prior = new root_distribution_gamma(0.25, 10, DISCRETIZATION_RANGE);
-        }
     }
+    return p_prior;
 }
 
 TEST_CASE("create_prior__creates__specifed_distribution_if_given")
@@ -202,8 +193,7 @@ TEST_CASE("create_prior__creates__specifed_distribution_if_given")
     params.rootdist_params.type = rootdist_options::file;
     ud.rootdist[2] = 11;
     ud.max_root_family_size = 10;
-    ud.create_prior(params.rootdist_params);
-    CHECK(dynamic_cast<root_distribution_specific*>(ud.p_prior));
+    CHECK(dynamic_cast<root_distribution_specific*>(ud.create_prior(params.rootdist_params)));
 }
 
 
@@ -211,22 +201,9 @@ TEST_CASE("create_prior creates gamma distribution if given distribution")
 {
     rootdist_options opts;
     opts.type = rootdist_options::gamma;
-    opts.gamma_alpha = 1.0;
-    opts.gamma_beta = 1.0;
     user_data ud;
-    ud.create_prior(opts);
-    CHECK(dynamic_cast<root_distribution_gamma *>(ud.p_prior));
+    CHECK(dynamic_cast<root_distribution_gamma *>(ud.create_prior(opts)));
 
-}
-
-TEST_CASE("create_prior creates gamma distribution from families")
-{
-    rootdist_options opts;
-    opts.type = rootdist_options::estimate;
-    user_data ud;
-    ud.gene_families.resize(1);
-    ud.create_prior(opts);
-    CHECK(dynamic_cast<root_distribution_gamma*>(ud.p_prior));
 }
 
 TEST_CASE("create_prior creates gamma distribution by default")
@@ -234,8 +211,7 @@ TEST_CASE("create_prior creates gamma distribution by default")
     rootdist_options opts;
     user_data ud;
     ud.gene_families.resize(1);
-    ud.create_prior(opts);
-    CHECK(dynamic_cast<root_distribution_gamma*>(ud.p_prior));
+    CHECK(dynamic_cast<root_distribution_gamma*>(ud.create_prior(opts)));
 }
 
 TEST_CASE("create_prior creates fixed root if requested")
@@ -243,6 +219,5 @@ TEST_CASE("create_prior creates fixed root if requested")
     rootdist_options opts;
     opts.type = rootdist_options::fixed;
     user_data ud;
-    ud.create_prior(opts);
-    CHECK(dynamic_cast<root_distribution_fixed*>(ud.p_prior));
+    CHECK(dynamic_cast<root_distribution_fixed*>(ud.create_prior(opts)));
 }
