@@ -27,6 +27,10 @@ double __Qs[] = { 1.000000000190015, 76.18009172947146, -86.50532032941677,
 24.01409824083091, -1.231739572450155, 1.208650973866179e-3,
 -5.395239384953e-6 };
 
+estimator::estimator(user_data& d, const input_parameters& ui) : action(d, ui)
+{
+    _p_prior = new root_distribution_gamma(ui.rootdist_params.gamma_alpha, ui.rootdist_params.gamma_beta);
+}
 
 void estimator::write_error_model_if_specified(const input_parameters& my_input_parameters, const model * p_model)
 {
@@ -52,7 +56,7 @@ void estimator::compute(std::vector<model *>& models, const input_parameters &my
     for (size_t i = 0; i < models.size(); ++i) {
         LOG(INFO) << "Inferring processes for " << models[i]->name() << " model";
 
-        double result = models[i]->infer_family_likelihoods(data, models[i]->get_lambda(), *dynamic_cast<root_distribution_gamma *>(data.p_prior));
+        double result = models[i]->infer_family_likelihoods(data, models[i]->get_lambda(), *_p_prior);
         std::ofstream results_file(filename(models[i]->name() + "_results", my_input_parameters.output_prefix));
         models[i]->write_vital_statistics(results_file, data.p_tree, result);
 
@@ -88,7 +92,7 @@ void estimator::estimate_missing_variables(std::vector<model *>& models, user_da
         throw runtime_error("No tree specified for lambda estimation");
     }
     for (model* p_model : models) {
-        unique_ptr<inference_optimizer_scorer> scorer(p_model->get_lambda_optimizer(data, *dynamic_cast<root_distribution_gamma *>(data.p_prior)));
+        unique_ptr<inference_optimizer_scorer> scorer(p_model->get_lambda_optimizer(data, *_p_prior));
         if (scorer.get() == nullptr)
             continue;   // nothing to be optimized
 

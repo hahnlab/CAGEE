@@ -9,7 +9,7 @@ struct input_parameters;
 class sigma;
 class matrix_cache;
 class model;
-class root_equilibrium_distribution;
+class root_distribution_gamma;
 class user_data;
 class simulation_data;
     
@@ -46,11 +46,9 @@ public:
 */
 class estimator : public action
 {
+    root_distribution_gamma* _p_prior = NULL;
 public:
-    estimator(user_data& d, const input_parameters& ui) : action(d, ui)
-    {
-
-    }
+    estimator(user_data& d, const input_parameters& ui);
 
     virtual void execute(std::vector<model *>& models);
 

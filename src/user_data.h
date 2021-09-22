@@ -30,7 +30,6 @@ public:
     sigma*p_lambda = NULL;
     clade *p_lambda_tree = NULL;
     error_model *p_error_model = NULL;
-    root_equilibrium_distribution* p_prior = NULL;
 
     std::vector<gene_transcript> gene_families;
     std::map<int, float> rootdist;

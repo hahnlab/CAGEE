@@ -180,7 +180,7 @@ root_equilibrium_distribution* user_data::create_prior(rootdist_options params) 
         break;
     case rootdist_options::gamma:
         LOG(INFO) << "Using user provided gamma root distribution (" << params.gamma_alpha << "," << params.gamma_beta << ")";
-        p_prior = new root_distribution_gamma(params.gamma_alpha, params.gamma_beta, DISCRETIZATION_RANGE);
+        p_prior = new root_distribution_gamma(params.gamma_alpha, params.gamma_beta);
         break;
     }
     return p_prior;

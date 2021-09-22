@@ -16,7 +16,6 @@ class user_data;
 class root_distribution;
 class inference_optimizer_scorer;
 class gene_transcript;
-class root_equilibrium_distribution;
 class matrix_cache;
 class root_distribution_gamma;
 

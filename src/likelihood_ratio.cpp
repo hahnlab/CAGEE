@@ -91,7 +91,7 @@ namespace LikelihoodRatioTest
         }
     }
 
-    void lhr_for_diff_lambdas(const user_data & data, model *p_model)
+    void lhr_for_diff_lambdas(const user_data & data, model *p_model, const root_distribution_gamma& prior)
     {
         std::vector<sigma*> lambda_cache(100);
 
@@ -100,7 +100,7 @@ namespace LikelihoodRatioTest
         std::vector<double> pvalues(data.gene_families.size());
         std::vector<int> lambdas(data.gene_families.size());
 
-        auto scorer = new sigma_optimizer_scorer(data.p_lambda, p_model, data, *dynamic_cast<root_distribution_gamma*>(data.p_prior));
+        auto scorer = new sigma_optimizer_scorer(data.p_lambda, p_model, data, prior);
 
         optimizer opt(scorer);
         opt.quiet = true;

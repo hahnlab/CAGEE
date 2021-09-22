@@ -54,6 +54,7 @@ simulator::simulator(user_data& d, const input_parameters& ui) : action(d, ui)
 #ifdef SILENT
     quiet = true;
 #endif
+    _p_prior = d.create_prior(ui.rootdist_params);
 }
 
 void simulator::execute(std::vector<model *>& models)
@@ -90,7 +91,7 @@ simulated_family create_simulated_family(const clade *p_tree, const sigma* p_sig
 // and 0 everywhere else
 // for each child, generate the transition matrix and multiply
 simulated_family simulator::create_trial(const sigma*p_sigma, int family_number) {
-    double root_size = data.p_prior->select_root_value(family_number);
+    double root_size = _p_prior->select_root_value(family_number);
 
     if (data.p_tree == NULL)
         throw runtime_error("No tree specified for simulation");
@@ -213,9 +214,8 @@ TEST_CASE("create_trial")
     data.rootdist[5] = 1;
     data.max_family_size = 10;
     data.max_root_family_size = 10;
-
-    data.p_prior = new root_distribution_specific(data.rootdist);
     input_parameters params;
+    params.rootdist_params.type = rootdist_options::file;
     simulator sim(data, params);
 
     simulated_family actual = sim.create_trial(&lam, 2);

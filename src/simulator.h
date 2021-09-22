@@ -4,7 +4,7 @@
 #include "execute.h"
 #include "clade.h"
 
-class root_distribution;
+class root_equilibrium_distribution;
 class matrix_cache;
 
 struct simulated_family
@@ -65,6 +65,8 @@ until we have the number of families requested by the user.
 class simulator : public action
 {
     void simulate(std::vector<model *>& models, const input_parameters &my_input_parameters);
+    root_equilibrium_distribution* _p_prior = NULL;
+
 public:
     simulator(user_data& d, const input_parameters& ui);
 

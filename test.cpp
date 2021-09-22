@@ -99,7 +99,7 @@ public:
         _user_data.gene_families[0].set_expression_value("A", 1);
         _user_data.gene_families[0].set_expression_value("B", 2);
         //_user_data.p_prior = new root_equilibrium_distribution(size_t(100));
-        _user_data.p_prior = new root_distribution_uniform(100);
+        //_user_data.p_prior = new root_distribution_uniform(100);
         randomizer_engine.seed(10);
     }
 
@@ -181,7 +181,7 @@ TEST_CASE_FIXTURE(Inference, "infer_processes"
 
     base_model core(&lambda, &families, NULL);
 
-    double multi = core.infer_family_likelihoods(_user_data, &lambda, root_distribution_gamma(1,2, DISCRETIZATION_RANGE));
+    double multi = core.infer_family_likelihoods(_user_data, &lambda, root_distribution_gamma(1, 2));
 
     CHECK_EQ(doctest::Approx(46.56632), multi);
 }
@@ -209,7 +209,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_infers_processes_without_crashing")
     gamma_model core(_user_data.p_lambda, &_user_data.gene_families, 1, 0, NULL);
 
     // TODO: make this return a non-infinite value and add a check for it
-    core.infer_family_likelihoods(_user_data, _user_data.p_lambda, root_distribution_gamma(1,2, DISCRETIZATION_RANGE));
+    core.infer_family_likelihoods(_user_data, _user_data.p_lambda, root_distribution_gamma(1,2));
     CHECK(true);
 
 }
@@ -297,7 +297,7 @@ TEST_CASE_FIXTURE(Inference, "base_optimizer_guesses_lambda_only")
 
     base_model model(_user_data.p_lambda,  NULL, NULL);
 
-    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data, *dynamic_cast<root_distribution_gamma*>(_user_data.p_prior)));
+    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data, root_distribution_gamma(1, 2)));
     auto guesses = opt->initial_guesses();
     CHECK_EQ(1, guesses.size());
     CHECK_EQ(doctest::Approx(0.696853).epsilon(0.00001), guesses[0]);
@@ -315,7 +315,7 @@ TEST_CASE_FIXTURE(Inference, "base_model creates lambda_epsilon_optimizer if req
     _user_data.p_error_model = nullptr;
     _user_data.p_lambda = nullptr;
 
-    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data, *dynamic_cast<root_distribution_gamma*>(_user_data.p_prior)));
+    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data, root_distribution_gamma(1,2)));
 
     CHECK(opt);
     CHECK(dynamic_cast<lambda_epsilon_optimizer*>(opt.get()) != nullptr);
@@ -326,7 +326,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_creates__gamma_lambda_optimizer_if_not
     gamma_model model(NULL, NULL,4, -1, NULL);
     _user_data.p_lambda = nullptr;
 
-    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data, * dynamic_cast<root_distribution_gamma*>(_user_data.p_prior)));
+    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data, root_distribution_gamma(1, 2)));
     REQUIRE(opt);
     CHECK(dynamic_cast<gamma_lambda_optimizer*>(opt.get()));
 
@@ -345,7 +345,7 @@ TEST_CASE("Inference: gamma_model__creates__lambda_optimizer__if_alpha_provided"
     data.gene_families[0].set_expression_value("B", 2);
     data.p_tree = p_tree.get();
 
-    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(data, *dynamic_cast<root_distribution_gamma*>(data.p_prior)));
+    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(data, root_distribution_gamma(1, 2)));
 
     CHECK(opt);
     CHECK(dynamic_cast<sigma_optimizer_scorer*>(opt.get()));
@@ -361,7 +361,7 @@ TEST_CASE("Inference: gamma_model__creates__gamma_optimizer__if_lambda_provided"
     sigma sl(0.05);
     data.p_lambda = &sl;
 
-    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(data, *dynamic_cast<root_distribution_gamma*>(data.p_prior)));
+    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(data, root_distribution_gamma(1, 2)));
 
     CHECK(opt);
     CHECK(dynamic_cast<gamma_optimizer*>(opt.get()));
@@ -378,7 +378,7 @@ TEST_CASE("Inference: gamma_model_creates_nothing_if_lambda_and_alpha_provided")
     sigma sl(0.05);
     data.p_lambda = &sl;
 
-    CHECK(model.get_lambda_optimizer(data, root_distribution_gamma(1,2, DISCRETIZATION_RANGE)) == nullptr);
+    CHECK(model.get_lambda_optimizer(data, root_distribution_gamma(1, 2)) == nullptr);
 }
 
 TEST_CASE_FIXTURE(Inference, "base_model_reconstruction")
@@ -816,12 +816,12 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_prune" * doctest::skip(true))
     sigma lambda(0.005);
     matrix_cache cache;
 
-    root_distribution_gamma dist(1,2, DISCRETIZATION_RANGE);
+    root_distribution_gamma prior(1,2);
 
     gamma_model model(&lambda, &families, { 0.01, 0.05 }, { 0.1, 0.5 }, NULL);
 
     vector<double> cat_likelihoods;
-    CHECK(model.prune(families[0], dist, cache, &lambda, p_tree.get(), cat_likelihoods));
+    CHECK(model.prune(families[0], prior, cache, &lambda, p_tree.get(), cat_likelihoods));
 
     CHECK_EQ(2, cat_likelihoods.size());
     CHECK_EQ(doctest::Approx(-23.04433), log(cat_likelihoods[0]));
@@ -841,7 +841,7 @@ TEST_CASE("gamma_model_prune_returns_false_if_saturated" * doctest::skip(true))
 
     gamma_model model(&lambda, &families, { 1.0,1.0 }, { 0.1, 0.5 }, NULL);
 
-    CHECK(!model.prune(families[0], root_distribution_gamma(1, 2, DISCRETIZATION_RANGE), cache, &lambda, p_tree.get(), cat_likelihoods));
+    CHECK(!model.prune(families[0], root_distribution_gamma(1, 2), cache, &lambda, p_tree.get(), cat_likelihoods));
 }
 
 
@@ -1396,7 +1396,7 @@ TEST_CASE("lambda_epsilon_optimizer")
 
     sigma lambda(0.05);
     user_data ud;
-    lambda_epsilon_optimizer optimizer(&model, &err, ud, *dynamic_cast<root_distribution_gamma*>(ud.p_prior), &lambda, 10, 3);
+    lambda_epsilon_optimizer optimizer(&model, &err, ud, root_distribution_gamma(1, 2), &lambda, 10, 3);
     optimizer.initial_guesses();
     vector<double> values = { 0.05, 0.06 };
     optimizer.calculate_score(&values[0]);
@@ -1419,7 +1419,7 @@ TEST_CASE("Inference: lambda_per_family" * doctest::skip(true))
     ud.max_root_family_size = 10;
     ud.max_family_size = 10;
     ud.gene_families.resize(1);
-    ud.p_prior = new root_distribution_uniform(size_t(ud.max_root_family_size));
+   // ud.p_prior = new root_distribution_uniform(size_t(ud.max_root_family_size));
 
     gene_transcript& family = ud.gene_families[0];
     family.set_expression_value("A", 3);
@@ -1458,7 +1458,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_lambda_optimizer updates model alpha and lam
     vector<double> multipliers{ 0.5, 1.5 };
     gamma_model m(_user_data.p_lambda, &_user_data.gene_families, gamma_categories, multipliers, NULL);
 
-    gamma_lambda_optimizer optimizer(_user_data.p_lambda, &m, _user_data, root_distribution_gamma(1,2, DISCRETIZATION_RANGE), 7, 1);
+    gamma_lambda_optimizer optimizer(_user_data.p_lambda, &m, _user_data, root_distribution_gamma(1, 2), 7, 1);
     vector<double> values{ 0.01, 0.25 };
     optimizer.calculate_score(&values[0]);
     CHECK_EQ(doctest::Approx(0.25), m.get_alpha());
@@ -1472,7 +1472,7 @@ TEST_CASE("Inference: inference_optimizer_scorer__calculate_score__translates_na
     m.set_invalid_likelihood();
     double val;
     user_data ud;
-    sigma_optimizer_scorer opt(&lam, &m, ud, *dynamic_cast<root_distribution_gamma*>(ud.p_prior), 0, 0);
+    sigma_optimizer_scorer opt(&lam, &m, ud, root_distribution_gamma(1, 2), 0, 0);
     CHECK(std::isinf(opt.calculate_score(&val)));
 }
 
@@ -1615,7 +1615,7 @@ TEST_CASE("Simulation, simulate_processes" * doctest::skip(true))
     user_data ud;
     ud.p_tree = p_tree.get();
     ud.p_lambda = &lam;
-    ud.p_prior = new root_distribution_uniform(size_t(100));
+//    ud.p_prior = new root_distribution_uniform(size_t(100));
     ud.max_family_size = 101;
     ud.max_root_family_size = 101;
 

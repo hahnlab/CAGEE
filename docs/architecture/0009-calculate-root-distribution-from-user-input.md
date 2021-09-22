@@ -15,22 +15,27 @@ results for the user.
 
 ## Decision
 
-A rootdist argument will be made available. The possible formats will be as follows:
+For simulations, a rootdist argument will be made available. The possible formats will be as follows:
 
-- rootdist=gamma:alpha:beta
+- rootdist=gamma:k:theta
 - rootdist=fixed:value
 - rootdist=file:filename
-- rootdist=estimate
 
-If the user does not provide a rootdist argument, _estimate_ will be assumed.
-
+If the user does not provide a rootdist argument, the gamma distribution (k=0.75, theta=30) will be used.
 The root distribution will be calculated from the sub-argument:
 
-- gamma: a gamma probability will be used with the specified alpha and beta
+- gamma: a gamma probability will be used with the specified k and theta
 - fixed: all root values will be identical. The correct prior probability is unclear.
 - file: The user has specified a root distribution. Use that.
-- estimate: estimate a gamma distribution from the --infile value. If no infile is specified, use a gamma distribution (0.25, 10)
 
+For estimations, a prior argument will be made available. 
+- prior=gamma:k:theta
+
+If the user does not provide a prior argument, the gamma distribution (k=0.75, theta=30) will be used.
+
+Specifying a --rootdist argument without the --simulate argument will result in an error.
+Specifying a --prior argument with the --simulate argument will result in an error.
+Specifying an --infile argument with the --simulate argument will result in an error.
 
 ## Consequences
 

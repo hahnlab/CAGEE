@@ -220,7 +220,7 @@ TEST_CASE("sigma_optimizer_scorer constructor calculates tree length and varianc
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     ud.p_tree = p_tree.get();
     sigma s(5);
-    sigma_optimizer_scorer soc(&s, nullptr, ud, root_distribution_gamma(1,2, DISCRETIZATION_RANGE));
+    sigma_optimizer_scorer soc(&s, nullptr, ud, root_distribution_gamma(1,2));
 
     auto guesses = soc.initial_guesses();
     REQUIRE(guesses.size() == 1);
@@ -247,7 +247,7 @@ TEST_CASE("sigma_optimizer_scorer constructor averages variances across all tran
     ud.gene_families[1].set_expression_value("B", 8);
 
     sigma s(5);
-    sigma_optimizer_scorer soc(&s, nullptr, ud, root_distribution_gamma(1, 2, DISCRETIZATION_RANGE));
+    sigma_optimizer_scorer soc(&s, nullptr, ud, root_distribution_gamma(1, 2));
 
     auto guesses = soc.initial_guesses();
     REQUIRE(guesses.size() == 1);
@@ -265,7 +265,7 @@ TEST_CASE("lambda_epsilon_optimizer guesses lambda and unique epsilons")
 
     sigma s(10);
     user_data ud;
-    lambda_epsilon_optimizer leo(nullptr, &err, ud, root_distribution_gamma(1, 2, DISCRETIZATION_RANGE), &s, 10, 1);
+    lambda_epsilon_optimizer leo(nullptr, &err, ud, root_distribution_gamma(1, 2), &s, 10, 1);
     auto guesses = leo.initial_guesses();
     REQUIRE(guesses.size() == 3);
     CHECK_EQ(doctest::Approx(0.30597).epsilon(0.00001), guesses[0]);
@@ -278,7 +278,7 @@ TEST_CASE("gamma_lambda_optimizer provides two guesses")
     sigma sl(0.05);
     gamma_model model(NULL, NULL, 4, .25, NULL);
     user_data ud;
-    gamma_lambda_optimizer glo(&sl, &model, ud, *dynamic_cast<root_distribution_gamma*>(ud.p_prior), 5, 1);
+    gamma_lambda_optimizer glo(&sl, &model, ud, root_distribution_gamma(1,2), 5, 1);
     auto guesses = glo.initial_guesses();
     CHECK_EQ(2, guesses.size());
 
@@ -295,7 +295,7 @@ TEST_CASE("gamma_optimizer creates single initial guess")
 {
     user_data ud;
     gamma_model m(NULL, NULL, 0, 0, NULL);
-    gamma_optimizer optimizer(&m, ud, *dynamic_cast<root_distribution_gamma*>(ud.p_prior));
+    gamma_optimizer optimizer(&m, ud, root_distribution_gamma(1, 2));
     auto initial = optimizer.initial_guesses();
     CHECK_EQ(1, initial.size());
 }

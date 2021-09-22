@@ -25,12 +25,15 @@ double poisspdf(double x, double lambda)
 }
 
 double gammapdf(double value, double alpha, double beta) {
+#if 0
     double a = std::pow(beta, alpha);
     double b = std::pow(value, (alpha - 1));
     double c = std::pow(M_E, (-1 * beta * value));
     double d = tgamma(alpha);
     return (a * b * c) / d;
-//    return (std::pow(beta, alpha) * std::pow(value, (alpha - 1)) * std::pow(M_E, (-1 * beta * value))) / tgamma(alpha);
+#else
+    return (std::pow(beta, alpha) * std::pow(value, (alpha - 1)) * std::pow(M_E, (-1 * beta * value))) / tgamma(alpha);
+#endif
 }
 
 vector<double> get_prior_rfsize_poisson_lambda(int min_family_size, int max_family_size, double poisson_lambda)
@@ -89,41 +92,6 @@ double poisson_scorer::lnLPoisson(const double* plambda)
     return -score;
 }
 
-gamma_scorer::gamma_scorer(const vector<gene_transcript>& gene_families)
-{
-    if (gene_families.empty()) return;
-    if (gene_families[0].get_species().empty()) return;
-
-    string species = gene_families[0].get_species()[0];
-    for (auto& fam : gene_families)
-    {
-        leaf_family_sizes.push_back(fam.get_expression_value(species));
-    }
-}
-
-std::vector<double> gamma_scorer::initial_guesses() 
-{
-    std::uniform_real_distribution<double> distribution(0.0, 10.0);
-    return std::vector<double>{distribution(randomizer_engine), distribution(randomizer_engine)};
-}
-
-double gamma_scorer::calculate_score(const double* values)
-{
-    double alpha = values[0];
-    double beta = values[1];
-
-    double score = accumulate(leaf_family_sizes.begin(), leaf_family_sizes.end(), 0.0, [alpha, beta](double x, double sz) {
-        double ll = gammapdf(sz, alpha, beta);
-        if (std::isnan(ll) || std::isinf(ll) || ll == 0) {
-            return x;
-        }
-        return x + log(ll);
-        });
-
-    VLOG(ROOT_SIZE_ESTIMATION) << "Gamma (" << alpha << "," << beta << ") score: " << -score << endl;
-    return -score;
-}
-
 TEST_CASE("poisson_scorer_optimizes_correct_value")
 {
     vector<gene_transcript> v;
@@ -173,25 +141,4 @@ TEST_CASE("poisson_scorer__lnlPoisson_skips_incalculable_family_sizes")
     poisson_scorer scorer(v);
     double lambda = 0.05;
     CHECK_EQ(doctest::Approx(9.830344), scorer.lnLPoisson(&lambda));
-}
-
-
-TEST_CASE("gamma_scorer optimizes correct value")
-{
-    vector<gene_transcript> v;
-    v.push_back(gene_transcript("TestFamily1", "", ""));
-    v[0].set_expression_value("A", 1);
-    v[0].set_expression_value("B", 2);
-    v.push_back(gene_transcript("TestFamily2", "", ""));
-    v[1].set_expression_value("A", 3);
-    v[1].set_expression_value("B", 7);
-
-    gamma_scorer scorer(v);
-    optimizer opt(&scorer);
-    optimizer_parameters params;
-    auto result = opt.optimize(params);
-
-    REQUIRE_EQ(2, result.values.size());
-    CHECK_EQ(doctest::Approx(3.6343), result.values[0]);
-    CHECK_EQ(doctest::Approx(1.81715), result.values[1]);
 }
