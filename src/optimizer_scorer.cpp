@@ -33,7 +33,7 @@ double inference_optimizer_scorer::calculate_score(const double *values)
         report_precalculation();
     }
 
-    double score = _p_model->infer_family_likelihoods(_user_data, _p_sigma);
+    double score = _p_model->infer_family_likelihoods(_user_data, _p_sigma, _prior);
 
     if (std::isnan(score)) score = -log(0);
 

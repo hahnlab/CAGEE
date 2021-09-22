@@ -64,7 +64,7 @@ public:
     //! Randomly select one of the multipliers to apply to the simulation
     virtual sigma* get_simulation_lambda() override;
 
-    double infer_family_likelihoods(const user_data& ud, const sigma*p_lambda) override;
+    double infer_family_likelihoods(const user_data& ud, const sigma*p_lambda, const root_distribution_gamma& prior) override;
 
     virtual inference_optimizer_scorer *get_lambda_optimizer(const user_data& data) override;
 

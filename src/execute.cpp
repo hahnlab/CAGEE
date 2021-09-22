@@ -52,7 +52,7 @@ void estimator::compute(std::vector<model *>& models, const input_parameters &my
     for (size_t i = 0; i < models.size(); ++i) {
         LOG(INFO) << "Inferring processes for " << models[i]->name() << " model";
 
-        double result = models[i]->infer_family_likelihoods(data, models[i]->get_lambda());
+        double result = models[i]->infer_family_likelihoods(data, models[i]->get_lambda(), *dynamic_cast<root_distribution_gamma *>(data.p_prior));
         std::ofstream results_file(filename(models[i]->name() + "_results", my_input_parameters.output_prefix));
         models[i]->write_vital_statistics(results_file, data.p_tree, result);
 

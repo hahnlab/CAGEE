@@ -18,6 +18,7 @@ class inference_optimizer_scorer;
 class gene_transcript;
 class root_equilibrium_distribution;
 class matrix_cache;
+class root_distribution_gamma;
 
 struct input_parameters;
 
@@ -154,7 +155,7 @@ public:
     //! Returns a lambda suitable for creating a simulated family. Default case is simply to return the lambda provided by the user.
     virtual sigma* get_simulation_lambda();
 
-    virtual double infer_family_likelihoods(const user_data& ud, const sigma*p_lambda) = 0;  // return vector of likelihoods
+    virtual double infer_family_likelihoods(const user_data& ud, const sigma*p_lambda, const root_distribution_gamma& prior) = 0;  // return vector of likelihoods
     
     virtual std::string name() const = 0;
     virtual void write_family_likelihoods(std::ostream& ost) = 0;

@@ -28,7 +28,7 @@ public:
     base_model(sigma* p_lambda, const std::vector<gene_transcript>* p_gene_families,
         error_model *p_error_model);
 
-    virtual double infer_family_likelihoods(const user_data& ud, const sigma*p_lambda) override;
+    virtual double infer_family_likelihoods(const user_data& ud, const sigma*p_lambda, const root_distribution_gamma& prior) override;
 
     virtual std::string name() const {
         return "Base";

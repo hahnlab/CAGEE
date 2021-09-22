@@ -66,7 +66,7 @@ set<pair<double, double>> get_all_bounds(const vector<gene_transcript>& transcri
 
 }
 
-double base_model::infer_family_likelihoods(const user_data& ud, const sigma *p_sigma) {
+double base_model::infer_family_likelihoods(const user_data& ud, const sigma *p_sigma, const root_distribution_gamma& prior) {
     //TIMED_FUNC(timerObj);
     _monitor.Event_InferenceAttempt_Started();
 
@@ -98,7 +98,7 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma *p_
         std::vector<double> full(partial_likelihood.size());
 
         for (size_t j = 0; j < partial_likelihood.size(); ++j) {
-            double eq_freq = ud.p_prior->compute(ud.gene_families.at(i), j);
+            double eq_freq = prior.compute(ud.gene_families.at(i), j);
 
             full[j] = std::log(partial_likelihood[j]) + std::log(eq_freq);
         }

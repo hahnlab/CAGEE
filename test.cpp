@@ -76,7 +76,7 @@ public:
     void set_invalid_likelihood() { _invalid_likelihood = true;  }
 
     // Inherited via model
-    virtual double infer_family_likelihoods(const user_data& ud, const sigma* p_lambda) override
+    virtual double infer_family_likelihoods(const user_data& ud, const sigma* p_lambda, const root_distribution_gamma& prior) override
     {
         return _invalid_likelihood ? nan("") : 0.0;
     }
@@ -181,7 +181,7 @@ TEST_CASE_FIXTURE(Inference, "infer_processes"
 
     base_model core(&lambda, &families, NULL);
 
-    double multi = core.infer_family_likelihoods(_user_data, &lambda);
+    double multi = core.infer_family_likelihoods(_user_data, &lambda, root_distribution_gamma(1,2, DISCRETIZATION_RANGE));
 
     CHECK_EQ(doctest::Approx(46.56632), multi);
 }
@@ -209,7 +209,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_infers_processes_without_crashing")
     gamma_model core(_user_data.p_lambda, &_user_data.gene_families, 1, 0, NULL);
 
     // TODO: make this return a non-infinite value and add a check for it
-    core.infer_family_likelihoods(_user_data, _user_data.p_lambda);
+    core.infer_family_likelihoods(_user_data, _user_data.p_lambda, root_distribution_gamma(1,2, DISCRETIZATION_RANGE));
     CHECK(true);
 
 }
@@ -1458,14 +1458,12 @@ TEST_CASE_FIXTURE(Inference, "estimator_compute_pvalues" * doctest::skip(true))
 TEST_CASE_FIXTURE(Inference, "gamma_lambda_optimizer updates model alpha and lambda")
 {
     _user_data.max_root_family_size = 10;
-    _user_data.p_prior = new root_distribution_uniform(size_t(_user_data.max_root_family_size));
 
-//    gamma_model m(_user_data.p_lambda, _user_data.p_tree, &_user_data.gene_families, 10, _user_data.max_root_family_size, 4, 0.25, NULL);
     vector<double> gamma_categories{ 0.3, 0.7 };
     vector<double> multipliers{ 0.5, 1.5 };
     gamma_model m(_user_data.p_lambda, &_user_data.gene_families, gamma_categories, multipliers, NULL);
 
-    gamma_lambda_optimizer optimizer(_user_data.p_lambda, &m, _user_data, *dynamic_cast<root_distribution_gamma*>(_user_data.p_prior), 7, 1);
+    gamma_lambda_optimizer optimizer(_user_data.p_lambda, &m, _user_data, root_distribution_gamma(1,2, DISCRETIZATION_RANGE), 7, 1);
     vector<double> values{ 0.01, 0.25 };
     optimizer.calculate_score(&values[0]);
     CHECK_EQ(doctest::Approx(0.25), m.get_alpha());

@@ -138,7 +138,7 @@ bool gamma_model::prune(const gene_transcript& family, const root_equilibrium_di
 }
 
 //! Infer bundle
-double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma*p_lambda) {
+double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma*p_lambda, const root_distribution_gamma& prior) {
 
     _monitor.Event_InferenceAttempt_Started();
 
@@ -164,7 +164,7 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma*p_
     for (int i = 0; i < ud.gene_families.size(); i++) {
         auto& cat_likelihoods = _category_likelihoods[i];
 
-        if (prune(ud.gene_families.at(i), *ud.p_prior, cache, p_lambda, ud.p_tree, cat_likelihoods))
+        if (prune(ud.gene_families.at(i), prior, cache, p_lambda, ud.p_tree, cat_likelihoods))
         {
             double family_likelihood = accumulate(cat_likelihoods.begin(), cat_likelihoods.end(), 0.0);
 
