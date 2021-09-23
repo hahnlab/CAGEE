@@ -215,7 +215,7 @@ TEST_CASE("create_trial")
     data.max_family_size = 10;
     data.max_root_family_size = 10;
     input_parameters params;
-    params.rootdist_params.type = rootdist_options::file;
+    params.rootdist_params.type = rootdist_type::file;
     simulator sim(data, params);
 
     simulated_family actual = sim.create_trial(&lam, 2);

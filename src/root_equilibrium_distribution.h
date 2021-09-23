@@ -10,14 +10,16 @@ struct input_parameters;
 class root_distribution;
 class gene_transcript;
 
+enum class rootdist_type { none, gamma, fixed, file };
+
 struct rootdist_options
 {
-    rootdist_options() : type(gamma)
+    rootdist_options() : type(rootdist_type::none)
     {
 
     }
     rootdist_options(std::string cfg);
-    enum rootdist_type { gamma, fixed, file };
+    
     double gamma_alpha = 0.75, gamma_beta = 30.0;
     double fixed_value = 0.0;
     std::string filename;

@@ -24,18 +24,18 @@ rootdist_options::rootdist_options(std::string cfg)
     auto tokens = tokenize_str(cfg, ':');
     if (tokens[0] == "fixed")
     {
-        type = fixed;
+        type = rootdist_type::fixed;
         fixed_value = stof(tokens[1]);
     }
     if (tokens[0] == "gamma")
     {
-        type = gamma;
+        type = rootdist_type::gamma;
         gamma_alpha = stof(tokens[1]);
         gamma_beta = stof(tokens[2]);
     }
     if (tokens[0] == "file")
     {
-        type = file;
+        type = rootdist_type::file;
         filename = tokens[1];
     }
 }

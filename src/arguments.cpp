@@ -271,57 +271,77 @@ input_parameters read_arguments(int argc, char* const argv[])
 #endif
 
 void input_parameters::check_input() {
+    vector<string> errors;
+
     //! Options -l and -m cannot both specified.
     if (fixed_lambda > 0.0 && !fixed_multiple_lambdas.empty()) {
-        throw runtime_error("Options -l and -m are mutually exclusive.");
+        errors.push_back("Options -l and -m are mutually exclusive.");
     }
 
     //! Option -m requires a lambda tree (-y)
     if (!fixed_multiple_lambdas.empty() && lambda_tree_file_path.empty()) {
-        throw runtime_error("Multiple lambda values (-m) specified with no lambda tree (-y)");
+        errors.push_back("Multiple lambda values (-m) specified with no lambda tree (-y)");
     }
 
     //! Options -l and -i have to be both specified (if estimating and not simulating).
     if (fixed_lambda > 0.0 && input_file_path.empty() && !is_simulating) {
-        throw runtime_error("Options -l and -i must both be provided an argument.");
+        errors.push_back("Options -l and -i must both be provided an argument.");
     }
 
     if (is_simulating)
     {
+        if (rootdist_params.type == rootdist_type::none)
+            rootdist_params.type = rootdist_type::gamma;
+
         // Must specify a lambda
         if (fixed_lambda <= 0.0 && fixed_multiple_lambdas.empty()) {
-            throw runtime_error("Cannot simulate without initial sigma values");
+            errors.push_back("Cannot simulate without initial sigma values");
         }
 
         if (fixed_alpha <= 0.0 && this->n_gamma_cats > 1) {
-            throw runtime_error("Cannot simulate gamma clusters without an alpha value");
+            errors.push_back("Cannot simulate gamma clusters without an alpha value");
         }
 
         //! Options -i and -f cannot be both specified. Either one or the other is used to specify the root eq freq distr'n.
-        if (!input_file_path.empty() && rootdist_params.type == rootdist_options::file) {
-            throw runtime_error("Options -i and -f are mutually exclusive.");
+        if (!input_file_path.empty()) {
+            errors.push_back("A families file was provided while simulating");
         }
+
     }
     else
     {
         if (fixed_alpha >= 0.0 && n_gamma_cats == 1) {
-            throw runtime_error("Alpha specified with 1 gamma category.");
+            errors.push_back("Alpha specified with 1 gamma category.");
         }
 
+        if (rootdist_params.type != rootdist_type::none) {
+            errors.push_back("A root distribution was provided while estimating");
+        }
 
         if (lambda_per_family)
         {
             if (input_file_path.empty())
-                throw runtime_error("No family file provided");
+                errors.push_back("No family file provided");
             if (tree_file_path.empty())
-                throw runtime_error("No tree file provided");
+                errors.push_back("No tree file provided");
         }
 
         if (n_gamma_cats > 1 && use_error_model && error_model_file_path.empty())
         {
-            throw runtime_error("Estimating an error model with a gamma distribution is not supported at this time");
+            errors.push_back("Estimating an error model with a gamma distribution is not supported at this time");
         }
+    }
 
+    if (errors.size() == 1)
+    {
+        throw std::runtime_error(errors[0]);
+    }
+    else if (!errors.empty())
+    {
+        ostringstream ost;
+        ostream_iterator<string> lm(ost, "\n");
+        copy(errors.begin(), errors.end(), lm);
+        throw std::runtime_error(ost.str());
     }
 }
 
@@ -453,7 +473,7 @@ TEST_CASE("Options: errormodel_accepts_argument")
 
 TEST_CASE("Options: fixed_root_value")
 {
-    option_test c({ "cafe5", "--rootdist=fixed:12.7"});
+    option_test c({ "cafe5", "--rootdist=fixed:12.7", "--simulate=100", "--fixed_sigma=0.01"});
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK_EQ(doctest::Approx(12.7), actual.rootdist_params.fixed_value);
@@ -533,7 +553,7 @@ TEST_CASE("Options: per_family_must_provide_families")
 {
     input_parameters params;
     params.lambda_per_family = true;
-    CHECK_THROWS_WITH_AS(params.check_input(), "No family file provided", runtime_error);
+    CHECK_THROWS_WITH_AS(params.check_input(), "No family file provided\nNo tree file provided\n", runtime_error);
 }
 
 TEST_CASE("Options: per_family_must_provide_tree")
@@ -558,17 +578,42 @@ TEST_CASE("Options: cannot_estimate_error_and_gamma_together")
 
 }
 
-TEST_CASE("Options: Cannot specify rootdist for simulations with rootdist file and transcript file")
+TEST_CASE("Specifying a --rootdist argument without the --simulate argument will result in an error")
 {
     input_parameters params;
     params.fixed_lambda = 10;
-    params.input_file_path = "transcripts.txt";
-    params.rootdist_params.type = rootdist_options::file;
+    params.rootdist_params.type = rootdist_type::file;
+    params.is_simulating = true;
     params.check_input();
     CHECK(true);
 
-    params.is_simulating = true;
-    CHECK_THROWS_WITH_AS(params.check_input(), "Options -i and -f are mutually exclusive.", runtime_error);
+    params.is_simulating = false;
+    params.input_file_path = "transcripts.txt";
+    CHECK_THROWS_WITH_AS(params.check_input(), "A root distribution was provided while estimating", runtime_error);
 
 }
 
+TEST_CASE("Cannot specify an input file when simulating")
+{
+    input_parameters params;
+    params.fixed_lambda = 10;
+    params.is_simulating = true;
+    params.check_input();
+    CHECK(true);
+
+    params.input_file_path = "transcripts.txt";
+    CHECK_THROWS_WITH_AS(params.check_input(), "A families file was provided while simulating", runtime_error);
+
+}
+
+TEST_CASE("Default simulation rootdist is gamma")
+{
+    input_parameters params;
+    params.fixed_lambda = 10;
+    params.is_simulating = true;
+    CHECK(params.rootdist_params.type == rootdist_type::none);
+
+    params.check_input();
+    CHECK(params.rootdist_params.type == rootdist_type::gamma);
+
+}
