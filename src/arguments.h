@@ -1,3 +1,5 @@
+#include <random>
+
 #include "optimizer.h"
 #include "root_equilibrium_distribution.h"
 
@@ -23,6 +25,7 @@ public:
     int cores = 0;
     optimizer_parameters optimizer_params;
     rootdist_options rootdist_params;
+    std::gamma_distribution<double> prior;
     bool help = false;
 
     //! Check calls

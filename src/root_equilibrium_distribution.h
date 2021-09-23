@@ -20,10 +20,10 @@ struct rootdist_options
     }
     rootdist_options(std::string cfg);
     
-    double gamma_alpha = 0.75, gamma_beta = 30.0;
+    std::gamma_distribution<double> dist;
     double fixed_value = 0.0;
     std::string filename;
-    rootdist_type type;
+    rootdist_type type = rootdist_type::none;
 };
 
 class root_equilibrium_distribution

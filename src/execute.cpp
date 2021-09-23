@@ -29,7 +29,7 @@ double __Qs[] = { 1.000000000190015, 76.18009172947146, -86.50532032941677,
 
 estimator::estimator(user_data& d, const input_parameters& ui) : action(d, ui)
 {
-    _p_prior = new root_distribution_gamma(ui.rootdist_params.gamma_alpha, ui.rootdist_params.gamma_beta);
+    _p_prior = new root_distribution_gamma(ui.prior.alpha(), ui.prior.beta());
 }
 
 void estimator::write_error_model_if_specified(const input_parameters& my_input_parameters, const model * p_model)

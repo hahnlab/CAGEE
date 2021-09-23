@@ -179,8 +179,12 @@ root_equilibrium_distribution* user_data::create_prior(rootdist_options params) 
         p_prior = new root_distribution_fixed(params.fixed_value);
         break;
     case rootdist_type::gamma:
-        LOG(INFO) << "Using user provided gamma root distribution (" << params.gamma_alpha << "," << params.gamma_beta << ")";
-        p_prior = new root_distribution_gamma(params.gamma_alpha, params.gamma_beta);
+        LOG(INFO) << "Using user provided gamma root distribution (" << params.dist << ")";
+        p_prior = new root_distribution_gamma(params.dist.alpha(), params.dist.beta());
+        break;
+    default:
+        LOG(INFO) << "Using default gamma root distribution";
+        p_prior = new root_distribution_gamma(0.75, 1.0/30.0);
         break;
     }
     return p_prior;
@@ -206,12 +210,12 @@ TEST_CASE("create_prior creates gamma distribution if given distribution")
 
 }
 
-TEST_CASE("create_prior returns null if nothing set")
+TEST_CASE("create_prior returns gamma distribution if nothing set")
 {
     rootdist_options opts;
     user_data ud;
-    ud.gene_families.resize(1);
-    CHECK_EQ(nullptr, ud.create_prior(opts));
+    auto dist = dynamic_cast<root_distribution_gamma*>(ud.create_prior(opts));
+    CHECK(dist != nullptr);
 }
 
 TEST_CASE("create_prior creates fixed root if requested")

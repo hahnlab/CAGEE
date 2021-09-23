@@ -192,6 +192,7 @@ input_parameters read_arguments(int argc, char* const argv[])
         ("optimizer_iterations,I", po::value<int>())
         ("error,e", po::value<string>()->default_value("false")->implicit_value("true"))
         ("rootdist", po::value<string>())
+        ("prior", po::value<string>())
         ("zero_root,z", po::value<bool>()->implicit_value(true))
         ("sigma_tree,y", po::value<string>(), "Path to sigma tree, for use with multiple sigmas")
         ("simulate,s", po::value<string>()->default_value("false"), "Simulate families. Optionally provide the number of simulations to generate")
@@ -247,6 +248,9 @@ input_parameters read_arguments(int argc, char* const argv[])
     if (vm.find("rootdist") != vm.end())
         my_input_parameters.rootdist_params = rootdist_options(vm["rootdist"].as<string>());
 
+    if (vm.find("prior") != vm.end())
+        my_input_parameters.prior = rootdist_options(vm["prior"].as<string>()).dist;
+
     string simulate_string = vm["simulate"].as<string>();
     my_input_parameters.is_simulating = simulate_string != "false";
     if (my_input_parameters.is_simulating)
@@ -290,9 +294,6 @@ void input_parameters::check_input() {
 
     if (is_simulating)
     {
-        if (rootdist_params.type == rootdist_type::none)
-            rootdist_params.type = rootdist_type::gamma;
-
         // Must specify a lambda
         if (fixed_lambda <= 0.0 && fixed_multiple_lambdas.empty()) {
             errors.push_back("Cannot simulate without initial sigma values");
@@ -603,17 +604,5 @@ TEST_CASE("Cannot specify an input file when simulating")
 
     params.input_file_path = "transcripts.txt";
     CHECK_THROWS_WITH_AS(params.check_input(), "A families file was provided while simulating", runtime_error);
-
-}
-
-TEST_CASE("Default simulation rootdist is gamma")
-{
-    input_parameters params;
-    params.fixed_lambda = 10;
-    params.is_simulating = true;
-    CHECK(params.rootdist_params.type == rootdist_type::none);
-
-    params.check_input();
-    CHECK(params.rootdist_params.type == rootdist_type::gamma);
 
 }
