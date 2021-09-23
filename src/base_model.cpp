@@ -7,7 +7,7 @@
 #include <iomanip>
 
 #include "base_model.h"
-#include "gene_family_reconstructor.h"
+#include "rootdist_estimator.h"
 #include "matrix_cache.h"
 #include "gene_transcript.h"
 #include "user_data.h"
@@ -17,6 +17,7 @@
 #include "sigma.h"
 #include "io.h"
 #include "DiffMat.h"
+#include "gene_family_reconstructor.h"
 
 using namespace std;
 
@@ -66,7 +67,7 @@ set<pair<double, double>> get_all_bounds(const vector<gene_transcript>& transcri
 
 }
 
-double base_model::infer_family_likelihoods(const user_data& ud, const sigma *p_sigma, const root_distribution_gamma& prior) {
+double base_model::infer_family_likelihoods(const user_data& ud, const sigma *p_sigma, const gamma_distribution<double>& prior) {
     //TIMED_FUNC(timerObj);
     _monitor.Event_InferenceAttempt_Started();
 
@@ -98,7 +99,7 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma *p_
         std::vector<double> full(partial_likelihood.size());
 
         for (size_t j = 0; j < partial_likelihood.size(); ++j) {
-            double eq_freq = prior.compute(ud.gene_families.at(i), j);
+            double eq_freq = gammapdf(j, prior);
 
             full[j] = std::log(partial_likelihood[j]) + std::log(eq_freq);
         }
@@ -125,7 +126,7 @@ void base_model::write_family_likelihoods(std::ostream& ost)
     }
 }
 
-inference_optimizer_scorer *base_model::get_lambda_optimizer(const user_data& data, const root_distribution_gamma& prior)
+inference_optimizer_scorer *base_model::get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior)
 {
     if (data.p_lambda != NULL)  // already have a lambda, nothing we want to optimize
         return nullptr;

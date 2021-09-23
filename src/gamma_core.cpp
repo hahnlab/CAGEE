@@ -12,7 +12,7 @@
 
 #include "gamma_core.h"
 #include "gamma.h"
-#include "root_equilibrium_distribution.h"
+#include "rootdist_estimator.h"
 #include "gene_family_reconstructor.h"
 #include "matrix_cache.h"
 #include "gene_transcript.h"
@@ -113,7 +113,7 @@ bool gamma_model::can_infer() const
     return true;
 }
 
-bool gamma_model::prune(const gene_transcript& family, const root_distribution_gamma& prior, const matrix_cache& diff_mat, const sigma*p_lambda,
+bool gamma_model::prune(const gene_transcript& family, const std::gamma_distribution<double>& prior, const matrix_cache& diff_mat, const sigma*p_lambda,
     const clade *p_tree, std::vector<double>& category_likelihoods) 
 {
     category_likelihoods.clear();
@@ -126,7 +126,7 @@ bool gamma_model::prune(const gene_transcript& family, const root_distribution_g
 
         std::vector<double> full(partial_likelihood.size());
         for (size_t j = 0; j < partial_likelihood.size(); ++j) {
-            double eq_freq = prior.compute(family, j);
+            double eq_freq = gammapdf(j, prior);
             full[j] = partial_likelihood[j] * eq_freq;
         }
 
@@ -138,7 +138,7 @@ bool gamma_model::prune(const gene_transcript& family, const root_distribution_g
 }
 
 //! Infer bundle
-double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma*p_lambda, const root_distribution_gamma& prior) {
+double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma*p_lambda, const std::gamma_distribution<double>& prior) {
 
     _monitor.Event_InferenceAttempt_Started();
 
@@ -209,7 +209,7 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma*p_
     return final_likelihood;
 }
 
-inference_optimizer_scorer *gamma_model::get_lambda_optimizer(const user_data& data, const root_distribution_gamma& prior)
+inference_optimizer_scorer *gamma_model::get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior)
 {
     bool estimate_lambda = data.p_lambda == NULL;
     bool estimate_alpha = _alpha <= 0.0;

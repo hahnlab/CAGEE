@@ -65,9 +65,9 @@ public:
     //! Randomly select one of the multipliers to apply to the simulation
     virtual sigma* get_simulation_lambda() override;
 
-    double infer_family_likelihoods(const user_data& ud, const sigma*p_lambda, const root_distribution_gamma& prior) override;
+    double infer_family_likelihoods(const user_data& ud, const sigma*p_lambda, const std::gamma_distribution<double>& prior) override;
 
-    virtual inference_optimizer_scorer *get_lambda_optimizer(const user_data& data, const root_distribution_gamma& prior) override;
+    virtual inference_optimizer_scorer *get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior) override;
 
     virtual std::string name() const override {
         return "Gamma";
@@ -92,7 +92,7 @@ public:
 
     bool can_infer() const;
 
-    bool prune(const gene_transcript& family, const root_distribution_gamma& eq, const matrix_cache& calc, const sigma*p_lambda,
+    bool prune(const gene_transcript& family, const std::gamma_distribution<double>& prior, const matrix_cache& calc, const sigma*p_lambda,
         const clade *p_tree, std::vector<double>& category_likelihoods);
 };
 

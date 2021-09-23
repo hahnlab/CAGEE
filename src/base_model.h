@@ -28,7 +28,7 @@ public:
     base_model(sigma* p_lambda, const std::vector<gene_transcript>* p_gene_families,
         error_model *p_error_model);
 
-    virtual double infer_family_likelihoods(const user_data& ud, const sigma*p_lambda, const root_distribution_gamma& prior) override;
+    virtual double infer_family_likelihoods(const user_data& ud, const sigma*p_lambda, const std::gamma_distribution<double>& prior) override;
 
     virtual std::string name() const {
         return "Base";
@@ -36,7 +36,7 @@ public:
 
     virtual void write_family_likelihoods(std::ostream& ost);
 
-    virtual inference_optimizer_scorer *get_lambda_optimizer(const user_data& data, const root_distribution_gamma& prior) override;
+    virtual inference_optimizer_scorer *get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior) override;
 
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache *p_calc);
 

@@ -82,7 +82,6 @@ class root_distribution_gamma : public root_equilibrium_distribution
 public:
     root_distribution_gamma(double alpha, double beta);
 
-    float compute(const gene_transcript& t, double n) const;
     void resize(size_t new_size) override;
     float select_root_value(int family_number) override;
 };

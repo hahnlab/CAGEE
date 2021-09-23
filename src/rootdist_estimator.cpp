@@ -24,7 +24,7 @@ double poisspdf(double x, double lambda)
   return exp(x*log(lambda) - lgamma(x + 1) - lambda);
 }
 
-double gammapdf(double value, double alpha, double beta) {
+double gammapdf(double value, const std::gamma_distribution<double>& dist) {
 #if 0
     double a = std::pow(beta, alpha);
     double b = std::pow(value, (alpha - 1));
@@ -32,7 +32,7 @@ double gammapdf(double value, double alpha, double beta) {
     double d = tgamma(alpha);
     return (a * b * c) / d;
 #else
-    return (std::pow(beta, alpha) * std::pow(value, (alpha - 1)) * std::pow(M_E, (-1 * beta * value))) / tgamma(alpha);
+    return (std::pow(dist.beta(), dist.alpha()) * std::pow(value, (dist.alpha() - 1)) * std::pow(M_E, (-1 * dist.beta() * value))) / tgamma(dist.alpha());
 #endif
 }
 

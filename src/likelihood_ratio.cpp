@@ -91,7 +91,7 @@ namespace LikelihoodRatioTest
         }
     }
 
-    void lhr_for_diff_lambdas(const user_data & data, model *p_model, const root_distribution_gamma& prior)
+    void lhr_for_diff_lambdas(const user_data & data, model *p_model, const std::gamma_distribution<double>& prior)
     {
         std::vector<sigma*> lambda_cache(100);
 

@@ -2,6 +2,7 @@
 #define EXECUTE_H
 
 #include <vector>
+#include <random>
 
 #include "io.h"
 
@@ -46,7 +47,7 @@ public:
 */
 class estimator : public action
 {
-    root_distribution_gamma* _p_prior = NULL;
+    std::gamma_distribution<double> _prior;
 public:
     estimator(user_data& d, const input_parameters& ui);
 

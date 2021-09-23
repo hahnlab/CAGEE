@@ -2,6 +2,7 @@
 #define CORE_H
 
 #include <set>
+#include <random>
 
 #include "easylogging++.h"
 
@@ -154,7 +155,7 @@ public:
     //! Returns a lambda suitable for creating a simulated family. Default case is simply to return the lambda provided by the user.
     virtual sigma* get_simulation_lambda();
 
-    virtual double infer_family_likelihoods(const user_data& ud, const sigma*p_lambda, const root_distribution_gamma& prior) = 0;  // return vector of likelihoods
+    virtual double infer_family_likelihoods(const user_data& ud, const sigma*p_lambda, const std::gamma_distribution<double>& prior) = 0;  // return vector of likelihoods
     
     virtual std::string name() const = 0;
     virtual void write_family_likelihoods(std::ostream& ost) = 0;
@@ -164,7 +165,7 @@ public:
     //! Based on the model parameters, attempts to reconstruct the most likely counts of each family at each node
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache *p_calc) = 0;
 
-    virtual inference_optimizer_scorer *get_lambda_optimizer(const user_data& data, const root_distribution_gamma& prior) = 0;
+    virtual inference_optimizer_scorer *get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior) = 0;
 
     const event_monitor& get_monitor() { return _monitor;  }
 };
