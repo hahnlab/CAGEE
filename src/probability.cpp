@@ -6,6 +6,7 @@
 #include <numeric>
 #include <cmath>
 #include <memory>
+#include <iterator>
 
 #include "doctest.h"
 #include "easylogging++.h"
@@ -103,6 +104,16 @@ std::pair<double, double> bounds(const gene_transcript& gt)
     return std::pair<double, double>(0, max(MINIMUM_UPPER_BOUND, gt.get_max_expression_value() * 1.5));
 }
 
+void print_probabilities(const std::map<const clade*, VectorXd>& probabilities, const clade *node)
+{
+    auto& probs = probabilities.at(node);
+    cout << "node " << node->get_taxon_name() << ":";
+    for (int i = 0; i < probs.size(); ++i)
+        if (probs[i] != 0)
+            cout << i << "=" << probs[i] << ' ';
+    cout << endl;
+}
+
 //! Calculates the probabilities of a given node for a given family size.
 //! The probability of a leaf node is given from the family size at that node (1 for the family
 //! size, and 0 for all other sizes). Internal nodes are calculated based on the probabilities
@@ -134,6 +145,7 @@ void compute_node_probability(const clade* node,
         {
             // cout << "Leaf node " << node->get_taxon_name() << " has " << _probabilities[node].size() << " probabilities" << endl;
             probabilities[node] = VectorPos_bounds(species_size, DISCRETIZATION_RANGE, bounds(gene_transcript));
+            print_probabilities(probabilities, node);
         }
     }
     else  {

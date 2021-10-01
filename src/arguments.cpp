@@ -226,8 +226,15 @@ input_parameters read_arguments(int argc, char* const argv[])
         }
         else
         {
-            store(po::parse_config_file(ifs, config_file_options), vm);
-            notify(vm);
+            try
+            {
+                store(po::parse_config_file(ifs, config_file_options), vm);
+                notify(vm);
+            }
+            catch (boost::program_options::unknown_option& e)
+            {
+                throw std::runtime_error("Unknown option: " + e.get_option_name());
+            }
         }
     }
 
