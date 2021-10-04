@@ -59,7 +59,7 @@ const DiffMat& DiffMat::instance()
     return *p_diffmat;
 }
 
-vector<MatrixXd> ConvProp_bounds_batched(vector<double> vt, double cCoeff, const DiffMat& dMat, vector<boundaries> vbounds) {
+vector<MatrixXd> ConvProp_bounds_batched(vector<double> vt, vector<double> cCoeff, const DiffMat& dMat, vector<boundaries> vbounds) {
     // Calculate the transition density (dMat.diff to the power of cCoeff * t * (n-1)^2 / (b-a)^2
     // using eigenvectors to speed up the calculation
     size_t count = vt.size();
@@ -72,7 +72,7 @@ vector<MatrixXd> ConvProp_bounds_batched(vector<double> vt, double cCoeff, const
         vector<double> expD(Npts);
         for (int i = 0; i < Npts; ++i)
         {
-            expD[i] = exp(cCoeff * (vt[k] / tau) * dMat.eig[i].real());
+            expD[i] = exp(cCoeff[k] * (vt[k] / tau) * dMat.eig[i].real());
         }
         MatrixXcd temp(Npts, Npts);
         for (int i = 0; i < Npts; ++i)
@@ -86,7 +86,7 @@ vector<MatrixXd> ConvProp_bounds_batched(vector<double> vt, double cCoeff, const
 }
 
 MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, boundaries bounds) {
-    return ConvProp_bounds_batched(vector<double>({ t }), cCoeff, dMat, vector<boundaries>({ bounds }))[0];
+    return ConvProp_bounds_batched(vector<double>({ t }), vector<double>({ cCoeff }), dMat, vector<boundaries>({ bounds }))[0];
 }
 
 VectorXd VectorPos_bounds(double x, int Npts, boundaries bounds) {
