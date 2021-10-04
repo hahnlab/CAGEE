@@ -145,7 +145,7 @@ void compute_node_probability(const clade* node,
         {
             // cout << "Leaf node " << node->get_taxon_name() << " has " << _probabilities[node].size() << " probabilities" << endl;
             probabilities[node] = VectorPos_bounds(species_size, DISCRETIZATION_RANGE, bounds(gene_transcript));
-            print_probabilities(probabilities, node);
+            //print_probabilities(probabilities, node);
         }
     }
     else  {

@@ -1,5 +1,6 @@
 #include <string>
 #include <fstream>
+#include <iterator>
 
 #ifdef Boost_FOUND
 #include <boost/program_options.hpp>
