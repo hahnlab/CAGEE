@@ -30,7 +30,7 @@ rootdist_options::rootdist_options(std::string cfg)
     if (tokens[0] == "gamma")
     {
         type = rootdist_type::gamma;
-        dist = gamma_distribution<double>(stof(tokens[1]), 1.0/stof(tokens[2]));
+        dist = gamma_distribution<double>(stof(tokens[1]), stof(tokens[2]));
     }
     if (tokens[0] == "file")
     {

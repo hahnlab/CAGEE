@@ -28,9 +28,9 @@ double gammapdf(double value, const std::gamma_distribution<double>& dist) {
 #if 0
     double a = std::pow(beta, alpha);
     double b = std::pow(value, (alpha - 1));
-    double c = std::pow(M_E, (-1 * beta * value));
+    double c = std::pow(M_E, (-1 * value/beta ));
     double d = tgamma(alpha);
-    return (a * b * c) / d;
+    return (b * c) /(a * d);
 #else
     return (std::pow(dist.beta(), dist.alpha()) * std::pow(value, (dist.alpha() - 1)) * std::pow(M_E, (-1 * dist.beta() * value))) / tgamma(dist.alpha());
 #endif
