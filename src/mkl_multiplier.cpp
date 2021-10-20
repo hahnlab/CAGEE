@@ -1,6 +1,6 @@
 #include "mkl_multiplier.h"
 
-#ifdef HAVE_MKL
+#ifdef BLAS_FOUND
 using namespace std;
 using namespace Eigen;
 

@@ -7,7 +7,7 @@
 #include "gpu_multiplier.h"
 #endif
 
-#ifdef HAVE_MKL
+#ifdef BLAS_FOUND
 #include "mkl_multiplier.h"
 #endif
 
@@ -40,11 +40,12 @@ DiffMat::DiffMat(int Npts) {
     VLOG(MATRIX) << eig;
     VLOG(MATRIX) << "Eigenvalues end";
 
-#ifdef HAVE_MKL
+#ifdef BLAS_FOUND
     multiplier = new mkl_multiplier();
 #elif defined HAVE_CUDA    
     multiplier = new gpu_multiplier(Npts);
 #else
+    LOG(WARN) << "No math library available, application may be slow";
     multiplier = new eigen_multiplier();
 #endif
 }

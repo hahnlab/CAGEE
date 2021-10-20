@@ -24,7 +24,7 @@ public:
 
 #ifdef HAVE_CUDA
     gpu_multiplier* multiplier;
-#elif defined HAVE_MKL
+#elif defined BLAS_FOUND
     mkl_multiplier* multiplier;
 #else
     eigen_multiplier* multiplier;

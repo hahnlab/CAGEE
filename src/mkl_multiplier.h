@@ -1,11 +1,11 @@
 #pragma once
 
-#ifdef HAVE_MKL
+#ifdef BLAS_FOUND
 #include "mkl.h"
 #include <Eigen/Dense>
 #include <vector>
 
-class mkl_multiplier
+class mkl_multiplier 
 {
     size_t max_matrix_count;
 public:

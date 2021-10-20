@@ -14,7 +14,7 @@
 #include "DiffMat.h"
 #include "sigma.h"
 
-#ifdef HAVE_BLAS
+#ifdef BLAS_FOUND
 #ifdef HAVE_OPENBLAS
 #include "cblas.h"
 #else

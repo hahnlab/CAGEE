@@ -12,7 +12,11 @@ set(NUM_OPTIMIZER_INITIALIZATION_ATTEMPTS 100)
 set(LAMBDA_PERTURBATION_STEP_SIZE 1)
 
 CHECK_INCLUDE_FILE(getopt.h HAVE_GETOPT_H)
+
+find_package (Eigen3 3.3 REQUIRED NO_MODULE)
+
 find_package(BLAS)
+
 find_package(Boost COMPONENTS program_options)
 
 configure_file(config.h.in config.h)
@@ -20,11 +24,12 @@ configure_file(config.h.in config.h)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+
 # add the executable
 add_executable(cagee main.cpp)
 add_executable(tests EXCLUDE_FROM_ALL test.cpp)
 
-include_directories(${Eigen3_DIR})
+include_directories(${EIGEN3_INCLUDE_DIR})
 
 target_compile_definitions(cagee PRIVATE DOCTEST_CONFIG_DISABLE)
 target_compile_definitions(tests PRIVATE SILENT ELPP_NO_CHECK_MACROS)
@@ -42,6 +47,11 @@ endif()
 if(Boost_FOUND)
     target_link_libraries(cagee PRIVATE Boost::program_options)
     target_link_libraries(tests PRIVATE Boost::program_options)
+endif()
+
+if(BLAS_FOUND)
+    target_link_libraries(cagee PRIVATE ${BLAS_LIBRARIES})
+    target_link_libraries(tests PRIVATE ${BLAS_LIBRARIES})
 endif()
 
 if(MSVC)
