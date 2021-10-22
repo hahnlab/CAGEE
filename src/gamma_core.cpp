@@ -158,7 +158,14 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma*p_
 
     vector<vector<family_info_stash>> pruning_results(ud.gene_families.size());
     matrix_cache cache;
-    cache.precalculate_matrices(p_lambda->get_lambdas(), get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
+    vector<double> multipliers;
+    for (auto multiplier : _lambda_multipliers)
+    {
+        unique_ptr<sigma> mult(p_lambda->multiply(multiplier));
+        auto values = mult->get_lambdas();
+        multipliers.insert(multipliers.end(), values.begin(), values.end());
+    }
+    cache.precalculate_matrices(multipliers, get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
 
 #pragma omp parallel for
     for (int i = 0; i < ud.gene_families.size(); i++) {
