@@ -194,6 +194,7 @@ input_parameters read_arguments(int argc, char* const argv[])
         ("error,e", po::value<string>()->default_value("false")->implicit_value("true"))
         ("rootdist", po::value<string>())
         ("prior", po::value<string>())
+        ("verbose", po::value<int>())
         ("zero_root,z", po::value<bool>()->implicit_value(true))
         ("sigma_tree,y", po::value<string>(), "Path to sigma tree, for use with multiple sigmas")
         ("simulate,s", po::value<string>()->default_value("false"), "Simulate families. Optionally provide the number of simulations to generate")
@@ -252,6 +253,7 @@ input_parameters read_arguments(int argc, char* const argv[])
     maybe_set(vm, "optimizer_iterations", my_input_parameters.optimizer_params.neldermead_iterations);
     maybe_set(vm, "fixed_multiple_sigmas", my_input_parameters.fixed_multiple_lambdas);
     maybe_set(vm, "sigma_tree", my_input_parameters.lambda_tree_file_path);
+    maybe_set(vm, "verbose", my_input_parameters.verbose_logging_level);
 
     if (vm.find("rootdist") != vm.end())
         my_input_parameters.rootdist_params = rootdist_options(vm["rootdist"].as<string>());
