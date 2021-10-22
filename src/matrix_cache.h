@@ -20,7 +20,7 @@ public:
         _branch_length(long(branch_length * 1000)) {} // keep 3 significant digits
 
     bool operator<(const matrix_cache_key& o) const {
-        return std::tie(_bounds.first, _bounds.second, _branch_length, _sigma) < std::tie(o._bounds.first, o._bounds.second, o._branch_length, _sigma);
+        return std::tie(_bounds.first, _bounds.second, _branch_length, _sigma) < std::tie(o._bounds.first, o._bounds.second, o._branch_length, o._sigma);
     }
     boundaries bounds() const {
         return boundaries(double(_bounds.first / 1000000000.0), double(_bounds.second / 1000000000.0));

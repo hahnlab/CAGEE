@@ -118,3 +118,24 @@ TEST_CASE(" matrix_cache_key handles floating point imprecision")
     matrix_cache_key key(boundaries(0, 3.0), 0.01, 0.3);
     CHECK_EQ(1, keys.count(key));
 }
+
+TEST_CASE("get_matrix returns correct matrix based on key")
+{
+    matrix_cache cache;
+    Matrix3d m1;
+    cache.set_matrix(44, 3.2642504711034, boundaries(0, 84.9), m1);
+
+    Matrix2d m2;
+    cache.set_matrix(44, 3.1010379475482, boundaries(0, 84.9), m2);
+
+    CHECK_EQ(4, cache.get_matrix(44, 3.1010379475482, boundaries(0, 84.9)).size());
+    CHECK_EQ(9, cache.get_matrix(44, 3.2642504711034, boundaries(0, 84.9)).size());
+}
+
+TEST_CASE("matrix_cache_key checks sigma for less than")
+{
+    matrix_cache_key key(boundaries(0, 84.9), 3.2642504711034, 44);
+    matrix_cache_key key2(boundaries(0, 84.9), 3.1010379475482, 44);
+
+    CHECK(key2 < key);
+}

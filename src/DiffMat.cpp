@@ -1,7 +1,7 @@
-#include "DiffMat.h"
-
 #include "doctest.h"
 #include "easylogging++.h"
+
+#include "DiffMat.h"
 
 #ifdef HAVE_CUDA
 #include "gpu_multiplier.h"
@@ -45,7 +45,7 @@ DiffMat::DiffMat(int Npts) {
 #elif defined HAVE_CUDA    
     multiplier = new gpu_multiplier(Npts);
 #else
-    LOG(WARN) << "No math library available, application may be slow";
+    LOG(WARNING) << "No math library available, calculations may be slow";
     multiplier = new eigen_multiplier();
 #endif
 }
@@ -158,3 +158,10 @@ TEST_CASE("ConvProp_bounds")
             CHECK(actual(i, j) == doctest::Approx(expected(i, j)));
 }
 
+TEST_CASE("ConvProp_bounds returns different values for different values of sigma")
+{
+    DiffMat dMat(200);
+    MatrixXd actual = ConvProp_bounds(44, 3.2642504711034, dMat, boundaries(0.0, 85.0028));
+    MatrixXd a2 = ConvProp_bounds(44, 3.1010379475482, dMat, boundaries(0.0, 85.0028));
+    CHECK(actual != a2);
+}
