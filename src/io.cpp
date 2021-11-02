@@ -66,7 +66,7 @@ void read_gene_families(std::istream& input_file, clade *p_tree, std::vector<gen
 
         // If still reading header
         if (is_header) {
-            if (tokens[2] == "Treatment_Tissue")
+            if (tokens[2] == "SAMPLETYPE")
                 first_gene_index = 3;
             is_header = false;
                 
@@ -245,7 +245,7 @@ TEST_CASE("GeneFamilies: read_gene_families_reads_cafe_files")
 
 TEST_CASE("read_gene_families reads Treatment Tissue header")
 {
-    std::string str = "Desc\tFamily ID\tTreatment_Tissue\tA\tB\tC\tD\n\t (null)1\tovary\t5\t10\t2\t6\n\t (null)2\tlung\t5\t10\t2\t6\n\t (null)3\tbreast\t5\t10\t2\t6\n\t (null)4\tbrain\t5\t10\t2\t6";
+    std::string str = "Desc\tFamily ID\tSAMPLETYPE\tA\tB\tC\tD\n\t (null)1\tovary\t5\t10\t2\t6\n\t (null)2\tlung\t5\t10\t2\t6\n\t (null)3\tbreast\t5\t10\t2\t6\n\t (null)4\tbrain\t5\t10\t2\t6";
     std::istringstream ist(str);
     std::vector<gene_transcript> families;
     read_gene_families(ist, NULL, families);

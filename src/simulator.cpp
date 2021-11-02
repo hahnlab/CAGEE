@@ -172,6 +172,7 @@ void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes
     {
         LOG(ERROR) << "No simulations created" << endl;
         return;
+
     }
     ost << "DESC\tFID";
     for (size_t i = 0; i < order.size(); ++i)
@@ -187,7 +188,7 @@ void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes
     for (size_t j = 0; j < results.size(); ++j) {
         auto& fam = results[j];
         // Printing gene counts
-        ost << "L" << fam.lambda << "\tsimfam" << j;
+        ost << "L" << fam.lambda << "\ttranscript" << j;
         for (size_t i = 0; i < order.size(); ++i)
         {
             if (order[i]->is_leaf() || include_internal_nodes)
@@ -237,7 +238,7 @@ TEST_CASE("binner")
     CHECK_EQ(doctest::Approx(1.720113), b.value(40));
 }
 
-#define STRCMP_CONTAINS(x, y) CHECK(strstr(y,x) != nullptr)
+#define CHECK_STREAM_CONTAINS(x,y) CHECK_MESSAGE(x.str().find(y) != std::string::npos, x.str())
 
 TEST_CASE("print_process_prints_in_order")
 {
@@ -258,8 +259,8 @@ TEST_CASE("print_process_prints_in_order")
     simulator sim(data, params);
     sim.print_simulations(ost, true, my_trials);
 
-    STRCMP_CONTAINS("DESC\tFID\tB\tA\t2", ost.str().c_str());
-    STRCMP_CONTAINS("L0\tsimfam0\t4\t2\t6", ost.str().c_str());
+    CHECK_STREAM_CONTAINS(ost, "DESC\tFID\tB\tA\t2");
+    CHECK_STREAM_CONTAINS(ost, "L0\ttranscript0\t4\t2\t6");
 
 }
 
@@ -281,8 +282,8 @@ TEST_CASE("print_process_can_print_without_internal_nodes")
     input_parameters params;
     simulator sim(data, params);
     sim.print_simulations(ost, false, my_trials);
-    STRCMP_CONTAINS("DESC\tFID\tB\tA\n", ost.str().c_str());
-    STRCMP_CONTAINS("L0\tsimfam0\t4\t2\n", ost.str().c_str());
+    CHECK_STREAM_CONTAINS(ost, "DESC\tFID\tB\tA\n");
+    CHECK_STREAM_CONTAINS(ost, "L0\ttranscript0\t4\t2\n");
 
 }
 
