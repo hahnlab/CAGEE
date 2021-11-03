@@ -25,6 +25,7 @@ public:
     int cores = 0;
     optimizer_parameters optimizer_params;
     rootdist_options rootdist_params;
+    std::vector<std::string> sample_groups;
     std::gamma_distribution<double> prior;
     bool help = false;
 

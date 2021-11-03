@@ -101,7 +101,7 @@ sigma* user_data::read_lambda(const input_parameters &my_input_parameters, clade
             [](string const& val) { return stod(val); } // this is the equivalent of a Python's lambda function
         );
 
-        p_lambda = new sigma(node_name_to_lambda_index, lambdas);
+        p_lambda = new sigma(node_name_to_lambda_index, lambdas, sigma_type::lineage_specific);
     }
 
     return p_lambda;
@@ -183,8 +183,8 @@ root_equilibrium_distribution* user_data::create_prior(rootdist_options params) 
         p_prior = new root_distribution_gamma(params.dist.alpha(), params.dist.beta());
         break;
     default:
-        LOG(INFO) << "Using default gamma root distribution";
-        p_prior = new root_distribution_gamma(0.75, 1.0/30.0);
+        LOG(INFO) << "Using default gamma root distribution (0.75, 30.0)";
+        p_prior = new root_distribution_gamma(0.75, 30.0);
         break;
     }
     return p_prior;

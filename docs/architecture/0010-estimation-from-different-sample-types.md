@@ -25,8 +25,13 @@ times. The parameter will support comma-separated samples, so the arguments shou
 
 $ cagee --sample_group heart,lungs --sample_group brain
 
-If there are samples that the user does not specify in a sample group, they will be placed in a separate 
-group, and a warning message will be issued.
+If there are samples that the user does not specify in a sample group, they will be left out of the 
+analysis, and a warning message will be issued.
+
+In the results, each sigma will be specified by the members of its group: 
+
+sigma for heart,lungs: 5.7
+sigma for brain: 9.2
 
 An alternative would be to support a sample_group_count parameter and require that the user provide
 the exact number of sample groups in the parameter. This seems to add additional cognitive load for the

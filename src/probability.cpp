@@ -153,7 +153,7 @@ void compute_node_probability(const clade* node,
         node_probs = VectorXd::Constant(DISCRETIZATION_RANGE, 1);
 
         for (auto it = node->descendant_begin(); it != node->descendant_end(); ++it) {
-            const MatrixXd& m = cache.get_matrix((*it)->get_branch_length(), p_sigma->get_value_for_clade(*it), bounds(gene_transcript));
+            const MatrixXd& m = cache.get_matrix((*it)->get_branch_length(), p_sigma->get_named_value(*it, gene_transcript), bounds(gene_transcript));
 
             VectorXd result = m * probabilities[*it];
             for (VectorXd::Index i = 0; i < node_probs.size(); i++) {

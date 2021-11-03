@@ -1202,18 +1202,6 @@ TEST_CASE("Clade: copy_constructor_modifying_branch")
     CHECK_EQ(14, copy->find_descendant("AB")->get_branch_length());
 }
 
-TEST_CASE("Inference: multiple_lambda_returns_correct_values")
-{
-    ostringstream ost;
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-
-    map<string, int> key;
-    key["A"] = 5;
-    key["B"] = 3;
-    sigma ml(key, { .03, .05, .07, .011, .013, .017 });
-    CHECK_EQ(.017, ml.get_value_for_clade(p_tree->find_descendant("A")));
-    CHECK_EQ(.011, ml.get_value_for_clade(p_tree->find_descendant("B")));
-}
 
 TEST_CASE("Simulation: gamma_model_get_simulation_lambda_uses_multiplier_based_on_category_probability")
 {

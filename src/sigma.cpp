@@ -2,9 +2,12 @@
 #include <iomanip>
 #include <sstream>
 
+#include "doctest.h"
+
 #include "sigma.h"
 #include "matrix_cache.h"
 #include "clade.h"
+#include "gene_transcript.h"
 
 using namespace std;
 
@@ -38,5 +41,69 @@ double sigma::get_value_for_clade(const clade *c) const {
     return _lambdas[index];
 }
 
-/* END: Holding lambda values and specifying how likelihood is computed depending on the number of different lambdas */
+double sigma::get_named_value(const clade* c, const gene_transcript& t) const {
+    string name;
+    switch (_type)
+    {
+    case sigma_type::uniform:
+        return _lambdas[0];
+    case sigma_type::lineage_specific:
+        name = c->get_taxon_name();
+        break;
+    case sigma_type::sample_specific:
+        name = t.tissue();
+    }
+    return _lambdas[_node_name_to_lambda_index.at(name)];
+}
 
+
+TEST_CASE("lineage_specific sigma returns correct values")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    map<string, int> key;
+    key["A"] = 5;
+    key["B"] = 3;
+    sigma ml(key, { .03, .05, .07, .011, .013, .017 }, sigma_type::lineage_specific);
+    CHECK_EQ(.017, ml.get_value_for_clade(p_tree->find_descendant("A")));
+    CHECK_EQ(.011, ml.get_value_for_clade(p_tree->find_descendant("B")));
+
+    gene_transcript t;
+    CHECK_EQ(.017, ml.get_named_value(p_tree->find_descendant("A"), t));
+    CHECK_EQ(.011, ml.get_named_value(p_tree->find_descendant("B"), t));
+
+}
+
+TEST_CASE("sample_specific sigma returns correct values")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    map<string, int> key;
+    key["heart"] = 2;
+    key["lungs"] = 4;
+    sigma ml(key, { .03, .05, .07, .011, .013, .017 }, sigma_type::sample_specific);
+    gene_transcript t("C", "", "heart");
+    gene_transcript t2("D", "", "lungs");
+    CHECK_EQ(.07, ml.get_named_value(p_tree->find_descendant("A"), t));
+    CHECK_EQ(.013, ml.get_named_value(p_tree->find_descendant("B"), t2));
+}
+
+TEST_CASE("is_valid returns false if any value is negative")
+{
+    map<string, int> key;
+    sigma ml(key, { .03, .05, .07, .011, .013, .017 }, sigma_type::sample_specific);
+
+    CHECK(ml.is_valid());
+
+    sigma m2(key, { .03, .05, .07, .011, -.013, .017 }, sigma_type::sample_specific);
+    CHECK_FALSE(m2.is_valid());
+}
+
+TEST_CASE("update")
+{
+    map<string, int> key;
+    sigma ml(key, { .03, .05, .07 }, sigma_type::sample_specific);
+    double newvalues[3] = { .11, .15, .17 };
+    ml.update(newvalues);
+    CHECK_EQ(vector<double>({ .11, .15, .17 }), ml.get_lambdas());
+}

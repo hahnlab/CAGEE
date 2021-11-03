@@ -38,7 +38,7 @@ namespace pupko_reconstructor {
         double observed_count = t.get_expression_value(c->get_taxon_name());
         fill(C.begin(), C.end(), observed_count);
 
-        auto matrix = _p_calc->get_matrix(branch_length, p_sigma->get_value_for_clade(c), bounds(t));
+        auto matrix = _p_calc->get_matrix(branch_length, p_sigma->get_named_value(c, t), bounds(t));
         // i will be the parent size
         for (size_t i = 0; i < L.size(); ++i)
         {
@@ -83,7 +83,7 @@ namespace pupko_reconstructor {
 
         double branch_length = c->get_branch_length();
 
-        auto matrix = _p_calc->get_matrix(branch_length, p_sigma->get_value_for_clade(c), bounds(t));
+        auto matrix = _p_calc->get_matrix(branch_length, p_sigma->get_named_value(c, t), bounds(t));
 
         size_t j = 0;
         double value = 0.0;
@@ -400,7 +400,7 @@ branch_probabilities::branch_probability compute_viterbi_sum(const clade* c,
         return branch_probabilities::invalid();
     }
 
-    auto probs = cache.get_matrix(c->get_branch_length(), p_lambda->get_value_for_clade(c), bounds(family));
+    auto probs = cache.get_matrix(c->get_branch_length(), p_lambda->get_named_value(c, family), bounds(family));
 
     int parent_size = rec->get_node_count(family, c->get_parent());
     int child_size = rec->get_node_count(family, c);
