@@ -25,7 +25,7 @@ public:
     int cores = 0;
     optimizer_parameters optimizer_params;
     rootdist_options rootdist_params;
-    std::gamma_distribution<double> prior;
+    std::gamma_distribution<double> prior = std::gamma_distribution<double>(.75, 30.0);
     bool help = false;
 
     //! Check calls

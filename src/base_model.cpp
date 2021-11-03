@@ -99,9 +99,11 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma *p_
         std::vector<double> full(partial_likelihood.size());
 
         for (size_t j = 0; j < partial_likelihood.size(); ++j) {
-            double eq_freq = gammapdf(j, prior);
+            double eq_freq = gammapdf(partial_likelihood[j], prior);
+            full[j] = log(partial_likelihood[j]) + log(eq_freq);
+            if (isnan(full[j]))
+               full[j] = -numeric_limits<double>::infinity();
 
-            full[j] = std::log(partial_likelihood[j]) + std::log(eq_freq);
         }
 
         //        all_families_likelihood[i] = accumulate(full.begin(), full.end(), 0.0); // sum over all sizes (Felsenstein's approach)

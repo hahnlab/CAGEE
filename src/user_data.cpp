@@ -183,8 +183,8 @@ root_equilibrium_distribution* user_data::create_prior(rootdist_options params) 
         p_prior = new root_distribution_gamma(params.dist.alpha(), params.dist.beta());
         break;
     default:
-        LOG(INFO) << "Using default gamma root distribution";
-        p_prior = new root_distribution_gamma(0.75, 1.0/30.0);
+        LOG(INFO) << "Using default gamma root distribution (0.75, 30)";
+        p_prior = new root_distribution_gamma(0.75, 30.0);
         break;
     }
     return p_prior;
