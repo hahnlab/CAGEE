@@ -64,6 +64,34 @@ sigma_optimizer_scorer::sigma_optimizer_scorer(sigma* p_lambda, model* p_model, 
     _species_variance = std::accumulate(variances.begin(), variances.end(), 0.0) / double(variances.size());
 }
 
+sigma_optimizer_scorer::sigma_optimizer_scorer(
+    model* p_model,
+    error_model* p_error_model,
+    const user_data& user_data,
+    const std::gamma_distribution<double>& prior,
+    sigma* p_lambda) :
+    inference_optimizer_scorer(p_lambda, p_model, user_data, prior),
+    _p_error_model(p_error_model),
+    _tree_length(0),
+    _species_variance(0)
+{
+}
+
+sigma_optimizer_scorer::sigma_optimizer_scorer(
+    model* p_model,
+    error_model* p_error_model,
+    const user_data& user_data,
+    const std::gamma_distribution<double>& prior,
+    sigma* p_lambda,
+    double tree_length,
+    double species_variance) :
+    inference_optimizer_scorer(p_lambda, p_model, user_data, prior),
+    _p_error_model(p_error_model),
+    _tree_length(tree_length),
+    _species_variance(species_variance)
+{
+}
+
 std::vector<double> sigma_optimizer_scorer::initial_guesses()
 {
     double distmean = sqrt(_species_variance / _tree_length);
@@ -73,61 +101,53 @@ std::vector<double> sigma_optimizer_scorer::initial_guesses()
     {
     	i = distribution(randomizer_engine);
     }
+    if (_p_error_model)
+    {
+        current_epsilon_guesses = _p_error_model->get_epsilons();
+        result.insert(result.end(), current_epsilon_guesses.begin(), current_epsilon_guesses.end());
+    }
     return result;
 }
 
 void sigma_optimizer_scorer::prepare_calculation(const double *values)
 {
-    _p_sigma->update(values);
+    if (_p_error_model)
+    {
+        auto lambdas = values;
+        auto epsilons = values + _p_sigma->count();
+
+        _p_sigma->update(values);
+
+        map<double, double> replacements;
+        for (size_t i = 0; i < current_epsilon_guesses.size(); ++i)
+        {
+            replacements[current_epsilon_guesses[i]] = epsilons[i];
+            current_epsilon_guesses[i] = epsilons[i];
+        }
+
+        _p_error_model->replace_epsilons(&replacements);
+    }
+    else
+    {
+        _p_sigma->update(values);
+    }
 }
 
 void sigma_optimizer_scorer::report_precalculation()
 {
-    LOG(INFO) << "Sigma^2: " << *_p_sigma;
+    if (_p_error_model)
+        LOG(INFO) << "Sigma^2: " << *_p_sigma << ", Epsilon=" << _p_error_model->get_epsilons().back() * 2.0;
+    else
+        LOG(INFO) << "Sigma^2: " << *_p_sigma;
 }
 
 void sigma_optimizer_scorer::finalize(double *results)
 {
     _p_sigma->update(results);
-}
-
-std::vector<double> lambda_epsilon_optimizer::initial_guesses()
-{
-    auto result = _lambda_optimizer.initial_guesses();
-
-    current_guesses = _p_error_model->get_epsilons();
-    result.insert(result.end(), current_guesses.begin(), current_guesses.end());
-
-    return result;
-
-}
-
-void lambda_epsilon_optimizer::prepare_calculation(const double *values)
-{
-    auto lambdas = values;
-    auto epsilons = values + _p_sigma->count();
-
-    _lambda_optimizer.prepare_calculation(lambdas);
-
-    map<double, double> replacements;
-    for (size_t i = 0; i < current_guesses.size(); ++i)
+    if (_p_error_model)
     {
-        replacements[current_guesses[i]] = epsilons[i];
-        current_guesses[i] = epsilons[i];
+        _p_error_model->update_single_epsilon(results[_p_sigma->count()]);
     }
-
-    _p_error_model->replace_epsilons(&replacements);
-}
-
-void lambda_epsilon_optimizer::report_precalculation()
-{
-    LOG(INFO) << "Calculating probability: epsilon=" << _p_error_model->get_epsilons().back()*2.0 << ", " << "lambda=" << *_p_sigma;
-}
-
-void lambda_epsilon_optimizer::finalize(double *results)
-{
-    _lambda_optimizer.finalize(results);
-    _p_error_model->update_single_epsilon(results[_p_sigma->count()]);
 }
 
 gamma_optimizer::gamma_optimizer(gamma_model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior) :
@@ -265,7 +285,7 @@ TEST_CASE("lambda_epsilon_optimizer guesses lambda and unique epsilons")
 
     sigma s(10);
     user_data ud;
-    lambda_epsilon_optimizer leo(nullptr, &err, ud, std::gamma_distribution<double>(1, 2), &s, 10, 1);
+    sigma_optimizer_scorer leo(nullptr, &err, ud, std::gamma_distribution<double>(1, 2), &s, 10, 1);
     auto guesses = leo.initial_guesses();
     REQUIRE(guesses.size() == 3);
     CHECK_EQ(doctest::Approx(0.30597).epsilon(0.00001), guesses[0]);
@@ -299,6 +319,44 @@ TEST_CASE("gamma_optimizer creates single initial guess")
     auto initial = optimizer.initial_guesses();
     CHECK_EQ(1, initial.size());
 }
+
+class mock_model : public model {
+    // Inherited via model
+    virtual std::string name() const override {  return "mockmodel"; }
+    virtual void write_family_likelihoods(std::ostream& ost) override {}
+    virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache* p_calc) override { return nullptr; }
+    virtual inference_optimizer_scorer* get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior) override { return nullptr; }
+public:
+    mock_model() : model(NULL, NULL, NULL) {}
+    virtual double infer_family_likelihoods(const user_data& ud, const sigma* p_lambda, const std::gamma_distribution<double>& prior) override { return 0.0; }
+};
+
+TEST_CASE("lambda_epsilon_optimizer")
+{
+    const double initial_epsilon = 0.01;
+    error_model err;
+    err.set_probabilities(0, { .0, .99, initial_epsilon });
+    err.set_probabilities(1, { initial_epsilon, .98, initial_epsilon });
+
+    mock_model model;
+
+    sigma lambda(0.05);
+    user_data ud;
+    sigma_optimizer_scorer optimizer(&model, &err, ud, std::gamma_distribution<double>(1, 2), &lambda, 10, 3);
+    optimizer.initial_guesses();
+    vector<double> values = { 0.05, 0.06 };
+    optimizer.calculate_score(&values[0]);
+    auto actual = err.get_probs(0);
+    vector<double> expected{ 0, .94, .06 };
+    CHECK(expected == actual);
+
+    values[1] = 0.04;
+    optimizer.calculate_score(&values[0]);
+    actual = err.get_probs(0);
+    expected = { 0, .96, .04 };
+    CHECK(expected == actual);
+}
+
 
 
 

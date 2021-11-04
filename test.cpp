@@ -318,7 +318,7 @@ TEST_CASE_FIXTURE(Inference, "base_model creates lambda_epsilon_optimizer if req
     unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data, std::gamma_distribution<double>(1,2)));
 
     CHECK(opt);
-    CHECK(dynamic_cast<lambda_epsilon_optimizer*>(opt.get()) != nullptr);
+    CHECK(dynamic_cast<sigma_optimizer_scorer*>(opt.get()) != nullptr);
 }
 
 TEST_CASE_FIXTURE(Inference, "gamma_model_creates__gamma_lambda_optimizer_if_nothing_provided")
@@ -1371,32 +1371,6 @@ TEST_CASE("Reconstruction: base_model_print_increases_decreases_by_clade")
     STRCMP_CONTAINS("#Taxon_ID\tIncrease\tDecrease", ost.str().c_str());
     STRCMP_CONTAINS("A<0>\t1\t0", ost.str().c_str());
     STRCMP_CONTAINS("B<1>\t0\t1", ost.str().c_str());
-}
-
-TEST_CASE("lambda_epsilon_optimizer")
-{
-    const double initial_epsilon = 0.01;
-    error_model err;
-    err.set_probabilities(0, { .0, .99, initial_epsilon });
-    err.set_probabilities(1, { initial_epsilon, .98, initial_epsilon });
-
-    mock_model model;
-
-    sigma lambda(0.05);
-    user_data ud;
-    lambda_epsilon_optimizer optimizer(&model, &err, ud, std::gamma_distribution<double>(1, 2), &lambda, 10, 3);
-    optimizer.initial_guesses();
-    vector<double> values = { 0.05, 0.06 };
-    optimizer.calculate_score(&values[0]);
-    auto actual = err.get_probs(0);
-    vector<double> expected{ 0, .94, .06 };
-    CHECK(expected == actual);
-
-    values[1] = 0.04;
-    optimizer.calculate_score(&values[0]);
-    actual = err.get_probs(0);
-    expected = { 0, .96, .04 };
-    CHECK(expected == actual);
 }
 
 TEST_CASE("Inference: lambda_per_family" * doctest::skip(true))

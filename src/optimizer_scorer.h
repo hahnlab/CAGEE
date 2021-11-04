@@ -63,6 +63,8 @@ class sigma_optimizer_scorer : public inference_optimizer_scorer
 {
     double _tree_length;
     double _species_variance;
+    error_model* _p_error_model = nullptr;
+    std::vector<double> current_epsilon_guesses;
 
 public:
     sigma_optimizer_scorer(sigma*p_lambda, model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, double tree_length, double species_variance) :
@@ -74,55 +76,28 @@ public:
 
     sigma_optimizer_scorer(sigma* p_lambda, model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior);
     
-    std::vector<double> initial_guesses() override;
-
-    virtual void finalize(double *results) override;
-
-    virtual void prepare_calculation(const double *values) override;
-    virtual void report_precalculation() override;
-};
-
-
-/// @brief Scorer that optimizes lambdas and epsilons together
-//! \ingroup optimizer
-class lambda_epsilon_optimizer : public inference_optimizer_scorer
-{
-    sigma_optimizer_scorer _lambda_optimizer;
-    error_model* _p_error_model;
-    std::vector<double> current_guesses;
-public:
-    lambda_epsilon_optimizer(
-        model* p_model,
-        error_model *p_error_model,
-        const user_data& user_data,
-        const std::gamma_distribution<double>& prior,
-        sigma*p_lambda,
-        double tree_length, 
-        double species_variance) :
-        inference_optimizer_scorer(p_lambda, p_model, user_data, prior),
-        _lambda_optimizer(p_lambda, p_model, user_data, prior, tree_length, species_variance),
-        _p_error_model(p_error_model)
-    {
-    }
-
-    lambda_epsilon_optimizer(
+    sigma_optimizer_scorer(
         model* p_model,
         error_model* p_error_model,
         const user_data& user_data,
         const std::gamma_distribution<double>& prior,
-        sigma* p_lambda) :
-        inference_optimizer_scorer(p_lambda, p_model, user_data, prior),
-        _lambda_optimizer(p_lambda, p_model, user_data, prior),
-        _p_error_model(p_error_model)
-    {
-    }
+        sigma* p_lambda);
+
+    sigma_optimizer_scorer(
+        model* p_model,
+        error_model* p_error_model,
+        const user_data& user_data,
+        const std::gamma_distribution<double>& prior,
+        sigma* p_lambda,
+        double tree_length,
+        double species_variance);
 
     std::vector<double> initial_guesses() override;
 
+    virtual void finalize(double *results) override;
+
     virtual void prepare_calculation(const double *values) override;
     virtual void report_precalculation() override;
-
-    virtual void finalize(double *results) override;
 };
 
 class gamma_model;
