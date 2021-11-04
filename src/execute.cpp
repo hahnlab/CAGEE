@@ -156,6 +156,7 @@ void estimator::execute(std::vector<model *>& models)
         {
             estimate_missing_variables(models, data);
 
+            return;
             compute(models, _user_input);
 
             for (model* p_model : models) {
