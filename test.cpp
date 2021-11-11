@@ -56,11 +56,10 @@ class mock_model : public model {
     {
         return nullptr;
     }
-    virtual inference_optimizer_scorer* get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior) override
+    virtual sigma_optimizer_scorer* get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior) override
     {
         initialize_lambda(data.p_lambda_tree);
         auto result = new sigma_optimizer_scorer(this, data, prior, _p_lambda);
-//        auto result = new sigma_optimizer_scorer(_p_lambda, this, data, prior, 10, 1);
         result->quiet = true;
         return result;
     }
@@ -298,7 +297,7 @@ TEST_CASE_FIXTURE(Inference, "base_optimizer_guesses_lambda_only")
 
     base_model model(_user_data.p_lambda,  NULL, NULL);
 
-    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data, std::gamma_distribution<double>(1, 2)));
+    unique_ptr<sigma_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data, std::gamma_distribution<double>(1, 2)));
     auto guesses = opt->initial_guesses();
     CHECK_EQ(1, guesses.size());
     CHECK_EQ(doctest::Approx(0.696853).epsilon(0.00001), guesses[0]);
@@ -319,7 +318,7 @@ TEST_CASE_FIXTURE(Inference, "base_model creates lambda_epsilon_optimizer if req
     auto opt = model.get_lambda_optimizer(_user_data, std::gamma_distribution<double>(1,2));
 
     REQUIRE(opt);
-    CHECK_EQ("Optimizing Sigma Epsilon ", dynamic_cast<sigma_optimizer_scorer*>(opt)->description());
+    CHECK_EQ("Optimizing Sigma Epsilon ", opt->description());
 }
 
 TEST_CASE_FIXTURE(Inference, "gamma_model_creates__gamma_lambda_optimizer_if_nothing_provided")
@@ -329,7 +328,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_creates__gamma_lambda_optimizer_if_not
 
     auto opt = model.get_lambda_optimizer(_user_data, std::gamma_distribution<double>(1, 2));
     REQUIRE(opt);
-    CHECK_EQ("Optimizing Sigma Alpha ", dynamic_cast<sigma_optimizer_scorer*>(opt)->description());
+    CHECK_EQ("Optimizing Sigma Alpha ", opt->description());
 
     delete model.get_lambda();
 }
@@ -349,7 +348,7 @@ TEST_CASE("Inference: gamma_model__creates__lambda_optimizer__if_alpha_provided"
     auto opt = model.get_lambda_optimizer(data, std::gamma_distribution<double>(1, 2));
 
     REQUIRE(opt);
-    CHECK_EQ("Optimizing Sigma ", dynamic_cast<sigma_optimizer_scorer*>(opt)->description());
+    CHECK_EQ("Optimizing Sigma ", opt->description());
     delete model.get_lambda();
 }
 
@@ -365,7 +364,7 @@ TEST_CASE("Inference: gamma_model__creates__gamma_optimizer__if_lambda_provided"
     auto opt = model.get_lambda_optimizer(data, std::gamma_distribution<double>(1, 2));
 
     REQUIRE(opt);
-    CHECK_EQ("Optimizing Alpha ", dynamic_cast<sigma_optimizer_scorer*>(opt)->description());
+    CHECK_EQ("Optimizing Alpha ", opt->description());
 
     delete model.get_lambda();
 }

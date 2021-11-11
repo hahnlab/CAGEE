@@ -126,7 +126,7 @@ void base_model::write_family_likelihoods(std::ostream& ost)
     }
 }
 
-inference_optimizer_scorer *base_model::get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior)
+sigma_optimizer_scorer* base_model::get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior)
 {
     if (data.p_lambda != NULL)  // already have a lambda, nothing we want to optimize
         return nullptr;

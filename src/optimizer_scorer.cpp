@@ -25,31 +25,11 @@ extern std::mt19937 randomizer_engine;
 
 using namespace std;
 
-double inference_optimizer_scorer::calculate_score(const double *values)
-{
-    prepare_calculation(values);
-
-    if (!quiet)
-    {
-        report_precalculation();
-    }
-
-    double score = _p_model->infer_family_likelihoods(_user_data, _p_sigma, _prior);
-
-    if (std::isnan(score)) score = -log(0);
-
-    return score;
-}
-
-// sigma only
-sigma_optimizer_scorer::sigma_optimizer_scorer(model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma* p_lambda) :
-    inference_optimizer_scorer(p_lambda, p_model, user_data, prior),
-    optimize_sigma(true), optimize_epsilon(false), optimize_gamma(false)
+double compute_distribution_mean(const user_data& user_data)
 {
     if (user_data.gene_families.empty()) throw runtime_error("No gene transcripts provided");
     if (!user_data.p_tree) throw runtime_error("No tree provided");
 
-    _tree_length = user_data.p_tree->distance_from_root_to_tip();
     auto species = user_data.gene_families.at(0).get_species();
     vector<double> variances;
     for (auto& tt : user_data.gene_families)
@@ -64,12 +44,21 @@ sigma_optimizer_scorer::sigma_optimizer_scorer(model* p_model, const user_data& 
 
     }
 
-    _species_variance = std::accumulate(variances.begin(), variances.end(), 0.0) / double(variances.size());
+    double species_variance = std::accumulate(variances.begin(), variances.end(), 0.0) / double(variances.size());
+
+    return sqrt(species_variance / user_data.p_tree->distance_from_root_to_tip());
+}
+
+// sigma only
+sigma_optimizer_scorer::sigma_optimizer_scorer(model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma* p_lambda) :
+    _p_model(p_model), _user_data(user_data), _prior(prior), _p_sigma(p_lambda),
+    optimize_sigma(true), optimize_epsilon(false), optimize_gamma(false)
+{
 }
 
 // sigma and epsilon
 sigma_optimizer_scorer::sigma_optimizer_scorer(model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma* p_lambda, error_model* p_error_model) :
-    inference_optimizer_scorer(p_lambda, p_model, user_data, prior),
+    _p_model(p_model), _user_data(user_data), _prior(prior), _p_sigma(p_lambda),
     _p_error_model(p_error_model),
     optimize_sigma(true), optimize_epsilon(true), optimize_gamma(false)
 {
@@ -77,14 +66,14 @@ sigma_optimizer_scorer::sigma_optimizer_scorer(model* p_model, const user_data& 
 
 // alpha and sigma
 sigma_optimizer_scorer::sigma_optimizer_scorer(gamma_model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma* p_lambda) :
-    inference_optimizer_scorer(p_lambda, p_model, user_data, prior),
+    _p_model(p_model), _user_data(user_data), _prior(prior), _p_sigma(p_lambda),
     optimize_sigma(true), optimize_epsilon(false), optimize_gamma(true)
 {
 }
 
 // alpha only
 sigma_optimizer_scorer::sigma_optimizer_scorer(gamma_model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior) :
-    inference_optimizer_scorer(nullptr, p_model, user_data, prior),
+    _p_model(p_model), _user_data(user_data), _prior(prior), _p_sigma(nullptr),
     optimize_sigma(false), optimize_epsilon(false), optimize_gamma(true)
 {
 }
@@ -94,9 +83,11 @@ std::vector<double> sigma_optimizer_scorer::initial_guesses()
     std::vector<double> guesses;
     if (optimize_sigma)
     {
-        double distmean = sqrt(_species_variance / _tree_length);
+        if (!_distribution_mean)
+            _distribution_mean = new double(compute_distribution_mean(_user_data));
+
         guesses.resize(_p_sigma->count());
-        std::normal_distribution<double> distribution(distmean, 0.2);
+        std::normal_distribution<double> distribution(*_distribution_mean, 0.2);
         for (auto& i : guesses)
         {
             i = distribution(randomizer_engine);
@@ -116,6 +107,22 @@ std::vector<double> sigma_optimizer_scorer::initial_guesses()
         guesses.push_back(distribution(randomizer_engine));
     }
     return guesses;
+}
+
+double sigma_optimizer_scorer::calculate_score(const double* values)
+{
+    prepare_calculation(values);
+
+    if (!quiet)
+    {
+        report_precalculation();
+    }
+
+    double score = _p_model->infer_family_likelihoods(_user_data, _p_sigma, _prior);
+
+    if (std::isnan(score)) score = -log(0);
+
+    return score;
 }
 
 void sigma_optimizer_scorer::prepare_calculation(const double *values)
@@ -196,6 +203,10 @@ std::string sigma_optimizer_scorer::description() const
     return ost.str();
 }
 
+void sigma_optimizer_scorer::force_distribution_mean(double tree_length, double species_variance) {
+    _distribution_mean = new double(sqrt(species_variance / tree_length));
+}
+
 TEST_CASE("sigma_optimizer_scorer constructor calculates tree length and variance")
 {
     randomizer_engine.seed(10);
@@ -248,7 +259,7 @@ class mock_model : public model {
     virtual std::string name() const override { return "mockmodel"; }
     virtual void write_family_likelihoods(std::ostream& ost) override {}
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache* p_calc) override { return nullptr; }
-    virtual inference_optimizer_scorer* get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior) override { return nullptr; }
+    virtual sigma_optimizer_scorer* get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior) override { return nullptr; }
     bool _invalid_likelihood = false;
 public:
     mock_model() : model(NULL, NULL, NULL) {}
@@ -271,7 +282,7 @@ TEST_CASE("lambda_epsilon_optimizer guesses lambda and unique epsilons")
     user_data ud;
     mock_model model;
     sigma_optimizer_scorer leo(&model, ud, std::gamma_distribution<double>(1, 2), &s, &err);
-    leo.force_tree_length_and_variance(10, 1);
+    leo.force_distribution_mean(10, 1);
     auto guesses = leo.initial_guesses();
     REQUIRE(guesses.size() == 3);
     CHECK_EQ(doctest::Approx(0.30597).epsilon(0.00001), guesses[0]);
@@ -285,7 +296,7 @@ TEST_CASE("gamma_lambda_optimizer provides two guesses")
     gamma_model model(NULL, NULL, 4, .25, NULL);
     user_data ud;
     sigma_optimizer_scorer glo(&model, ud, std::gamma_distribution<double>(1, 2), &sl);
-    glo.force_tree_length_and_variance(5, 1);
+    glo.force_distribution_mean(5, 1);
     auto guesses = glo.initial_guesses();
     CHECK_EQ(2, guesses.size());
 
@@ -320,7 +331,7 @@ TEST_CASE("lambda_epsilon_optimizer")
     sigma lambda(0.05);
     user_data ud;
     sigma_optimizer_scorer optimizer(&model, ud, std::gamma_distribution<double>(1, 2), &lambda, &err);
-    //sigma_optimizer_scorer optimizer(&model, &err, ud, std::gamma_distribution<double>(1, 2), &lambda, 10, 3);
+    optimizer.force_distribution_mean(10, 3);
     optimizer.initial_guesses();
     vector<double> values = { 0.05, 0.06 };
     optimizer.calculate_score(&values[0]);
@@ -400,7 +411,7 @@ TEST_CASE("sigma_optimizer_scorer updates model alpha and lambda")
     gamma_model m(&sig, &ud.gene_families, gamma_categories, multipliers, NULL);
 
     sigma_optimizer_scorer optimizer(&m, ud, std::gamma_distribution<double>(1, 2), &sig);
-    optimizer.force_tree_length_and_variance(7, 1);
+    optimizer.force_distribution_mean(7, 1);
     vector<double> values{ 0.01, 0.25 };
     optimizer.calculate_score(values.data());
     CHECK_EQ(doctest::Approx(0.25), m.get_alpha());

@@ -216,7 +216,7 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma*p_
     return final_likelihood;
 }
 
-inference_optimizer_scorer *gamma_model::get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior)
+sigma_optimizer_scorer* gamma_model::get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior)
 {
     bool estimate_lambda = data.p_lambda == NULL;
     bool estimate_alpha = _alpha <= 0.0;
