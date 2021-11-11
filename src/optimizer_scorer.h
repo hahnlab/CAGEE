@@ -7,6 +7,7 @@
 
 class user_data;
 class model;
+class gamma_model;
 class sigma;
 class error_model;
 class root_distribution_gamma;
@@ -65,33 +66,27 @@ class sigma_optimizer_scorer : public inference_optimizer_scorer
     double _species_variance;
     error_model* _p_error_model = nullptr;
     std::vector<double> current_epsilon_guesses;
+    bool optimize_sigma, optimize_epsilon, optimize_gamma;
 
 public:
-    sigma_optimizer_scorer(sigma*p_lambda, model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, double tree_length, double species_variance) :
-        inference_optimizer_scorer(p_lambda, p_model, user_data, prior),
-        _tree_length(tree_length),
-        _species_variance(species_variance)
-    {
+    // sigma only
+    sigma_optimizer_scorer(model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma* p_lambda);
+
+    // sigma and epsilon
+    sigma_optimizer_scorer(model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma* p_lambda, error_model* p_error_model);
+
+    // alpha and sigma
+    sigma_optimizer_scorer(gamma_model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma* p_lambda);
+
+    // alpha only
+    sigma_optimizer_scorer(gamma_model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior);
+
+    void force_tree_length_and_variance(double tl, double v) {
+        _tree_length = tl;
+        _species_variance = v;
     }
 
-    sigma_optimizer_scorer(sigma* p_lambda, model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior);
-    
-    sigma_optimizer_scorer(
-        model* p_model,
-        error_model* p_error_model,
-        const user_data& user_data,
-        const std::gamma_distribution<double>& prior,
-        sigma* p_lambda);
-
-    sigma_optimizer_scorer(
-        model* p_model,
-        error_model* p_error_model,
-        const user_data& user_data,
-        const std::gamma_distribution<double>& prior,
-        sigma* p_lambda,
-        double tree_length,
-        double species_variance);
-
+    std::string description() const;
     std::vector<double> initial_guesses() override;
 
     virtual void finalize(double *results) override;
@@ -99,46 +94,5 @@ public:
     virtual void prepare_calculation(const double *values) override;
     virtual void report_precalculation() override;
 };
-
-class gamma_model;
-
-//! @brief Scorer that optimizes for alpha
-//! \ingroup optimizer
-//! \ingroup gamma
-class gamma_optimizer : public inference_optimizer_scorer {
-    gamma_model *_p_gamma_model;
-public:
-    virtual void prepare_calculation(const double *values) override;
-    virtual void report_precalculation() override;
-
-    // Inherited via optimizer_scorer
-    virtual std::vector<double> initial_guesses() override;
-    virtual void finalize(double * result) override;
-    gamma_optimizer(gamma_model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior);
-
-    double get_alpha() const;
-};
-
-//! @brief Scorer that optimizes for both lambda and alpha
-//! \ingroup optimizer
-//! \ingroup gamma
-class gamma_lambda_optimizer : public inference_optimizer_scorer
-{
-    virtual void prepare_calculation(const double *values) override;
-    virtual void report_precalculation() override;
-    sigma_optimizer_scorer _lambda_optimizer;
-    gamma_optimizer _gamma_optimizer;
-public:
-    gamma_lambda_optimizer(sigma*p_lambda, gamma_model * p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, double tree_length, double species_variance);
-    gamma_lambda_optimizer(sigma* p_lambda, gamma_model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior);
-
-    std::vector<double> initial_guesses() override;
-
-    /// results consists of the desired number of lambdas and one alpha value
-    void finalize(double *results) override;
-};
-
-
-
 
 #endif

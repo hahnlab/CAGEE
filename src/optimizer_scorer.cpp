@@ -3,6 +3,7 @@
 #include <random>
 #include <numeric>
 #include <algorithm>
+#include <iterator>
 
 #include "doctest.h"
 #include "easylogging++.h"
@@ -40,8 +41,10 @@ double inference_optimizer_scorer::calculate_score(const double *values)
     return score;
 }
 
-sigma_optimizer_scorer::sigma_optimizer_scorer(sigma* p_lambda, model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior) :
-    inference_optimizer_scorer(p_lambda, p_model, user_data, prior)
+// sigma only
+sigma_optimizer_scorer::sigma_optimizer_scorer(model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma* p_lambda) :
+    inference_optimizer_scorer(p_lambda, p_model, user_data, prior),
+    optimize_sigma(true), optimize_epsilon(false), optimize_gamma(false)
 {
     if (user_data.gene_families.empty()) throw runtime_error("No gene transcripts provided");
     if (!user_data.p_tree) throw runtime_error("No tree provided");
@@ -64,60 +67,68 @@ sigma_optimizer_scorer::sigma_optimizer_scorer(sigma* p_lambda, model* p_model, 
     _species_variance = std::accumulate(variances.begin(), variances.end(), 0.0) / double(variances.size());
 }
 
-sigma_optimizer_scorer::sigma_optimizer_scorer(
-    model* p_model,
-    error_model* p_error_model,
-    const user_data& user_data,
-    const std::gamma_distribution<double>& prior,
-    sigma* p_lambda) :
+// sigma and epsilon
+sigma_optimizer_scorer::sigma_optimizer_scorer(model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma* p_lambda, error_model* p_error_model) :
     inference_optimizer_scorer(p_lambda, p_model, user_data, prior),
     _p_error_model(p_error_model),
-    _tree_length(0),
-    _species_variance(0)
+    optimize_sigma(true), optimize_epsilon(true), optimize_gamma(false)
 {
 }
 
-sigma_optimizer_scorer::sigma_optimizer_scorer(
-    model* p_model,
-    error_model* p_error_model,
-    const user_data& user_data,
-    const std::gamma_distribution<double>& prior,
-    sigma* p_lambda,
-    double tree_length,
-    double species_variance) :
+// alpha and sigma
+sigma_optimizer_scorer::sigma_optimizer_scorer(gamma_model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma* p_lambda) :
     inference_optimizer_scorer(p_lambda, p_model, user_data, prior),
-    _p_error_model(p_error_model),
-    _tree_length(tree_length),
-    _species_variance(species_variance)
+    optimize_sigma(true), optimize_epsilon(false), optimize_gamma(true)
+{
+}
+
+// alpha only
+sigma_optimizer_scorer::sigma_optimizer_scorer(gamma_model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior) :
+    inference_optimizer_scorer(nullptr, p_model, user_data, prior),
+    optimize_sigma(false), optimize_epsilon(false), optimize_gamma(true)
 {
 }
 
 std::vector<double> sigma_optimizer_scorer::initial_guesses()
 {
-    double distmean = sqrt(_species_variance / _tree_length);
-    std::vector<double> result(_p_sigma->count());
-    std::normal_distribution<double> distribution(distmean,0.2);
-    for (auto& i : result)
+    std::vector<double> guesses;
+    if (optimize_sigma)
     {
-    	i = distribution(randomizer_engine);
+        double distmean = sqrt(_species_variance / _tree_length);
+        guesses.resize(_p_sigma->count());
+        std::normal_distribution<double> distribution(distmean, 0.2);
+        for (auto& i : guesses)
+        {
+            i = distribution(randomizer_engine);
+        }
     }
-    if (_p_error_model)
+
+    if (optimize_epsilon)
     {
         current_epsilon_guesses = _p_error_model->get_epsilons();
-        result.insert(result.end(), current_epsilon_guesses.begin(), current_epsilon_guesses.end());
+        guesses.insert(guesses.end(), current_epsilon_guesses.begin(), current_epsilon_guesses.end());
     }
-    return result;
+
+    if (optimize_gamma)
+    {
+        //It seems a gamma distribution with an alpha of 4 and a beta scaling factor of 0.25 works better. It has a mean of 1 and 70% of the density is between .5 and 1.5
+        std::gamma_distribution<double> distribution(4.0, 0.25);
+        guesses.push_back(distribution(randomizer_engine));
+    }
+    return guesses;
 }
 
 void sigma_optimizer_scorer::prepare_calculation(const double *values)
 {
-    if (_p_error_model)
+    int ptr = 0;
+    if (optimize_sigma)
     {
-        auto lambdas = values;
-        auto epsilons = values + _p_sigma->count();
-
         _p_sigma->update(values);
-
+        ptr += _p_sigma->get_lambdas().size();
+    }
+    if (optimize_epsilon)
+    {
+        auto epsilons = values + ptr;
         map<double, double> replacements;
         for (size_t i = 0; i < current_epsilon_guesses.size(); ++i)
         {
@@ -126,19 +137,32 @@ void sigma_optimizer_scorer::prepare_calculation(const double *values)
         }
 
         _p_error_model->replace_epsilons(&replacements);
+        ptr += current_epsilon_guesses.size();
     }
-    else
+    if (optimize_gamma)
     {
-        _p_sigma->update(values);
+        dynamic_cast<gamma_model *>(_p_model)->set_alpha(*(values + ptr));
     }
 }
 
 void sigma_optimizer_scorer::report_precalculation()
 {
-    if (_p_error_model)
-        LOG(INFO) << "Sigma^2: " << *_p_sigma << ", Epsilon=" << _p_error_model->get_epsilons().back() * 2.0;
-    else
-        LOG(INFO) << "Sigma^2: " << *_p_sigma;
+    ostringstream ost;
+    if (optimize_sigma)
+    {
+        ost << "Sigma^2:" << *_p_sigma;
+    }
+    if (optimize_epsilon)
+    {
+        ost << " Epsilon:" << _p_error_model->get_epsilons().back() * 2.0;
+    }
+    if (optimize_gamma)
+    {
+        ost << " Alpha:" << dynamic_cast<gamma_model*>(_p_model)->get_alpha();
+    }
+
+    LOG(INFO) << ost.str();
+
 }
 
 void sigma_optimizer_scorer::finalize(double *results)
@@ -150,82 +174,26 @@ void sigma_optimizer_scorer::finalize(double *results)
     }
 }
 
-gamma_optimizer::gamma_optimizer(gamma_model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior) :
-    inference_optimizer_scorer(p_model->get_lambda(), p_model, user_data, prior),
-    _p_gamma_model(p_model)
+std::string sigma_optimizer_scorer::description() const
 {
-
-}
-//In the first line that is commented out, Alpha is initiated by randomly drawing from an exponential distribution with a mean of 1.75
-//It seems a gamma distribution with an alpha of 4 and a beta scaling factor of 0.25 works better. It has a mean of 1 and 70% of the density is between .5 and 1.5
-std::vector<double> gamma_optimizer::initial_guesses()
-{
-    //std::exponential_distribution<double> distribution(GAMMA_INITIAL_GUESS_EXPONENTIAL_DISTRIBUTION_LAMBDA);
-    std::gamma_distribution<double> distribution(4.0,0.25);
-    return std::vector<double>({ distribution(randomizer_engine) });
-}
-
-void gamma_optimizer::prepare_calculation(const double * values)
-{
-    double alpha = *values;
-    _p_gamma_model->set_alpha(alpha);
-}
-
-void gamma_optimizer::report_precalculation()
-{
-    LOG(INFO) << "Attempting alpha: " << _p_gamma_model->get_alpha();
-}
-
-void gamma_optimizer::finalize(double * result)
-{
-    _p_gamma_model->set_alpha(*result);
-}
-
-double gamma_optimizer::get_alpha() const
-{
-    return _p_gamma_model->get_alpha();
-}
-
-gamma_lambda_optimizer::gamma_lambda_optimizer(sigma*p_lambda, gamma_model * p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, double tree_length, double species_variance) :
-    inference_optimizer_scorer(p_lambda, p_model, user_data, prior),
-    _lambda_optimizer(p_lambda, p_model, user_data, prior, tree_length, species_variance),
-    _gamma_optimizer(p_model, user_data, prior)
-{
-}
-
-gamma_lambda_optimizer::gamma_lambda_optimizer(sigma* p_lambda, gamma_model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior) :
-    inference_optimizer_scorer(p_lambda, p_model, user_data, prior),
-    _lambda_optimizer(p_lambda, p_model, user_data, prior),
-    _gamma_optimizer(p_model, user_data, prior)
-{
-}
-
-std::vector<double> gamma_lambda_optimizer::initial_guesses()
-{
-    auto values = _lambda_optimizer.initial_guesses();
-    auto alpha = _gamma_optimizer.initial_guesses();
-
-    values.insert(values.end(), alpha.begin(), alpha.end());
-    return values;
-
-}
-
-void gamma_lambda_optimizer::prepare_calculation(const double *values)
-{
-    _lambda_optimizer.prepare_calculation(values);
-    _gamma_optimizer.prepare_calculation(values + _p_sigma->count());
-
-}
-
-void gamma_lambda_optimizer::report_precalculation()
-{
-    LOG(INFO) << "Attempting lambda: " << *_p_sigma << ", alpha: " << _gamma_optimizer.get_alpha();
-}
-
-/// results consists of the desired number of lambdas and one alpha value
-void gamma_lambda_optimizer::finalize(double *results) {
-    _lambda_optimizer.finalize(results);
-    _gamma_optimizer.finalize(results + _p_sigma->count());
+    vector<string> t;
+    ostringstream ost;
+    if (optimize_sigma)
+    {
+        t.push_back("Sigma");
+    }
+    if (optimize_epsilon)
+    {
+        t.push_back("Epsilon");
+    }
+    if (optimize_gamma)
+    {
+        t.push_back("Alpha");
+    }
+    ost << "Optimizing ";
+    std::ostream_iterator<string> out_it(ost, " ");
+    std::copy(t.begin(), t.end(), out_it);
+    return ost.str();
 }
 
 TEST_CASE("sigma_optimizer_scorer constructor calculates tree length and variance")
@@ -240,7 +208,7 @@ TEST_CASE("sigma_optimizer_scorer constructor calculates tree length and varianc
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     ud.p_tree = p_tree.get();
     sigma s(5);
-    sigma_optimizer_scorer soc(&s, nullptr, ud, std::gamma_distribution<double>(1,2));
+    sigma_optimizer_scorer soc((model *)nullptr, ud, std::gamma_distribution<double>(1,2), &s);
 
     auto guesses = soc.initial_guesses();
     REQUIRE(guesses.size() == 1);
@@ -267,13 +235,29 @@ TEST_CASE("sigma_optimizer_scorer constructor averages variances across all tran
     ud.gene_families[1].set_expression_value("B", 8);
 
     sigma s(5);
-    sigma_optimizer_scorer soc(&s, nullptr, ud, std::gamma_distribution<double>(1, 2));
+    sigma_optimizer_scorer soc((model*)nullptr, ud, std::gamma_distribution<double>(1, 2), &s);
 
     auto guesses = soc.initial_guesses();
     REQUIRE(guesses.size() == 1);
     CHECK_EQ(doctest::Approx(0.48974), guesses[0]);
 }
 
+
+class mock_model : public model {
+    // Inherited via model
+    virtual std::string name() const override { return "mockmodel"; }
+    virtual void write_family_likelihoods(std::ostream& ost) override {}
+    virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache* p_calc) override { return nullptr; }
+    virtual inference_optimizer_scorer* get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior) override { return nullptr; }
+    bool _invalid_likelihood = false;
+public:
+    mock_model() : model(NULL, NULL, NULL) {}
+    virtual double infer_family_likelihoods(const user_data& ud, const sigma* p_lambda, const std::gamma_distribution<double>& prior) override 
+    { 
+        return _invalid_likelihood ? nan("") : 0.0;
+    }
+    void set_invalid_likelihood() { _invalid_likelihood = true; }
+};
 
 TEST_CASE("lambda_epsilon_optimizer guesses lambda and unique epsilons")
 {
@@ -285,7 +269,9 @@ TEST_CASE("lambda_epsilon_optimizer guesses lambda and unique epsilons")
 
     sigma s(10);
     user_data ud;
-    sigma_optimizer_scorer leo(nullptr, &err, ud, std::gamma_distribution<double>(1, 2), &s, 10, 1);
+    mock_model model;
+    sigma_optimizer_scorer leo(&model, ud, std::gamma_distribution<double>(1, 2), &s, &err);
+    leo.force_tree_length_and_variance(10, 1);
     auto guesses = leo.initial_guesses();
     REQUIRE(guesses.size() == 3);
     CHECK_EQ(doctest::Approx(0.30597).epsilon(0.00001), guesses[0]);
@@ -298,7 +284,8 @@ TEST_CASE("gamma_lambda_optimizer provides two guesses")
     sigma sl(0.05);
     gamma_model model(NULL, NULL, 4, .25, NULL);
     user_data ud;
-    gamma_lambda_optimizer glo(&sl, &model, ud, std::gamma_distribution<double>(1, 2), 5, 1);
+    sigma_optimizer_scorer glo(&model, ud, std::gamma_distribution<double>(1, 2), &sl);
+    glo.force_tree_length_and_variance(5, 1);
     auto guesses = glo.initial_guesses();
     CHECK_EQ(2, guesses.size());
 
@@ -315,21 +302,11 @@ TEST_CASE("gamma_optimizer creates single initial guess")
 {
     user_data ud;
     gamma_model m(NULL, NULL, 0, 0, NULL);
-    gamma_optimizer optimizer(&m, ud, std::gamma_distribution<double>(1, 2));
+    sigma_optimizer_scorer optimizer(&m, ud, std::gamma_distribution<double>(1, 2));
     auto initial = optimizer.initial_guesses();
     CHECK_EQ(1, initial.size());
 }
 
-class mock_model : public model {
-    // Inherited via model
-    virtual std::string name() const override {  return "mockmodel"; }
-    virtual void write_family_likelihoods(std::ostream& ost) override {}
-    virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache* p_calc) override { return nullptr; }
-    virtual inference_optimizer_scorer* get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior) override { return nullptr; }
-public:
-    mock_model() : model(NULL, NULL, NULL) {}
-    virtual double infer_family_likelihoods(const user_data& ud, const sigma* p_lambda, const std::gamma_distribution<double>& prior) override { return 0.0; }
-};
 
 TEST_CASE("lambda_epsilon_optimizer")
 {
@@ -342,7 +319,8 @@ TEST_CASE("lambda_epsilon_optimizer")
 
     sigma lambda(0.05);
     user_data ud;
-    sigma_optimizer_scorer optimizer(&model, &err, ud, std::gamma_distribution<double>(1, 2), &lambda, 10, 3);
+    sigma_optimizer_scorer optimizer(&model, ud, std::gamma_distribution<double>(1, 2), &lambda, &err);
+    //sigma_optimizer_scorer optimizer(&model, &err, ud, std::gamma_distribution<double>(1, 2), &lambda, 10, 3);
     optimizer.initial_guesses();
     vector<double> values = { 0.05, 0.06 };
     optimizer.calculate_score(&values[0]);
@@ -357,6 +335,91 @@ TEST_CASE("lambda_epsilon_optimizer")
     CHECK(expected == actual);
 }
 
+TEST_CASE("prepare_calculation sets sigma correctly")
+{
+    user_data ud;
+    ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.p_tree = parse_newick("(A:1,B:1);");
+    mock_model model;
+    sigma sig(1);
+    sigma_optimizer_scorer optimizer(&model, ud, std::gamma_distribution<double>(), &sig);
+    vector<double> values{ 0.01 };
+    optimizer.prepare_calculation(values.data());
+    CHECK_EQ(0.01, sig.get_lambdas()[0]);
+}
+
+TEST_CASE("prepare_calculation sets sigma and epsilon correctly ")
+{
+    user_data ud;
+    ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.p_tree = parse_newick("(A:1,B:1);");
+    mock_model model;
+    sigma sig(1);
+    error_model err;
+    err.set_probabilities(0, { .0, .7, .3 });
+    sigma_optimizer_scorer optimizer(&model, ud, std::gamma_distribution<double>(), &sig, &err);
+    optimizer.initial_guesses();
+
+    vector<double> values{ 0.01, 0.025 };
+    optimizer.prepare_calculation(values.data());
+    CHECK_EQ(0.01, sig.get_lambdas()[0]);
+    CHECK_EQ(0.025, err.get_epsilons()[0]);
+}
 
 
+TEST_CASE("prepare_calculation sets sigma and gamma correctly ")
+{
+    user_data ud;
+    ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.p_tree = parse_newick("(A:1,B:1);");
+    vector<double> gamma_categories{ 0.3, 0.7 };
+    vector<double> multipliers{ 0.5, 1.5 };
+    gamma_model model(ud.p_lambda, &ud.gene_families, gamma_categories, multipliers, NULL);
+    sigma sig(1);
+    sigma_optimizer_scorer optimizer(&model, ud, std::gamma_distribution<double>(), &sig);
+    optimizer.initial_guesses();
+
+    vector<double> values{ 0.01, 0.25 };
+    optimizer.prepare_calculation(values.data());
+    CHECK_EQ(0.01, sig.get_lambdas()[0]);
+    CHECK_EQ(doctest::Approx(0.25), model.get_alpha());
+}
+
+TEST_CASE("sigma_optimizer_scorer updates model alpha and lambda")
+{
+    user_data ud;
+    ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.gene_families[0].set_expression_value("A", 1);
+    ud.gene_families[0].set_expression_value("B", 2);
+
+    ud.p_tree = parse_newick("(A:1,B:1);");
+    sigma sig(1);
+
+    vector<double> gamma_categories{ 0.3, 0.7 };
+    vector<double> multipliers{ 0.5, 1.5 };
+    gamma_model m(&sig, &ud.gene_families, gamma_categories, multipliers, NULL);
+
+    sigma_optimizer_scorer optimizer(&m, ud, std::gamma_distribution<double>(1, 2), &sig);
+    optimizer.force_tree_length_and_variance(7, 1);
+    vector<double> values{ 0.01, 0.25 };
+    optimizer.calculate_score(values.data());
+    CHECK_EQ(doctest::Approx(0.25), m.get_alpha());
+    CHECK_EQ(doctest::Approx(0.01), m.get_lambda()->get_lambdas()[0]);
+}
+
+TEST_CASE("calculate_score translates nan to inf")
+{
+    sigma lam(0.05);
+    mock_model m;
+    m.set_invalid_likelihood();
+    double val;
+    user_data ud;
+    ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.gene_families[0].set_expression_value("A", 1);
+    ud.gene_families[0].set_expression_value("B", 2);
+
+    ud.p_tree = parse_newick("(A:1,B:1);");
+    sigma_optimizer_scorer opt(&m, ud, std::gamma_distribution<double>(1, 2), &lam);
+    CHECK(std::isinf(opt.calculate_score(&val)));
+}
 

@@ -59,7 +59,8 @@ class mock_model : public model {
     virtual inference_optimizer_scorer* get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior) override
     {
         initialize_lambda(data.p_lambda_tree);
-        auto result = new sigma_optimizer_scorer(_p_lambda, this, data, prior, 10, 1);
+        auto result = new sigma_optimizer_scorer(this, data, prior, _p_lambda);
+//        auto result = new sigma_optimizer_scorer(_p_lambda, this, data, prior, 10, 1);
         result->quiet = true;
         return result;
     }
@@ -315,10 +316,10 @@ TEST_CASE_FIXTURE(Inference, "base_model creates lambda_epsilon_optimizer if req
     _user_data.p_error_model = nullptr;
     _user_data.p_lambda = nullptr;
 
-    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data, std::gamma_distribution<double>(1,2)));
+    auto opt = model.get_lambda_optimizer(_user_data, std::gamma_distribution<double>(1,2));
 
-    CHECK(opt);
-    CHECK(dynamic_cast<sigma_optimizer_scorer*>(opt.get()) != nullptr);
+    REQUIRE(opt);
+    CHECK_EQ("Optimizing Sigma Epsilon ", dynamic_cast<sigma_optimizer_scorer*>(opt)->description());
 }
 
 TEST_CASE_FIXTURE(Inference, "gamma_model_creates__gamma_lambda_optimizer_if_nothing_provided")
@@ -326,9 +327,9 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_creates__gamma_lambda_optimizer_if_not
     gamma_model model(NULL, NULL,4, -1, NULL);
     _user_data.p_lambda = nullptr;
 
-    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(_user_data, std::gamma_distribution<double>(1, 2)));
+    auto opt = model.get_lambda_optimizer(_user_data, std::gamma_distribution<double>(1, 2));
     REQUIRE(opt);
-    CHECK(dynamic_cast<gamma_lambda_optimizer*>(opt.get()));
+    CHECK_EQ("Optimizing Sigma Alpha ", dynamic_cast<sigma_optimizer_scorer*>(opt)->description());
 
     delete model.get_lambda();
 }
@@ -345,10 +346,10 @@ TEST_CASE("Inference: gamma_model__creates__lambda_optimizer__if_alpha_provided"
     data.gene_families[0].set_expression_value("B", 2);
     data.p_tree = p_tree.get();
 
-    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(data, std::gamma_distribution<double>(1, 2)));
+    auto opt = model.get_lambda_optimizer(data, std::gamma_distribution<double>(1, 2));
 
-    CHECK(opt);
-    CHECK(dynamic_cast<sigma_optimizer_scorer*>(opt.get()));
+    REQUIRE(opt);
+    CHECK_EQ("Optimizing Sigma ", dynamic_cast<sigma_optimizer_scorer*>(opt)->description());
     delete model.get_lambda();
 }
 
@@ -361,10 +362,10 @@ TEST_CASE("Inference: gamma_model__creates__gamma_optimizer__if_lambda_provided"
     sigma sl(0.05);
     data.p_lambda = &sl;
 
-    unique_ptr<inference_optimizer_scorer> opt(model.get_lambda_optimizer(data, std::gamma_distribution<double>(1, 2)));
+    auto opt = model.get_lambda_optimizer(data, std::gamma_distribution<double>(1, 2));
 
-    CHECK(opt);
-    CHECK(dynamic_cast<gamma_optimizer*>(opt.get()));
+    REQUIRE(opt);
+    CHECK_EQ("Optimizing Alpha ", dynamic_cast<sigma_optimizer_scorer*>(opt)->description());
 
     delete model.get_lambda();
 }
@@ -1410,32 +1411,6 @@ TEST_CASE_FIXTURE(Inference, "estimator_compute_pvalues" * doctest::skip(true))
     auto values = compute_pvalues(p, _user_data.gene_families, 3);
     CHECK_EQ(1, values.size());
     CHECK_EQ(doctest::Approx(0.0), values[0]);
-}
-
-TEST_CASE_FIXTURE(Inference, "gamma_lambda_optimizer updates model alpha and lambda")
-{
-    _user_data.max_root_family_size = 10;
-
-    vector<double> gamma_categories{ 0.3, 0.7 };
-    vector<double> multipliers{ 0.5, 1.5 };
-    gamma_model m(_user_data.p_lambda, &_user_data.gene_families, gamma_categories, multipliers, NULL);
-
-    gamma_lambda_optimizer optimizer(_user_data.p_lambda, &m, _user_data, std::gamma_distribution<double>(1, 2), 7, 1);
-    vector<double> values{ 0.01, 0.25 };
-    optimizer.calculate_score(&values[0]);
-    CHECK_EQ(doctest::Approx(0.25), m.get_alpha());
-    CHECK_EQ(doctest::Approx(0.01), m.get_lambda()->get_lambdas()[0]);
-}
-
-TEST_CASE("Inference: inference_optimizer_scorer__calculate_score__translates_nan_to_inf")
-{
-    sigma lam(0.05);
-    mock_model m;
-    m.set_invalid_likelihood();
-    double val;
-    user_data ud;
-    sigma_optimizer_scorer opt(&lam, &m, ud, std::gamma_distribution<double>(1, 2), 0, 0);
-    CHECK(std::isinf(opt.calculate_score(&val)));
 }
 
 class mock_scorer : public optimizer_scorer

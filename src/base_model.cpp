@@ -135,11 +135,11 @@ inference_optimizer_scorer *base_model::get_lambda_optimizer(const user_data& da
 
     if (_p_error_model && !data.p_error_model)
     {
-        return new sigma_optimizer_scorer(this, _p_error_model, data, prior, _p_lambda);
+        return new sigma_optimizer_scorer(this, data, prior, _p_lambda, _p_error_model);
     }
     else
     {
-        return new sigma_optimizer_scorer(_p_lambda, this, data, prior);
+        return new sigma_optimizer_scorer(this, data, prior, _p_lambda);
     }
 }
 
