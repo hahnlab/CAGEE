@@ -30,6 +30,7 @@ add_executable(cagee main.cpp)
 add_executable(tests EXCLUDE_FROM_ALL test.cpp)
 
 include_directories(${EIGEN3_INCLUDE_DIR})
+include_directories(LBFGSpp)
 
 target_compile_definitions(cagee PRIVATE DOCTEST_CONFIG_DISABLE)
 target_compile_definitions(tests PRIVATE SILENT ELPP_NO_CHECK_MACROS)

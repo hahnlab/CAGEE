@@ -11,6 +11,10 @@
 
 #include "easylogging++.h"
 
+#include <Eigen/Core>
+#include "LBFGS.h"
+using namespace LBFGSpp;
+
 #include "optimizer.h"
 #include "optimizer_scorer.h"
 
@@ -22,17 +26,6 @@ const double MAX_DOUBLE = std::numeric_limits<double>::max();
 
 optimizer_parameters::optimizer_parameters() : neldermead_expansion(2.0), neldermead_reflection(1.0)
 {
-#if defined(OPTIMIZER_STRATEGY_RANGE_WIDELY_THEN_HOME_IN)
-    strategy = RangeWidely;
-#elif defined(OPTIMIZER_STRATEGY_INITIAL_VARIANTS)
-    strategy = InitialVar;
-#elif defined(OPTIMIZER_STRATEGY_PERTURB_WHEN_CLOSE)
-    strategy = Perturb;
-#elif defined(OPTIMIZER_STRATEGY_SIMILARITY_CUTOFF)
-    strategy = SimilarityCutoff;
-#else
-    strategy = Standard;
-#endif
 }
 
 // TODO: If fminsearch is slow, replacing this with a single array might be more efficient
@@ -536,6 +529,65 @@ public:
     virtual std::string Description() const override { return "Search a wider area when close to a solution"; };
 };    
 
+double LBGFS_compute(const Eigen::VectorXd& x, Eigen::VectorXd& grad, optimizer_scorer* scorer)
+{
+    if (isnan(x[0]))
+        return INFINITY;
+
+    vector<double> t(x.size());
+    for (int i = 0; i < x.size(); ++i) t[i] = x[i];
+
+    double score = scorer->calculate_score(&t[0]);
+    if (isinf(score))
+        return INFINITY;
+
+    int ndim = grad.size();
+    vector<double> h(ndim);
+    int dim;
+
+    for (dim = 0; dim < ndim; dim++) {
+        auto adjusted_x = x;
+        double temp = x[dim];
+        h[dim] = 1e-6 * fabs(temp);
+        if (h[dim] == 0.0) h[dim] = 1e-6;
+        adjusted_x[dim] = temp + h[dim];
+        h[dim] = adjusted_x[dim] - temp;
+        grad[dim] = scorer->calculate_score(&adjusted_x[0]);
+    }
+    for (dim = 0; dim < ndim; dim++)
+        grad[dim] = (grad[dim] - score) / h[dim];
+
+    return score;
+}
+
+class LBFGS_strategy : public OptimizerStrategy {
+    virtual void Run(FMinSearch* pfm, optimizer::result& r, std::vector<double>& initial) override
+    {
+        LBFGSParam<double> param;
+        param.delta = pfm->tolx;
+        param.max_iterations = 25;
+        param.epsilon = pfm->tolf;
+        LBFGSSolver<double> solver(param);
+        optimizer_scorer* scorer = pfm->scorer;
+        auto wrapper = [scorer](const Eigen::VectorXd& x, Eigen::VectorXd& grad) {
+            return LBGFS_compute(x, grad, scorer);
+        };
+
+        double fx;
+        Eigen::VectorXd x = Eigen::VectorXd::Zero(initial.size());
+        for (size_t i = 0; i < initial.size(); ++i) x[i] = initial[i];
+        int niter = solver.minimize(wrapper, x, fx);
+
+        r.num_iterations = niter;
+        r.score = fx;
+        r.values.resize(initial.size());
+        for (int i = 0; i < x.size(); ++i) r.values[i] = x[i];
+
+    }
+
+    virtual std::string Description() const override { return "Broyden-Fletcher-Goldfarb-Shanno algorithm"; };
+
+};
 
 optimizer::result optimizer::optimize(const optimizer_parameters& params)
 {
@@ -601,22 +653,17 @@ OptimizerStrategy *optimizer::get_strategy(const optimizer_parameters& params)
     pfm->rho = params.neldermead_reflection;
     pfm->maxiters = params.neldermead_iterations;
 
-    switch (params.strategy)
-    {
-    case RangeWidely:
-        return new RangeWidelyThenHomeIn();
-    case InitialVar:
-        return new InitialVariants(*this);
-    case Perturb:
-        return new PerturbWhenClose();
-    case SimilarityCutoff:
-        return new NelderMeadSimilarityCutoff();
-    case Standard:
-        return new StandardNelderMead();
-    case NLOpt:
-    case LBFGS:
-        throw std::runtime_error("Optimizer strategy not supported");
-    }
+#if defined(OPTIMIZER_STRATEGY_RANGE_WIDELY_THEN_HOME_IN)
+    return new RangeWidelyThenHomeIn();
+#elif defined(OPTIMIZER_STRATEGY_INITIAL_VARIANTS)
+    return new InitialVariants(*this);
+#elif defined(OPTIMIZER_STRATEGY_PERTURB_WHEN_CLOSE)
+    return new PerturbWhenClose();
+#elif defined(OPTIMIZER_STRATEGY_SIMILARITY_CUTOFF)
+    return new NelderMeadSimilarityCutoff();
+#elif defined(OPTIMIZER_STRATEGY_LBFGS)
+    return new LBFGS_strategy();
+#endif
 
     return new StandardNelderMead();
 }
