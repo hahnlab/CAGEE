@@ -99,7 +99,7 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma *p_
         std::vector<double> full(partial_likelihood.size());
 
         for (size_t j = 0; j < partial_likelihood.size(); ++j) {
-            double eq_freq = gammapdf(j, prior);
+            double eq_freq = 1.0; // gammapdf(j, prior);
 
             full[j] = std::log(partial_likelihood[j]) + std::log(eq_freq);
         }
