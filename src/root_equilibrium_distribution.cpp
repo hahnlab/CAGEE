@@ -240,13 +240,14 @@ TEST_CASE("root_distribution_specific returns correct root values")
 
 TEST_CASE("root_distribution_gamma select_root_value")
 {
+    randomizer_engine.seed(10);
     root_distribution_gamma pd(0.75, 2.5);
 
-    CHECK_EQ(doctest::Approx(0.40546f), pd.select_root_value(1));
-    CHECK_EQ(doctest::Approx(1.04763f), pd.select_root_value(3));
-    CHECK_EQ(doctest::Approx(0.00273f), pd.select_root_value(5));
-    CHECK_EQ(doctest::Approx(1.57372f), pd.select_root_value(7));
-    CHECK_EQ(doctest::Approx(8.9958f), pd.select_root_value(100));
+    CHECK_EQ(doctest::Approx(2.6534f), pd.select_root_value(1));
+    CHECK_EQ(doctest::Approx(0.00264f), pd.select_root_value(3));
+    CHECK_EQ(doctest::Approx(0.10359f), pd.select_root_value(5));
+    CHECK_EQ(doctest::Approx(5.33302f), pd.select_root_value(7));
+    CHECK_EQ(doctest::Approx(0.0601f), pd.select_root_value(100));
 }
 
 TEST_CASE("gammapdf")
