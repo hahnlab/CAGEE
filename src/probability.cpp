@@ -99,9 +99,13 @@ double chooseln(double n, double r)
 
 /* END: Math tools ----------------------- */
 
-std::pair<double, double> bounds(const gene_transcript& gt)
+int get_upper_bound(const gene_transcript& gt)
 {
-    return std::pair<double, double>(0, max(MINIMUM_UPPER_BOUND, gt.get_max_expression_value() * 1.5));
+    int val = gt.get_max_expression_value() * 1.5;
+    int remainder = val % BOUNDING_STEP_SIZE;
+    if (remainder == 0) return val;
+
+    return val + BOUNDING_STEP_SIZE - remainder;
 }
 
 void print_probabilities(const std::map<const clade*, VectorXd>& probabilities, const clade *node)
@@ -144,7 +148,7 @@ void compute_node_probability(const clade* node,
         else
         {
             // cout << "Leaf node " << node->get_taxon_name() << " has " << _probabilities[node].size() << " probabilities" << endl;
-            probabilities[node] = VectorPos_bounds(species_size, DISCRETIZATION_RANGE, bounds(gene_transcript));
+            probabilities[node] = VectorPos_bounds(species_size, DISCRETIZATION_RANGE, boundaries(0, get_upper_bound(gene_transcript)));
             //print_probabilities(probabilities, node);
         }
     }
@@ -153,7 +157,7 @@ void compute_node_probability(const clade* node,
         node_probs = VectorXd::Constant(DISCRETIZATION_RANGE, 1);
 
         for (auto it = node->descendant_begin(); it != node->descendant_end(); ++it) {
-            const MatrixXd& m = cache.get_matrix((*it)->get_branch_length(), p_sigma->get_named_value(*it, gene_transcript), bounds(gene_transcript));
+            const MatrixXd& m = cache.get_matrix((*it)->get_branch_length(), p_sigma->get_named_value(*it, gene_transcript), boundaries(0, get_upper_bound(gene_transcript)));
 
             VectorXd result = m * probabilities[*it];
             for (VectorXd::Index i = 0; i < node_probs.size(); i++) {
@@ -399,8 +403,8 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     auto& actual = probabilities[A];
 
     vector<double> expected(DISCRETIZATION_RANGE);
-    expected[132] = 2.3648247178;
-    expected[133] = 4.7296494355;
+    expected[93] = 4.8133125;
+    expected[94] = 0.1616875;
 
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
@@ -413,8 +417,8 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     actual = probabilities[B];
 
     expected = vector<double>(DISCRETIZATION_RANGE);
-    expected[122] = 1.8842721013;
-    expected[123] = 5.210202052;
+    expected[86] = 4.6391875;
+    expected[87] = 0.3358125;
 
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
@@ -437,8 +441,8 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly")
     MatrixXd doubler = MatrixXd::Identity(DISCRETIZATION_RANGE, DISCRETIZATION_RANGE) * 2;
     sigma lambda(0.03);
     matrix_cache cache;
-    cache.set_matrix(1, 0.03, bounds(family), doubler);
-    cache.set_matrix(3, 0.03, bounds(family), doubler);
+    cache.set_matrix(1, 0.03, boundaries(0,get_upper_bound(family)), doubler);
+    cache.set_matrix(3, 0.03, boundaries(0,get_upper_bound(family)), doubler);
     std::map<const clade*, VectorXd> probabilities;
     auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(DISCRETIZATION_RANGE); };
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
@@ -567,7 +571,7 @@ TEST_CASE("compute_family_probabilities")
     fam.set_expression_value("B", 2);
     fam.set_expression_value("C", 5);
     fam.set_expression_value("D", 6);
-    cache.precalculate_matrices(lambda.get_lambdas(), set<boundaries>{bounds(fam)}, set<double>{1, 3, 7, 11, 17, 23});
+    cache.precalculate_matrices(lambda.get_lambdas(), set<boundaries>{boundaries(0,get_upper_bound(fam))}, set<double>{1, 3, 7, 11, 17, 23});
 
     // note we do not use an error model for creating family sizes. See architecture decision #6
     p.p_tree->apply_prefix_order([&v, &fam](const clade* c)
@@ -606,13 +610,18 @@ TEST_CASE("Inference: prune" * doctest::skip(true))
     }
 }
 
-TEST_CASE("Bounds returns largest value times 1.5")
+TEST_CASE("Bounds returns next multiple of 20, of the largest value times 1.5")
 {
     gene_transcript gt;
     gt.set_expression_value("A", 12);
     gt.set_expression_value("B", 24);
-    CHECK_EQ(0, bounds(gt).first);
-    CHECK_EQ(36, bounds(gt).second);
+    CHECK_EQ(40, get_upper_bound(gt));
+
+    gt.set_expression_value("A", 40);
+    CHECK_EQ(60, get_upper_bound(gt));
+
+    gt.set_expression_value("B", 41);
+    CHECK_EQ(80, get_upper_bound(gt));
 }
 
 TEST_CASE("Bounds never returns less than 20")
@@ -620,6 +629,5 @@ TEST_CASE("Bounds never returns less than 20")
     gene_transcript gt;
     gt.set_expression_value("A", 12);
     gt.set_expression_value("B", 4);
-    CHECK_EQ(0, bounds(gt).first);
-    CHECK_EQ(20, bounds(gt).second);
+    CHECK_EQ(20, get_upper_bound(gt));
 }

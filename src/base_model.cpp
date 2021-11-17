@@ -60,7 +60,7 @@ set<pair<double, double>> get_all_bounds(const vector<gene_transcript>& transcri
 {
     vector<pair<double, double>> boundses(transcripts.size());
     transform(transcripts.begin(), transcripts.end(), boundses.begin(), [](const gene_transcript& gf) {
-        return bounds(gf);
+        return std::pair<double,double>(0, get_upper_bound(gf));
         });
 
     return set<pair<double, double>>(boundses.begin(), boundses.end());

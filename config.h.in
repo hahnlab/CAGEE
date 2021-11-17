@@ -12,7 +12,7 @@
 
 #define DISCRETIZATION_RANGE 200
 
-#define MINIMUM_UPPER_BOUND 20.0
+#define BOUNDING_STEP_SIZE 20
 
 /* Required for Windows compatibility */
 #ifdef _WIN32

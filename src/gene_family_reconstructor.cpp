@@ -38,7 +38,8 @@ namespace pupko_reconstructor {
         double observed_count = t.get_expression_value(c->get_taxon_name());
         fill(C.begin(), C.end(), observed_count);
 
-        auto matrix = _p_calc->get_matrix(branch_length, p_sigma->get_named_value(c, t), bounds(t));
+        std::pair<double, double> bounds(0, get_upper_bound(t));
+        auto matrix = _p_calc->get_matrix(branch_length, p_sigma->get_named_value(c, t), bounds);
         // i will be the parent size
         for (size_t i = 0; i < L.size(); ++i)
         {
@@ -83,7 +84,8 @@ namespace pupko_reconstructor {
 
         double branch_length = c->get_branch_length();
 
-        auto matrix = _p_calc->get_matrix(branch_length, p_sigma->get_named_value(c, t), bounds(t));
+        std::pair<double, double> bounds(0, get_upper_bound(t));
+        auto matrix = _p_calc->get_matrix(branch_length, p_sigma->get_named_value(c, t), bounds);
 
         size_t j = 0;
         double value = 0.0;
@@ -389,7 +391,7 @@ int reconstruction::get_difference_from_parent(const gene_transcript& gf, const 
 
 
 branch_probabilities::branch_probability compute_viterbi_sum(const clade* c, 
-    const gene_transcript& family, 
+    const gene_transcript& transcript, 
     const reconstruction* rec, 
     int max_family_size, 
     const matrix_cache& cache, 
@@ -400,10 +402,11 @@ branch_probabilities::branch_probability compute_viterbi_sum(const clade* c,
         return branch_probabilities::invalid();
     }
 
-    auto probs = cache.get_matrix(c->get_branch_length(), p_lambda->get_named_value(c, family), bounds(family));
+    std::pair<double, double> bounds(0, get_upper_bound(transcript));
+    auto probs = cache.get_matrix(c->get_branch_length(), p_lambda->get_named_value(c, transcript), bounds);
 
-    int parent_size = rec->get_node_count(family, c->get_parent());
-    int child_size = rec->get_node_count(family, c);
+    int parent_size = rec->get_node_count(transcript, c->get_parent());
+    int child_size = rec->get_node_count(transcript, c);
     double result = 0;
     double calculated_probability = probs(parent_size, child_size);
     for (int m = 0; m < max_family_size; m++)
@@ -420,11 +423,11 @@ branch_probabilities::branch_probability compute_viterbi_sum(const clade* c,
     }
     if (result < 0.05)
     {
-        VLOG(1) << family.id() << ":" << c->get_taxon_name() << " probability " << result << " calculated for parent: " << parent_size << ", child: " << child_size;
+        VLOG(1) << transcript.id() << ":" << c->get_taxon_name() << " probability " << result << " calculated for parent: " << parent_size << ", child: " << child_size;
     }
     else
     {
-        VLOG(2) << family.id() << ":" << c->get_taxon_name() << " probability " << result << " calculated for parent: " << parent_size << ", child: " << child_size;
+        VLOG(2) << transcript.id() << ":" << c->get_taxon_name() << " probability " << result << " calculated for parent: " << parent_size << ", child: " << child_size;
     }
     return branch_probabilities::branch_probability(result);
 }

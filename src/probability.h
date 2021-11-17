@@ -34,6 +34,6 @@ std::vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_
 
 std::vector<double> inference_prune(const gene_transcript& gf, const matrix_cache& cache, const sigma* _lambda, const error_model* p_error_model, const clade* _p_tree, double _lambda_multiplier);
 
-std::pair<double, double> bounds(const gene_transcript& gt);
+int get_upper_bound(const gene_transcript& gt);
 
 #endif
