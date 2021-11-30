@@ -28,6 +28,7 @@
 #cmakedefine BLAS_FOUND @BLAS_FOUND@
 #cmakedefine Boost_FOUND @Boost_FOUND@
 #cmakedefine OPTIMIZER_STRATEGY_LBFGS @OPTIMIZER_STRATEGY_LBFGS@
+#cmakedefine USE_PRIOR @USE_PRIOR@
 
 /* Verbose log keys for various aspects of the application */
 #define ROOT_SIZE_ESTIMATION 2
