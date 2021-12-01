@@ -250,17 +250,6 @@ TEST_CASE("root_distribution_gamma select_root_value")
     CHECK_EQ(doctest::Approx(0.0601f), pd.select_root_value(100));
 }
 
-TEST_CASE("gammapdf")
-{
-    std::gamma_distribution<double> pd(0.75, 2.5);
-    gene_transcript t;
-
-    CHECK_EQ(doctest::Approx(0.13318f).scale(1000), gammapdf(1, pd));
-    CHECK_EQ(doctest::Approx(0.00068f).scale(1000), gammapdf(2, pd));
-    CHECK_EQ(doctest::Approx(0.005).scale(1000), gammapdf(4, pd));
-    CHECK_EQ(doctest::Approx(0.0), gammapdf(100, pd));
-}
-
 TEST_CASE("root_distribution_gamma throws on zero alpha or beta")
 {
     CHECK_THROWS_WITH(root_distribution_gamma pd(0, 1), "Invalid gamma distribution");

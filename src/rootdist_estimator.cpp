@@ -25,15 +25,11 @@ double poisspdf(double x, double lambda)
 }
 
 double gammapdf(double value, const std::gamma_distribution<double>& dist) {
-#if 0
-    double a = std::pow(beta, alpha);
-    double b = std::pow(value, (alpha - 1));
-    double c = std::pow(M_E, (-1 * value/beta ));
-    double d = tgamma(alpha);
+    double a = std::pow(dist.beta(), dist.alpha());
+    double b = std::pow(value, (dist.alpha() - 1));
+    double c = std::pow(M_E, (-1 * value/dist.beta() ));
+    double d = tgamma(dist.alpha());
     return (b * c) /(a * d);
-#else
-    return (std::pow(dist.beta(), dist.alpha()) * std::pow(value, (dist.alpha() - 1)) * std::pow(M_E, (-1 * dist.beta() * value))) / tgamma(dist.alpha());
-#endif
 }
 
 vector<double> get_prior_rfsize_poisson_lambda(int min_family_size, int max_family_size, double poisson_lambda)
@@ -142,3 +138,15 @@ TEST_CASE("poisson_scorer__lnlPoisson_skips_incalculable_family_sizes")
     double lambda = 0.05;
     CHECK_EQ(doctest::Approx(9.830344), scorer.lnLPoisson(&lambda));
 }
+
+TEST_CASE("gammapdf")
+{
+    std::gamma_distribution<double> pd(0.75, 2.5);
+    gene_transcript t;
+
+    CHECK_EQ(doctest::Approx(0.2751).scale(1000), gammapdf(1, pd));
+    CHECK_EQ(doctest::Approx(0.15508).scale(1000), gammapdf(2, pd));
+    CHECK_EQ(doctest::Approx(0.058596).scale(1000), gammapdf(4, pd));
+    CHECK_EQ(doctest::Approx(0.0), gammapdf(100, pd));
+}
+

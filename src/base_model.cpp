@@ -216,5 +216,5 @@ TEST_CASE("compute_prior_likelihood combines prior and inference correctly")
     gamma_distribution<double> prior(0.75, 30.0);
     vector<double> inf{ 0.1, 0.2, 0.3};
 
-    CHECK_EQ(doctest::Approx(-1.20397), compute_prior_likelihood(inf, gt, prior));
+    CHECK_EQ(doctest::Approx(-3.8029), compute_prior_likelihood(inf, gt, prior));
 }
