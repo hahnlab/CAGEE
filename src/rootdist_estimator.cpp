@@ -25,11 +25,15 @@ double poisspdf(double x, double lambda)
 }
 
 double gammapdf(double value, const std::gamma_distribution<double>& dist) {
+#if 1
     double a = std::pow(dist.beta(), dist.alpha());
     double b = std::pow(value, (dist.alpha() - 1));
-    double c = std::pow(M_E, (-1 * value/dist.beta() ));
+    double c = std::pow(M_E, (-1 * value/ dist.beta()));
     double d = tgamma(dist.alpha());
     return (b * c) /(a * d);
+#else
+    return (std::pow(dist.beta(), dist.alpha()) * std::pow(value, (dist.alpha() - 1)) * std::pow(M_E, (-1 * dist.beta() * value))) / tgamma(dist.alpha());
+#endif
 }
 
 vector<double> get_prior_rfsize_poisson_lambda(int min_family_size, int max_family_size, double poisson_lambda)
@@ -139,14 +143,34 @@ TEST_CASE("poisson_scorer__lnlPoisson_skips_incalculable_family_sizes")
     CHECK_EQ(doctest::Approx(9.830344), scorer.lnLPoisson(&lambda));
 }
 
-TEST_CASE("gammapdf")
+TEST_CASE("gammapdf function" * doctest::skip(true))
 {
-    std::gamma_distribution<double> pd(0.75, 2.5);
-    gene_transcript t;
+    const char *plotter = 
+R"(#!/usr/bin/gnuplot
+reset
+set macros
 
-    CHECK_EQ(doctest::Approx(0.2751).scale(1000), gammapdf(1, pd));
-    CHECK_EQ(doctest::Approx(0.15508).scale(1000), gammapdf(2, pd));
-    CHECK_EQ(doctest::Approx(0.058596).scale(1000), gammapdf(4, pd));
-    CHECK_EQ(doctest::Approx(0.0), gammapdf(100, pd));
+set terminal pngcairo size 350, 262 enhanced font 'Verdana,10'
+set output 'gammapdf.png'
+
+set style line 1 lt 1 lc rgb '#FB9A99' # light red
+set style line 11 lc rgb '#808080' lt 1
+set border 3 front ls 11
+set tics nomirror out scale 0.75
+
+set title "Gamma PDF alpha=0.75, beta=1.0/30.0"
+set ylabel 'PDF Value' offset 1, 0
+
+set nokey
+
+plot 'gammapdf.dat' with lines ls 1)";
+
+    std::ofstream p("gammapdf.sh");
+    p << plotter;
+
+    std::gamma_distribution<double> dist(0.75, 1.0/30.0);
+
+    std::ofstream d("gammapdf.dat");
+    for (double j = 0; j < 5; j += 0.01)
+        d << j << " " << gammapdf(j, dist) << endl;
 }
-
