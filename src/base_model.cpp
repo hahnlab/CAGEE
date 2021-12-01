@@ -75,9 +75,10 @@ double compute_prior_likelihood(const vector<double>& partial_likelihood, const 
     double bound = get_upper_bound(t);
     for (size_t j = 0; j < partial_likelihood.size(); ++j) {
         full[j] = std::log(partial_likelihood[j]);
-#ifdef USE_PRIOR
+
+        // add log(prior) to result
         full[j] += std::log(gammapdf((double(j) + 0.5) * bound / (DISCRETIZATION_RANGE - 1), prior));
-#endif
+
         if (isnan(full[j]))
                full[j] = -numeric_limits<double>::infinity();
     }
