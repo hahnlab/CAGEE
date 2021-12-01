@@ -19,26 +19,6 @@ extern std::mt19937 randomizer_engine; // seeding random number engine
 using namespace std;
 using namespace Eigen;
 
-rootdist_options::rootdist_options(std::string cfg)
-{
-    auto tokens = tokenize_str(cfg, ':');
-    if (tokens[0] == "fixed")
-    {
-        type = rootdist_type::fixed;
-        fixed_value = stof(tokens[1]);
-    }
-    if (tokens[0] == "gamma")
-    {
-        type = rootdist_type::gamma;
-        dist = gamma_distribution<double>(stof(tokens[1]), stof(tokens[2]));
-    }
-    if (tokens[0] == "file")
-    {
-        type = rootdist_type::file;
-        filename = tokens[1];
-    }
-}
-
 void root_distribution_fixed::resize(size_t new_size)
 {
 

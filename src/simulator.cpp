@@ -3,6 +3,7 @@
 #include <fstream>
 #include <random>
 #include <vector>
+#include <iomanip>
 
 #include "doctest.h"
 #include "easylogging++.h"
@@ -19,6 +20,7 @@
 
 using namespace std;
 using namespace Eigen;
+using root_distribution = std::map<int, float>;
 
 extern std::mt19937 randomizer_engine; // seeding random number engine
 
@@ -54,7 +56,7 @@ simulator::simulator(user_data& d, const input_parameters& ui) : action(d, ui)
 #ifdef SILENT
     quiet = true;
 #endif
-    _p_prior = d.create_prior(ui.rootdist_params);
+    _p_rootdist = create_rootdist(ui.rootdist_params, d.rootdist);
 }
 
 void simulator::execute(std::vector<model *>& models)
@@ -91,7 +93,7 @@ simulated_family create_simulated_family(const clade *p_tree, const sigma* p_sig
 // and 0 everywhere else
 // for each child, generate the transition matrix and multiply
 simulated_family simulator::create_trial(const sigma*p_sigma, int family_number) {
-    double root_size = _p_prior->select_root_value(family_number);
+    double root_size = _p_rootdist->select_root_value(family_number);
 
     if (data.p_tree == NULL)
         throw runtime_error("No tree specified for simulation");
@@ -126,6 +128,25 @@ void simulator::simulate_processes(model *p_model, std::vector<simulated_family>
     }
 }
 
+void print_header(std::ostream& ost, const input_parameters& p, size_t c)
+{
+    auto tm = std::time(nullptr);
+
+    ost << "# Simulated data set created " << std::put_time(std::localtime(&tm), "%Y-%m-%d %H:%M");
+    ost << " (" << c << " transcripts)" << endl;
+    ost << "# Root distribution: ";
+    if (p.rootdist_params.empty())
+        ost << "gamma:0.75:0.033" << endl;
+    else
+        ost << p.rootdist_params << endl;
+
+    ost << "# Sigma: ";
+    if (p.fixed_multiple_lambdas.empty())
+        ost << p.fixed_lambda << endl;
+    else
+        ost << p.fixed_multiple_lambdas << endl;
+}
+
 /// Simulate
 /// \callgraph
 void simulator::simulate(std::vector<model *>& models, const input_parameters &my_input_parameters)
@@ -150,11 +171,13 @@ void simulator::simulate(std::vector<model *>& models, const input_parameters &m
 
         string fname = filename("simulation", my_input_parameters.output_prefix);
         std::ofstream ofst2(fname);
+        print_header(ofst2, my_input_parameters, results.size());
         print_simulations(ofst2, false, results);
         LOG(INFO) << "Simulated values written to " << fname << endl;
 
         string truth_fname = filename("simulation_truth", dir);
         std::ofstream ofst(truth_fname);
+        print_header(ofst, my_input_parameters, results.size());
         print_simulations(ofst, true, results);
         LOG(INFO) << "Simulated values (including internal nodes) written to " << truth_fname << endl;
 
@@ -201,6 +224,40 @@ void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes
     }
 }
 
+root_equilibrium_distribution* create_rootdist(std::string param, const std::map<int, float>& rootdist)
+{
+    root_equilibrium_distribution* p_dist = nullptr;
+    auto tokens = tokenize_str(param, ':');
+    if (tokens.empty())
+    {
+        LOG(INFO) << "Using default gamma root distribution (0.75, 1.0/30.0)";
+        p_dist = new root_distribution_gamma(0.75, 1.0 / 30.0);
+    }
+    else if (tokens[0] == "fixed")
+    {
+        auto fixed_value = stof(tokens[1]);
+        LOG(INFO) << "Root distribution fixed at " << fixed_value;
+        p_dist = new root_distribution_fixed(fixed_value);
+    }
+    else if (tokens[0] == "gamma")
+    {
+        auto alpha = stof(tokens[1]), beta = stof(tokens[2]);
+        LOG(INFO) << "Using user provided gamma root distribution (" << alpha << ", " << beta << ")";
+        p_dist = new root_distribution_gamma(alpha, beta);
+    }
+    else if (tokens[0] == "file")
+    {
+        p_dist = new root_distribution_specific(rootdist);
+    }
+    else
+    {
+        throw std::runtime_error("Couldn't parse root distribution");
+    }
+
+    return p_dist;
+}
+
+
 TEST_CASE("create_trial")
 {
     randomizer_engine.seed(10);
@@ -216,7 +273,7 @@ TEST_CASE("create_trial")
     data.max_family_size = 10;
     data.max_root_family_size = 10;
     input_parameters params;
-    params.rootdist_params.type = rootdist_type::file;
+    params.rootdist_params = "file:rd.txt";
     simulator sim(data, params);
 
     simulated_family actual = sim.create_trial(&lam, 2);
@@ -310,5 +367,74 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
 
     CHECK_EQ(doctest::Approx(9.37455), mean);
     CHECK_EQ(doctest::Approx(9.90501), variance);
+
+}
+
+TEST_CASE("print_header")
+{
+    std::ostringstream ost;
+    input_parameters p;
+    p.fixed_lambda = 2.5;
+    p.rootdist_params = "Fixed:6.0";
+    print_header(ost, p, 100);
+    CHECK_STREAM_CONTAINS(ost, "# Simulated data set created ");
+    CHECK_STREAM_CONTAINS(ost, "(100 transcripts)");
+    CHECK_STREAM_CONTAINS(ost, "# Root distribution: Fixed:6.0");
+    CHECK_STREAM_CONTAINS(ost, "# Sigma: 2.5");
+}
+
+TEST_CASE("print_header default rootdist")
+{
+    std::ostringstream ost;
+    input_parameters p;
+    p.fixed_lambda = 2.5;
+    print_header(ost, p, 100);
+    CHECK_STREAM_CONTAINS(ost, "# Root distribution: gamma:0.75:0.033");
+}
+
+TEST_CASE("print_header multiple sigmas")
+{
+    std::ostringstream ost;
+    input_parameters p;
+    p.fixed_multiple_lambdas = "1,2,3";
+    print_header(ost, p, 100);
+    CHECK_STREAM_CONTAINS(ost, "# Sigma: 1,2,3");
+}
+
+TEST_CASE("create_rootdist creates__specifed_distribution_if_given")
+{
+    randomizer_engine.seed(10);
+    input_parameters params;
+    root_distribution rd;
+    rd[2] = 11;
+    unique_ptr<root_equilibrium_distribution> red(create_rootdist("file:rd.txt", rd));
+    REQUIRE(dynamic_cast<root_distribution_specific*>(red.get()));
+    CHECK_EQ(2.0f, red->select_root_value(0));
+}
+
+TEST_CASE("create_rootdist creates gamma distribution if given distribution")
+{
+    randomizer_engine.seed(10);
+    user_data ud;
+    unique_ptr<root_equilibrium_distribution> rd(create_rootdist("gamma:1:3", root_distribution()));
+    REQUIRE(dynamic_cast<root_distribution_gamma*>(rd.get()));
+    CHECK_EQ(doctest::Approx(1.87704f), rd->select_root_value(0));
+}
+
+TEST_CASE("create_rootdist returns gamma distribution if nothing set")
+{
+    randomizer_engine.seed(10);
+    user_data ud;
+    unique_ptr<root_equilibrium_distribution> rd(create_rootdist("", root_distribution()));
+    REQUIRE(dynamic_cast<root_distribution_gamma*>(rd.get()));
+    CHECK_EQ(doctest::Approx(0.03538f), rd->select_root_value(0));
+}
+
+TEST_CASE("create_rootdist creates fixed root if requested")
+{
+    user_data ud;
+    unique_ptr<root_equilibrium_distribution> rd(create_rootdist("fixed:6", root_distribution()));
+    REQUIRE(dynamic_cast<root_distribution_fixed*>(rd.get()));
+    CHECK_EQ(6.0, rd->select_root_value(0));
 
 }

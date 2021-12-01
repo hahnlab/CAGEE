@@ -16,6 +16,7 @@ namespace po = boost::program_options;
 #include "easylogging++.h"
 
 #include "arguments.h"
+#include "io.h"
 
 using namespace std;
 
@@ -254,13 +255,14 @@ input_parameters read_arguments(int argc, char* const argv[])
     maybe_set(vm, "fixed_multiple_sigmas", my_input_parameters.fixed_multiple_lambdas);
     maybe_set(vm, "sigma_tree", my_input_parameters.lambda_tree_file_path);
     maybe_set(vm, "verbose", my_input_parameters.verbose_logging_level);
-
-    if (vm.find("rootdist") != vm.end())
-        my_input_parameters.rootdist_params = rootdist_options(vm["rootdist"].as<string>());
+    maybe_set(vm, "rootdist", my_input_parameters.rootdist_params);
 
     if (vm.find("prior") != vm.end())
-        my_input_parameters.prior = rootdist_options(vm["prior"].as<string>()).dist;
-
+    {
+        auto tokens = tokenize_str(vm["prior"].as<string>(), ':');
+        auto alpha = stof(tokens[1]), beta = stof(tokens[2]);
+        my_input_parameters.prior = gamma_distribution<double>(alpha, beta);
+    }
     string simulate_string = vm["simulate"].as<string>();
     my_input_parameters.is_simulating = simulate_string != "false";
     if (my_input_parameters.is_simulating)
@@ -325,7 +327,7 @@ void input_parameters::check_input() {
             errors.push_back("Alpha specified with 1 gamma category.");
         }
 
-        if (rootdist_params.type != rootdist_type::none) {
+        if (!rootdist_params.empty()) {
             errors.push_back("A root distribution was provided while estimating");
         }
 
@@ -487,7 +489,7 @@ TEST_CASE("Options: fixed_root_value")
     option_test c({ "cafe5", "--rootdist=fixed:12.7", "--simulate=100", "--fixed_sigma=0.01"});
 
     auto actual = read_arguments(c.argc, c.values);
-    CHECK_EQ(doctest::Approx(12.7), actual.rootdist_params.fixed_value);
+    CHECK_EQ("fixed:12.7", actual.rootdist_params);
 }
 
 TEST_CASE("Options, errormodel_accepts_no_argument")
@@ -593,7 +595,7 @@ TEST_CASE("Specifying a --rootdist argument without the --simulate argument will
 {
     input_parameters params;
     params.fixed_lambda = 10;
-    params.rootdist_params.type = rootdist_type::file;
+    params.rootdist_params = "file:rd.txt";
     params.is_simulating = true;
     params.check_input();
     CHECK(true);

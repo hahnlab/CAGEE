@@ -24,9 +24,9 @@ public:
     int verbose_logging_level = 0;
     int cores = 0;
     optimizer_parameters optimizer_params;
-    rootdist_options rootdist_params;
+    std::string rootdist_params;
     std::vector<std::string> sample_groups;
-    std::gamma_distribution<double> prior;
+    std::gamma_distribution<double> prior = std::gamma_distribution<double>(0.75, 30.0);
     bool help = false;
 
     //! Check calls

@@ -52,8 +52,6 @@ public:
     sigma* read_lambda(const input_parameters &my_input_parameters, clade *p_lambda_tree);
 
     void read_rootdist(std::string rootdist_file_path);
-
-    root_equilibrium_distribution* create_prior(rootdist_options params) const;
 };
 
 #endif

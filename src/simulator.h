@@ -37,6 +37,7 @@ struct simulated_family
 };
 
 simulated_family create_simulated_family(const clade* p_tree, const sigma* p_sigma, double root_value);
+root_equilibrium_distribution* create_rootdist(std::string param, const std::map<int, float>& rootdist);
 
 /*! @brief Build simulated families based on the user's input
 
@@ -65,7 +66,7 @@ until we have the number of families requested by the user.
 class simulator : public action
 {
     void simulate(std::vector<model *>& models, const input_parameters &my_input_parameters);
-    root_equilibrium_distribution* _p_prior = NULL;
+    root_equilibrium_distribution* _p_rootdist = NULL;
 
 public:
     simulator(user_data& d, const input_parameters& ui);

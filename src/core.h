@@ -14,7 +14,6 @@ class inference_process;
 class gene_transcript_reconstructor;
 class reconstruction;
 class user_data;
-class root_distribution;
 class gene_transcript;
 class matrix_cache;
 class root_distribution_gamma;
@@ -65,9 +64,6 @@ public:
 private:
     std::map<std::string, clademap<branch_probability>> _probabilities;
 };
-
-//using probabilitymap = std::map<std::string, clademap<branch_probability>>;
-
 
 //! The result of a model reconstruction. Should be able to (a) print reconstructed states with all available information;
 /// (b) print increases and decreases by family; and (c) print increases and decreases by clade.
