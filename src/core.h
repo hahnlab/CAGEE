@@ -14,11 +14,10 @@ class inference_process;
 class gene_transcript_reconstructor;
 class reconstruction;
 class user_data;
-class root_distribution;
-class inference_optimizer_scorer;
 class gene_transcript;
 class matrix_cache;
 class root_distribution_gamma;
+class sigma_optimizer_scorer;
 
 struct input_parameters;
 
@@ -65,9 +64,6 @@ public:
 private:
     std::map<std::string, clademap<branch_probability>> _probabilities;
 };
-
-//using probabilitymap = std::map<std::string, clademap<branch_probability>>;
-
 
 //! The result of a model reconstruction. Should be able to (a) print reconstructed states with all available information;
 /// (b) print increases and decreases by family; and (c) print increases and decreases by clade.
@@ -165,7 +161,7 @@ public:
     //! Based on the model parameters, attempts to reconstruct the most likely counts of each family at each node
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache *p_calc) = 0;
 
-    virtual inference_optimizer_scorer *get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior) = 0;
+    virtual sigma_optimizer_scorer* get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior) = 0;
 
     const event_monitor& get_monitor() { return _monitor;  }
 };

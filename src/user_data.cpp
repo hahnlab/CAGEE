@@ -101,7 +101,7 @@ sigma* user_data::read_lambda(const input_parameters &my_input_parameters, clade
             [](string const& val) { return stod(val); } // this is the equivalent of a Python's lambda function
         );
 
-        p_lambda = new sigma(node_name_to_lambda_index, lambdas);
+        p_lambda = new sigma(node_name_to_lambda_index, lambdas, sigma_type::lineage_specific);
     }
 
     return p_lambda;
@@ -160,68 +160,11 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
     /* -l/-m (in the absence of -l, estimate) */
     p_lambda = read_lambda(my_input_parameters, p_lambda_tree);
 
-    if (my_input_parameters.rootdist_params.type == rootdist_type::file)
-        read_rootdist(my_input_parameters.rootdist_params.filename);
-}
-
-root_equilibrium_distribution* user_data::create_prior(rootdist_options params) const
-{
-    root_equilibrium_distribution* p_prior = nullptr;
-
-    switch (params.type)
+    if (!my_input_parameters.rootdist_params.empty())
     {
-    case rootdist_type::file:
-        LOG(INFO) << "Root distribution set by user provided file";
-        p_prior = new root_distribution_specific(rootdist);
-        break;
-    case rootdist_type::fixed:
-        LOG(INFO) << "Root distribution fixed at " << params.fixed_value;
-        p_prior = new root_distribution_fixed(params.fixed_value);
-        break;
-    case rootdist_type::gamma:
-        LOG(INFO) << "Using user provided gamma root distribution (" << params.dist << ")";
-        p_prior = new root_distribution_gamma(params.dist.alpha(), params.dist.beta());
-        break;
-    default:
-        LOG(INFO) << "Using default gamma root distribution";
-        p_prior = new root_distribution_gamma(0.75, 1.0/30.0);
-        break;
+        auto rootdist = tokenize_str(my_input_parameters.rootdist_params, ':');
+        if (rootdist[0] == "file")
+            read_rootdist(rootdist[1]);
     }
-    return p_prior;
 }
 
-TEST_CASE("create_prior__creates__specifed_distribution_if_given")
-{
-    input_parameters params;
-    user_data ud;
-    params.rootdist_params.type = rootdist_type::file;
-    ud.rootdist[2] = 11;
-    ud.max_root_family_size = 10;
-    CHECK(dynamic_cast<root_distribution_specific*>(ud.create_prior(params.rootdist_params)));
-}
-
-
-TEST_CASE("create_prior creates gamma distribution if given distribution")
-{
-    rootdist_options opts;
-    opts.type = rootdist_type::gamma;
-    user_data ud;
-    CHECK(dynamic_cast<root_distribution_gamma *>(ud.create_prior(opts)));
-
-}
-
-TEST_CASE("create_prior returns gamma distribution if nothing set")
-{
-    rootdist_options opts;
-    user_data ud;
-    auto dist = dynamic_cast<root_distribution_gamma*>(ud.create_prior(opts));
-    CHECK(dist != nullptr);
-}
-
-TEST_CASE("create_prior creates fixed root if requested")
-{
-    rootdist_options opts;
-    opts.type = rootdist_type::fixed;
-    user_data ud;
-    CHECK(dynamic_cast<root_distribution_fixed*>(ud.create_prior(opts)));
-}

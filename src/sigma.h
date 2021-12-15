@@ -5,20 +5,23 @@
 #include <map>
 
 class clade;
+class gene_transcript;
+
+enum class sigma_type { uniform, lineage_specific, sample_specific };
 
 class sigma {
 private:
     std::map<std::string, int> _node_name_to_lambda_index;
     std::vector<double> _lambdas;
-
+    sigma_type _type = sigma_type::uniform;
 public:
     sigma(double lam)
     {
         _lambdas.push_back(lam);
     }
 
-    sigma(std::map<std::string, int> nodename_index_map, std::vector<double> lambda_vector) :
-        _node_name_to_lambda_index(nodename_index_map), _lambdas(lambda_vector) { } //!< Constructor
+    sigma(std::map<std::string, int> nodename_index_map, std::vector<double> lambda_vector, sigma_type t) :
+        _node_name_to_lambda_index(nodename_index_map), _lambdas(lambda_vector), _type(t) { } //!< Constructor
 
     sigma* multiply(double factor) const
     {
@@ -27,7 +30,7 @@ public:
         for (auto& i : npi)
             i *= factor;
 
-        return new sigma(_node_name_to_lambda_index, npi);
+        return new sigma(_node_name_to_lambda_index, npi, _type);
     }
     void update(const double* values) ;
     int count() const  {
@@ -35,6 +38,7 @@ public:
     }
     std::string to_string() const;
     double get_value_for_clade(const clade* c) const ;
+    double get_named_value(const clade* c, const gene_transcript& t) const;
 
     bool is_valid() const ;
 
@@ -42,7 +46,7 @@ public:
         return _lambdas;
     }
     virtual sigma* clone() const  {
-        return new sigma(_node_name_to_lambda_index, _lambdas);
+        return new sigma(_node_name_to_lambda_index, _lambdas, _type);
     }
 
 };

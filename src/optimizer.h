@@ -21,13 +21,11 @@
 class optimizer_scorer;
 
 //! \ingroup optimizer
-enum strategies { RangeWidely, InitialVar, Perturb, Standard, SimilarityCutoff, NLOpt, LBFGS };
 
 struct optimizer_parameters {
     double neldermead_expansion;
     double neldermead_reflection;
     int neldermead_iterations = 300;
-    strategies strategy;
     optimizer_parameters();
 };
 

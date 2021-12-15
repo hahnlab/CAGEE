@@ -61,6 +61,7 @@ void read_gene_families(std::istream& input_file, clade *p_tree, std::vector<gen
 
     while (getline(input_file, line)) {
         if (line.empty()) continue;
+        if (line[0] == '#') continue;
 
         std::vector<std::string> tokens = tokenize_str(line, '\t');
 
@@ -225,6 +226,15 @@ TEST_CASE("GeneFamilies: read_gene_families_throws_if_no_families_found")
 TEST_CASE("GeneFamilies: read_gene_families skips blank lines in input")
 {
     std::string str = "Desc\tFamily ID\tA\tB\tC\tD\n\n\n\n\t (null)1\t5\t10\t2\t6\n\n\n\n";
+    std::istringstream ist(str);
+    std::vector<gene_transcript> families;
+    read_gene_families(ist, NULL, families);
+    CHECK_EQ(1, families.size());
+}
+
+TEST_CASE("GeneFamilies: read_gene_families skips comment lines in input")
+{
+    std::string str = "Desc\tFamily ID\tA\tB\tC\tD\n\n#Comment1\n\n\t (null)1\t5\t10\t2\t6\n\n#Comment 2\n\n";
     std::istringstream ist(str);
     std::vector<gene_transcript> families;
     read_gene_families(ist, NULL, families);

@@ -4,27 +4,11 @@
 #include <vector>
 #include <map>
 #include <random>
+#include <iosfwd>
 
 class clade;
 struct input_parameters;
-class root_distribution;
 class gene_transcript;
-
-enum class rootdist_type { none, gamma, fixed, file };
-
-struct rootdist_options
-{
-    rootdist_options() : type(rootdist_type::none)
-    {
-
-    }
-    rootdist_options(std::string cfg);
-    
-    std::gamma_distribution<double> dist;
-    double fixed_value = 0.0;
-    std::string filename;
-    rootdist_type type = rootdist_type::none;
-};
 
 class root_equilibrium_distribution
 {

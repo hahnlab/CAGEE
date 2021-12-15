@@ -92,7 +92,7 @@ void estimator::estimate_missing_variables(std::vector<model *>& models, user_da
         throw runtime_error("No tree specified for lambda estimation");
     }
     for (model* p_model : models) {
-        unique_ptr<inference_optimizer_scorer> scorer(p_model->get_lambda_optimizer(data, _prior));
+        unique_ptr<sigma_optimizer_scorer> scorer(p_model->get_lambda_optimizer(data, _prior));
         if (scorer.get() == nullptr)
             continue;   // nothing to be optimized
 
@@ -156,6 +156,7 @@ void estimator::execute(std::vector<model *>& models)
         {
             estimate_missing_variables(models, data);
 
+            return;
             compute(models, _user_input);
 
             for (model* p_model : models) {

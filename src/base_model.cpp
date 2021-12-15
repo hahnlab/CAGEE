@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <iomanip>
 
+#include "doctest.h"
+
 #include "base_model.h"
 #include "rootdist_estimator.h"
 #include "matrix_cache.h"
@@ -60,11 +62,29 @@ set<pair<double, double>> get_all_bounds(const vector<gene_transcript>& transcri
 {
     vector<pair<double, double>> boundses(transcripts.size());
     transform(transcripts.begin(), transcripts.end(), boundses.begin(), [](const gene_transcript& gf) {
-        return bounds(gf);
+        return std::pair<double,double>(0, get_upper_bound(gf));
         });
 
     return set<pair<double, double>>(boundses.begin(), boundses.end());
 
+}
+
+double compute_prior_likelihood(const vector<double>& partial_likelihood, const gene_transcript& t, const gamma_distribution<double>& prior)
+{
+    std::vector<double> full(partial_likelihood.size());
+    double bound = get_upper_bound(t);
+    for (size_t j = 0; j < partial_likelihood.size(); ++j) {
+        full[j] = std::log(partial_likelihood[j]);
+
+        // add log(prior) to result
+        full[j] += std::log(gammapdf((double(j) + 0.5) * bound / (DISCRETIZATION_RANGE - 1), prior));
+
+        if (isnan(full[j]))
+               full[j] = -numeric_limits<double>::infinity();
+    }
+
+    // return accumulate(full.begin(), full.end(), 0.0); // sum over all sizes (Felsenstein's approach)
+    return *max_element(full.begin(), full.end()); // get max (CAFE's approach)
 }
 
 double base_model::infer_family_likelihoods(const user_data& ud, const sigma *p_sigma, const gamma_distribution<double>& prior) {
@@ -95,18 +115,7 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma *p_
 #pragma omp parallel for
     for (int i = 0; i < ud.gene_families.size(); ++i) {
 
-        auto& partial_likelihood = partial_likelihoods[references[i]];
-        std::vector<double> full(partial_likelihood.size());
-
-        for (size_t j = 0; j < partial_likelihood.size(); ++j) {
-            double eq_freq = gammapdf(j, prior);
-
-            full[j] = std::log(partial_likelihood[j]) + std::log(eq_freq);
-        }
-
-        //        all_families_likelihood[i] = accumulate(full.begin(), full.end(), 0.0); // sum over all sizes (Felsenstein's approach)
-        all_families_likelihood[i] = *max_element(full.begin(), full.end()); // get max (CAFE's approach)
-                                                                             // cout << i << " contribution " << scientific << all_families_likelihood[i] << endl;
+        all_families_likelihood[i] = compute_prior_likelihood(partial_likelihoods[references[i]], ud.gene_families[i], prior);
         
         results[i] = family_info_stash(ud.gene_families.at(i).id(), 0.0, 0.0, 0.0, all_families_likelihood[i], false);
     }
@@ -126,7 +135,7 @@ void base_model::write_family_likelihoods(std::ostream& ost)
     }
 }
 
-inference_optimizer_scorer *base_model::get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior)
+sigma_optimizer_scorer* base_model::get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior)
 {
     if (data.p_lambda != NULL)  // already have a lambda, nothing we want to optimize
         return nullptr;
@@ -135,11 +144,11 @@ inference_optimizer_scorer *base_model::get_lambda_optimizer(const user_data& da
 
     if (_p_error_model && !data.p_error_model)
     {
-        return new lambda_epsilon_optimizer(this, _p_error_model, data, prior, _p_lambda);
+        return new sigma_optimizer_scorer(this, data, prior, _p_lambda, _p_error_model);
     }
     else
     {
-        return new sigma_optimizer_scorer(_p_lambda, this, data, prior);
+        return new sigma_optimizer_scorer(this, data, prior, _p_lambda);
     }
 }
 
@@ -198,4 +207,15 @@ double base_model_reconstruction::get_node_count(const gene_transcript& family, 
         throw runtime_error("Family " + family.id() + " not found in reconstruction");
 
     return _reconstructions.at(family.id()).at(c);
+}
+
+TEST_CASE("compute_prior_likelihood combines prior and inference correctly")
+{
+    gene_transcript gt;
+    gt.set_expression_value("A", 12);
+    gt.set_expression_value("B", 24);
+    gamma_distribution<double> prior(0.75, 30.0);
+    vector<double> inf{ 0.1, 0.2, 0.3};
+
+    CHECK_EQ(doctest::Approx(-3.8029), compute_prior_likelihood(inf, gt, prior));
 }

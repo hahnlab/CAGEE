@@ -19,26 +19,6 @@ extern std::mt19937 randomizer_engine; // seeding random number engine
 using namespace std;
 using namespace Eigen;
 
-rootdist_options::rootdist_options(std::string cfg)
-{
-    auto tokens = tokenize_str(cfg, ':');
-    if (tokens[0] == "fixed")
-    {
-        type = rootdist_type::fixed;
-        fixed_value = stof(tokens[1]);
-    }
-    if (tokens[0] == "gamma")
-    {
-        type = rootdist_type::gamma;
-        dist = gamma_distribution<double>(stof(tokens[1]), stof(tokens[2]));
-    }
-    if (tokens[0] == "file")
-    {
-        type = rootdist_type::file;
-        filename = tokens[1];
-    }
-}
-
 void root_distribution_fixed::resize(size_t new_size)
 {
 
@@ -240,24 +220,14 @@ TEST_CASE("root_distribution_specific returns correct root values")
 
 TEST_CASE("root_distribution_gamma select_root_value")
 {
+    randomizer_engine.seed(10);
     root_distribution_gamma pd(0.75, 2.5);
 
-    CHECK_EQ(doctest::Approx(0.40546f), pd.select_root_value(1));
-    CHECK_EQ(doctest::Approx(1.04763f), pd.select_root_value(3));
-    CHECK_EQ(doctest::Approx(0.00273f), pd.select_root_value(5));
-    CHECK_EQ(doctest::Approx(1.57372f), pd.select_root_value(7));
-    CHECK_EQ(doctest::Approx(8.9958f), pd.select_root_value(100));
-}
-
-TEST_CASE("gammapdf")
-{
-    std::gamma_distribution<double> pd(0.75, 2.5);
-    gene_transcript t;
-
-    CHECK_EQ(doctest::Approx(0.13318f).scale(1000), gammapdf(1, pd));
-    CHECK_EQ(doctest::Approx(0.00068f).scale(1000), gammapdf(2, pd));
-    CHECK_EQ(doctest::Approx(0.005).scale(1000), gammapdf(4, pd));
-    CHECK_EQ(doctest::Approx(0.0), gammapdf(100, pd));
+    CHECK_EQ(doctest::Approx(2.6534f), pd.select_root_value(1));
+    CHECK_EQ(doctest::Approx(0.00264f), pd.select_root_value(3));
+    CHECK_EQ(doctest::Approx(0.10359f), pd.select_root_value(5));
+    CHECK_EQ(doctest::Approx(5.33302f), pd.select_root_value(7));
+    CHECK_EQ(doctest::Approx(0.0601f), pd.select_root_value(100));
 }
 
 TEST_CASE("root_distribution_gamma throws on zero alpha or beta")

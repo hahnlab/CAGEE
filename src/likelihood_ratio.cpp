@@ -35,7 +35,7 @@ namespace LikelihoodRatioTest
         {
             auto result = opt->optimize(optimizer_parameters());
             if (p_lambda_tree)
-                lambda_cache[lambda_index] = new sigma(map<string, int>(), result.values);
+                lambda_cache[lambda_index] = new sigma(map<string, int>(), result.values, sigma_type::lineage_specific);
             else
                 lambda_cache[lambda_index] = new sigma(result.values[0]);
         }
@@ -100,7 +100,7 @@ namespace LikelihoodRatioTest
         std::vector<double> pvalues(data.gene_families.size());
         std::vector<int> lambdas(data.gene_families.size());
 
-        auto scorer = new sigma_optimizer_scorer(data.p_lambda, p_model, data, prior);
+        auto scorer = new sigma_optimizer_scorer(p_model, data, prior, data.p_lambda);
 
         optimizer opt(scorer);
         opt.quiet = true;
