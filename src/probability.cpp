@@ -101,7 +101,7 @@ double chooseln(double n, double r)
 
 std::pair<double, double> bounds(const gene_transcript& gt)
 {
-    return std::pair<double, double>(0, max(MINIMUM_UPPER_BOUND, gt.get_max_expression_value() * 1.5));
+    return std::pair<double, double>(0, max(MINIMUM_UPPER_BOUND, gt.get_max_expression_value() * 5.0));
 }
 
 void print_probabilities(const std::map<const clade*, VectorXd>& probabilities, const clade *node)
