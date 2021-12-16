@@ -101,15 +101,11 @@ double chooseln(double n, double r)
 
 int get_upper_bound(const gene_transcript& gt)
 {
-<<<<<<< HEAD
-    return std::pair<double, double>(0, max(MINIMUM_UPPER_BOUND, gt.get_max_expression_value() * 5.0));
-=======
     int val = gt.get_max_expression_value() * 1.5;
     int remainder = val % BOUNDING_STEP_SIZE;
     if (remainder == 0) return val;
 
     return val + BOUNDING_STEP_SIZE - remainder;
->>>>>>> 56a7a3646f060b666c152a504ad4fbfb7bf703e5
 }
 
 void print_probabilities(const std::map<const clade*, VectorXd>& probabilities, const clade *node)
