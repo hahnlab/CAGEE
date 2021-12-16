@@ -101,7 +101,7 @@ double chooseln(double n, double r)
 
 int get_upper_bound(const gene_transcript& gt)
 {
-    int val = gt.get_max_expression_value() * 1.5;
+    int val = gt.get_max_expression_value() * 3.0;
     int remainder = val % BOUNDING_STEP_SIZE;
     if (remainder == 0) return val;
 
