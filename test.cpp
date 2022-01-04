@@ -1232,85 +1232,6 @@ TEST_CASE("Inference: model_vitals")
     STRCMP_CONTAINS("No attempts made", ost.str().c_str());
 }
 
-TEST_CASE_FIXTURE(Reconstruction, "gene_transcript_reconstrctor__print_increases_decreases_by_family__adds_flag_for_significance")
-{
-    ostringstream insignificant;
-    base_model_reconstruction bmr;
-    bmr._reconstructions["myid"][p_tree->find_descendant("AB")] = 5;
-    gene_transcript gf("myid", "", "");
-    gf.set_expression_value("A", 7);
-    order.clear();
-    bmr.print_increases_decreases_by_family(insignificant, order, { gf }, { 0.03 }, 0.01);
-    STRCMP_CONTAINS("myid\t0.03\tn", insignificant.str().c_str());
-
-    ostringstream significant;
-    bmr.print_increases_decreases_by_family(insignificant, order, { gf }, { 0.03 }, 0.05);
-    STRCMP_CONTAINS("myid\t0.03\ty", insignificant.str().c_str());
-}
-
-TEST_CASE_FIXTURE(Reconstruction, "print_increases_decreases_by_family__prints_significance_level_in_header")
-{
-    ostringstream ost;
-    base_model_reconstruction bmr;
-    gene_transcript gf;
-
-    bmr.print_increases_decreases_by_family(ost, order, { gf }, { 0.07 }, 0.00001);
-    STRCMP_CONTAINS("#FamilyID\tpvalue\tSignificant at 1e-05\n", ost.str().c_str());
-}
-
-TEST_CASE("Reconstruction: base_model_print_increases_decreases_by_family")
-{
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-
-    ostringstream empty;
-    cladevector order{ p_tree->find_descendant("A"),
-        p_tree->find_descendant("B"),
-        p_tree->find_descendant("AB") };
-
-    base_model_reconstruction bmr;
-    bmr.print_increases_decreases_by_family(empty, order, {}, {}, 0.05);
-    STRCMP_CONTAINS("No increases or decreases recorded", empty.str().c_str());
-
-    bmr._reconstructions["myid"][p_tree->find_descendant("AB")] = 5;
-
-    gene_transcript gf("myid", "", "");
-    gf.set_expression_value("A", 7);
-    gf.set_expression_value("B", 2);
-
-    ostringstream ost;
-    bmr.print_increases_decreases_by_family(ost, order, { gf }, { 0.07 }, 0.05);
-    STRCMP_CONTAINS("#FamilyID\tpvalue\tSignificant at 0.05\n", ost.str().c_str());
-    STRCMP_CONTAINS("myid\t0.07\tn\n", ost.str().c_str());
-}
-
-TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_family")
-{
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-
-    ostringstream empty;
-    cladevector order{ p_tree->find_descendant("A"),
-        p_tree->find_descendant("B"),
-        p_tree->find_descendant("AB") };
-
-    vector<double> multipliers({ .2, .75 });
-    vector<gamma_bundle*> bundles; //  ({ &bundle });
-    vector<double> em;
-    gamma_model_reconstruction gmr(em);
-    gmr.print_increases_decreases_by_family(empty, order, {}, {}, 0.05);
-    STRCMP_CONTAINS("No increases or decreases recorded", empty.str().c_str());
-
-    gmr._reconstructions["myid"].reconstruction[p_tree->find_descendant("AB")] = 5;
-
-    gene_transcript gf("myid", "", "");
-    gf.set_expression_value("A", 7);
-    gf.set_expression_value("B", 2);
-
-    ostringstream ost;
-    gmr.print_increases_decreases_by_family(ost, order, { gf }, { 0.07 }, 0.05);
-    STRCMP_CONTAINS("#FamilyID\tpvalue\tSignificant at 0.05", ost.str().c_str());
-    STRCMP_CONTAINS("myid\t0.07\tn", ost.str().c_str());
-}
-
 TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade")
 {
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
@@ -1397,19 +1318,6 @@ TEST_CASE("Inference: lambda_per_family" * doctest::skip(true))
     ostringstream ost;
     v.estimate_lambda_per_family(&m, ost);
     CHECK_EQ(std::string("test\t0.30597463754818\n"), ost.str());
-}
-
-TEST_CASE_FIXTURE(Inference, "estimator_compute_pvalues" * doctest::skip(true))
-{
-    input_parameters params;
-    sigma s(0.05);
-    matrix_cache cache;
-
-    pvalue_parameters p = { _user_data.p_tree,  _user_data.p_lambda, _user_data.max_family_size, _user_data.max_root_family_size, cache };
-
-    auto values = compute_pvalues(p, _user_data.gene_families, 3);
-    CHECK_EQ(1, values.size());
-    CHECK_EQ(doctest::Approx(0.0), values[0]);
 }
 
 class mock_scorer : public optimizer_scorer

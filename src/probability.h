@@ -29,9 +29,6 @@ size_t adjust_for_error_model(size_t c, const error_model *p_error_model);
 
 double pvalue(double v, const std::vector<double>& conddist);
 
-//! computes a pvalue for each family. Returns a vector of pvalues matching the list of families
-std::vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_transcript>& families, int number_of_simulations);
-
 std::vector<double> inference_prune(const gene_transcript& gf, const matrix_cache& cache, const sigma* _lambda, const error_model* p_error_model, const clade* _p_tree, double _lambda_multiplier);
 
 int get_upper_bound(const gene_transcript& gt);

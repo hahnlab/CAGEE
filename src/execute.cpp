@@ -157,6 +157,7 @@ void estimator::execute(std::vector<model *>& models)
             estimate_missing_variables(models, data);
 
             return;
+
             compute(models, _user_input);
 
             for (model* p_model : models) {
@@ -166,7 +167,6 @@ void estimator::execute(std::vector<model *>& models)
                 /// instead
                 matrix_cache cache;
                 pvalue_parameters p = { data.p_tree, p_model->get_lambda(), data.max_family_size, data.max_root_family_size, cache };
-                auto pvalues = compute_pvalues(p, data.gene_families, 1000 );
 
                 std::unique_ptr<reconstruction> rec(p_model->reconstruct_ancestral_states(data, &cache));
 
@@ -174,18 +174,15 @@ void estimator::execute(std::vector<model *>& models)
 
                 for (size_t i = 0; i<data.gene_families.size(); ++i)
                 {
-                    if (pvalues[i] < _user_input.pvalue)
-                    {
-                        for_each(data.p_tree->reverse_level_begin(), data.p_tree->reverse_level_end(), [&](const clade* c) {
-                            probs.set(data.gene_families[i], c, compute_viterbi_sum(c, data.gene_families[i], rec.get(), data.max_family_size, cache, p_model->get_lambda()));
-                            });
-                    }
+                    for_each(data.p_tree->reverse_level_begin(), data.p_tree->reverse_level_end(), [&](const clade* c) {
+                        probs.set(data.gene_families[i], c, compute_viterbi_sum(c, data.gene_families[i], rec.get(), data.max_family_size, cache, p_model->get_lambda()));
+                        });
                 }
 
 #ifdef RUN_LHRTEST
                 LikelihoodRatioTest::lhr_for_diff_lambdas(data, p_model);
 #endif
-                rec->write_results(p_model->name(), _user_input.output_prefix, data.p_tree, data.gene_families, pvalues, _user_input.pvalue, probs);
+                rec->write_results(p_model->name(), _user_input.output_prefix, data.p_tree, data.gene_families, _user_input.pvalue, probs);
             }
         }
         catch (const OptimizerInitializationFailure& e )

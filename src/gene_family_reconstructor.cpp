@@ -210,26 +210,6 @@ void reconstruction::print_node_change(std::ostream& ost, const cladevector& ord
 }
 
 
-void reconstruction::print_increases_decreases_by_family(std::ostream& ost, const cladevector& order, familyvector& gene_families, const std::vector<double>& pvalues, double test_pvalue) {
-    if (gene_families.size() != pvalues.size())
-    {
-        throw std::runtime_error("No pvalues found for family");
-    }
-    if (gene_families.empty())
-    {
-        ost << "No increases or decreases recorded\n";
-        return;
-    }
-
-    ost << "#FamilyID\tpvalue\tSignificant at " << test_pvalue << "\n";
-
-    for (size_t i = 0; i < gene_families.size(); ++i) {
-        ost << gene_families[i].id() << '\t' << pvalues[i] << '\t';
-        ost << (pvalues[i] < test_pvalue ? 'y' : 'n');
-        ost << endl;
-    }
-}
-
 void reconstruction::print_increases_decreases_by_clade(std::ostream& ost, const cladevector& order, familyvector& gene_families) {
     clademap<pair<int, int>> increase_decrease_map;
 
@@ -354,7 +334,6 @@ void reconstruction::write_results(std::string model_identifier,
     std::string output_prefix, 
     const clade *p_tree, 
     familyvector& families, 
-    std::vector<double>& pvalues, 
     double test_pvalue, 
     const branch_probabilities& branch_probabilities)
 {
@@ -369,9 +348,6 @@ void reconstruction::write_results(std::string model_identifier,
 
     std::ofstream change(filename(model_identifier + "_change", output_prefix, "tab"));
     print_node_change(change, order, families, p_tree);
-
-    std::ofstream family_results(filename(model_identifier + "_family_results", output_prefix));
-    print_increases_decreases_by_family(family_results, order, families, pvalues, test_pvalue);
 
     std::ofstream clade_results(filename(model_identifier + "_clade_results", output_prefix));
     print_increases_decreases_by_clade(clade_results, order, families);

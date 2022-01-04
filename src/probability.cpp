@@ -298,50 +298,6 @@ double find_best_pvalue(const gene_transcript& fam, const VectorXd& root_probabi
     return *idx;
 }
 
-//! Compute pvalues for each family based on the given lambda
-vector<double> compute_pvalues(pvalue_parameters p, const std::vector<gene_transcript>& families, int number_of_simulations)
-{
-    LOG(INFO) << "Computing pvalues...";
-    LOG(WARNING) << "PValues are not calculating accurate randomizations yet";
-
-    std::vector<std::vector<double> > conditional_distribution(p.max_root_family_size);
-    for (int i = 0; i < p.max_root_family_size; ++i)
-    {
-        conditional_distribution[i] = get_random_probabilities(p, number_of_simulations, i+1);
-    }
-    VLOG(1) << "Conditional distributions calculated";
-
-//    auto observed_max_likelihoods = compute_family_probabilities(p, families);
-    vector<double> observed_max_likelihoods(families.size());
-
-    // Allocate space to calculate all of the families simultaneously
-    vector<clademap<VectorXd>> pruners(families.size());
-    for (auto& pruner : pruners)
-    {
-        // vector of lk's at tips must go from 0 -> _max_possible_family_size, so we must add 1
-        auto fn = [&](const clade* node) { pruner[node] = VectorXd::Zero(DISCRETIZATION_RANGE); };
-        for_each(p.p_tree->reverse_level_begin(), p.p_tree->reverse_level_end(), fn);
-    }
-
-#pragma omp parallel for
-    for (int i = 0; i < families.size(); ++i)
-    {
-        for (auto it = p.p_tree->reverse_level_begin(); it != p.p_tree->reverse_level_end(); ++it)
-            compute_node_probability(*it, families[i], NULL, pruners[i], p.p_lambda, p.cache);
-    }
-
-    vector<double> result(families.size());
-    for (size_t i = 0; i < families.size(); ++i)
-    {
-        result[i] = find_best_pvalue(families[i], pruners[i].at(p.p_tree), conditional_distribution);
-    }
-
-
-    LOG(INFO) << "done!\n";
-
-    return result;
-}
-
 //! Computes likelihoods for the given tree and a single family. Uses a lambda value based on the provided lambda
 /// and a given multiplier. Works by calling \ref compute_node_probability on all nodes of the tree
 /// using the species counts for the family. 
