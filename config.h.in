@@ -13,6 +13,7 @@
 #define DISCRETIZATION_RANGE 200
 
 #define BOUNDING_STEP_SIZE 20
+#define MATRIX_SIZE_MULTIPLIER 3.0
 
 /* Required for Windows compatibility */
 #ifdef _WIN32

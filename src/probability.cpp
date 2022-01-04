@@ -91,7 +91,7 @@ double chooseln(double n, double r)
   else if (n <= 0 || r <= 0) return log(0);
 
   if (n >= 0 && r >= 0 && n < chooseln_cache.size() && r < chooseln_cache.size() && (n - int(n) < 0.00000000001) && (r - int(r) < 0.00000000001))
-      return chooseln_cache(n, r);
+      return chooseln_cache(int(n), int(r));
 
   return lgamma2(n + 1) - lgamma2(r + 1) - lgamma2(n - r + 1);
 }
@@ -101,7 +101,7 @@ double chooseln(double n, double r)
 
 int get_upper_bound(const gene_transcript& gt)
 {
-    int val = gt.get_max_expression_value() * 3.0;
+    int val = gt.get_max_expression_value() * MATRIX_SIZE_MULTIPLIER;
     int remainder = val % BOUNDING_STEP_SIZE;
     if (remainder == 0) return val;
 
@@ -403,8 +403,18 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     auto& actual = probabilities[A];
 
     vector<double> expected(DISCRETIZATION_RANGE);
-    expected[93] = 4.8133125;
-    expected[94] = 0.1616875;
+
+    if (MATRIX_SIZE_MULTIPLIER == 1.5)
+    {
+        expected[93] = 4.8133125;
+        expected[94] = 0.1616875;
+    }
+    else
+    {
+        expected[62] = 3.2448055556;
+        expected[63] = 0.0718611111;
+
+    }
 
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
@@ -417,9 +427,16 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     actual = probabilities[B];
 
     expected = vector<double>(DISCRETIZATION_RANGE);
-    expected[86] = 4.6391875;
-    expected[87] = 0.3358125;
-
+    if (MATRIX_SIZE_MULTIPLIER == 1.5)
+    {
+        expected[86] = 4.6391875;
+        expected[87] = 0.3358125;
+    }
+    else
+    {
+        expected[57] = 2.0618611111;
+        expected[58] = 1.2548055556;
+    }
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
     {
@@ -610,24 +627,27 @@ TEST_CASE("Inference: prune" * doctest::skip(true))
     }
 }
 
-TEST_CASE("Bounds returns next multiple of 20, of the largest value times 1.5")
+TEST_CASE("Bounds returns next multiple of 20, of the largest value times MATRIX_SIZE_MULTIPLIER")
 {
+    vector<int> expected({ 80,120,140 });
+    if (MATRIX_SIZE_MULTIPLIER < 3) expected = vector<int>({ 40, 60, 80 });
+
     gene_transcript gt;
     gt.set_expression_value("A", 12);
     gt.set_expression_value("B", 24);
-    CHECK_EQ(40, get_upper_bound(gt));
+    CHECK_EQ(expected[0], get_upper_bound(gt));
 
     gt.set_expression_value("A", 40);
-    CHECK_EQ(60, get_upper_bound(gt));
+    CHECK_EQ(expected[1], get_upper_bound(gt));
 
     gt.set_expression_value("B", 41);
-    CHECK_EQ(80, get_upper_bound(gt));
+    CHECK_EQ(expected[2], get_upper_bound(gt));
 }
 
 TEST_CASE("Bounds never returns less than 20")
 {
     gene_transcript gt;
-    gt.set_expression_value("A", 12);
+    gt.set_expression_value("A", 5);
     gt.set_expression_value("B", 4);
     CHECK_EQ(20, get_upper_bound(gt));
 }

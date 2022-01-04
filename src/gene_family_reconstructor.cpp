@@ -43,7 +43,8 @@ namespace pupko_reconstructor {
         // i will be the parent size
         for (size_t i = 0; i < L.size(); ++i)
         {
-            L[i] = matrix(i, observed_count);
+            auto d = matrix(i, (int)observed_count);
+            L[i] = d;
         }
     }
 
