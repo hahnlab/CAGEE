@@ -13,11 +13,11 @@ set(LAMBDA_PERTURBATION_STEP_SIZE 1)
 
 CHECK_INCLUDE_FILE(getopt.h HAVE_GETOPT_H)
 
-find_package (Eigen3 3.3 REQUIRED NO_MODULE)
+find_package (Eigen3 3.4 REQUIRED NO_MODULE)
 
 find_package(BLAS)
 
-find_package(Boost COMPONENTS program_options)
+find_package(Boost REQUIRED COMPONENTS program_options)
 
 configure_file(config.h.in config.h)
 

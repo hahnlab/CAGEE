@@ -2,15 +2,9 @@
 #include <fstream>
 #include <iterator>
 
-#ifdef Boost_FOUND
 #include <boost/program_options.hpp>
 
 namespace po = boost::program_options;
-#elif defined(HAVE_GETOPT_H)
-#include <getopt.h>
-#else
-#error Either Boost or GetOpt must be available
-#endif
 
 #include "doctest.h"
 #include "easylogging++.h"
@@ -20,150 +14,13 @@ namespace po = boost::program_options;
 
 using namespace std;
 
-
-#ifndef Boost_FOUND
-#include <getopt.h>
-
-struct option longopts[] = {
-  { "infile", required_argument, NULL, 'i' },
-  { "error_model", optional_argument, NULL, 'e' },
-  { "output_prefix", required_argument, NULL, 'o'},
-  { "tree", required_argument, NULL, 't' },
-  { "fixed_sigma", required_argument, NULL, 'l' },
-  { "fixed_multiple_sigmas", required_argument, NULL, 'm' },
-  { "sigma_tree", required_argument, NULL, 'y' },
-  { "n_gamma_cats", required_argument, NULL, 'k' },
-  { "fixed_alpha", required_argument, NULL, 'a' },
-  { "simulate", optional_argument, NULL, 's' },
-  { "pvalue", required_argument, NULL, 'P' },
-  { "zero_root", no_argument, NULL, 'z' },
-  { "cores", required_argument, NULL, 'c' },
-  { "lambda_per_family", no_argument, NULL, 'b' },
-  { "log_config", required_argument, NULL, 'L' },
-  { "optimizer_expansion", optional_argument, NULL, 'E' },
-  { "optimizer_reflection", optional_argument, NULL, 'R' },
-  { "optimizer_iterations", optional_argument, NULL, 'I' },
-  { "rootdist", optional_argument, NULL, 'r' },
-  { "help", no_argument, NULL, 'h'},
-  { 0, 0, 0, 0 }
-};
-#else
-
 template<typename T>
 void maybe_set(const po::variables_map& vm, string key, T& value)
 {
     if (vm.find(key) != vm.end())
         value = vm[key].as<T>();
 }
-#endif
 
-#ifndef Boost_FOUND
-input_parameters read_arguments(int argc, char* const argv[])
-{
-    input_parameters my_input_parameters;
-    if (argc == 1)
-    {
-        my_input_parameters.help = true;
-        return my_input_parameters;
-    }
-
-    int args; // getopt_long returns int or char
-    int prev_arg;
-
-    while (prev_arg = optind, (args = getopt_long(argc, argv, "c:v:i:e::o:t:y:n:E:F:R:L:P:I:l:m:k:a:g:s::zbh", longopts, NULL)) != -1) {
-        if (optind == prev_arg + 2 && optarg && *optarg == '-') {
-            LOG(ERROR) << "You specified option " << argv[prev_arg] << " but it requires an argument. Exiting..." << endl;
-            exit(EXIT_FAILURE);
-        }
-
-        switch (args) {
-        case 'a':
-            my_input_parameters.fixed_alpha = atof(optarg);
-            break;
-        case 'b':
-            my_input_parameters.lambda_per_family = true;
-            break;
-        case 'c':
-            my_input_parameters.cores = atoi(optarg);
-            break;
-        case 'e':
-            my_input_parameters.use_error_model = true;
-            if (optarg)
-                my_input_parameters.error_model_file_path = optarg;
-            break;
-        case 'h':
-            my_input_parameters.help = true;
-            break;
-        case 'i':
-            my_input_parameters.input_file_path = optarg;
-            break;
-        case 'k':
-            if (optarg != NULL) { my_input_parameters.n_gamma_cats = atoi(optarg); }
-            break;
-        case 'l':
-            my_input_parameters.fixed_lambda = atof(optarg);
-            break;
-        case 'm':
-            my_input_parameters.fixed_multiple_lambdas = optarg;
-            break;
-        case 'o':
-            my_input_parameters.output_prefix = optarg;
-            break;
-        case 'r':
-            my_input_parameters.rootdist_params = rootdist_options(optarg);
-            break;
-        case 's':
-            // Number of fams simulated defaults to 0 if -f is not provided
-            my_input_parameters.is_simulating = true;
-            if (optarg != NULL) { my_input_parameters.nsims = atoi(optarg); }
-            break;
-        case 't':
-            my_input_parameters.tree_file_path = optarg;
-            break;
-        case 'v':
-            my_input_parameters.verbose_logging_level = atoi(optarg);
-            break;
-        case 'y':
-            my_input_parameters.lambda_tree_file_path = optarg;
-            break;
-        case 'z':
-            my_input_parameters.exclude_zero_root_families = true;
-            break;
-        case 'E':
-            my_input_parameters.optimizer_params.neldermead_expansion = atof(optarg);
-            break;
-        case 'I':
-            my_input_parameters.optimizer_params.neldermead_iterations = atoi(optarg);
-            break;
-        case 'L':
-            my_input_parameters.log_config_file = optarg;
-            break;
-        case 'P':
-            my_input_parameters.pvalue = atof(optarg);
-            break;
-        case 'R':
-            my_input_parameters.optimizer_params.neldermead_reflection = atof(optarg);
-            break;
-        case ':':   // missing argument
-            fprintf(stderr, "%s: option `-%c' requires an argument",
-                argv[0], optopt);
-            break;
-        default: // '?' is parsed (
-            throw std::runtime_error(string("Unrecognized parameter: '") + (char)args + "'");
-
-        }
-    }
-
-    if (optind < argc)
-    {
-        throw std::runtime_error(string("Unrecognized parameter: '") + argv[optind] + "'");
-    }
-
-    my_input_parameters.check_input(); // seeing if options are not mutually exclusive              
-
-    return my_input_parameters;
-}
-#else   // Boost version 
 input_parameters read_arguments(int argc, char* const argv[])
 {
     input_parameters my_input_parameters;
@@ -284,7 +141,6 @@ input_parameters read_arguments(int argc, char* const argv[])
 
     return my_input_parameters;
 }
-#endif
 
 void input_parameters::check_input() {
     vector<string> errors;
@@ -367,9 +223,6 @@ struct option_test
 
     option_test(vector<string> arguments)
     {
-#ifdef HAVE_GETOPT_H
-        optind = 0;
-#endif
         argc = arguments.size();
         for (size_t i = 0; i < arguments.size(); ++i)
         {
