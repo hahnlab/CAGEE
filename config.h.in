@@ -31,7 +31,7 @@
 #cmakedefine OPTIMIZER_STRATEGY_LBFGS @OPTIMIZER_STRATEGY_LBFGS@
 
 /* Verbose log keys for various aspects of the application */
-#define ROOT_SIZE_ESTIMATION 2
+#define TRANSCRIPT_RECONSTRUCTION 2
 #define SIMULATOR 3
 #define MATRIX 6
 #define INFERENCE 8

@@ -3,9 +3,10 @@
 #include <algorithm>
 #include <fstream>
 
+#include "doctest.h"
 #include "easylogging++.h"
 
-#include "gene_family_reconstructor.h"
+#include "transcript_reconstructor.h"
 #include "sigma.h"
 #include "matrix_cache.h"
 #include "root_equilibrium_distribution.h"
@@ -13,180 +14,69 @@
 #include "user_data.h"
 
 using namespace std;
+using namespace Eigen;
 
-namespace pupko_reconstructor {
-    pupko_data::pupko_data(size_t num_families, const clade *p_tree, int max_family_size, int max_root_family_size) : v_all_node_Cs(num_families), v_all_node_Ls(num_families)
+transcript_reconstructor::transcript_reconstructor(const sigma* p_sigma, const clade* p_tree, const matrix_cache* p_cache)
+    : _p_sigma(p_sigma),
+    _p_tree(p_tree),
+    _p_cache(p_cache)
+{
+    for (auto it = _p_tree->reverse_level_begin(); it != _p_tree->reverse_level_end(); ++it)
     {
-        VLOG(1) << "Initializing Pupko C and L maps";
-        for (size_t i = 0; i < num_families; ++i)
-        {
-            std::function <void(const clade*)> pupko_initializer = [&](const clade* c) {
-                pupko_reconstructor::initialize_at_node(c, v_all_node_Cs[i], v_all_node_Ls[i], max_family_size, max_root_family_size);
-            };
-            for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), pupko_initializer);
-        }
-
+        all_node_Ls[*it] = VectorXd::Zero(200);
     }
+}
 
-    void reconstruct_leaf_node(const clade* c, const sigma* p_sigma, const gene_transcript& t, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache* _p_calc)
+double get_value(const gene_transcript& t, const VectorXd& likelihood)
+{
+    auto bound = get_upper_bound(t);
+    Index i;
+    auto m = likelihood.maxCoeff(&i);
+    return (float(i) / 200.0) * bound;
+}
+
+clademap<double> transcript_reconstructor::reconstruct_gene_transcript(const gene_transcript& t)
+{
+    IOFormat CleanFmt(4, DontAlignCols, " ", " ", "", "");
+    for (auto it = _p_tree->reverse_level_begin(); it != _p_tree->reverse_level_end(); ++it)
     {
-        auto& C = all_node_Cs[c];
-        auto& L = all_node_Ls[c];
-
-        double branch_length = c->get_branch_length();
-
-        double observed_count = t.get_expression_value(c->get_taxon_name());
-        fill(C.begin(), C.end(), observed_count);
-
-        std::pair<double, double> bounds(0, get_upper_bound(t));
-        auto matrix = _p_calc->get_matrix(branch_length, p_sigma->get_named_value(c, t), bounds);
-        // i will be the parent size
-        for (size_t i = 0; i < L.size(); ++i)
-        {
-            auto d = matrix(i, (int)observed_count);
-            L[i] = d;
-        }
-    }
-
-    void reconstruct_root_node(const clade* c, const gene_transcript& t, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls)
-    {
-        auto& C = all_node_Cs[c];
-        auto& L = all_node_Ls[c];
-
-        // i is the parent, j is the child
-        for (size_t i = 1; i < L.size(); ++i)
-        {
-            double max_val = -1;
-
-            for (size_t j = 1; j < L.size(); ++j)
-            {
-                double value = 1.0;
-                auto child_multiplier = [&all_node_Ls, j, &value](const clade* child) {
-                    value *= all_node_Ls[child][j];
-                };
-                c->apply_to_descendants(child_multiplier);
-                // TODO: Take into account a prior root distribution here
-                if (value > max_val)
-                {
-                    max_val = value;
-                    C[0] = j;
-                }
-            }
-
-            L[i] = max_val;
-        }
-
-    }
-
-    void reconstruct_internal_node(const clade* c, const sigma* p_sigma, const gene_transcript& t, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache* _p_calc)
-    {
-        auto& C = all_node_Cs[c];
-        auto& L = all_node_Ls[c];
-
-        double branch_length = c->get_branch_length();
-
-        std::pair<double, double> bounds(0, get_upper_bound(t));
-        auto matrix = _p_calc->get_matrix(branch_length, p_sigma->get_named_value(c, t), bounds);
-
-        size_t j = 0;
-        double value = 0.0;
-        // i is the parent, j is the child
-        for (size_t i = 0; i < L.size(); ++i)
-        {
-            size_t max_j = 0;
-            double max_val = -1;
-            for (j = 0; j < L.size(); ++j)
-            {
-                value = 1.0;
-                for (auto it = c->descendant_begin(); it != c->descendant_end(); ++it)
-                    value *= all_node_Ls[*it][j];
-
-                double val = value * matrix(i, j);
-                if (val > max_val)
-                {
-                    max_j = j;
-                    max_val = val;
-                }
-            }
-
-            L[i] = max_val;
-            C[i] = max_j;
-        }
-    }
-
-
-    void reconstruct_at_node(const clade* c, const gene_transcript& t, const sigma* p_sigma, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, const matrix_cache* p_calc)
-    {
+        const clade* c = *it;
         if (c->is_leaf())
         {
-            reconstruct_leaf_node(c, p_sigma, t, all_node_Cs, all_node_Ls, p_calc);
-        }
-        else if (c->is_root())
-        {
-            reconstruct_root_node(c, t, all_node_Cs, all_node_Ls);
+            std::pair<double, double> bounds(0, get_upper_bound(t));
+
+            all_node_Ls[c] = VectorPos_bounds(t.get_expression_value(c->get_taxon_name()), DISCRETIZATION_RANGE, bounds);
+            VLOG(TRANSCRIPT_RECONSTRUCTION) << c->get_taxon_name() << " " << all_node_Ls[c].format(CleanFmt) << endl;
         }
         else
         {
-            reconstruct_internal_node(c, p_sigma, t, all_node_Cs, all_node_Ls, p_calc);
-        }
-    }
+            // Each child should be propagated separately, and then take the mean of the resulting vectors
+            //    So mean(child1 * m, child2 * m)
+            
+            vector<VectorXd> child_likelihoods(2);
+            transform(c->descendant_begin(), c->descendant_end(), child_likelihoods.begin(), [this, t, &CleanFmt](const clade* child) {
+                std::pair<double, double> bounds(0, get_upper_bound(t));
+                auto matrix = _p_cache->get_matrix(child->get_branch_length(), _p_sigma->get_named_value(child, t), bounds);
+                VectorXd result = matrix * all_node_Ls[child];
+                VLOG(TRANSCRIPT_RECONSTRUCTION) << "ConvPropBounds * L[" << child->get_taxon_name() << "] " << result.format(CleanFmt) << endl;
 
-    void initialize_at_node(const clade* c, clademap<std::vector<double>>& all_node_Cs, clademap<std::vector<double>>& all_node_Ls, int max_family_size, int max_root_family_size)
-    {
-        if (c->is_leaf())
-        {
-            auto& C = all_node_Cs[c];
-            auto& L = all_node_Ls[c];
-            C.resize(max_family_size + 1);
-            L.resize(max_family_size + 1);
-
-        }
-        else if (c->is_root())
-        {
-            auto& L = all_node_Ls[c];
-            auto& C = all_node_Cs[c];
-
-            L.resize(min(max_family_size, max_root_family_size) + 1);
-            // At the root, we pick a single reconstructed state (step 4 of Pupko)
-            C.resize(1);
-        }
-        else
-        {
-            auto& C = all_node_Cs[c];
-            auto& L = all_node_Ls[c];
-            C.resize(max_family_size + 1);
-            L.resize(max_family_size + 1);
-        }
-    }
-
-    void reconstruct_gene_transcript(const sigma* lambda, const clade* p_tree,
-        const gene_transcript* gf,
-        matrix_cache* p_calc,
-        clademap<int>& reconstructed_states,
-        clademap<std::vector<double>>& all_node_Cs,
-        clademap<std::vector<double>>& all_node_Ls)
-    {
-        std::function <void(const clade*)> pupko_reconstructor = [&](const clade* c) {
-            reconstruct_at_node(c, *gf, lambda, all_node_Cs, all_node_Ls, p_calc);
-        };
-
-        std::function<void(const clade * child)> backtracker = [&reconstructed_states, &all_node_Cs, &backtracker](const clade* child) {
-            if (!child->is_leaf())
+                return result;
+                });
+            for (int i = 0; i < DISCRETIZATION_RANGE; ++i)
             {
-                auto& C = all_node_Cs[child];
-                int parent_c = reconstructed_states[child->get_parent()];
-                reconstructed_states[child] = C[parent_c];
-                child->apply_to_descendants(backtracker);
+                all_node_Ls[c][i] = (child_likelihoods[0][i] + child_likelihoods[1][i]) / 2.0;
             }
-        };
+            VLOG(TRANSCRIPT_RECONSTRUCTION) << c->get_taxon_name() << " " << all_node_Ls[c].format(CleanFmt) << endl;
+        }
 
-        // Pupko's joint reconstruction algorithm
-        for (auto it = p_tree->reverse_level_begin(); it != p_tree->reverse_level_end(); ++it)
-            reconstruct_at_node(*it, *gf, lambda, all_node_Cs, all_node_Ls, p_calc);
-
-        reconstructed_states[p_tree] = all_node_Cs[p_tree][0];
-        p_tree->apply_to_descendants(backtracker);
     }
+
+    clademap<double> result;
+    for (auto it = _p_tree->reverse_level_begin(); it != _p_tree->reverse_level_end(); ++it)
+    {
+        result[*it] = (*it)->is_leaf() ? t.get_expression_value((*it)->get_taxon_name()) : get_value(t, all_node_Ls[*it]);
+    }
+    return result;
 }
 
 string newick_node(const clade *node, const cladevector& order, bool significant, std::function<std::string(const clade *c)> textwriter)
@@ -366,7 +256,6 @@ int reconstruction::get_difference_from_parent(const gene_transcript& gf, const 
     return get_node_count(gf, c) - get_node_count(gf, c->get_parent()); 
 }
 
-
 branch_probabilities::branch_probability compute_viterbi_sum(const clade* c, 
     const gene_transcript& transcript, 
     const reconstruction* rec, 
@@ -408,3 +297,95 @@ branch_probabilities::branch_probability compute_viterbi_sum(const clade* c,
     }
     return branch_probabilities::branch_probability(result);
 }
+
+class Reconstruction
+{
+public:
+    gene_transcript fam;
+    unique_ptr<clade> p_tree;
+    cladevector order;
+
+    Reconstruction() : fam("Family5", "", "")
+    {
+        p_tree.reset(parse_newick("((A:1,B:3):7,(C:11,D:17):23);"));
+
+        fam.set_expression_value("A", 11);
+        fam.set_expression_value("B", 2);
+        fam.set_expression_value("C", 5);
+        fam.set_expression_value("D", 6);
+
+        vector<string> nodes{ "A", "B", "C", "D", "AB", "CD", "ABCD" };
+        order.resize(nodes.size());
+        const clade* t = p_tree.get();
+        transform(nodes.begin(), nodes.end(), order.begin(), [t](string s) { return t->find_descendant(s); });
+
+    }
+};
+
+TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript assigns actual values to leaves")
+{
+    sigma sig(0.1);
+    fam.set_expression_value("A", 3.7);
+    fam.set_expression_value("D", 9.4);
+
+    matrix_cache calc;
+    boundaries bounds(0, get_upper_bound(fam));
+    calc.precalculate_matrices(sig.get_lambdas(), set<boundaries>({ bounds }), p_tree->get_branch_lengths());
+
+    transcript_reconstructor tr(&sig, p_tree.get(), &calc);
+
+    auto actual = tr.reconstruct_gene_transcript(fam);
+
+    CHECK_EQ(3.7, actual[p_tree->find_descendant("A")]);
+    CHECK_EQ(9.4, actual[p_tree->find_descendant("D")]);
+}
+
+TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript calculates parent node values correctly")
+{
+    sigma sig(10.1);
+    fam.set_expression_value("A", 45.2);
+    fam.set_expression_value("B", 61.8);
+
+    matrix_cache calc;
+    boundaries bounds(0, get_upper_bound(fam));
+    calc.precalculate_matrices(sig.get_lambdas(), set<boundaries>({ bounds }), p_tree->get_branch_lengths());
+
+    transcript_reconstructor tr(&sig, p_tree.get(), &calc);
+
+    auto actual = tr.reconstruct_gene_transcript(fam);
+
+    CHECK_EQ(47.0, actual[p_tree->find_descendant("AB")]);
+
+}
+
+TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns parent 0 with 0s at the leafs")
+{
+    sigma sig(10.1);
+    fam.set_expression_value("A", 0);
+    fam.set_expression_value("B", 0);
+
+    matrix_cache calc;
+    boundaries bounds(0, get_upper_bound(fam));
+    calc.precalculate_matrices(sig.get_lambdas(), set<boundaries>({ bounds }), p_tree->get_branch_lengths());
+
+    transcript_reconstructor tr(&sig, p_tree.get(), &calc);
+    auto actual = tr.reconstruct_gene_transcript(fam);
+    CHECK_EQ(0, actual[p_tree->find_descendant("AB")]);
+}
+
+TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns correct value at root" * doctest::skip(true))
+{
+    // TODO: Create reasonable test case values
+    sigma sig(10.1);
+    fam.set_expression_value("A", 0);
+    fam.set_expression_value("B", 0);
+
+    matrix_cache calc;
+    boundaries bounds(0, get_upper_bound(fam));
+    calc.precalculate_matrices(sig.get_lambdas(), set<boundaries>({ bounds }), p_tree->get_branch_lengths());
+
+    transcript_reconstructor tr(&sig, p_tree.get(), &calc);
+    auto actual = tr.reconstruct_gene_transcript(fam);
+    CHECK_EQ(50, actual[p_tree.get()]);
+}
+

@@ -13,7 +13,7 @@
 #include "gamma_core.h"
 #include "gamma.h"
 #include "rootdist_estimator.h"
-#include "gene_family_reconstructor.h"
+#include "transcript_reconstructor.h"
 #include "matrix_cache.h"
 #include "gene_transcript.h"
 #include "user_data.h"
@@ -242,7 +242,7 @@ sigma_optimizer_scorer* gamma_model::get_lambda_optimizer(const user_data& data,
     }
 }
 
-clademap<double> get_weighted_averages(const std::vector<clademap<int>>& m, const vector<double>& probabilities)
+clademap<double> get_weighted_averages(const std::vector<clademap<double>>& m, const vector<double>& probabilities)
 {
     cladevector nodes(m[0].size());
     std::transform(m[0].begin(), m[0].end(), nodes.begin(), [](std::pair<const clade *, int> v) { return v.first;  });
@@ -291,13 +291,11 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
         VLOG(1) << "Reconstructing for multiplier " << _lambda_multipliers[k];
         unique_ptr<sigma> ml(_p_lambda->multiply(_lambda_multipliers[k]));
 
-        pupko_reconstructor::pupko_data data(ud.gene_families.size(), ud.p_tree, ud.max_family_size, ud.max_root_family_size);
+        transcript_reconstructor tr(ml.get(), ud.p_tree, calc);
 
-#pragma omp parallel for
         for (int i = 0; i < ud.gene_families.size(); ++i)
         {
-            pupko_reconstructor::reconstruct_gene_transcript(ml.get(), ud.p_tree, &ud.gene_families[i], calc,
-                recs[i]->category_reconstruction[k], data.C(i), data.L(i));
+            recs[i]->category_reconstruction[k] = tr.reconstruct_gene_transcript(ud.gene_families[i]);
         }
     }
 

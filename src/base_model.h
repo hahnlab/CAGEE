@@ -54,7 +54,7 @@ public:
 
     }
 
-    std::map<std::string, clademap<int>> _reconstructions;
+    std::map<std::string, clademap<double>> _reconstructions;
 
     double get_node_count(const gene_transcript& gf, const clade* c) const override;
 

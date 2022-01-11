@@ -13,7 +13,7 @@
 #include "optimizer_scorer.h"
 #include "matrix_cache.h"
 #include "optimizer.h"
-#include "gene_family_reconstructor.h"
+#include "transcript_reconstructor.h"
 #include "error_model.h"
 #include "likelihood_ratio.h"
 #include "arguments.h"
@@ -155,8 +155,6 @@ void estimator::execute(std::vector<model *>& models)
         try
         {
             estimate_missing_variables(models, data);
-
-            return;
 
             compute(models, _user_input);
 

@@ -19,7 +19,7 @@
 #include "sigma.h"
 #include "io.h"
 #include "DiffMat.h"
-#include "gene_family_reconstructor.h"
+#include "transcript_reconstructor.h"
 
 using namespace std;
 
@@ -162,31 +162,32 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
     p_calc->precalculate_matrices(_p_lambda->get_lambdas(), get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
 
-    pupko_reconstructor::pupko_data data(ud.gene_families.size(), ud.p_tree, ud.max_family_size, ud.max_root_family_size);
 
     for (size_t i = 0; i < ud.gene_families.size(); ++i)
     {
-        clademap<int> &rc = result->_reconstructions[ud.gene_families[i].id()];
+        auto &rc = result->_reconstructions[ud.gene_families[i].id()];
         ud.p_tree->apply_prefix_order([&rc](const clade* c) {
             rc[c] = 0;
             });
     }
 
-#pragma omp parallel for
+//    pupko_reconstructor::pupko_data data(ud.gene_families.size(), ud.p_tree, ud.max_family_size, ud.max_root_family_size);
+    transcript_reconstructor tr(_p_lambda, ud.p_tree, p_calc);
+
     for (int i = 0; i< ud.gene_families.size(); ++i)
     {
-        pupko_reconstructor::reconstruct_gene_transcript(_p_lambda, ud.p_tree, &ud.gene_families[i], p_calc, result->_reconstructions[ud.gene_families[i].id()], data.C(i), data.L(i));
+        result->_reconstructions[ud.gene_families[i].id()] = tr.reconstruct_gene_transcript(ud.gene_families[i]);
     }
 
-    size_t success = count_if(data.v_all_node_Ls.begin(), data.v_all_node_Ls.end(), [this, &ud](const clademap<std::vector<double>>& L)
-        { 
-            return *max_element( L.at(ud.p_tree).begin(), L.at(ud.p_tree).end()) > 0;
-        });
+//    size_t success = count_if(tr.v_all_node_Ls.begin(), tr.v_all_node_Ls.end(), [this, &ud](const clademap<Eigen::VectorXd>& L)
+//        { 
+//            return *max_element( L.at(ud.p_tree).begin(), L.at(ud.p_tree).end()) > 0;
+//        });
 
-    if (success != ud.gene_families.size())
-    {
-        LOG(WARNING) << "Failed to reconstruct " << ud.gene_families.size() - success << " families" << endl;
-    }
+//    if (success != ud.gene_families.size())
+//    {
+//        LOG(WARNING) << "Failed to reconstruct " << ud.gene_families.size() - success << " families" << endl;
+//    }
 
     LOG(INFO) << "Done!\n";
 

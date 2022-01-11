@@ -27,7 +27,7 @@ public:
     double get_node_count(const gene_transcript& gf, const clade* c) const override;
 
     struct gamma_reconstruction {
-        std::vector<clademap<int>> category_reconstruction;
+        std::vector<clademap<double>> category_reconstruction;
         clademap<double> reconstruction;
         std::vector<double> _category_likelihoods;
     };
