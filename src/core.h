@@ -182,7 +182,7 @@ inline std::string filename(std::string base, std::string suffix)
     return filename(base, suffix, "txt");
 }
 
-std::set<std::pair<double, double>> get_all_bounds(const std::vector<gene_transcript>& transcripts);
+std::set<int> get_all_bounds(const std::vector<gene_transcript>& transcripts);
 
 #endif /* CORE_H */
 

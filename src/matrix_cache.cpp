@@ -28,16 +28,16 @@ using namespace std;
 
 std::ostream& operator<<(std::ostream& ost, const matrix_cache_key& k)
 {
-    ost << "(" << k.branch_length() << ", " << k.branch_length() << ", (" << k.bounds().first << "," << k.bounds().second << "));";
+    ost << "(" << k.branch_length() << ", " << k.branch_length() << ", (" << k.bound() << "));";
     return ost;
 }
 
 
-const Eigen::MatrixXd& matrix_cache::get_matrix(double branch_length, double sigma, boundaries bounds) const
+const Eigen::MatrixXd& matrix_cache::get_matrix(double branch_length, double sigma, int bound) const
 {
     // cout << "Matrix request " << size << "," << branch_length << "," << lambda << endl;
 
-    matrix_cache_key key(bounds, sigma, branch_length);
+    matrix_cache_key key(bound, sigma, branch_length);
     if (_matrix_cache.find(key) != _matrix_cache.end())
     {
        return _matrix_cache.at(key);
@@ -50,7 +50,7 @@ const Eigen::MatrixXd& matrix_cache::get_matrix(double branch_length, double sig
     }
 }
 
-void matrix_cache::precalculate_matrices(const std::vector<double>& sigmas, const set<boundaries>& boundses, const std::set<double>& branch_lengths)
+void matrix_cache::precalculate_matrices(const std::vector<double>& sigmas, const set<int>& boundses, const std::set<double>& branch_lengths)
 {
     // build a list of required matrices
     vector<matrix_cache_key> keys;
@@ -75,7 +75,7 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& sigmas, cons
     vector<boundaries> vBounds(keys.size());
     vector<double> vBranches(keys.size());
     vector<double> vSigmas(keys.size());
-    transform(keys.begin(), keys.end(), vBounds.begin(), [](matrix_cache_key k) { return k.bounds(); });
+    transform(keys.begin(), keys.end(), vBounds.begin(), [](matrix_cache_key k) { return boundaries(0,k.bound()); });
     transform(keys.begin(), keys.end(), vBranches.begin(), [](matrix_cache_key k) { return k.branch_length(); });
     transform(keys.begin(), keys.end(), vSigmas.begin(), [](matrix_cache_key k) { return k.sigma() * k.sigma() / 2; });
     auto matrices = ConvProp_bounds_batched(vBranches, vSigmas, DiffMat::instance(), vBounds);
@@ -86,9 +86,9 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& sigmas, cons
 
 }
 
-void matrix_cache::set_matrix(double branch_length, double sigma, boundaries bounds, const Eigen::MatrixXd& m)
+void matrix_cache::set_matrix(double branch_length, double sigma, int bound, const Eigen::MatrixXd& m)
 {
-    matrix_cache_key key(bounds, sigma, branch_length);
+    matrix_cache_key key(bound, sigma, branch_length);
     _matrix_cache[key] = m;
 }
 
@@ -106,16 +106,16 @@ std::ostream& operator<<(std::ostream& ost, matrix_cache& c)
 TEST_CASE(" matrix_cache_key handles floating point imprecision")
 {
     set<matrix_cache_key> keys;
-    double t = 0.0;
+    double t = 0.3;
     for (int i = 0; i < 31; i++)
     {
         t += 0.1;
-        matrix_cache_key key(boundaries(0, t), 0.01, 0.3);
+        matrix_cache_key key(40, 0.01, t);
         keys.insert(key);
     }
     CHECK_EQ(31, keys.size());
 
-    matrix_cache_key key(boundaries(0, 3.0), 0.01, 0.3);
+    matrix_cache_key key(40, 0.01, 1.4);
     CHECK_EQ(1, keys.count(key));
 }
 
@@ -123,19 +123,19 @@ TEST_CASE("get_matrix returns correct matrix based on key")
 {
     matrix_cache cache;
     Matrix3d m1;
-    cache.set_matrix(44, 3.2642504711034, boundaries(0, 84.9), m1);
+    cache.set_matrix(44, 3.2642504711034, 85, m1);
 
     Matrix2d m2;
-    cache.set_matrix(44, 3.1010379475482, boundaries(0, 84.9), m2);
+    cache.set_matrix(44, 3.1010379475482, 85, m2);
 
-    CHECK_EQ(4, cache.get_matrix(44, 3.1010379475482, boundaries(0, 84.9)).size());
-    CHECK_EQ(9, cache.get_matrix(44, 3.2642504711034, boundaries(0, 84.9)).size());
+    CHECK_EQ(4, cache.get_matrix(44, 3.1010379475482, 85).size());
+    CHECK_EQ(9, cache.get_matrix(44, 3.2642504711034, 85).size());
 }
 
 TEST_CASE("matrix_cache_key checks sigma for less than")
 {
-    matrix_cache_key key(boundaries(0, 84.9), 3.2642504711034, 44);
-    matrix_cache_key key2(boundaries(0, 84.9), 3.1010379475482, 44);
+    matrix_cache_key key(85, 3.2642504711034, 44);
+    matrix_cache_key key2(85, 3.1010379475482, 44);
 
     CHECK(key2 < key);
 }

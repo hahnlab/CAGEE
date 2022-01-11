@@ -58,14 +58,14 @@ vector<size_t> build_reference_list(const vector<gene_transcript>& families)
     return reff;
 }
 
-set<pair<double, double>> get_all_bounds(const vector<gene_transcript>& transcripts)
+set<int> get_all_bounds(const vector<gene_transcript>& transcripts)
 {
-    vector<pair<double, double>> boundses(transcripts.size());
+    vector<int> boundses(transcripts.size());
     transform(transcripts.begin(), transcripts.end(), boundses.begin(), [](const gene_transcript& gf) {
-        return std::pair<double,double>(0, get_upper_bound(gf));
+        return get_upper_bound(gf);
         });
 
-    return set<pair<double, double>>(boundses.begin(), boundses.end());
+    return set<int>(boundses.begin(), boundses.end());
 
 }
 

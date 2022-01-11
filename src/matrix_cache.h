@@ -5,25 +5,25 @@
 #include <vector>
 #include <set>
 
-#include "DiffMat.h"
+#include <Eigen/Dense>
 
 class sigma;
 
 class matrix_cache_key {
-    std::pair<long, long> _bounds;
+    int _bound;
     long _branch_length;
     long _sigma;
 public:
-    matrix_cache_key(boundaries bounds, double sigma, double branch_length) :
+    matrix_cache_key(double bound, double sigma, double branch_length) :
         _sigma(long(sigma * 1000000000)),    // keep 9 significant digits
-        _bounds(long(bounds.first * 1000000000), long(bounds.second * 1000000000)),    // keep 9 significant digits
+        _bound(bound),
         _branch_length(long(branch_length * 1000)) {} // keep 3 significant digits
 
     bool operator<(const matrix_cache_key& o) const {
-        return std::tie(_bounds.first, _bounds.second, _branch_length, _sigma) < std::tie(o._bounds.first, o._bounds.second, o._branch_length, o._sigma);
+        return std::tie(_bound, _branch_length, _sigma) < std::tie(o._bound, o._branch_length, o._sigma);
     }
-    boundaries bounds() const {
-        return boundaries(double(_bounds.first / 1000000000.0), double(_bounds.second / 1000000000.0));
+    int bound() const {
+        return _bound;
     }
     double branch_length() const {
         return double(_branch_length) / 1000.0;
@@ -43,9 +43,9 @@ class matrix_cache {
 private:
     std::map<matrix_cache_key, Eigen::MatrixXd> _matrix_cache; //!< nested map that stores transition probabilities for a given lambda and branch_length (outer), then for a given parent and child size (inner)
 public:
-    void precalculate_matrices(const std::vector<double>& sigmas, const std::set<boundaries>& boundses, const std::set<double>& branch_lengths);
-    const Eigen::MatrixXd& get_matrix(double branch_length, double sigma, boundaries bounds) const;
-    void set_matrix(double branch_length, double sigma, boundaries bounds, const Eigen::MatrixXd& m);
+    void precalculate_matrices(const std::vector<double>& sigmas, const std::set<int>& boundses, const std::set<double>& branch_lengths);
+    const Eigen::MatrixXd& get_matrix(double branch_length, double sigma, int bound) const;
+    void set_matrix(double branch_length, double sigma, int bound, const Eigen::MatrixXd& m);
 
     int get_cache_size() const {
         return _matrix_cache.size();

@@ -233,9 +233,9 @@ TEST_CASE("Probability:matrices_take_fractional_branch_lengths_into_account" * d
     sigma lambda(0.006335);
     matrix_cache calc;
     std::set<double> branch_lengths{ 68, 68.7105 };
-    calc.precalculate_matrices(lambda.get_lambdas(), set<boundaries>{boundaries(0,3)}, branch_lengths);
-    CHECK_EQ(doctest::Approx(0.194661).epsilon(0.0001), calc.get_matrix(lambda.get_lambdas()[0], 68.7105, boundaries(0,0.006335))(5, 5)); // a value 
-    CHECK_EQ(doctest::Approx(0.195791).epsilon(0.0001), calc.get_matrix(lambda.get_lambdas()[0], 68, boundaries(0, 0.006335))(5, 5));
+    calc.precalculate_matrices(lambda.get_lambdas(), set<int>({3}), branch_lengths);
+    CHECK_EQ(doctest::Approx(0.194661).epsilon(0.0001), calc.get_matrix(lambda.get_lambdas()[0], 68.7105, 0.006335)(5, 5)); // a value 
+    CHECK_EQ(doctest::Approx(0.195791).epsilon(0.0001), calc.get_matrix(lambda.get_lambdas()[0], 68,0.006335)(5, 5));
 }
 
 bool operator==(const MatrixXd& m1, const MatrixXd& m2)
@@ -259,8 +259,8 @@ TEST_CASE("Probability: probability_of_matrix" * doctest::skip(true))
     sigma lambda(0.05);
     matrix_cache calc;
     std::set<double> branch_lengths{ 5 };
-    calc.precalculate_matrices(lambda.get_lambdas(), set<boundaries>(), branch_lengths);
-    auto actual = calc.get_matrix(5, lambda.get_lambdas()[0], boundaries());
+    calc.precalculate_matrices(lambda.get_lambdas(), set<int>(), branch_lengths);
+    auto actual = calc.get_matrix(5, lambda.get_lambdas()[0], 0);
     MatrixXd expected(5,5);
     double values[5][5] = {
     {1,0,0,0,0},
@@ -274,7 +274,7 @@ TEST_CASE("Probability: probability_of_matrix" * doctest::skip(true))
     CHECK(actual == expected);
 
     // a second call should get the same results as the first
-    actual = calc.get_matrix(5, lambda.get_lambdas()[0], boundaries());
+    actual = calc.get_matrix(5, lambda.get_lambdas()[0], 0);
     CHECK(actual == expected);
 }
 
@@ -436,7 +436,7 @@ TEST_CASE( "Inference: precalculate_matrices_calculates_all_boundaries_all_branc
 {
     sigma s(0.05);
     matrix_cache calc;
-    set<boundaries> b{ boundaries(0,0.5), boundaries(0, 0.25), boundaries(0, 0.1), boundaries(0, 0.2) };
+    set<int> b{ 1,2,5,10 };
     calc.precalculate_matrices(s.get_lambdas(), b, set<double>({ 1,2,3 }));
     CHECK_EQ(12, calc.get_cache_size());
 }
@@ -658,7 +658,7 @@ TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities" * doctest::skip(tr
 {
     sigma lm(0.05);
     matrix_cache cache;
-    cache.precalculate_matrices(lm.get_lambdas(), set<boundaries>(), { 1,3,7 });
+    cache.precalculate_matrices(lm.get_lambdas(), set<int>(), { 1,3,7 });
     base_model_reconstruction rec;
     rec._reconstructions[fam.id()][p_tree->find_descendant("AB")] = 10;
     rec._reconstructions[fam.id()][p_tree->find_descendant("ABCD")] = 12;
@@ -669,7 +669,7 @@ TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities_returns_invalid_if_
 {
     sigma lm(0.05);
     matrix_cache cache;
-    cache.precalculate_matrices(lm.get_lambdas(), set<boundaries>(), { 1,3,7 });
+    cache.precalculate_matrices(lm.get_lambdas(), set<int>(), { 1,3,7 });
     base_model_reconstruction rec;
     rec._reconstructions[fam.id()][p_tree.get()] = 11;
     CHECK_FALSE(compute_viterbi_sum(p_tree.get(), fam, &rec, 24, cache, &lm)._is_valid);

@@ -12,6 +12,7 @@
 #include "root_equilibrium_distribution.h"
 #include "gene_transcript.h"
 #include "user_data.h"
+#include "DiffMat.h"
 
 using namespace std;
 using namespace Eigen;
@@ -55,8 +56,7 @@ clademap<double> transcript_reconstructor::reconstruct_gene_transcript(const gen
             
             vector<VectorXd> child_likelihoods(2);
             transform(c->descendant_begin(), c->descendant_end(), child_likelihoods.begin(), [this, t, &CleanFmt](const clade* child) {
-                std::pair<double, double> bounds(0, get_upper_bound(t));
-                auto matrix = _p_cache->get_matrix(child->get_branch_length(), _p_sigma->get_named_value(child, t), bounds);
+                auto matrix = _p_cache->get_matrix(child->get_branch_length(), _p_sigma->get_named_value(child, t), get_upper_bound(t));
                 VectorXd result = matrix * all_node_Ls[child];
                 VLOG(TRANSCRIPT_RECONSTRUCTION) << "ConvPropBounds * L[" << child->get_taxon_name() << "] " << result.format(CleanFmt) << endl;
 
@@ -268,8 +268,7 @@ branch_probabilities::branch_probability compute_viterbi_sum(const clade* c,
         return branch_probabilities::invalid();
     }
 
-    std::pair<double, double> bounds(0, get_upper_bound(transcript));
-    auto probs = cache.get_matrix(c->get_branch_length(), p_lambda->get_named_value(c, transcript), bounds);
+    auto probs = cache.get_matrix(c->get_branch_length(), p_lambda->get_named_value(c, transcript), get_upper_bound(transcript));
 
     int parent_size = rec->get_node_count(transcript, c->get_parent());
     int child_size = rec->get_node_count(transcript, c);
@@ -329,8 +328,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript assigns actual va
     fam.set_expression_value("D", 9.4);
 
     matrix_cache calc;
-    boundaries bounds(0, get_upper_bound(fam));
-    calc.precalculate_matrices(sig.get_lambdas(), set<boundaries>({ bounds }), p_tree->get_branch_lengths());
+    calc.precalculate_matrices(sig.get_lambdas(), set<int>({ get_upper_bound(fam) }), p_tree->get_branch_lengths());
 
     transcript_reconstructor tr(&sig, p_tree.get(), &calc);
 
@@ -347,8 +345,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript calculates parent
     fam.set_expression_value("B", 61.8);
 
     matrix_cache calc;
-    boundaries bounds(0, get_upper_bound(fam));
-    calc.precalculate_matrices(sig.get_lambdas(), set<boundaries>({ bounds }), p_tree->get_branch_lengths());
+    calc.precalculate_matrices(sig.get_lambdas(), set<int>({ get_upper_bound(fam) }), p_tree->get_branch_lengths());
 
     transcript_reconstructor tr(&sig, p_tree.get(), &calc);
 
@@ -365,8 +362,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns parent 0 
     fam.set_expression_value("B", 0);
 
     matrix_cache calc;
-    boundaries bounds(0, get_upper_bound(fam));
-    calc.precalculate_matrices(sig.get_lambdas(), set<boundaries>({ bounds }), p_tree->get_branch_lengths());
+    calc.precalculate_matrices(sig.get_lambdas(), set<int>({ get_upper_bound(fam) }), p_tree->get_branch_lengths());
 
     transcript_reconstructor tr(&sig, p_tree.get(), &calc);
     auto actual = tr.reconstruct_gene_transcript(fam);
@@ -381,8 +377,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns correct v
     fam.set_expression_value("B", 0);
 
     matrix_cache calc;
-    boundaries bounds(0, get_upper_bound(fam));
-    calc.precalculate_matrices(sig.get_lambdas(), set<boundaries>({ bounds }), p_tree->get_branch_lengths());
+    calc.precalculate_matrices(sig.get_lambdas(), set<int>({ get_upper_bound(fam) }), p_tree->get_branch_lengths());
 
     transcript_reconstructor tr(&sig, p_tree.get(), &calc);
     auto actual = tr.reconstruct_gene_transcript(fam);

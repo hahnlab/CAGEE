@@ -157,7 +157,7 @@ void compute_node_probability(const clade* node,
         node_probs = VectorXd::Constant(DISCRETIZATION_RANGE, 1);
 
         for (auto it = node->descendant_begin(); it != node->descendant_end(); ++it) {
-            const MatrixXd& m = cache.get_matrix((*it)->get_branch_length(), p_sigma->get_named_value(*it, gene_transcript), boundaries(0, get_upper_bound(gene_transcript)));
+            const MatrixXd& m = cache.get_matrix((*it)->get_branch_length(), p_sigma->get_named_value(*it, gene_transcript), get_upper_bound(gene_transcript));
 
             VectorXd result = m * probabilities[*it];
             for (VectorXd::Index i = 0; i < node_probs.size(); i++) {
@@ -414,8 +414,8 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly")
     MatrixXd doubler = MatrixXd::Identity(DISCRETIZATION_RANGE, DISCRETIZATION_RANGE) * 2;
     sigma lambda(0.03);
     matrix_cache cache;
-    cache.set_matrix(1, 0.03, boundaries(0,get_upper_bound(family)), doubler);
-    cache.set_matrix(3, 0.03, boundaries(0,get_upper_bound(family)), doubler);
+    cache.set_matrix(1, 0.03, get_upper_bound(family), doubler);
+    cache.set_matrix(3, 0.03, get_upper_bound(family), doubler);
     std::map<const clade*, VectorXd> probabilities;
     auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(DISCRETIZATION_RANGE); };
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
@@ -544,7 +544,7 @@ TEST_CASE("compute_family_probabilities")
     fam.set_expression_value("B", 2);
     fam.set_expression_value("C", 5);
     fam.set_expression_value("D", 6);
-    cache.precalculate_matrices(lambda.get_lambdas(), set<boundaries>{boundaries(0,get_upper_bound(fam))}, set<double>{1, 3, 7, 11, 17, 23});
+    cache.precalculate_matrices(lambda.get_lambdas(), set<int>{get_upper_bound(fam)}, set<double>{1, 3, 7, 11, 17, 23});
 
     // note we do not use an error model for creating family sizes. See architecture decision #6
     p.p_tree->apply_prefix_order([&v, &fam](const clade* c)
