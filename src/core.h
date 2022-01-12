@@ -129,12 +129,6 @@ protected:
 
     event_monitor _monitor;
 
-    //! Create a lambda based on the lambda tree model the user passed.
-    /// Called when the user has provided no lambda value and one must
-    /// be estimated. If the p_lambda_tree is NULL, uses a single
-    /// lambda; otherwise uses the number of unique lambdas in the provided
-    /// tree
-    void initialize_lambda(clade *p_lambda_tree);
 public:
     model(sigma* p_lambda,
         const std::vector<gene_transcript>* p_gene_families,
@@ -159,7 +153,7 @@ public:
     //! Based on the model parameters, attempts to reconstruct the most likely counts of each family at each node
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache *p_calc) = 0;
 
-    virtual sigma_optimizer_scorer* get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior) = 0;
+    virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const std::vector<std::string>& sample_groups, const std::gamma_distribution<double>& prior) = 0;
 
     const event_monitor& get_monitor() { return _monitor;  }
 };
@@ -183,6 +177,13 @@ inline std::string filename(std::string base, std::string suffix)
 }
 
 std::set<int> get_all_bounds(const std::vector<gene_transcript>& transcripts);
+
+//! Create a sigma based on the sigma tree model the user passed.
+/// Called when the user has provided no sigma value and one must
+/// be estimated. If the sigma tree is NULL, uses a single
+/// sigma; otherwise uses the number of unique sigmas in the provided
+/// tree
+sigma* initialize_search_sigma(clade* p_sigma_tree, const std::vector<std::string>& sample_groups);
 
 #endif /* CORE_H */
 

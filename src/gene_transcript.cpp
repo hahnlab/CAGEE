@@ -4,7 +4,10 @@
 #include <sstream>
 #include <memory>
 
+#include <boost/algorithm/string.hpp>
+
 #include "doctest.h"
+#include "easylogging++.h"
 
 #include "gene_transcript.h"
 #include "clade.h"
@@ -90,6 +93,34 @@ double gene_transcript::species_size_differential() const
     return max_species_size - min_species_size;
 }
 
+vector<string> expand_sample_groups(const vector<string>& sg)
+{
+    vector<string> result;
+    for (auto s : sg)
+    {
+        vector<string> groups;
+        boost::split(groups, s, boost::is_any_of(","));
+        copy(groups.begin(), groups.end(), back_inserter(result));
+    }
+    return result;
+}
+
+void gene_transcript::remove_ungrouped_transcripts(const std::vector<std::string>& sample_groups, std::vector<gene_transcript>& transcripts)
+{
+    if (sample_groups.empty()) return;
+
+    auto all_groups = expand_sample_groups(sample_groups);
+    auto rem = std::remove_if(transcripts.begin(), transcripts.end(), [all_groups](const gene_transcript& t) {
+        return find(all_groups.begin(), all_groups.end(), t.tissue()) == all_groups.end();
+        });
+
+    int fmsize = transcripts.size();
+    transcripts.erase(rem, transcripts.end());
+    if (fmsize != transcripts.size())
+    {
+        LOG(WARNING) << "Some transcripts were not matched to a sample group";
+    }
+}
 
 TEST_CASE("exists_at_root returns false if not all children exist")
 {
@@ -128,3 +159,67 @@ TEST_CASE("exists_at_root handles values close to 0")
     CHECK(family.exists_at_root(p_tree.get()));
 }
 
+TEST_CASE("remove_ungrouped_transcripts removes nothing if no groups")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    istringstream ist(
+        "Desc\tFamily ID\tSAMPLETYPE\tA\tB\n"
+        "(null)\tt1\theart\t0\t0\n"
+        "(null)\tt2\tlungs\t0\t0\n");
+
+    vector<gene_transcript> transcripts;
+
+    read_gene_families(ist, p_tree.get(), transcripts);
+
+    CHECK_EQ(2, transcripts.size());
+    gene_transcript::remove_ungrouped_transcripts(vector<string>(), transcripts);
+
+    CHECK_EQ(2, transcripts.size());
+}
+
+TEST_CASE("remove_ungrouped_transcripts removes specified single group")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    istringstream ist(
+        "Desc\tFamily ID\tSAMPLETYPE\tA\tB\n"
+        "(null)\tt1\theart\t0\t0\n"
+        "(null)\tt2\tlungs\t0\t0\n");
+
+    vector<gene_transcript> transcripts;
+
+    read_gene_families(ist, p_tree.get(), transcripts);
+
+    CHECK_EQ(2, transcripts.size());
+    gene_transcript::remove_ungrouped_transcripts(vector<string>({"lungs"}), transcripts);
+
+    CHECK_EQ(1, transcripts.size());
+}
+
+TEST_CASE("remove_ungrouped_transcripts is aware of comma-specified groups")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    istringstream ist(
+        "Desc\tFamily ID\tSAMPLETYPE\tA\tB\n"
+        "(null)\tt1\tbrain\t0\t0\n"
+        "(null)\tt2\tlungs\t0\t0\n");
+
+    vector<gene_transcript> transcripts;
+
+    read_gene_families(ist, p_tree.get(), transcripts);
+
+    CHECK_EQ(2, transcripts.size());
+    gene_transcript::remove_ungrouped_transcripts(vector<string>({ "heart,lungs" }), transcripts);
+
+    CHECK_EQ(1, transcripts.size());
+}
+
+TEST_CASE("expand_sample_groups")
+{
+    vector<string> sample_groups({ "heart,lungs", "brain", "kidneys,liver,spleen" });
+    auto actual = expand_sample_groups(sample_groups);
+    vector<string> expected({ "heart" , "lungs", "brain", "kidneys", "liver", "spleen" });
+    CHECK_EQ(expected, actual);
+}

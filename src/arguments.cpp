@@ -53,6 +53,7 @@ input_parameters read_arguments(int argc, char* const argv[])
         ("rootdist", po::value<string>())
         ("prior", po::value<string>())
         ("verbose", po::value<int>())
+        ("sample_group", po::value<vector<string>>())
         ("zero_root,z", po::value<bool>()->implicit_value(true))
         ("sigma_tree,y", po::value<string>(), "Path to sigma tree, for use with multiple sigmas")
         ("simulate,s", po::value<string>()->default_value("false"), "Simulate families. Optionally provide the number of simulations to generate")
@@ -113,6 +114,7 @@ input_parameters read_arguments(int argc, char* const argv[])
     maybe_set(vm, "sigma_tree", my_input_parameters.lambda_tree_file_path);
     maybe_set(vm, "verbose", my_input_parameters.verbose_logging_level);
     maybe_set(vm, "rootdist", my_input_parameters.rootdist_params);
+    maybe_set(vm, "sample_group", my_input_parameters.sample_groups);
 
     if (vm.find("prior") != vm.end())
     {
@@ -345,6 +347,17 @@ TEST_CASE("Options: fixed_root_value")
     CHECK_EQ("fixed:12.7", actual.rootdist_params);
 }
 
+TEST_CASE("Options: sample_group")
+{
+    option_test c({ "cafe5", "--sample_group=heart,lungs", "--sample_group=brain" });
+
+    auto actual = read_arguments(c.argc, c.values);
+
+    REQUIRE_EQ(2, actual.sample_groups.size());
+    CHECK_EQ("heart,lungs", actual.sample_groups[0]);
+    CHECK_EQ("brain", actual.sample_groups[1]);
+}
+
 TEST_CASE("Options, errormodel_accepts_no_argument")
 {
     option_test c({ "cafe5", "-e" });
@@ -405,7 +418,7 @@ TEST_CASE("Options: can_specify_alpha_without_k_for_gamma_simulation")
     CHECK(true);
 }
 
-TEST_CASE("Options: check_input_does_not_throw_when_simulating_with_multiple_lambdas")
+TEST_CASE("Options: check_input_does_not_throw_when_simulating_with_multiple_sigmas")
 {
     input_parameters params;
     params.is_simulating = true;

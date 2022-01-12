@@ -109,6 +109,8 @@ int cagee(int argc, char *const argv[]) {
 
         }
 
+        gene_transcript::remove_ungrouped_transcripts(user_input.sample_groups, data.gene_families);
+
 #if 0
         data.create_prior(user_input.rootdist_params);
         if (user_input.nsims > 0)

@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <fstream>
 
+#include "doctest.h"
 #include "easylogging++.h"
 
 #include "gamma_core.h"
@@ -216,22 +217,22 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma*p_
     return final_likelihood;
 }
 
-sigma_optimizer_scorer* gamma_model::get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior)
+sigma_optimizer_scorer* gamma_model::get_sigma_optimizer(const user_data& data, const std::vector<string>& sample_groups, const std::gamma_distribution<double>& prior)
 {
-    bool estimate_lambda = data.p_lambda == NULL;
+    bool estimate_sigma = data.p_lambda == NULL;
     bool estimate_alpha = _alpha <= 0.0;
 
-    if (estimate_lambda && estimate_alpha)
+    if (estimate_sigma && estimate_alpha)
     {
-        initialize_lambda(data.p_lambda_tree);
+        _p_lambda = initialize_search_sigma(data.p_lambda_tree, sample_groups);
         return new sigma_optimizer_scorer(this, data, prior, _p_lambda);
     }
-    else if (estimate_lambda && !estimate_alpha)
+    else if (estimate_sigma && !estimate_alpha)
     {
-        initialize_lambda(data.p_lambda_tree);
+        _p_lambda = initialize_search_sigma(data.p_lambda_tree, sample_groups);
         return new sigma_optimizer_scorer(dynamic_cast<model *>(this), data, prior, _p_lambda);
     }
-    else if (!estimate_lambda && estimate_alpha)
+    else if (!estimate_sigma && estimate_alpha)
     {
         _p_lambda = data.p_lambda->clone();
         return new sigma_optimizer_scorer(this, data, prior);
@@ -351,3 +352,52 @@ void gamma_model_reconstruction::print_additional_data(const cladevector& order,
     print_category_likelihoods(cat_likelihoods, order, gene_families);
 
 }
+
+TEST_CASE("Inference: gamma_model__creates__lambda_optimizer__if_alpha_provided")
+{
+    unique_ptr<clade> p_tree(parse_newick("((A:1,B:1):1,(C:1,D:1):1);"));
+
+    gamma_model model(NULL, NULL, 4, 0.25, NULL);
+
+    user_data data;
+    data.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
+    data.gene_families[0].set_expression_value("A", 1);
+    data.gene_families[0].set_expression_value("B", 2);
+    data.p_tree = p_tree.get();
+
+    auto opt = model.get_sigma_optimizer(data, vector<string>(), std::gamma_distribution<double>(1, 2));
+
+    REQUIRE(opt);
+    CHECK_EQ("Optimizing Sigma ", opt->description());
+    delete model.get_lambda();
+}
+
+TEST_CASE("Inference: gamma_model__creates__gamma_optimizer__if_lambda_provided")
+{
+    gamma_model model(NULL, NULL, 4, -1, NULL);
+
+    user_data data;
+
+    sigma sl(0.05);
+    data.p_lambda = &sl;
+
+    auto opt = model.get_sigma_optimizer(data, vector<string>(), std::gamma_distribution<double>(1, 2));
+
+    REQUIRE(opt);
+    CHECK_EQ("Optimizing Alpha ", opt->description());
+
+    delete model.get_lambda();
+}
+
+TEST_CASE("Inference: gamma_model_creates_nothing_if_lambda_and_alpha_provided")
+{
+    gamma_model model(NULL, NULL, 4, .25, NULL);
+
+    user_data data;
+
+    sigma sl(0.05);
+    data.p_lambda = &sl;
+
+    CHECK(model.get_sigma_optimizer(data, vector<string>(), std::gamma_distribution<double>(1, 2)) == nullptr);
+}
+

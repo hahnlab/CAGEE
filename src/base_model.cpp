@@ -135,12 +135,12 @@ void base_model::write_family_likelihoods(std::ostream& ost)
     }
 }
 
-sigma_optimizer_scorer* base_model::get_lambda_optimizer(const user_data& data, const std::gamma_distribution<double>& prior)
+sigma_optimizer_scorer* base_model::get_sigma_optimizer(const user_data& data, const std::vector<string>& sample_groups, const std::gamma_distribution<double>& prior)
 {
     if (data.p_lambda != NULL)  // already have a lambda, nothing we want to optimize
         return nullptr;
 
-    initialize_lambda(data.p_lambda_tree);
+    _p_lambda = initialize_search_sigma(data.p_lambda_tree, sample_groups);
 
     if (_p_error_model && !data.p_error_model)
     {

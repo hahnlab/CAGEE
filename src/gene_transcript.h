@@ -82,5 +82,7 @@ public:
     }
 
     friend std::ostream& operator<<(std::ostream& ost, const gene_transcript& family);
+
+    static void remove_ungrouped_transcripts(const std::vector<std::string>& sample_groups, std::vector<gene_transcript>& transcripts);
 };
 #endif
