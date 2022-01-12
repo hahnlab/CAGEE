@@ -45,7 +45,7 @@ void estimator::write_error_model_if_specified(const input_parameters& my_input_
         else
         {
             /// user did not specify an error model, write out the estimated one or a default
-            p_model->write_error_model(data.max_family_size, errmodel);
+            p_model->write_error_model(200, errmodel);
         }
     }
 }
@@ -164,7 +164,6 @@ void estimator::execute(std::vector<model *>& models)
                 /// caused issues in the pvalue calculation. It should be best to use the original lambda
                 /// instead
                 matrix_cache cache;
-                pvalue_parameters p = { data.p_tree, p_model->get_lambda(), data.max_family_size, data.max_root_family_size, cache };
 
                 std::unique_ptr<reconstruction> rec(p_model->reconstruct_ancestral_states(data, &cache));
 
@@ -173,7 +172,7 @@ void estimator::execute(std::vector<model *>& models)
                 for (size_t i = 0; i<data.gene_families.size(); ++i)
                 {
                     for_each(data.p_tree->reverse_level_begin(), data.p_tree->reverse_level_end(), [&](const clade* c) {
-                        probs.set(data.gene_families[i], c, compute_viterbi_sum(c, data.gene_families[i], rec.get(), data.max_family_size, cache, p_model->get_lambda()));
+                        probs.set(data.gene_families[i], c, compute_viterbi_sum(c, data.gene_families[i], rec.get(), cache, p_model->get_lambda()));
                         });
                 }
 

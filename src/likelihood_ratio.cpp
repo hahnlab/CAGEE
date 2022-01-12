@@ -25,9 +25,7 @@ namespace LikelihoodRatioTest
     double get_likelihood_for_diff_lambdas(const gene_transcript & gf, const clade * p_tree, const clade * p_lambda_tree, 
         int lambda_index, 
         std::vector<sigma*> & lambda_cache,
-        optimizer *opt,
-        int max_root_family_size,
-        int max_family_size)
+        optimizer *opt)
     {
         const double bl_augment = 0.5;
         unique_ptr<clade> adjusted_tree(update_branchlength(p_tree, bl_augment, lambda_index));
@@ -64,12 +62,12 @@ namespace LikelihoodRatioTest
             auto values = inference_prune(pitem, cache, data.p_lambda, data.p_error_model, data.p_tree, 1.0);
             double maxlh1 = *max_element(values.begin(), values.end());
             double prev = -1;
-            double next = get_likelihood_for_diff_lambdas(pitem, data.p_tree, data.p_lambda_tree, 0, lambda_cache, p_opt, data.max_root_family_size, data.max_family_size);
+            double next = get_likelihood_for_diff_lambdas(pitem, data.p_tree, data.p_lambda_tree, 0, lambda_cache, p_opt);
             int j = 1;
             for (; prev < next; j++)
             {
                 prev = next;
-                next = get_likelihood_for_diff_lambdas(pitem, data.p_tree, data.p_lambda_tree, j, lambda_cache, p_opt, data.max_root_family_size, data.max_family_size);
+                next = get_likelihood_for_diff_lambdas(pitem, data.p_tree, data.p_lambda_tree, j, lambda_cache, p_opt);
             }
             pvalues[i] = (prev == maxlh1) ? 1 : 2 * (log(prev) - log(maxlh1));
             lambda_index[i] = j - 2;

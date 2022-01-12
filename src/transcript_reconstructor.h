@@ -23,7 +23,7 @@ public:
     clademap<double> reconstruct_gene_transcript(const gene_transcript& gf);
 };
 
-branch_probabilities::branch_probability compute_viterbi_sum(const clade* c, const gene_transcript& family, const reconstruction* rec, int max_family_size, const matrix_cache& cache, const sigma* p_lambda);
+branch_probabilities::branch_probability compute_viterbi_sum(const clade* c, const gene_transcript& family, const reconstruction* rec, const matrix_cache& cache, const sigma* p_lambda);
 
 void print_branch_probabilities(std::ostream& ost, const cladevector& order, const std::vector<gene_transcript>& gene_families, const branch_probabilities& branch_probabilities);
 

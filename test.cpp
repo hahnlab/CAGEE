@@ -93,8 +93,6 @@ public:
         _p_lambda = new sigma(0.05);
         _user_data.p_tree = parse_newick("(A:1,B:1);");
         _user_data.p_lambda = _p_lambda;
-        _user_data.max_family_size = 10;
-        _user_data.max_root_family_size = 8;
         _user_data.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
         _user_data.gene_families[0].set_expression_value("A", 1);
         _user_data.gene_families[0].set_expression_value("B", 2);
@@ -392,7 +390,7 @@ TEST_CASE_FIXTURE(Inference, "base_model_reconstruction")
     base_model model(&sl, &families, NULL);
 
     matrix_cache calc;
-    root_distribution_uniform dist(size_t(_user_data.max_root_family_size));
+    root_distribution_uniform dist(size_t(10));
 
     std::unique_ptr<base_model_reconstruction> rec(dynamic_cast<base_model_reconstruction*>(model.reconstruct_ancestral_states(_user_data, &calc)));
 
@@ -662,7 +660,7 @@ TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities" * doctest::skip(tr
     base_model_reconstruction rec;
     rec._reconstructions[fam.id()][p_tree->find_descendant("AB")] = 10;
     rec._reconstructions[fam.id()][p_tree->find_descendant("ABCD")] = 12;
-    CHECK_EQ(doctest::Approx(0.537681), compute_viterbi_sum(p_tree->find_descendant("AB"), fam, &rec, 24, cache, &lm)._value);
+    CHECK_EQ(doctest::Approx(0.537681), compute_viterbi_sum(p_tree->find_descendant("AB"), fam, &rec, cache, &lm)._value);
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities_returns_invalid_if_root")
@@ -672,7 +670,7 @@ TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities_returns_invalid_if_
     cache.precalculate_matrices(lm.get_lambdas(), set<int>(), { 1,3,7 });
     base_model_reconstruction rec;
     rec._reconstructions[fam.id()][p_tree.get()] = 11;
-    CHECK_FALSE(compute_viterbi_sum(p_tree.get(), fam, &rec, 24, cache, &lm)._is_valid);
+    CHECK_FALSE(compute_viterbi_sum(p_tree.get(), fam, &rec, cache, &lm)._is_valid);
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "pvalues")
@@ -778,7 +776,6 @@ TEST_CASE("Inference: build_models__uses_error_model_if_provided")
     user_data data;
     data.p_error_model = &em;
     data.p_tree = new clade("A", 5);
-    data.max_family_size = 5;
     sigma lambda(0.05);
     data.p_lambda = &lambda;
     auto model = build_models(params, data)[0];
@@ -794,7 +791,6 @@ TEST_CASE("Inference: build_models__creates_default_error_model_if_needed")
     params.use_error_model = true;
     user_data data;
     data.p_tree = new clade("A", 5);
-    data.max_family_size = 5;
     sigma lambda(0.05);
     data.p_lambda = &lambda;
     auto model = build_models(params, data)[0];
@@ -1188,8 +1184,6 @@ TEST_CASE("Inference: lambda_per_family" * doctest::skip(true))
     randomizer_engine.seed(10);
     user_data ud;
 
-    ud.max_root_family_size = 10;
-    ud.max_family_size = 10;
     ud.gene_families.resize(1);
    // ud.p_prior = new root_distribution_uniform(size_t(ud.max_root_family_size));
 
@@ -1349,8 +1343,6 @@ TEST_CASE("Simulation, simulate_processes" * doctest::skip(true))
     ud.p_tree = p_tree.get();
     ud.p_lambda = &lam;
 //    ud.p_prior = new root_distribution_uniform(size_t(100));
-    ud.max_family_size = 101;
-    ud.max_root_family_size = 101;
 
     input_parameters ip;
     ip.nsims = 100;
@@ -1684,7 +1676,7 @@ TEST_CASE("LikelihoodRatioTest, get_likelihood_for_diff_lambdas" * doctest::skip
     gf.set_expression_value("B", 9);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     std::vector<sigma*> cache(100);
-    CHECK_EQ(0.0, LikelihoodRatioTest::get_likelihood_for_diff_lambdas(gf, p_tree.get(), 0, 0, cache, &opt, 12, 12));
+    CHECK_EQ(0.0, LikelihoodRatioTest::get_likelihood_for_diff_lambdas(gf, p_tree.get(), 0, 0, cache, &opt));
 }
 
 TEST_CASE("LikelihoodRatioTest, compute_for_diff_lambdas" * doctest::skip(true))
@@ -1697,8 +1689,6 @@ TEST_CASE("LikelihoodRatioTest, compute_for_diff_lambdas" * doctest::skip(true))
     data.gene_families.resize(1);
     data.gene_families[0].set_expression_value("A", 5);
     data.gene_families[0].set_expression_value("B", 9);
-    data.max_root_family_size = 12;
-    data.max_family_size = 12;
     vector<int> lambda_index(data.gene_families.size(), -1);
     vector<double> pvalues(data.gene_families.size());
     vector<sigma*> lambdas(100);

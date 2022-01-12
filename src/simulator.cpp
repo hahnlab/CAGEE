@@ -270,8 +270,6 @@ TEST_CASE("create_trial")
     data.rootdist[1] = 1;
     data.rootdist[2] = 1;
     data.rootdist[5] = 1;
-    data.max_family_size = 10;
-    data.max_root_family_size = 10;
     input_parameters params;
     params.rootdist_params = "file:rd.txt";
     simulator sim(data, params);

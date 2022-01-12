@@ -25,9 +25,7 @@ extern std::mt19937 randomizer_engine;
 /// @param[in] my_input_parameters Parsed parameters passed to the application
 /// @param[in] p_tree The tree to be used in calculations. Necessary for syncing tree data to gene family data
 /// @param[out] p_gene_families Parsed data in the gene family file specified by my_input_parameters
-/// @param[out] max_family_size Equal to the largest family size given in the file plus 20%, or plus 50 if the largest family size is more than 250
-/// @param[out] max_root_family_size Equal to 5/4 the size of the largest family size given in the file (with a minimum of 30)
-void user_data::read_gene_family_data(const input_parameters &my_input_parameters, int &max_family_size, int &max_root_family_size, clade *p_tree, std::vector<gene_transcript> *p_gene_families) {
+void user_data::read_gene_family_data(const input_parameters &my_input_parameters, clade *p_tree, std::vector<gene_transcript> *p_gene_families) {
 
     try
     {
@@ -42,19 +40,7 @@ void user_data::read_gene_family_data(const input_parameters &my_input_parameter
         throw std::runtime_error(my_input_parameters.input_file_path + ": " + err.what() + ". Exiting...");
     }
     
-    // Iterating over gene families to get max gene family size
-    for (std::vector<gene_transcript>::iterator it = p_gene_families->begin(); it != p_gene_families->end(); ++it) {
-        double this_family_max_size = it->get_max_expression_value();
-
-        if (max_family_size < this_family_max_size)
-            max_family_size = this_family_max_size;
-    }
-
-    max_root_family_size = std::max(30.0, max_family_size*1.25);
-    max_family_size = max_family_size + std::max(50.0, max_family_size / 5.0);
-    // cout << "Read input file " << my_input_parameters.input_file_path << "." << endl;
-    // cout << "Max (parsed) family size is: " << max_family_size << endl;
-    // cout << "Max root family size is: " << max_root_family_size << endl;
+    LOG(DEBUG) << "Read input file " << my_input_parameters.input_file_path << "." << endl;
 }
 
 //! Read user provided error model file (whose path is stored in input_parameters instance)
@@ -142,7 +128,7 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
     /* -i */
     if (!my_input_parameters.input_file_path.empty()) {
         // Populates (pointer to) vector of gene family instances, max_family_size and max_root_family_size (last two passed by reference)
-        read_gene_family_data(my_input_parameters, max_family_size, max_root_family_size, p_tree, &gene_families);
+        read_gene_family_data(my_input_parameters, p_tree, &gene_families);
     }
 
     /* -e */

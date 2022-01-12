@@ -45,7 +45,7 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
         {
             p_error_model = new error_model();
             p_error_model->set_probabilities(0, { 0, .95, 0.05 });
-            p_error_model->set_probabilities(user_data.max_family_size, { 0.05, .9, 0.05 });
+            p_error_model->set_probabilities(200, { 0.05, .9, 0.05 });
         }
 
         p_model = new base_model(user_data.p_lambda, p_gene_families, p_error_model);

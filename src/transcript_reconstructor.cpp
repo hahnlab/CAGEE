@@ -259,7 +259,6 @@ int reconstruction::get_difference_from_parent(const gene_transcript& gf, const 
 branch_probabilities::branch_probability compute_viterbi_sum(const clade* c, 
     const gene_transcript& transcript, 
     const reconstruction* rec, 
-    int max_family_size, 
     const matrix_cache& cache, 
     const sigma* p_lambda)
 {
@@ -274,7 +273,7 @@ branch_probabilities::branch_probability compute_viterbi_sum(const clade* c,
     int child_size = rec->get_node_count(transcript, c);
     double result = 0;
     double calculated_probability = probs(parent_size, child_size);
-    for (int m = 0; m < max_family_size; m++)
+    for (int m = 0; m < 200; m++)
     {
         double probability_to_m = probs(parent_size, m);
         if (probability_to_m == calculated_probability)

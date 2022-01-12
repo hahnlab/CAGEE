@@ -23,9 +23,6 @@ public:
     {
 
     }
-    int max_family_size = 120; //!<  The maximum family size for which probabilities will be calculated
-    int max_root_family_size = 125; //!<  The maximum family size for which probabilities will be calculated at the root of the tree
-
     clade *p_tree = NULL; // instead of new clade(), o.w. mem leak
     sigma*p_lambda = NULL;
     clade *p_lambda_tree = NULL;
@@ -37,7 +34,7 @@ public:
     void read_datafiles(const input_parameters& my_input_parameters);
 
     //! Read in gene family data
-    void read_gene_family_data(const input_parameters &my_input_parameters, int &max_family_size, int &max_root_family_size, clade *p_tree, std::vector<gene_transcript> *p_gene_families);
+    void read_gene_family_data(const input_parameters &my_input_parameters, clade *p_tree, std::vector<gene_transcript> *p_gene_families);
 
     //! Read in error model file
     void read_error_model(const input_parameters &my_input_parameters, error_model *p_error_model);

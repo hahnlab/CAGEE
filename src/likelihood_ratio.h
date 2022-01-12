@@ -11,7 +11,7 @@ namespace LikelihoodRatioTest {
     clade* update_branchlength(const clade* lambda_tree, double bl_augment, int t);
 
     double get_likelihood_for_diff_lambdas(const gene_transcript& gf, const clade* p_tree,
-        const clade* p_lambda_tree, int t, std::vector<sigma*>& lambda_cache, optimizer* p_opt, int, int);
+        const clade* p_lambda_tree, int t, std::vector<sigma*>& lambda_cache, optimizer* p_opt);
 
     void compute_for_diff_lambdas_i(const user_data& data,
         std::vector<int>& lambda_index,
