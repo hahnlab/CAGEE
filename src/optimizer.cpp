@@ -649,22 +649,29 @@ bool threshold_achieved(FMinSearch* pfm)
 
 OptimizerStrategy *optimizer::get_strategy(const optimizer_parameters& params)
 {
+#ifndef OPTIMIZER_STRATEGY
+#define OPTIMIZER_STRATEGY LBFGS
+#endif
+
     pfm->chi = params.neldermead_expansion;
     pfm->rho = params.neldermead_reflection;
     pfm->maxiters = params.neldermead_iterations;
 
-#if defined(OPTIMIZER_STRATEGY_RANGE_WIDELY_THEN_HOME_IN)
-    return new RangeWidelyThenHomeIn();
-#elif defined(OPTIMIZER_STRATEGY_INITIAL_VARIANTS)
-    return new InitialVariants(*this);
-#elif defined(OPTIMIZER_STRATEGY_PERTURB_WHEN_CLOSE)
-    return new PerturbWhenClose();
-#elif defined(OPTIMIZER_STRATEGY_SIMILARITY_CUTOFF)
-    return new NelderMeadSimilarityCutoff();
-#elif defined(OPTIMIZER_STRATEGY_LBFGS)
-    return new LBFGS_strategy();
-#endif
-
-    return new StandardNelderMead();
+    enum strategies { NelderMead, LBFGS, RangeWidely, InitialVariants, PerturbWhenClose, SimilarityCutoff };
+    switch (OPTIMIZER_STRATEGY)
+    {
+    case RangeWidely:
+        return new RangeWidelyThenHomeIn();
+    case InitialVariants:
+        return new ::InitialVariants(*this);
+    case NelderMead:
+        return new StandardNelderMead();
+    case PerturbWhenClose:
+        return new ::PerturbWhenClose();
+    case SimilarityCutoff:
+        return new NelderMeadSimilarityCutoff();
+    case LBFGS:
+    default:
+        return new LBFGS_strategy();
+    }
 }
-
