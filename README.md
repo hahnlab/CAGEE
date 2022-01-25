@@ -6,12 +6,12 @@ Software for <bold>C</bold>omputational <bold>A</bold>nalysis of <bold>G</bold>e
 </h3>
 </div>
 
-The purpose of CAGEE is to analyze changes in gene expressions in a way that 
+The purpose of CAGEE is to analyze changes in gene expression in a way that 
 accounts for phylogenetic history and provides a statistical foundation for 
 evolutionary inferences. The program uses Brownian motion to model gene 
-expression across a user-specified phylogenetic tree. The distribution of expressions 
+expression levels across a user-specified phylogenetic tree. The distribution of counts (i.e. expression level) 
 generated under this model can provide a basis for assessing the significance 
-of the observed family size differences among taxa.
+of the observed differences among taxa.
 
 [![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
 
