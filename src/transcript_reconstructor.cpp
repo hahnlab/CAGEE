@@ -13,6 +13,8 @@
 #include "gene_transcript.h"
 #include "user_data.h"
 #include "DiffMat.h"
+#include "newick_ape_loader.h"
+
 
 using namespace std;
 using namespace Eigen;
@@ -219,7 +221,6 @@ void reconstruction::print_node_counts(std::ostream& ost, const cladevector& ord
         });
 }
 
-
 void reconstruction::write_results(std::string model_identifier, 
     std::string output_prefix, 
     const clade *p_tree, 
@@ -227,8 +228,9 @@ void reconstruction::write_results(std::string model_identifier,
     double test_pvalue, 
     const branch_probabilities& branch_probabilities)
 {
-    cladevector order;
-    for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), [&order](const clade* c) { order.push_back(c); });
+    //cladevector order;
+    //for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), [&order](const clade* c) { order.push_back(c); });
+    auto order = get_ape_order(p_tree);
 
     std::ofstream ofst(filename(model_identifier + "_asr", output_prefix, "tre"));
     print_reconstructed_states(ofst, order, families, p_tree, test_pvalue, branch_probabilities);

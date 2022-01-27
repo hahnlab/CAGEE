@@ -17,6 +17,7 @@
 #include "sigma.h"
 #include "DiffMat.h"
 #include "arguments.h"
+#include "newick_ape_loader.h"
 
 using namespace std;
 using namespace Eigen;
@@ -128,7 +129,7 @@ void simulator::simulate_processes(model *p_model, std::vector<simulated_family>
     }
 }
 
-void print_header(std::ostream& ost, const input_parameters& p, size_t c)
+void print_header(std::ostream& ost, const input_parameters& p, size_t c, const clade *p_tree, const cladevector& order)
 {
     auto tm = std::time(nullptr);
 
@@ -139,6 +140,16 @@ void print_header(std::ostream& ost, const input_parameters& p, size_t c)
         ost << "gamma:0.75:0.033" << endl;
     else
         ost << p.rootdist_params << endl;
+
+    if (p_tree)
+    {
+        auto text_func = [&order](const clade* c) {
+            return clade_index_or_name(c, order);
+        };
+        ost << "# Tree: ";
+        p_tree->write_newick(ost, text_func);
+        ost << endl;
+    }
 
     ost << "# Sigma: ";
     if (p.fixed_multiple_lambdas.empty())
@@ -156,8 +167,7 @@ void simulator::simulate(std::vector<model *>& models, const input_parameters &m
     if (data.p_tree == nullptr)
         throw std::runtime_error("No tree specified for simulations");
 
-    std::vector<const clade *> order;
-    for_each(data.p_tree->reverse_level_begin(), data.p_tree->reverse_level_end(), [&order](const clade* c) { order.push_back(c); });
+    auto order = get_ape_order(data.p_tree);
 
     string dir = my_input_parameters.output_prefix;
     if (dir.empty()) dir = "results";
@@ -171,26 +181,22 @@ void simulator::simulate(std::vector<model *>& models, const input_parameters &m
 
         string fname = filename("simulation", my_input_parameters.output_prefix);
         std::ofstream ofst2(fname);
-        print_header(ofst2, my_input_parameters, results.size());
-        print_simulations(ofst2, false, results);
+        print_header(ofst2, my_input_parameters, results.size(), data.p_tree, order);
+        print_simulations(ofst2, false, results, order);
         LOG(INFO) << "Simulated values written to " << fname << endl;
 
         string truth_fname = filename("simulation_truth", dir);
         std::ofstream ofst(truth_fname);
-        print_header(ofst, my_input_parameters, results.size());
-        print_simulations(ofst, true, results);
+        print_header(ofst, my_input_parameters, results.size(), data.p_tree, order);
+        print_simulations(ofst, true, results, order);
         LOG(INFO) << "Simulated values (including internal nodes) written to " << truth_fname << endl;
 
     }
 }
 
 
-void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes, const std::vector<simulated_family>& results) {
-
-    std::vector<const clade *> order;
-    auto fn = [&order](const clade *c) { order.push_back(c); };
-    for_each(data.p_tree->reverse_level_begin(), data.p_tree->reverse_level_end(), fn);
-
+void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes, const std::vector<simulated_family>& results, const cladevector& order) 
+{
     if (results.empty())
     {
         LOG(ERROR) << "No simulations created" << endl;
@@ -200,6 +206,8 @@ void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes
     ost << "DESC\tFID";
     for (size_t i = 0; i < order.size(); ++i)
     {
+        if (!order[i]) continue;
+
         if (order[i]->is_leaf())
             ost << '\t' << order[i]->get_taxon_name();
         else if (include_internal_nodes)
@@ -214,6 +222,8 @@ void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes
         ost << "L" << fam.lambda << "\ttranscript" << j;
         for (size_t i = 0; i < order.size(); ++i)
         {
+            if (!order[i]) continue;
+
             if (order[i]->is_leaf() || include_internal_nodes)
             {
                 ost << '\t';
@@ -312,10 +322,10 @@ TEST_CASE("print_process_prints_in_order")
     data.p_tree = p_tree.get();
     input_parameters params;
     simulator sim(data, params);
-    sim.print_simulations(ost, true, my_trials);
+    sim.print_simulations(ost, true, my_trials, get_ape_order(p_tree.get()));
 
-    CHECK_STREAM_CONTAINS(ost, "DESC\tFID\tB\tA\t2");
-    CHECK_STREAM_CONTAINS(ost, "L0\ttranscript0\t4\t2\t6");
+    CHECK_STREAM_CONTAINS(ost, "DESC\tFID\tA\tB\t3");
+    CHECK_STREAM_CONTAINS(ost, "L0\ttranscript0\t2\t4\t6");
 
 }
 
@@ -336,9 +346,9 @@ TEST_CASE("print_process_can_print_without_internal_nodes")
     data.p_tree = p_tree.get();
     input_parameters params;
     simulator sim(data, params);
-    sim.print_simulations(ost, false, my_trials);
-    CHECK_STREAM_CONTAINS(ost, "DESC\tFID\tB\tA\n");
-    CHECK_STREAM_CONTAINS(ost, "L0\ttranscript0\t4\t2\n");
+    sim.print_simulations(ost, false, my_trials, get_ape_order(p_tree.get()));
+    CHECK_STREAM_CONTAINS(ost, "DESC\tFID\tA\tB\n");
+    CHECK_STREAM_CONTAINS(ost, "L0\ttranscript0\t2\t4\n");
 
 }
 
@@ -374,11 +384,21 @@ TEST_CASE("print_header")
     input_parameters p;
     p.fixed_lambda = 2.5;
     p.rootdist_params = "Fixed:6.0";
-    print_header(ost, p, 100);
+    print_header(ost, p, 100, nullptr, cladevector());
     CHECK_STREAM_CONTAINS(ost, "# Simulated data set created ");
     CHECK_STREAM_CONTAINS(ost, "(100 transcripts)");
     CHECK_STREAM_CONTAINS(ost, "# Root distribution: Fixed:6.0");
     CHECK_STREAM_CONTAINS(ost, "# Sigma: 2.5");
+}
+
+TEST_CASE("print_header displays tree")
+{
+    std::ostringstream ost;
+    input_parameters p;
+    unique_ptr<clade> p_tree(parse_newick("((A:1,B:3):7,(C:11,D:17):23);"));
+
+    print_header(ost, p, 100, p_tree.get(), get_ape_order(p_tree.get()));
+    CHECK_STREAM_CONTAINS(ost, "# Tree: ((A<1>,B<2>)<6>,(C<3>,D<4>)<7>)<5>");
 }
 
 TEST_CASE("print_header default rootdist")
@@ -386,7 +406,7 @@ TEST_CASE("print_header default rootdist")
     std::ostringstream ost;
     input_parameters p;
     p.fixed_lambda = 2.5;
-    print_header(ost, p, 100);
+    print_header(ost, p, 100, nullptr, cladevector());
     CHECK_STREAM_CONTAINS(ost, "# Root distribution: gamma:0.75:0.033");
 }
 
@@ -395,7 +415,7 @@ TEST_CASE("print_header multiple sigmas")
     std::ostringstream ost;
     input_parameters p;
     p.fixed_multiple_lambdas = "1,2,3";
-    print_header(ost, p, 100);
+    print_header(ost, p, 100, nullptr, cladevector());
     CHECK_STREAM_CONTAINS(ost, "# Sigma: 1,2,3");
 }
 

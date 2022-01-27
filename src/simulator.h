@@ -74,7 +74,7 @@ public:
     simulated_family create_trial(const sigma*p_lambda, int family_number);
 
     virtual void execute(std::vector<model *>& models);
-    void print_simulations(std::ostream& ost, bool include_internal_nodes, const std::vector<simulated_family>& results);
+    void print_simulations(std::ostream& ost, bool include_internal_nodes, const std::vector<simulated_family>& results, const cladevector& order);
 
     //! Does the actual work of simulation. Calls the given model to load simulation parameters,
     //! and places the simulations in results. Every fifty simulations, the model's \ref model::perturb_lambda
