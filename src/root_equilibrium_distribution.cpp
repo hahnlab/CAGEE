@@ -19,12 +19,21 @@ extern std::mt19937 randomizer_engine; // seeding random number engine
 using namespace std;
 using namespace Eigen;
 
+float root_equilibrium_distribution::select_root_value(int family_number)
+{
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+    return log(get_raw_root_value(family_number));
+#else
+    return get_raw_root_value(family_number);
+#endif
+}
+
 void root_distribution_fixed::resize(size_t new_size)
 {
 
 }
 
-float root_distribution_fixed::select_root_value(int family_number)
+float root_distribution_fixed::get_raw_root_value(int family_number)
 {
     return _fixed_root_value;
 }
@@ -34,7 +43,7 @@ void root_distribution_uniform::resize(size_t new_size)
     _max_value = new_size;
 }
 
-float root_distribution_uniform::select_root_value(int family_number)
+float root_distribution_uniform::get_raw_root_value(int family_number)
 {
     if ((size_t)family_number >= _max_value)
         return 0;
@@ -84,7 +93,7 @@ void root_distribution_poisson::resize(size_t new_size)
 {
 }
 
-float root_distribution_poisson::select_root_value(int family_number)
+float root_distribution_poisson::get_raw_root_value(int family_number)
 {
     if ((size_t)family_number >= _vectorized_distribution.size())
         return 0;
@@ -132,7 +141,7 @@ void root_distribution_specific::resize(size_t new_size)
     sort(v.begin(), v.end());
 }
 
-float root_distribution_specific::select_root_value(int family_number)
+float root_distribution_specific::get_raw_root_value(int family_number)
 {
     if ((size_t)family_number >= _vectorized_distribution.size())
         return 0;
@@ -150,7 +159,7 @@ void root_distribution_gamma::resize(size_t new_size)
 {
 }
 
-float root_distribution_gamma::select_root_value(int family_number)
+float root_distribution_gamma::get_raw_root_value(int family_number)
 {
     return _dist(randomizer_engine);
 }
