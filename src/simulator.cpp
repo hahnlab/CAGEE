@@ -21,7 +21,6 @@
 
 using namespace std;
 using namespace Eigen;
-using root_distribution = std::map<int, float>;
 
 extern std::mt19937 randomizer_engine; // seeding random number engine
 
@@ -34,7 +33,12 @@ public:
     {
         double t = p_tree->distance_from_root_to_tip();
         double sigma = p_lambda->get_value_for_clade(p_tree);
-        _max_value = double(root_size) + 4.5 * sigma * sqrt(t);
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+        // root_size is already in log space here, so we un-log it in order to calculate the log of the whole statement
+        _max_value = log(exp(root_size) + 4.5 * sigma * sqrt(t) + LOG_OFFSET);
+#else
+        _max_value = root_size + 4.5 * sigma * sqrt(t);
+#endif
         VLOG(SIMULATOR) << "Root size: " << root_size << " => max value: " << _max_value << " (Tree length: " << t << ", Sigma: " << sigma << ")";
     }
 
@@ -71,14 +75,15 @@ simulated_family create_simulated_family(const clade *p_tree, const sigma* p_sig
     sim.lambda = p_sigma->get_value_for_clade(p_tree);
 
     binner b(p_sigma, p_tree, root_value);
+    boundaries bounds(log(LOG_OFFSET), b.max_value());
 
     sim.values[p_tree] = root_value;
 
     std::function <void(const clade*)> get_child_value;
     get_child_value = [&](const clade* c) {
         double sigma = p_sigma->get_value_for_clade(c);
-        MatrixXd m = ConvProp_bounds(c->get_branch_length(), sigma * sigma / 2, DiffMat::instance(), boundaries(0.0, b.max_value()));
-        VectorXd v = VectorPos_bounds(sim.values[c->get_parent()], DISCRETIZATION_RANGE, boundaries(0, b.max_value()));
+        MatrixXd m = ConvProp_bounds(c->get_branch_length(), sigma * sigma / 2, DiffMat::instance(), bounds);
+        VectorXd v = VectorPos_bounds(sim.values[c->get_parent()], DISCRETIZATION_RANGE, bounds);
         VectorXd probs = m * v;
         std::discrete_distribution<int> distribution(probs.data(), probs.data() + probs.size());
         sim.values[c] = b.value(distribution(randomizer_engine));
@@ -217,9 +222,9 @@ void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes
     ost << endl;
 
     for (size_t j = 0; j < results.size(); ++j) {
-        auto& fam = results[j];
+        auto& transcript = results[j];
         // Printing gene counts
-        ost << "L" << fam.lambda << "\ttranscript" << j;
+        ost << "L" << transcript.lambda << "\ttranscript" << j;
         for (size_t i = 0; i < order.size(); ++i)
         {
             if (!order[i]) continue;
@@ -227,14 +232,18 @@ void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes
             if (order[i]->is_leaf() || include_internal_nodes)
             {
                 ost << '\t';
-                ost << fam.values.at(order[i]);
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+                ost << exp(transcript.values.at(order[i]));
+#else
+                ost << transcript.values.at(order[i]);
+#endif
             }
         }
         ost << endl;
     }
 }
 
-root_equilibrium_distribution* create_rootdist(std::string param, const std::map<int, float>& rootdist)
+root_equilibrium_distribution* create_rootdist(std::string param, const vector<pair<float, int>>& rootdist)
 {
     root_equilibrium_distribution* p_dist = nullptr;
     auto tokens = tokenize_str(param, ':');
@@ -277,18 +286,23 @@ TEST_CASE("create_trial")
 
     user_data data;
     data.p_tree = p_tree.get();
-    data.rootdist[1] = 1;
-    data.rootdist[2] = 1;
-    data.rootdist[5] = 1;
+    data.rootdist = vector<pair<float, int>>({ {1, 1}, { 2,1 }, { 5,1 } });
+
     input_parameters params;
     params.rootdist_params = "file:rd.txt";
     simulator sim(data, params);
 
     simulated_family actual = sim.create_trial(&lam, 2);
 
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+    CHECK_EQ(doctest::Approx(1.7918).epsilon(0.0001), actual.values.at(p_tree.get()));
+    CHECK_EQ(doctest::Approx(1.658).epsilon(0.0001), actual.values.at(p_tree->find_descendant("A")));
+    CHECK_EQ(doctest::Approx(1.7765).epsilon(0.0001), actual.values.at(p_tree->find_descendant("B")));
+#else
     CHECK_EQ(doctest::Approx(5.0), actual.values.at(p_tree.get()));
     CHECK_EQ(doctest::Approx(4.85931), actual.values.at(p_tree->find_descendant("A")));
     CHECK_EQ(doctest::Approx(4.988327), actual.values.at(p_tree->find_descendant("B")));
+#endif
 }
 
 TEST_CASE("binner")
@@ -297,23 +311,38 @@ TEST_CASE("binner")
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     binner b(&lam, p_tree.get(), 5);
 
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+    CHECK_EQ(106, b.bin(2.7));
+    CHECK_EQ(doctest::Approx(3.03331), b.value(120));
+    CHECK_EQ(51, b.bin(1.3));
+    CHECK_EQ(doctest::Approx(1.0111), b.value(40));
+#else
     CHECK_EQ(62, b.bin(2.7));
     CHECK_EQ(doctest::Approx(5.16033), b.value(120));
     CHECK_EQ(30, b.bin(1.3));
-    CHECK_EQ(doctest::Approx(1.720113), b.value(40));
+    CHECK_EQ(doctest::Approx(1.720113), b.value(40)); 
+#endif
 }
 
 #define CHECK_STREAM_CONTAINS(x,y) CHECK_MESSAGE(x.str().find(y) != std::string::npos, x.str())
 
 TEST_CASE("print_process_prints_in_order")
 {
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+    const bool use_logs = true;
+#else
+    const bool use_logs = false;
+#endif
+
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    vector<pair<string, double>> values{ {"A",2}, {"B",4},{"AB",6 } };
 
     std::ostringstream ost;
     clademap<double> t;
-    t[p_tree->find_descendant("B")] = 4;
-    t[p_tree->find_descendant("A")] = 2;
-    t[p_tree->find_descendant("AB")] = 6;
+    for (auto v : values)
+    {
+        t[p_tree->find_descendant(v.first)] = use_logs ? log(v.second) : v.second;
+    }
 
     vector<simulated_family> my_trials(1);
     my_trials[0].values = t;
@@ -331,13 +360,21 @@ TEST_CASE("print_process_prints_in_order")
 
 TEST_CASE("print_process_can_print_without_internal_nodes")
 {
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+    const bool use_logs = true;
+#else
+    const bool use_logs = false;
+#endif
+
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    vector<pair<string, double>> values{ {"A",2}, {"B",4},{"AB",6 } };
 
     std::ostringstream ost;
     clademap<double> t;
-    t[p_tree->find_descendant("B")] = 4;
-    t[p_tree->find_descendant("A")] = 2;
-    t[p_tree->find_descendant("AB")] = 6;
+    for (auto v : values)
+    {
+        t[p_tree->find_descendant(v.first)] = use_logs ? log(v.second) : v.second;
+    }
 
     vector<simulated_family> my_trials(1);
     my_trials[0].values = t;
@@ -361,7 +398,7 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
     auto a = p_tree->find_descendant("A");
 
     matrix_cache cache;
-    size_t sz = 3;  // make this larger when simulations are faster
+    size_t sz = 3;
     vector<double> v(sz);
     generate(v.begin(), v.end(), [&]() {
         auto sim = create_simulated_family(p_tree.get(), &sigma, 10);
@@ -373,9 +410,13 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
         return accumulator + ((val - mean) * (val - mean) / (sz - 1));
      });
 
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+    CHECK_EQ(doctest::Approx(4.4569), mean);
+    CHECK_EQ(doctest::Approx(2.0525), variance);
+#else
     CHECK_EQ(doctest::Approx(9.37455), mean);
     CHECK_EQ(doctest::Approx(9.90501), variance);
-
+#endif
 }
 
 TEST_CASE("print_header")
@@ -423,36 +464,49 @@ TEST_CASE("create_rootdist creates__specifed_distribution_if_given")
 {
     randomizer_engine.seed(10);
     input_parameters params;
-    root_distribution rd;
-    rd[2] = 11;
-    unique_ptr<root_equilibrium_distribution> red(create_rootdist("file:rd.txt", rd));
+    unique_ptr<root_equilibrium_distribution> red(create_rootdist("file:rd.txt", { {2,11} }));
     REQUIRE(dynamic_cast<root_distribution_specific*>(red.get()));
-    CHECK_EQ(2.0f, red->select_root_value(0));
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+    CHECK_EQ(doctest::Approx(log(3.0f)), red->select_root_value(0));
+#else
+    CHECK_EQ(doctest::Approx(2.0f), red->select_root_value(0));
+#endif
 }
 
 TEST_CASE("create_rootdist creates gamma distribution if given distribution")
 {
     randomizer_engine.seed(10);
     user_data ud;
-    unique_ptr<root_equilibrium_distribution> rd(create_rootdist("gamma:1:3", root_distribution()));
+    unique_ptr<root_equilibrium_distribution> rd(create_rootdist("gamma:1:3", {}));
     REQUIRE(dynamic_cast<root_distribution_gamma*>(rd.get()));
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+    CHECK_EQ(doctest::Approx(1.05676f), rd->select_root_value(0));
+#else
     CHECK_EQ(doctest::Approx(1.87704f), rd->select_root_value(0));
+#endif
 }
 
 TEST_CASE("create_rootdist returns gamma distribution if nothing set")
 {
     randomizer_engine.seed(10);
     user_data ud;
-    unique_ptr<root_equilibrium_distribution> rd(create_rootdist("", root_distribution()));
+    unique_ptr<root_equilibrium_distribution> rd(create_rootdist("", {}));
     REQUIRE(dynamic_cast<root_distribution_gamma*>(rd.get()));
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+    CHECK_EQ(doctest::Approx(0.03477f), rd->select_root_value(0));
+#else
     CHECK_EQ(doctest::Approx(0.03538f), rd->select_root_value(0));
+#endif
 }
 
 TEST_CASE("create_rootdist creates fixed root if requested")
 {
     user_data ud;
-    unique_ptr<root_equilibrium_distribution> rd(create_rootdist("fixed:6", root_distribution()));
+    unique_ptr<root_equilibrium_distribution> rd(create_rootdist("fixed:6", {}));
     REQUIRE(dynamic_cast<root_distribution_fixed*>(rd.get()));
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+    CHECK_EQ(doctest::Approx(1.9459f), rd->select_root_value(0));
+#else
     CHECK_EQ(6.0, rd->select_root_value(0));
-
+#endif
 }

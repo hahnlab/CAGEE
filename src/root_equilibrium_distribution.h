@@ -56,7 +56,7 @@ class root_distribution_specific : public root_equilibrium_distribution
     std::vector<float> _vectorized_distribution;
     std::vector<double> _frequency_percentage;
 public:
-    root_distribution_specific(std::map<int, float> distribution);
+    root_distribution_specific(std::vector<std::pair<float, int>> distribution);
     void resize(size_t new_size) override;
     float get_raw_root_value(int family_number) override;
 };

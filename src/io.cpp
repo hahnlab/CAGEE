@@ -82,7 +82,11 @@ void read_gene_families(std::istream& input_file, clade *p_tree, std::vector<gen
             
             for (size_t i = first_gene_index; i < tokens.size(); ++i) {
                 std::string sp_name = sp_col_map[i];
-                genfam.set_expression_value(sp_name, atof(tokens[i].c_str()));
+                double val = atof(tokens[i].c_str());
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+                val = log(val);
+#endif
+                genfam.set_expression_value(sp_name, val);
             }
             
             gene_families.push_back(genfam);
@@ -247,10 +251,17 @@ TEST_CASE("GeneFamilies: read_gene_families_reads_cafe_files")
     std::istringstream ist(str);
     std::vector<gene_transcript> families;
     read_gene_families(ist, NULL, families);
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+    CHECK_EQ(doctest::Approx(5.0), exp(families.at(0).get_expression_value("A")));
+    CHECK_EQ(doctest::Approx(10.0), exp(families.at(0).get_expression_value("B")));
+    CHECK_EQ(2.0, exp(families.at(0).get_expression_value("C")));
+    CHECK_EQ(6.0, exp(families.at(0).get_expression_value("D")));
+#else
     CHECK_EQ(5, families.at(0).get_expression_value("A"));
     CHECK_EQ(10, families.at(0).get_expression_value("B"));
     CHECK_EQ(2, families.at(0).get_expression_value("C"));
     CHECK_EQ(6, families.at(0).get_expression_value("D"));
+#endif
 }
 
 TEST_CASE("read_gene_families reads Treatment Tissue header")

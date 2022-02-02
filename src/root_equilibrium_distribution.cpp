@@ -22,7 +22,7 @@ using namespace Eigen;
 float root_equilibrium_distribution::select_root_value(int family_number)
 {
 #ifdef MODEL_GENE_EXPRESSION_LOGS
-    return log(get_raw_root_value(family_number));
+    return log(get_raw_root_value(family_number) + LOG_OFFSET);
 #else
     return get_raw_root_value(family_number);
 #endif
@@ -101,7 +101,7 @@ float root_distribution_poisson::get_raw_root_value(int family_number)
     return _vectorized_distribution[family_number];
 }
 
-root_distribution_specific::root_distribution_specific(std::map<int, float> distribution)
+root_distribution_specific::root_distribution_specific(std::vector<std::pair<float, int>> distribution)
 {
     if (distribution.empty())
         throw std::runtime_error("No root distribution specified");
@@ -164,6 +164,20 @@ float root_distribution_gamma::get_raw_root_value(int family_number)
     return _dist(randomizer_engine);
 }
 
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+TEST_CASE("select_root_value returns log of the value plus the offset")
+{
+    root_distribution_fixed ef(5.3);
+    REQUIRE_EQ(LOG_OFFSET, 1);
+    CHECK_EQ(doctest::Approx(1.84055), ef.select_root_value(1));
+}
+#else
+TEST_CASE("select_root_value returns the raw value")
+{
+    root_distribution_fixed ef(5.3);
+    CHECK_EQ(doctest::Approx(5.3), ef.select_root_value(1));
+}
+#endif
 
 TEST_CASE("Initializing with a fixed_root_value and resizing should not crash")
 {
@@ -174,24 +188,21 @@ TEST_CASE("Initializing with a fixed_root_value and resizing should not crash")
 }
 TEST_CASE("root_equilibrium_distribution__resize")
 {
-    std::map<int, float> m;
-    m[2] = 5;
-    m[4] = 3;
-    m[8] = 3;
-    root_distribution_specific rd(m);
+    root_distribution_specific rd({ {2,5}, {4,3}, {8, 3} });
     rd.resize(15);
-    CHECK_EQ(rd.select_root_value(14), 8);
-    CHECK_EQ(rd.select_root_value(15), 0);
+    CHECK_EQ(rd.get_raw_root_value(14), 8);
+    CHECK_EQ(rd.get_raw_root_value(15), 0);
 }
 
 TEST_CASE("root_equilibrium_distribution__poisson_select_root_size")
 {
     root_distribution_poisson pd(0.75, 9);
 
-    CHECK_EQ(1, pd.select_root_value(1));
-    CHECK_EQ(1, pd.select_root_value(3));
-    CHECK_EQ(2, pd.select_root_value(5));
-    CHECK_EQ(2, pd.select_root_value(7));
+    CHECK_EQ(1, pd.get_raw_root_value(1));
+    CHECK_EQ(1, pd.get_raw_root_value(3));
+    CHECK_EQ(2, pd.get_raw_root_value(5));
+    CHECK_EQ(2, pd.get_raw_root_value(7));
+
     CHECK_EQ(0, pd.select_root_value(100));
 }
 
@@ -199,32 +210,24 @@ TEST_CASE("root_equilibrium_distribution fixed_root_value")
 {
     root_distribution_fixed pd(4.3);
 
-    gene_transcript t;
-    t.set_expression_value("A", 5.8);
-    t.set_expression_value("B", 19.6);
- 
-    CHECK_EQ(4.3f, pd.select_root_value(1));
-    CHECK_EQ(4.3f, pd.select_root_value(5));
-    CHECK_EQ(4.3f, pd.select_root_value(20));
+    CHECK_EQ(4.3f, pd.get_raw_root_value(1));
+    CHECK_EQ(4.3f, pd.get_raw_root_value(5));
+    CHECK_EQ(4.3f, pd.get_raw_root_value(20));
 }
 
 TEST_CASE("root_distribution_specific returns correct root values")
 {
     randomizer_engine.seed(10);
 
-    std::map<int, float> m;
-    m[2] = 5;
-    m[4] = 3;
-    m[8] = 3;
-    root_distribution_specific rd(m);
-    //    root_equilibrium_distribution rd(m);
+    root_distribution_specific rd({ {2,5}, {4,3}, {8,3} });
+
     rd.resize(5);
-    CHECK_EQ(rd.select_root_value(0), 2);
-    CHECK_EQ(rd.select_root_value(1), 2);
-    CHECK_EQ(rd.select_root_value(2), 2);
-    CHECK_EQ(rd.select_root_value(3), 4);
-    CHECK_EQ(rd.select_root_value(4), 8);
-    CHECK_EQ(rd.select_root_value(5), 0);
+    CHECK_EQ(rd.get_raw_root_value(0), 2);
+    CHECK_EQ(rd.get_raw_root_value(1), 2);
+    CHECK_EQ(rd.get_raw_root_value(2), 2);
+    CHECK_EQ(rd.get_raw_root_value(3), 4);
+    CHECK_EQ(rd.get_raw_root_value(4), 8);
+    CHECK_EQ(rd.get_raw_root_value(5), 0);
 }
 
 TEST_CASE("root_distribution_gamma select_root_value")
@@ -232,11 +235,11 @@ TEST_CASE("root_distribution_gamma select_root_value")
     randomizer_engine.seed(10);
     root_distribution_gamma pd(0.75, 2.5);
 
-    CHECK_EQ(doctest::Approx(2.6534f), pd.select_root_value(1));
-    CHECK_EQ(doctest::Approx(0.00264f), pd.select_root_value(3));
-    CHECK_EQ(doctest::Approx(0.10359f), pd.select_root_value(5));
-    CHECK_EQ(doctest::Approx(5.33302f), pd.select_root_value(7));
-    CHECK_EQ(doctest::Approx(0.0601f), pd.select_root_value(100));
+    CHECK_EQ(doctest::Approx(2.6534f), pd.get_raw_root_value(1));
+    CHECK_EQ(doctest::Approx(0.00264f), pd.get_raw_root_value(3));
+    CHECK_EQ(doctest::Approx(0.10359f), pd.get_raw_root_value(5));
+    CHECK_EQ(doctest::Approx(5.33302f), pd.get_raw_root_value(7));
+    CHECK_EQ(doctest::Approx(0.0601f), pd.get_raw_root_value(100));
 }
 
 TEST_CASE("root_distribution_gamma throws on zero alpha or beta")

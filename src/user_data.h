@@ -29,7 +29,7 @@ public:
     error_model *p_error_model = NULL;
 
     std::vector<gene_transcript> gene_families;
-    std::map<int, float> rootdist;
+    std::vector<std::pair<float, int>> rootdist;    // first is value, second is count
 
     void read_datafiles(const input_parameters& my_input_parameters);
 

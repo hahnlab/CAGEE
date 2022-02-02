@@ -91,6 +91,13 @@ MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, boundarie
 }
 
 VectorXd VectorPos_bounds(double x, int Npts, boundaries bounds) {
+    
+    if (x < bounds.first || x > bounds.second)
+    {
+        std::ostringstream ost;
+        ost << "VectorPos_bounds error: " << x << " not between " << bounds.first << " and " << bounds.second;
+        throw std::runtime_error(ost.str());
+    }
     VectorXd X = VectorXd::Zero(Npts);
     if (x == bounds.second)
     {
@@ -164,4 +171,16 @@ TEST_CASE("ConvProp_bounds returns different values for different values of sigm
     MatrixXd actual = ConvProp_bounds(44, 3.2642504711034, dMat, boundaries(0.0, 85.0028));
     MatrixXd a2 = ConvProp_bounds(44, 3.1010379475482, dMat, boundaries(0.0, 85.0028));
     CHECK(actual != a2);
+}
+
+
+TEST_CASE("VectorPos_bounds handles negative numbers")
+{
+    VectorPos_bounds(-2.56793, 200, boundaries(-10.0, 20));
+
+}
+
+TEST_CASE("VectorPos_bounds throws on x outside boundaries")
+{
+    CHECK_THROWS_WITH(VectorPos_bounds(-2, 200, boundaries(0.0, 20)), "VectorPos_bounds error: -2 not between 0 and 20");
 }

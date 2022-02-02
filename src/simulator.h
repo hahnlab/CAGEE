@@ -37,7 +37,7 @@ struct simulated_family
 };
 
 simulated_family create_simulated_family(const clade* p_tree, const sigma* p_sigma, double root_value);
-root_equilibrium_distribution* create_rootdist(std::string param, const std::map<int, float>& rootdist);
+root_equilibrium_distribution* create_rootdist(std::string param, const std::vector<std::pair<float, int>>& rootdist);
 
 /*! @brief Build simulated families based on the user's input
 

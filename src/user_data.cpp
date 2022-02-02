@@ -102,9 +102,9 @@ void user_data::read_rootdist(string rootdist_file_path) {
     string line;
     while (getline(rootdist_file, line)) {
         istringstream ist(line);
-        int fam_size, fam_count;
-        ist >> fam_size >> fam_count;
-        rootdist[fam_size] = fam_count;
+        pair<float, int> values;
+        ist >> values.first >> values.second;
+        rootdist.push_back(values);
     }
 }
 
