@@ -186,12 +186,16 @@ void simulator::simulate(std::vector<model *>& models, const input_parameters &m
 
         string fname = filename("simulation", my_input_parameters.output_prefix);
         std::ofstream ofst2(fname);
+        if (!ofst2) throw std::runtime_error("Failed to open " + fname);
+
         print_header(ofst2, my_input_parameters, results.size(), data.p_tree, order);
         print_simulations(ofst2, false, results, order);
         LOG(INFO) << "Simulated values written to " << fname << endl;
 
         string truth_fname = filename("simulation_truth", dir);
         std::ofstream ofst(truth_fname);
+        if (!ofst) throw std::runtime_error("Failed to open " + truth_fname);
+
         print_header(ofst, my_input_parameters, results.size(), data.p_tree, order);
         print_simulations(ofst, true, results, order);
         LOG(INFO) << "Simulated values (including internal nodes) written to " << truth_fname << endl;
@@ -224,7 +228,7 @@ void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes
     for (size_t j = 0; j < results.size(); ++j) {
         auto& transcript = results[j];
         // Printing gene counts
-        ost << "L" << transcript.lambda << "\ttranscript" << j;
+        ost << "SIG" << transcript.lambda << "\ttranscript" << j;
         for (size_t i = 0; i < order.size(); ++i)
         {
             if (!order[i]) continue;
@@ -322,6 +326,14 @@ TEST_CASE("binner")
     CHECK_EQ(30, b.bin(1.3));
     CHECK_EQ(doctest::Approx(1.720113), b.value(40)); 
 #endif
+}
+
+TEST_CASE("binner unbins small values correctly")
+{
+    sigma s(0.25);
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    binner b(&s, p_tree.get(), 5);
+    CHECK_EQ(doctest::Approx(0.5561), b.value(22));
 }
 
 #define CHECK_STREAM_CONTAINS(x,y) CHECK_MESSAGE(x.str().find(y) != std::string::npos, x.str())
