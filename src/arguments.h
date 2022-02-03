@@ -31,6 +31,11 @@ public:
 
     //! Check calls
     void check_input();
+
+    std::string rootdist_params_or_default() const
+    {
+        return rootdist_params.empty() ? "gamma:0.75:30.0" : rootdist_params;
+    }
 };
 
 input_parameters read_arguments(int argc, char* const argv[]);

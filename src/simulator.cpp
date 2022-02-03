@@ -61,7 +61,7 @@ simulator::simulator(user_data& d, const input_parameters& ui) : action(d, ui)
 #ifdef SILENT
     quiet = true;
 #endif
-    _p_rootdist = create_rootdist(ui.rootdist_params, d.rootdist);
+    _p_rootdist = create_rootdist(ui.rootdist_params_or_default(), d.rootdist);
 }
 
 void simulator::execute(std::vector<model *>& models)
@@ -141,10 +141,7 @@ void print_header(std::ostream& ost, const input_parameters& p, size_t c, const 
     ost << "# Simulated data set created " << std::put_time(std::localtime(&tm), "%Y-%m-%d %H:%M");
     ost << " (" << c << " transcripts)" << endl;
     ost << "# Root distribution: ";
-    if (p.rootdist_params.empty())
-        ost << "gamma:0.75:0.033" << endl;
-    else
-        ost << p.rootdist_params << endl;
+    ost << p.rootdist_params_or_default() << endl;
 
     if (p_tree)
     {
@@ -249,14 +246,12 @@ void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes
 
 root_equilibrium_distribution* create_rootdist(std::string param, const vector<pair<float, int>>& rootdist)
 {
+    if (param.empty())
+        throw std::runtime_error("No root distribution description provided");
+
     root_equilibrium_distribution* p_dist = nullptr;
     auto tokens = tokenize_str(param, ':');
-    if (tokens.empty())
-    {
-        LOG(INFO) << "Using default gamma root distribution (0.75, 1.0/30.0)";
-        p_dist = new root_distribution_gamma(0.75, 1.0 / 30.0);
-    }
-    else if (tokens[0] == "fixed")
+    if (tokens[0] == "fixed")
     {
         auto fixed_value = stof(tokens[1]);
         LOG(INFO) << "Root distribution fixed at " << fixed_value;
@@ -264,9 +259,9 @@ root_equilibrium_distribution* create_rootdist(std::string param, const vector<p
     }
     else if (tokens[0] == "gamma")
     {
-        auto alpha = stof(tokens[1]), beta = stof(tokens[2]);
-        LOG(INFO) << "Using user provided gamma root distribution (" << alpha << ", " << beta << ")";
-        p_dist = new root_distribution_gamma(alpha, beta);
+        auto k = stof(tokens[1]), theta = stof(tokens[2]);
+        LOG(INFO) << "Using gamma root distribution with k=" << k << ", theta=" << theta << ")";
+        p_dist = new root_distribution_gamma(k, 1/theta);
     }
     else if (tokens[0] == "file")
     {
@@ -333,7 +328,11 @@ TEST_CASE("binner unbins small values correctly")
     sigma s(0.25);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     binner b(&s, p_tree.get(), 5);
+#ifdef MODEL_GENE_EXPRESSION_LOGS
     CHECK_EQ(doctest::Approx(0.5561), b.value(22));
+#else
+    CHECK_EQ(doctest::Approx(0.94606), b.value(22));
+#endif
 }
 
 #define CHECK_STREAM_CONTAINS(x,y) CHECK_MESSAGE(x.str().find(y) != std::string::npos, x.str())
@@ -366,7 +365,7 @@ TEST_CASE("print_process_prints_in_order")
     sim.print_simulations(ost, true, my_trials, get_ape_order(p_tree.get()));
 
     CHECK_STREAM_CONTAINS(ost, "DESC\tFID\tA\tB\t3");
-    CHECK_STREAM_CONTAINS(ost, "L0\ttranscript0\t2\t4\t6");
+    CHECK_STREAM_CONTAINS(ost, "SIG0\ttranscript0\t2\t4\t6");
 
 }
 
@@ -397,7 +396,7 @@ TEST_CASE("print_process_can_print_without_internal_nodes")
     simulator sim(data, params);
     sim.print_simulations(ost, false, my_trials, get_ape_order(p_tree.get()));
     CHECK_STREAM_CONTAINS(ost, "DESC\tFID\tA\tB\n");
-    CHECK_STREAM_CONTAINS(ost, "L0\ttranscript0\t2\t4\n");
+    CHECK_STREAM_CONTAINS(ost, "SIG0\ttranscript0\t2\t4\n");
 
 }
 
@@ -460,7 +459,7 @@ TEST_CASE("print_header default rootdist")
     input_parameters p;
     p.fixed_lambda = 2.5;
     print_header(ost, p, 100, nullptr, cladevector());
-    CHECK_STREAM_CONTAINS(ost, "# Root distribution: gamma:0.75:0.033");
+    CHECK_STREAM_CONTAINS(ost, "# Root distribution: gamma:0.75:30.0");
 }
 
 TEST_CASE("print_header multiple sigmas")
@@ -490,25 +489,14 @@ TEST_CASE("create_rootdist creates gamma distribution if given distribution")
     randomizer_engine.seed(10);
     user_data ud;
     unique_ptr<root_equilibrium_distribution> rd(create_rootdist("gamma:1:3", {}));
-    REQUIRE(dynamic_cast<root_distribution_gamma*>(rd.get()));
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-    CHECK_EQ(doctest::Approx(1.05676f), rd->select_root_value(0));
-#else
-    CHECK_EQ(doctest::Approx(1.87704f), rd->select_root_value(0));
-#endif
+    auto gamma = dynamic_cast<root_distribution_gamma*>(rd.get());
+    REQUIRE(gamma != nullptr);
+    CHECK_EQ(doctest::Approx(0.20856f), gamma->get_raw_root_value(0));
 }
 
-TEST_CASE("create_rootdist returns gamma distribution if nothing set")
+TEST_CASE("create_rootdist throws error if nothing set")
 {
-    randomizer_engine.seed(10);
-    user_data ud;
-    unique_ptr<root_equilibrium_distribution> rd(create_rootdist("", {}));
-    REQUIRE(dynamic_cast<root_distribution_gamma*>(rd.get()));
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-    CHECK_EQ(doctest::Approx(0.03477f), rd->select_root_value(0));
-#else
-    CHECK_EQ(doctest::Approx(0.03538f), rd->select_root_value(0));
-#endif
+    CHECK_THROWS_WITH(create_rootdist("", {}), "No root distribution description provided");
 }
 
 TEST_CASE("create_rootdist creates fixed root if requested")

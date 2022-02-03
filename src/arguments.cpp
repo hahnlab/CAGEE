@@ -177,7 +177,6 @@ void input_parameters::check_input() {
         if (!input_file_path.empty()) {
             errors.push_back("A families file was provided while simulating");
         }
-
     }
     else
     {
