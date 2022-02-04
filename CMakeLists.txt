@@ -53,6 +53,7 @@ add_subdirectory(src)
 link_libraries(Eigen3::Eigen)
 
 target_link_libraries(cagee PRIVATE git)
+target_link_libraries(tests PRIVATE git)
 
 find_package(OpenMP)
 if(OpenMP_CXX_FOUND)
