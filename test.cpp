@@ -202,7 +202,11 @@ TEST_CASE( "Inference: gamma_adjust_family_gamma_membership")
     CHECK(true);
 }
 
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+TEST_CASE_FIXTURE(Inference, "gamma_model_infers_processes_without_crashing" * doctest::skip(true))
+#else
 TEST_CASE_FIXTURE(Inference, "gamma_model_infers_processes_without_crashing")
+#endif
 {
     gamma_model core(_user_data.p_lambda, &_user_data.gene_families, 1, 0, NULL);
 
@@ -1066,9 +1070,7 @@ TEST_CASE("Inference: model_vitals")
     STRCMP_CONTAINS("No attempts made", ost.str().c_str());
 }
 
-
-#if 0
-TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade")
+TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade" * doctest::skip(true))
 {
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
@@ -1099,7 +1101,7 @@ TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade")
     STRCMP_CONTAINS("B<1>\t0\t1", ost.str().c_str());
 }
 
-TEST_CASE("Reconstruction: base_model_print_increases_decreases_by_clade")
+TEST_CASE("Reconstruction: base_model_print_increases_decreases_by_clade" * doctest::skip(true))
 {
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
@@ -1129,7 +1131,6 @@ TEST_CASE("Reconstruction: base_model_print_increases_decreases_by_clade")
     STRCMP_CONTAINS("A<0>\t1\t0", ost.str().c_str());
     STRCMP_CONTAINS("B<1>\t0\t1", ost.str().c_str());
 }
-#endif
 
 TEST_CASE("Inference: lambda_per_family" * doctest::skip(true))
 {

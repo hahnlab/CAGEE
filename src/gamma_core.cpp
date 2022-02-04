@@ -125,6 +125,9 @@ bool gamma_model::prune(const gene_transcript& family, const std::gamma_distribu
         if (accumulate(partial_likelihood.begin(), partial_likelihood.end(), 0.0) == 0.0)
             return false;   // saturation
 
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+        throw std::runtime_error("Log values not implemented for gamma yet");
+#endif
         std::vector<double> full(partial_likelihood.size());
         for (size_t j = 0; j < partial_likelihood.size(); ++j) {
             double eq_freq = gammapdf(j, prior);
