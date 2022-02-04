@@ -11,6 +11,7 @@ namespace po = boost::program_options;
 
 #include "arguments.h"
 #include "io.h"
+#include "../git_version.h"
 
 using namespace std;
 
@@ -20,6 +21,39 @@ void maybe_set(const po::variables_map& vm, string key, T& value)
     if (vm.find(key) != vm.end())
         value = vm[key].as<T>();
 }
+
+void show_version()
+{
+    string desc = "\nUsage: cagee [options]\n\n"
+        "CAGEE is a software that provides a statistical foundation for evolutionary inferences about changes in gene family size.\n "
+        "The program employs a birth and death process to model gene gain and loss across a user-specified phylogenetic tree,\n "
+        "thus accounting for the species phylogenetic history. The distribution of family sizes generated under this model can\n "
+        "provide a basis for assessing the significance of the observed family size differences among taxa.\n\n";
+
+    cout << PROJECT_NAME " " PROJECT_VER << endl;
+    cout << desc;
+
+    if (GitMetadata::Populated()) {
+        cout << "Last git commit: \n";
+        if (GitMetadata::AnyUncommittedChanges()) {
+            std::cerr << "WARN: there were uncommitted changes at build-time." << std::endl;
+        }
+        std::cout << "commit " << GitMetadata::CommitSHA1() << " (HEAD)\n"
+            << "describe " << GitMetadata::Describe() << "\n"
+            << "Author: " << GitMetadata::AuthorName() << " <" << GitMetadata::AuthorEmail() << ">\n"
+            << "Date: " << GitMetadata::CommitDate() << "\n\n"
+            << GitMetadata::CommitSubject() << "\n" << GitMetadata::CommitBody() << std::endl;
+    }
+}
+void show_help(const po::options_description& gen, const po::options_description& required, const po::options_description& common, const po::options_description& rare)
+{
+    show_version();
+    std::cout << gen << endl;
+    std::cout << required << endl;
+    std::cout << common << endl;
+    std::cout << rare << endl;
+}
+
 
 input_parameters read_arguments(int argc, char* const argv[])
 {
@@ -38,43 +72,55 @@ input_parameters read_arguments(int argc, char* const argv[])
         ("config,c", po::value<string>(&config_file),
             "Configuration file containing additional options");
 
-    po::options_description config("Configuration options (May be specified on command line or in file)");
-    config.add_options()
-        ("infile,i", po::value<string>(), "input file")
-        ("tree,t", po::value<string>(), "Tree file in Newick format")
-        ("output_prefix,o", po::value<string>(), "Output prefix")
-        ("fixed_multiple_sigmas,m", po::value<string>(), "Output prefix")
-        ("pvalue,P", po::value<double>(), "PValue")
+    po::options_description required("Required options (May be specified on command line or in file)");
+    required.add_options()
+        ("infile,i", po::value<string>(), "Path to tab delimited gene families file to be analyzed - Required for estimation")
+        ("tree,t", po::value<string>(), "Path to file containing newick formatted tree - Required for estimation.");
+        
+    po::options_description common("Configuration options (May be specified on command line or in file)");
+    common.add_options()
         ("cores", po::value<int>(), "Number of processing cores to use, requires an integer argument. Default=All available cores.")
-        ("optimizer_expansion,E", po::value<double>())
-        ("optimizer_reflection,R", po::value<double>())
-        ("optimizer_iterations,I", po::value<int>())
-        ("error,e", po::value<string>()->default_value("false")->implicit_value("true"))
+        ("error,e", po::value<string>()->default_value("false")->implicit_value("true"), "Run with no file name to estimate the global error model file. This file can be provided"
+            "in subsequent runs by providing the path to the Error model file with no spaces(e.g. - eBase_error_model.txt).")
+        ("output_prefix,o", po::value<string>(), " Output directory - Name of directory automatically created for output. Default=results.")
+        ("fixed_multiple_sigmas,m", po::value<string>(), "Multiple sigma values, comma separated.")
         ("rootdist", po::value<string>())
         ("prior", po::value<string>())
         ("verbose", po::value<int>())
         ("sample_group", po::value<vector<string>>())
-        ("zero_root,z", po::value<bool>()->implicit_value(true))
         ("sigma_tree,y", po::value<string>(), "Path to sigma tree, for use with multiple sigmas")
         ("simulate,s", po::value<string>()->default_value("false"), "Simulate families. Optionally provide the number of simulations to generate")
         ("fixed_sigma,l", po::value<double>(), "Value for a single user provided sigma value, otherwise sigma is estimated.")
         ;
     
+    po::options_description rare("Less Common Options");
+    rare.add_options()
+        ("pvalue,P", po::value<double>(), "P-value to use for determining significance of family size change, Default=0.05.")
+        ("zero_root,z", po::value<bool>()->implicit_value(true), "Exclude gene families that don't exist at the root, not recommended.")
+        ("optimizer_expansion,E", po::value<double>(), "Expansion parameter for Nelder-Mead optimizer, Default=2.")
+        ("optimizer_reflection,R", po::value<double>(), "Maximum number of iterations that will be performed in "
+            "lambda search.Default = 300 (increase this number if likelihood is still improving when limit is hit).")
+        ("optimizer_iterations,I", po::value<int>(), "Maximum number of iterations that will be performed in "
+            "lambda search.Default = 300 (increase this number if likelihood is still improving when limit is hit).");
+
     po::options_description config_file_options;
-    config_file_options.add(config);
+    config_file_options.add(required).add(common).add(rare);
 
     po::options_description cmdline_options;
-    cmdline_options.add(generic).add(config);
+    cmdline_options.add(generic).add(required).add(common).add(rare);
+
     po::variables_map vm;
     store(po::command_line_parser(argc, argv).
         options(cmdline_options).run(), vm);
     notify(vm);
 
     if (vm.count("help")) {
+        show_help(generic, required, common, rare);
         my_input_parameters.help = true;
     }
 
     if (vm.count("version")) {
+        show_version();
         my_input_parameters.help = true;
     }
 

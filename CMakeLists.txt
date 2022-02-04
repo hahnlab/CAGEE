@@ -27,6 +27,17 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(OPTIMIZER_STRATEGY "LBFGS" CACHE STRING "Optimizer strategy (LBFGS, Nelder-Mead, some others)")
 add_definitions(-DOPTIMIZER_STRATEGY=${OPTIMIZER_STRATEGY})
 
+# Define the two required variables before including
+# the source code for watching a git repository.
+set(PRE_CONFIGURE_FILE "git_version.cpp.in")
+set(POST_CONFIGURE_FILE "${CMAKE_CURRENT_BINARY_DIR}/git_version.cpp")
+include(git_watcher.cmake)
+
+# Create a library out of the compiled post-configure file.
+add_library(git STATIC ${POST_CONFIGURE_FILE})
+target_include_directories(git PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+add_dependencies(git check_git)
+
 # add the executable
 add_executable(cagee main.cpp)
 add_executable(tests EXCLUDE_FROM_ALL test.cpp)
@@ -40,6 +51,8 @@ target_compile_definitions(tests PRIVATE SILENT ELPP_NO_CHECK_MACROS)
 add_subdirectory(src)
 
 link_libraries(Eigen3::Eigen)
+
+target_link_libraries(cagee PRIVATE git)
 
 find_package(OpenMP)
 if(OpenMP_CXX_FOUND)

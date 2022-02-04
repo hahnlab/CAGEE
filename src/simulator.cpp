@@ -75,7 +75,11 @@ simulated_family create_simulated_family(const clade *p_tree, const sigma* p_sig
     sim.lambda = p_sigma->get_value_for_clade(p_tree);
 
     binner b(p_sigma, p_tree, root_value);
+#ifdef MODEL_GENE_EXPRESSION_LOGS 
     boundaries bounds(log(LOG_OFFSET), b.max_value());
+#else
+    boundaries bounds(0, b.max_value());
+#endif
 
     sim.values[p_tree] = root_value;
 
