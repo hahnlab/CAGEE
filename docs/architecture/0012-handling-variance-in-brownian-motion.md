@@ -23,13 +23,26 @@ is normal and convert the data ourselves.
 
 We will model log(gene expression) internally, but we will hide this from the user by converting the input data
 to log space before running calculations. We will then un-log the output values before giving them to the user.
-For simulations, after computing the root value of a simulated transcript, we will use the log of the computed
-value. For the simulation output files, all of the values output should be un-logged before writing.
 
-For estimations, we will take the log of the prior the user provides before using it; also, we will take the 
-log of all of the values the user provides in the gene transcript input file. Most of the output files deal with
-probabilities and relationships and thus don't need to be modified, but the nexus file named _model_asr.tre holds
-reconstructed values, and these should be un-logged before being written. 
+### Simulations ###
+
+For simulations, after computing the root value of a simulated transcript, we will use the log of the computed
+value. In order that we don't run in to log(0) issues, we will add a small amount to the value. This will be set
+in the configuration (LOG_OFFSET) and will have a default value of 1. 
+
+In linear space, the lower and upper bounds for the density matrix are 0 and root_size + 4.5 \* sigma \* sqrt(t). 
+Thus, in log space, the bounds will be log(0 + LOG_OFFSET) and log(root_size + 4.5 \* sigma \* sqrt(t) + LOG_OFFSET).
+For the simulation output files, all of the values output should be un-logged before writing.
+
+### Estimations ###
+
+For estimations, we will take the log of all of the values the user provides in the gene transcript input file. 
+Most of the output files deal with probabilities and relationships and thus don't need to be modified, but the 
+nexus file named _model_asr.tre holds reconstructed values, and these should be un-logged before being written. 
+
+The prior distribution needs to be calculated in log space rather than linear space. The user specifies k and theta 
+in units of gene expression, so the transformed gamma probability distribution for x=log(expression) is then 
+e\^x\*gamma(e\^x|k,theta). In practice, then, the prior factor changes from gammapdf(x, prior) to exp(x)\*gammapdf(exp(x), prior)
 
 ## Consequences
 

@@ -77,7 +77,13 @@ double compute_prior_likelihood(const vector<double>& partial_likelihood, const 
         full[j] = std::log(partial_likelihood[j]);
 
         // add log(prior) to result
-        full[j] += std::log(gammapdf((double(j) + 0.5) * bound / (DISCRETIZATION_RANGE - 1), prior));
+        double x = (double(j) + 0.5) * bound / (DISCRETIZATION_RANGE - 1);
+
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+        full[j] += log(exp(x) * gammapdf(exp(x), prior));
+#else
+        full[j] += log(gammapdf(x, prior));
+#endif
 
         if (isnan(full[j]))
                full[j] = -numeric_limits<double>::infinity();
@@ -215,9 +221,13 @@ TEST_CASE("compute_prior_likelihood combines prior and inference correctly")
     gene_transcript gt;
     gt.set_expression_value("A", 12);
     gt.set_expression_value("B", 24);
-    gamma_distribution<double> prior(0.75, 30.0);
+    gamma_distribution<double> prior(0.75, 1/30.0);
     vector<double> inf{ 0.1, 0.2, 0.3};
 
-    double expected = (MATRIX_SIZE_MULTIPLIER == 1.5 ? -3.8029 : -3.9929);
-    CHECK_EQ(doctest::Approx(expected), compute_prior_likelihood(inf, gt, prior));
+    double actual = compute_prior_likelihood(inf, gt, prior);
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+    CHECK_EQ(doctest::Approx(-3.2954), actual);
+#else
+    CHECK_EQ(doctest::Approx(-3.9929), actual);
+#endif
 }

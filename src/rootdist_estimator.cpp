@@ -25,15 +25,15 @@ double poisspdf(double x, double lambda)
 }
 
 double gammapdf(double value, const std::gamma_distribution<double>& dist) {
-#if 1
-    double a = std::pow(dist.beta(), dist.alpha());
-    double b = std::pow(value, (dist.alpha() - 1));
-    double c = std::pow(M_E, (-1 * value/ dist.beta()));
-    double d = tgamma(dist.alpha());
-    return (b * c) /(a * d);
-#else
-    return (std::pow(dist.beta(), dist.alpha()) * std::pow(value, (dist.alpha() - 1)) * std::pow(M_E, (-1 * dist.beta() * value))) / tgamma(dist.alpha());
-#endif
+    double k = dist.alpha();
+    double theta = 1.0 / dist.beta();
+
+    double a = pow(theta, k);
+    double b = pow(value, (k - 1));
+    double c = exp(-1 * value / theta);
+    double d = tgamma(k);
+
+    return (b * c) / (a * d);
 }
 
 vector<double> get_prior_rfsize_poisson_lambda(int min_family_size, int max_family_size, double poisson_lambda)
