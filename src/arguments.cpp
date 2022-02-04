@@ -161,13 +161,8 @@ input_parameters read_arguments(int argc, char* const argv[])
     maybe_set(vm, "verbose", my_input_parameters.verbose_logging_level);
     maybe_set(vm, "rootdist", my_input_parameters.rootdist_params);
     maybe_set(vm, "sample_group", my_input_parameters.sample_groups);
+    maybe_set(vm, "prior", my_input_parameters.prior);
 
-    if (vm.find("prior") != vm.end())
-    {
-        auto tokens = tokenize_str(vm["prior"].as<string>(), ':');
-        auto alpha = stof(tokens[1]), beta = stof(tokens[2]);
-        my_input_parameters.prior = gamma_distribution<double>(alpha, beta);
-    }
     string simulate_string = vm["simulate"].as<string>();
     my_input_parameters.is_simulating = simulate_string != "false";
     if (my_input_parameters.is_simulating)

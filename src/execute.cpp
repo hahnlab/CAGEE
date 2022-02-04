@@ -29,7 +29,14 @@ double __Qs[] = { 1.000000000190015, 76.18009172947146, -86.50532032941677,
 
 estimator::estimator(user_data& d, const input_parameters& ui) : action(d, ui)
 {
-    _prior = ui.prior;
+    auto tokens = tokenize_str(ui.prior_params_or_default(), ':');
+    if (tokens[0] != "gamma")
+        throw std::runtime_error("Prior must be given in the form gamma:k:theta");
+
+    auto k = stof(tokens[1]), theta = stof(tokens[2]);
+    LOG(INFO) << "Using gamma prior with k=" << k << ", theta=" << theta << ")";
+    _prior = gamma_distribution<double>(k, 1/theta);
+
 }
 
 void estimator::write_error_model_if_specified(const input_parameters& my_input_parameters, const model * p_model)

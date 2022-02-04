@@ -26,7 +26,7 @@ public:
     optimizer_parameters optimizer_params;
     std::string rootdist_params;
     std::vector<std::string> sample_groups;
-    std::gamma_distribution<double> prior = std::gamma_distribution<double>(0.75, 30.0);
+    std::string prior;
     bool help = false;
 
     //! Check calls
@@ -35,6 +35,11 @@ public:
     std::string rootdist_params_or_default() const
     {
         return rootdist_params.empty() ? "gamma:0.75:30.0" : rootdist_params;
+    }
+
+    std::string prior_params_or_default() const
+    {
+        return prior.empty() ? "gamma:0.75:30.0" : prior;
     }
 };
 
