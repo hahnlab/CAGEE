@@ -1,4 +1,4 @@
-#include "git.h"
+#include "git_version.h"
 
 bool GitMetadata::Populated() {
     return @GIT_RETRIEVED_STATE@;
