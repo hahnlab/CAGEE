@@ -18,9 +18,11 @@
 #include "DiffMat.h"
 #include "arguments.h"
 #include "newick_ape_loader.h"
+#include "proportional_variance.h"
 
 using namespace std;
 using namespace Eigen;
+namespace pv = proportional_variance;
 
 extern std::mt19937 randomizer_engine; // seeding random number engine
 
@@ -35,10 +37,10 @@ public:
         double sigma = p_lambda->get_value_for_clade(p_tree);
 #ifdef MODEL_GENE_EXPRESSION_LOGS
         // root_size is already in log space here, so we un-log it in order to calculate the log of the whole statement
-        _max_value = log(exp(root_size) + 4.5 * sigma * sqrt(t) + LOG_OFFSET);
-#else
-        _max_value = root_size + 4.5 * sigma * sqrt(t);
+        root_size = pv::to_user_space(root_size);
 #endif
+
+        _max_value = pv::to_computational_space(root_size + 4.5 * sigma * sqrt(t));
         VLOG(SIMULATOR) << "Root size: " << root_size << " => max value: " << _max_value << " (Tree length: " << t << ", Sigma: " << sigma << ")";
     }
 
@@ -237,11 +239,7 @@ void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes
             if (order[i]->is_leaf() || include_internal_nodes)
             {
                 ost << '\t';
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-                ost << exp(transcript.values.at(order[i]));
-#else
-                ost << transcript.values.at(order[i]);
-#endif
+                ost << pv::to_user_space(transcript.values.at(order[i]));
             }
         }
         ost << endl;
@@ -299,8 +297,8 @@ TEST_CASE("create_trial")
 
 #ifdef MODEL_GENE_EXPRESSION_LOGS
     CHECK_EQ(doctest::Approx(1.7918).epsilon(0.0001), actual.values.at(p_tree.get()));
-    CHECK_EQ(doctest::Approx(1.658).epsilon(0.0001), actual.values.at(p_tree->find_descendant("A")));
-    CHECK_EQ(doctest::Approx(1.7765).epsilon(0.0001), actual.values.at(p_tree->find_descendant("B")));
+    CHECK_EQ(doctest::Approx(1.656).epsilon(0.0001), actual.values.at(p_tree->find_descendant("A")));
+    CHECK_EQ(doctest::Approx(1.7695).epsilon(0.0001), actual.values.at(p_tree->find_descendant("B")));
 #else
     CHECK_EQ(doctest::Approx(5.0), actual.values.at(p_tree.get()));
     CHECK_EQ(doctest::Approx(4.85931), actual.values.at(p_tree->find_descendant("A")));
@@ -316,9 +314,9 @@ TEST_CASE("binner")
 
 #ifdef MODEL_GENE_EXPRESSION_LOGS
     CHECK_EQ(106, b.bin(2.7));
-    CHECK_EQ(doctest::Approx(3.03331), b.value(120));
+    CHECK_EQ(doctest::Approx(3.02936), b.value(120));
     CHECK_EQ(51, b.bin(1.3));
-    CHECK_EQ(doctest::Approx(1.0111), b.value(40));
+    CHECK_EQ(doctest::Approx(1.0098), b.value(40));
 #else
     CHECK_EQ(62, b.bin(2.7));
     CHECK_EQ(doctest::Approx(5.16033), b.value(120));
@@ -333,7 +331,7 @@ TEST_CASE("binner unbins small values correctly")
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     binner b(&s, p_tree.get(), 5);
 #ifdef MODEL_GENE_EXPRESSION_LOGS
-    CHECK_EQ(doctest::Approx(0.5561), b.value(22));
+    CHECK_EQ(doctest::Approx(0.55538), b.value(22));
 #else
     CHECK_EQ(doctest::Approx(0.94606), b.value(22));
 #endif
@@ -343,12 +341,6 @@ TEST_CASE("binner unbins small values correctly")
 
 TEST_CASE("print_process_prints_in_order")
 {
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-    const bool use_logs = true;
-#else
-    const bool use_logs = false;
-#endif
-
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     vector<pair<string, double>> values{ {"A",2}, {"B",4},{"AB",6 } };
 
@@ -356,7 +348,7 @@ TEST_CASE("print_process_prints_in_order")
     clademap<double> t;
     for (auto v : values)
     {
-        t[p_tree->find_descendant(v.first)] = use_logs ? log(v.second) : v.second;
+        t[p_tree->find_descendant(v.first)] = pv::to_computational_space(v.second);
     }
 
     vector<simulated_family> my_trials(1);
@@ -375,12 +367,6 @@ TEST_CASE("print_process_prints_in_order")
 
 TEST_CASE("print_process_can_print_without_internal_nodes")
 {
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-    const bool use_logs = true;
-#else
-    const bool use_logs = false;
-#endif
-
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     vector<pair<string, double>> values{ {"A",2}, {"B",4},{"AB",6 } };
 
@@ -388,7 +374,7 @@ TEST_CASE("print_process_can_print_without_internal_nodes")
     clademap<double> t;
     for (auto v : values)
     {
-        t[p_tree->find_descendant(v.first)] = use_logs ? log(v.second) : v.second;
+        t[p_tree->find_descendant(v.first)] = pv::to_computational_space(v.second);
     }
 
     vector<simulated_family> my_trials(1);
@@ -481,11 +467,7 @@ TEST_CASE("create_rootdist creates__specifed_distribution_if_given")
     input_parameters params;
     unique_ptr<root_equilibrium_distribution> red(create_rootdist("file:rd.txt", { {2,11} }));
     REQUIRE(dynamic_cast<root_distribution_specific*>(red.get()));
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-    CHECK_EQ(doctest::Approx(log(3.0f)), red->select_root_value(0));
-#else
-    CHECK_EQ(doctest::Approx(2.0f), red->select_root_value(0));
-#endif
+    CHECK_EQ(doctest::Approx(pv::to_computational_space(2.0f)), red->select_root_value(0));
 }
 
 TEST_CASE("create_rootdist creates gamma distribution if given distribution")
@@ -508,9 +490,5 @@ TEST_CASE("create_rootdist creates fixed root if requested")
     user_data ud;
     unique_ptr<root_equilibrium_distribution> rd(create_rootdist("fixed:6", {}));
     REQUIRE(dynamic_cast<root_distribution_fixed*>(rd.get()));
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-    CHECK_EQ(doctest::Approx(1.9459f), rd->select_root_value(0));
-#else
-    CHECK_EQ(6.0, rd->select_root_value(0));
-#endif
+    CHECK_EQ(doctest::Approx(pv::to_computational_space(6.0)), rd->select_root_value(0));
 }

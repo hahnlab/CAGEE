@@ -29,6 +29,8 @@ namespace proportional_variance
         return val;
 #endif
     }
+
+
 }
 
 #endif // PROPORTIONAL_VARIANCE_H

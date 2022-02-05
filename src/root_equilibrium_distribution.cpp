@@ -14,6 +14,7 @@
 #include "gene_transcript.h"
 #include "DiffMat.h"
 #include "probability.h"
+#include "proportional_variance.h"
 
 extern std::mt19937 randomizer_engine; // seeding random number engine
 using namespace std;
@@ -21,11 +22,7 @@ using namespace Eigen;
 
 float root_equilibrium_distribution::select_root_value(int family_number)
 {
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-    return log(get_raw_root_value(family_number) + LOG_OFFSET);
-#else
-    return get_raw_root_value(family_number);
-#endif
+    return proportional_variance::to_computational_space(get_raw_root_value(family_number));
 }
 
 void root_distribution_fixed::resize(size_t new_size)
@@ -164,20 +161,11 @@ float root_distribution_gamma::get_raw_root_value(int family_number)
     return _dist(randomizer_engine);
 }
 
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-TEST_CASE("select_root_value returns log of the value plus the offset")
+TEST_CASE("select_root_value returns the raw value in computational space")
 {
     root_distribution_fixed ef(5.3);
-    REQUIRE_EQ(LOG_OFFSET, 1);
-    CHECK_EQ(doctest::Approx(1.84055), ef.select_root_value(1));
+    CHECK_EQ(doctest::Approx(proportional_variance::to_computational_space(5.3)), ef.select_root_value(1));
 }
-#else
-TEST_CASE("select_root_value returns the raw value")
-{
-    root_distribution_fixed ef(5.3);
-    CHECK_EQ(doctest::Approx(5.3), ef.select_root_value(1));
-}
-#endif
 
 TEST_CASE("Initializing with a fixed_root_value and resizing should not crash")
 {

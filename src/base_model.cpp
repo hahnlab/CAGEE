@@ -69,6 +69,15 @@ set<int> get_all_bounds(const vector<gene_transcript>& transcripts)
 
 }
 
+inline double computational_space_prior(double val, const gamma_distribution<double>& prior)
+{
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+    return exp(val) * gammapdf(exp(val), prior);
+#else
+    return gammapdf(val, prior);
+#endif
+
+}
 double compute_prior_likelihood(const vector<double>& partial_likelihood, const gene_transcript& t, const gamma_distribution<double>& prior)
 {
     std::vector<double> full(partial_likelihood.size());
@@ -76,14 +85,9 @@ double compute_prior_likelihood(const vector<double>& partial_likelihood, const 
     for (size_t j = 0; j < partial_likelihood.size(); ++j) {
         full[j] = std::log(partial_likelihood[j]);
 
-        // add log(prior) to result
         double x = (double(j) + 0.5) * bound / (DISCRETIZATION_RANGE - 1);
 
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-        full[j] += log(exp(x) * gammapdf(exp(x), prior));
-#else
-        full[j] += log(gammapdf(x, prior));
-#endif
+        full[j] += log(computational_space_prior(x, prior));
 
         if (isnan(full[j]))
                full[j] = -numeric_limits<double>::infinity();
