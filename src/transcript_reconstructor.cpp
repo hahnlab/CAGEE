@@ -14,10 +14,11 @@
 #include "user_data.h"
 #include "DiffMat.h"
 #include "newick_ape_loader.h"
-
+#include "proportional_variance.h"
 
 using namespace std;
 using namespace Eigen;
+namespace pv = proportional_variance;
 
 transcript_reconstructor::transcript_reconstructor(const sigma* p_sigma, const clade* p_tree, const matrix_cache* p_cache)
     : _p_sigma(p_sigma),
@@ -171,14 +172,14 @@ void print_branch_probabilities(std::ostream& ost, const cladevector& order, con
 
 }
 
-void reconstruction::print_reconstructed_states(std::ostream& ost, const cladevector& order, familyvector& gene_families, const clade* p_tree, double test_pvalue, const branch_probabilities& branch_probabilities)
+void reconstruction::print_reconstructed_states(std::ostream& ost, const cladevector& order, familyvector& transcripts, const clade* p_tree, double test_pvalue, const branch_probabilities& branch_probabilities)
 {
     ost << "#nexus\nBEGIN TREES;\n";
-    for (size_t i = 0; i < gene_families.size(); ++i)
+    for (size_t i = 0; i < transcripts.size(); ++i)
     {
-        auto& gene_transcript = gene_families[i];
+        auto& gene_transcript = transcripts[i];
         auto g = [gene_transcript, this](const clade* node) {
-            return std::to_string(get_node_count(gene_transcript, node));
+            return std::to_string(pv::to_user_space(get_node_count(gene_transcript, node)));
         };
 
         function<string(const clade*)> text_func;
