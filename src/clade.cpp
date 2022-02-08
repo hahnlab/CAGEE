@@ -226,12 +226,12 @@ void clade::write_newick(ostream& ost, std::function<std::string(const clade *c)
 double clade::distance_from_root_to_tip() const
 {
     vector<double> candidates;
-    apply_prefix_order([&candidates](const clade* c) {
+    apply_prefix_order([&candidates, this](const clade* c) {
         if (c->is_leaf())
         {
             auto p = c;
             double dist = 0;
-            while (p)
+            while (p && p != this)
             {
                 dist += p->get_branch_length();
                 p = p->get_parent();
@@ -450,5 +450,12 @@ TEST_CASE("Newick tree is recoverable at the root")
     string nwk = "(A:1,B:3):7";
     unique_ptr<clade> p_tree(parse_newick(nwk));
     CHECK_EQ(nwk, p_tree->get_source_newick());
+}
+
+TEST_CASE("distance_from_root_to_tip works for internal nodes")
+{
+    unique_ptr<clade> p_tree(parse_newick("(sp2:2.2,(sp3:0.87,sp4:0.87):1.33)"));
+    CHECK_EQ(0.87, p_tree->find_descendant("sp3sp4")->distance_from_root_to_tip());
+
 }
 

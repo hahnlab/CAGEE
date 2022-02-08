@@ -235,3 +235,27 @@ TEST_CASE("root_distribution_gamma throws on zero alpha or beta")
     CHECK_THROWS_WITH(root_distribution_gamma pd(0, 1), "Invalid gamma distribution");
     CHECK_THROWS_WITH(root_distribution_gamma pd(1, 0), "Invalid gamma distribution");
 }
+
+TEST_CASE("root_distribution_gamma has shape/scale parameters")
+{
+    root_distribution_gamma pd(0.75, 30.0);
+
+    double sum = 0.0;
+    for (int i = 0; i < 1000; ++i)
+        sum += pd.get_raw_root_value(5);
+
+    size_t sz = 1000;
+    vector<double> v(sz);
+
+    generate(v.begin(), v.end(), [&pd]() {
+        return pd.get_raw_root_value(5);
+        });
+
+    auto mean = std::accumulate(v.begin(), v.end(), 0.0) / sz;
+    auto variance = std::accumulate(v.begin(), v.end(), 0.0, [&mean, &sz](double accumulator, const double& val) {
+        return accumulator + ((val - mean) * (val - mean) / (sz - 1));
+        });
+
+    CHECK_EQ(doctest::Approx(23.27714), mean);
+    CHECK_EQ(doctest::Approx(800.523), variance);
+}

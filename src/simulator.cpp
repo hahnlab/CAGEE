@@ -263,7 +263,7 @@ root_equilibrium_distribution* create_rootdist(std::string param, const vector<p
     {
         auto k = stof(tokens[1]), theta = stof(tokens[2]);
         LOG(INFO) << "Using gamma root distribution with k=" << k << ", theta=" << theta << ")";
-        p_dist = new root_distribution_gamma(k, 1/theta);
+        p_dist = new root_distribution_gamma(k, theta);
     }
     else if (tokens[0] == "file")
     {
@@ -477,7 +477,7 @@ TEST_CASE("create_rootdist creates gamma distribution if given distribution")
     unique_ptr<root_equilibrium_distribution> rd(create_rootdist("gamma:1:3", {}));
     auto gamma = dynamic_cast<root_distribution_gamma*>(rd.get());
     REQUIRE(gamma != nullptr);
-    CHECK_EQ(doctest::Approx(0.20856f), gamma->get_raw_root_value(0));
+    CHECK_EQ(doctest::Approx(1.87704f), gamma->get_raw_root_value(0));
 }
 
 TEST_CASE("create_rootdist throws error if nothing set")

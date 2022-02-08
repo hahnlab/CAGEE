@@ -26,7 +26,7 @@ double poisspdf(double x, double lambda)
 
 double gammapdf(double value, const std::gamma_distribution<double>& dist) {
     double k = dist.alpha();
-    double theta = 1.0 / dist.beta();
+    double theta = dist.beta(); // see discussion in root_distribution_gamma
 
     double a = pow(theta, k);
     double b = pow(value, (k - 1));

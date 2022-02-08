@@ -61,6 +61,16 @@ public:
     float get_raw_root_value(int family_number) override;
 };
 
+/// <summary>
+/// Some confusing terminology here. Although the formal parameter is called "beta" in
+/// std::gamma_distribution, it actually returns what appears to be a shape and scale
+/// distribution: exp(-x/beta) / pow(beta,alpha) * gamma(alpha) * pow(x, alpha-1)
+/// See https://eel.is/c++draft/rand.dist.pois.gamma
+/// </summary>
+/// <param name="param"></param>
+/// <param name="rootdist"></param>
+/// <returns></returns>
+
 class root_distribution_gamma : public root_equilibrium_distribution
 {
     std::gamma_distribution<double> _dist;
