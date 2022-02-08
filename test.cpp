@@ -1070,7 +1070,7 @@ TEST_CASE("Inference: model_vitals")
     STRCMP_CONTAINS("No attempts made", ost.str().c_str());
 }
 
-TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade" * doctest::skip(true))
+TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade")
 {
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
@@ -1096,37 +1096,6 @@ TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade" * doc
 
     ostringstream ost;
     gmr.print_increases_decreases_by_clade(ost, order, { gf });
-    STRCMP_CONTAINS("#Taxon_ID\tIncrease\tDecrease", ost.str().c_str());
-    STRCMP_CONTAINS("A<0>\t1\t0", ost.str().c_str());
-    STRCMP_CONTAINS("B<1>\t0\t1", ost.str().c_str());
-}
-
-TEST_CASE("Reconstruction: base_model_print_increases_decreases_by_clade" * doctest::skip(true))
-{
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-
-    clade invalid;
-    cladevector order{ p_tree->find_descendant("A"),
-        p_tree->find_descendant("B"),
-        p_tree->find_descendant("AB") };
-
-    ostringstream empty;
-
-    base_model_reconstruction bmr;
-
-    bmr.print_increases_decreases_by_clade(empty, order, {});
-    STRCMP_EQUAL("#Taxon_ID\tIncrease\tDecrease\n", empty.str().c_str());
-
-    //    bmr._reconstructions["myid"][p_tree->find_descendant("A")] = 4;
-    //    bmr._reconstructions["myid"][p_tree->find_descendant("B")] = -3;
-    bmr._reconstructions["myid"][p_tree->find_descendant("AB")] = 5;
-
-    gene_transcript gf("myid", "", "");
-    gf.set_expression_value("A", 7);
-    gf.set_expression_value("B", 2);
-
-    ostringstream ost;
-    bmr.print_increases_decreases_by_clade(ost, order, { gf });
     STRCMP_CONTAINS("#Taxon_ID\tIncrease\tDecrease", ost.str().c_str());
     STRCMP_CONTAINS("A<0>\t1\t0", ost.str().c_str());
     STRCMP_CONTAINS("B<1>\t0\t1", ost.str().c_str());
