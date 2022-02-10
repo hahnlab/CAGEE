@@ -231,7 +231,7 @@ double clade::distance_from_root_to_tip() const
         {
             auto p = c;
             double dist = 0;
-            while (p && p != this)
+            while (p)
             {
                 dist += p->get_branch_length();
                 p = p->get_parent();
@@ -452,10 +452,4 @@ TEST_CASE("Newick tree is recoverable at the root")
     CHECK_EQ(nwk, p_tree->get_source_newick());
 }
 
-TEST_CASE("distance_from_root_to_tip works for internal nodes")
-{
-    unique_ptr<clade> p_tree(parse_newick("(sp2:2.2,(sp3:0.87,sp4:0.87):1.33)"));
-    CHECK_EQ(0.87, p_tree->find_descendant("sp3sp4")->distance_from_root_to_tip());
-
-}
 

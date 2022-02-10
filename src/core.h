@@ -118,7 +118,7 @@ public:
 class model {
 protected:
     std::ostream & _ost; 
-    sigma*_p_lambda;
+    sigma*_p_sigma;
     error_model* _p_error_model;
     std::vector<std::vector<int> > _rootdist_bins; // holds the distribution for each lambda bin
 
@@ -136,8 +136,8 @@ public:
     
     virtual ~model() {}
     
-    sigma* get_lambda() const {
-        return _p_lambda;
+    sigma* get_sigma() const {
+        return _p_sigma;
     }
 
     //! Returns a lambda suitable for creating a simulated family. Default case is simply to return the lambda provided by the user.

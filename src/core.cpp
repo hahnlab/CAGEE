@@ -67,7 +67,7 @@ std::ostream& operator<<(std::ostream& ost, const family_info_stash& r)
 model::model(sigma* p_lambda,
     const vector<gene_transcript> *p_gene_families,
     error_model *p_error_model) :
-    _ost(cout), _p_lambda(p_lambda),  _p_error_model(p_error_model) 
+    _ost(cout), _p_sigma(p_lambda),  _p_error_model(p_error_model) 
 {
     if (p_gene_families)
         references = build_reference_list(*p_gene_families);
@@ -76,15 +76,9 @@ model::model(sigma* p_lambda,
 void model::write_vital_statistics(std::ostream& ost, const clade *p_tree, double final_likelihood)
 {
     ost << "Model " << name() << " Final Likelihood (-lnL): " << final_likelihood << endl;
-    ost << "Lambda: " << *get_lambda() << endl;
+    ost << "Sigma: " << *get_sigma() << endl;
     if (_p_error_model)
         ost << "Epsilon: " << _p_error_model->get_epsilons()[0] << endl;
-
-    auto lengths = p_tree->get_branch_lengths();
-    auto longest_branch = *max_element(lengths.begin(), lengths.end());
-    auto max_lambda = 1 / longest_branch;
-
-    ost << "Maximum possible lambda for this topology: " << max_lambda << endl;
 
     get_monitor().log(ost);
 
@@ -92,7 +86,7 @@ void model::write_vital_statistics(std::ostream& ost, const clade *p_tree, doubl
 
 sigma* model::get_simulation_lambda()
 {
-    return _p_lambda->clone();
+    return _p_sigma->clone();
 }
 
 void model::write_error_model(int max_family_size, std::ostream& ost) const
@@ -236,3 +230,29 @@ TEST_CASE("get_sigma_index_map creates map")
     CHECK_EQ(2, m["liver"]);
     CHECK_EQ(2, m["spleen"]);
 }
+
+#define CHECK_STREAM_CONTAINS(x,y) CHECK_MESSAGE(x.str().find(y) != std::string::npos, x.str())
+
+class mock_model : public model {
+    // Inherited via model
+    virtual std::string name() const override { return "mockmodel"; }
+    virtual void write_family_likelihoods(std::ostream& ost) override {}
+    virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache* p_calc) override { return nullptr; }
+    virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const std::vector<string>& sample_groups, const std::gamma_distribution<double>& prior) override { return nullptr; }
+    bool _invalid_likelihood = false;
+public:
+    mock_model(sigma *s) : model(s, NULL, NULL) {}
+    virtual double infer_family_likelihoods(const user_data& ud, const sigma* p_lambda, const std::gamma_distribution<double>& prior) override { return 0;  }
+};
+
+TEST_CASE("Inference: model_vitals")
+{
+    sigma s(75.5);
+    mock_model model(&s);
+    std::ostringstream ost;
+    model.write_vital_statistics(ost, new clade("A", 5), 0.01);
+    CHECK_STREAM_CONTAINS(ost, "Model mockmodel Final Likelihood (-lnL): 0.01");
+    CHECK_STREAM_CONTAINS(ost, "Sigma:            75.5");
+    CHECK_STREAM_CONTAINS(ost, "No attempts made");
+}
+

@@ -150,15 +150,15 @@ sigma_optimizer_scorer* base_model::get_sigma_optimizer(const user_data& data, c
     if (data.p_lambda != NULL)  // already have a lambda, nothing we want to optimize
         return nullptr;
 
-    _p_lambda = initialize_search_sigma(data.p_lambda_tree, sample_groups);
+    _p_sigma = initialize_search_sigma(data.p_lambda_tree, sample_groups);
 
     if (_p_error_model && !data.p_error_model)
     {
-        return new sigma_optimizer_scorer(this, data, prior, _p_lambda, _p_error_model);
+        return new sigma_optimizer_scorer(this, data, prior, _p_sigma, _p_error_model);
     }
     else
     {
-        return new sigma_optimizer_scorer(this, data, prior, _p_lambda);
+        return new sigma_optimizer_scorer(this, data, prior, _p_sigma);
     }
 }
 
@@ -170,7 +170,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
     auto result = new base_model_reconstruction();
 
-    p_calc->precalculate_matrices(_p_lambda->get_lambdas(), get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
+    p_calc->precalculate_matrices(_p_sigma->get_lambdas(), get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
 
 
     for (size_t i = 0; i < ud.gene_families.size(); ++i)
@@ -182,7 +182,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
     }
 
 //    pupko_reconstructor::pupko_data data(ud.gene_families.size(), ud.p_tree, ud.max_family_size, ud.max_root_family_size);
-    transcript_reconstructor tr(_p_lambda, ud.p_tree, p_calc);
+    transcript_reconstructor tr(_p_sigma, ud.p_tree, p_calc);
 
     for (int i = 0; i< ud.gene_families.size(); ++i)
     {
@@ -206,7 +206,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
 sigma* base_model::get_simulation_lambda()
 {
-    return _p_lambda->multiply(simulation_lambda_multiplier);
+    return _p_sigma->multiply(simulation_lambda_multiplier);
 }
 
 double base_model_reconstruction::get_node_count(const gene_transcript& family, const clade *c) const

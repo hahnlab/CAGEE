@@ -63,7 +63,7 @@ void estimator::compute(std::vector<model *>& models, const input_parameters &my
     for (size_t i = 0; i < models.size(); ++i) {
         LOG(INFO) << "Inferring processes for " << models[i]->name() << " model";
 
-        double result = models[i]->infer_family_likelihoods(data, models[i]->get_lambda(), _prior);
+        double result = models[i]->infer_family_likelihoods(data, models[i]->get_sigma(), _prior);
         std::ofstream results_file(filename(models[i]->name() + "_results", my_input_parameters.output_prefix));
         models[i]->write_vital_statistics(results_file, data.p_tree, result);
 
@@ -74,12 +74,6 @@ void estimator::compute(std::vector<model *>& models, const input_parameters &my
 
         model_likelihoods[i] = result;
     }
-
-    auto lengths = data.p_tree->get_branch_lengths();
-    auto longest_branch = *max_element(lengths.begin(), lengths.end());
-    auto max_lambda = 1 / longest_branch;
-
-    LOG(INFO) << "Maximum possible lambda for this topology: " << max_lambda;
 
     if (model_likelihoods.size() == 2)
     {
@@ -111,7 +105,7 @@ void estimator::estimate_missing_variables(std::vector<model *>& models, user_da
         LOG(INFO) << p_model->get_monitor();
     }
     if (data.p_lambda == nullptr)
-        data.p_lambda = models[0]->get_lambda();
+        data.p_lambda = models[0]->get_sigma();
 
 }
 
@@ -131,7 +125,7 @@ void estimator::estimate_lambda_per_family(model *p_model, ostream& ost)
         //p_model->set_families(&v);
         data.p_lambda = nullptr;
         estimate_missing_variables(models, data);
-        return p_model->get_lambda();
+        return p_model->get_sigma();
     });
     std::transform(data.gene_families.begin(), data.gene_families.end(), result.begin(),
         ostream_iterator<string>(ost, "\n"),
@@ -179,7 +173,7 @@ void estimator::execute(std::vector<model *>& models)
                 for (size_t i = 0; i<data.gene_families.size(); ++i)
                 {
                     for_each(data.p_tree->reverse_level_begin(), data.p_tree->reverse_level_end(), [&](const clade* c) {
-                        probs.set(data.gene_families[i], c, compute_viterbi_sum(c, data.gene_families[i], rec.get(), cache, p_model->get_lambda()));
+                        probs.set(data.gene_families[i], c, compute_viterbi_sum(c, data.gene_families[i], rec.get(), cache, p_model->get_sigma()));
                         });
                 }
 

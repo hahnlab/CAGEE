@@ -58,8 +58,8 @@ class mock_model : public model {
     }
     virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const vector<string>& sample_groups, const std::gamma_distribution<double>& prior) override
     {
-        _p_lambda = initialize_search_sigma(data.p_lambda_tree, sample_groups);
-        auto result = new sigma_optimizer_scorer(this, data, prior, _p_lambda);
+        _p_sigma = initialize_search_sigma(data.p_lambda_tree, sample_groups);
+        auto result = new sigma_optimizer_scorer(this, data, prior, _p_sigma);
         result->quiet = true;
         return result;
     }
@@ -71,7 +71,7 @@ public:
     }
     void set_lambda(sigma* lambda)
     {
-        _p_lambda = lambda;
+        _p_sigma = lambda;
     }
     void set_invalid_likelihood() { _invalid_likelihood = true;  }
 
@@ -303,7 +303,7 @@ TEST_CASE_FIXTURE(Inference, "base_optimizer_guesses_lambda_only")
     auto guesses = opt->initial_guesses();
     CHECK_EQ(1, guesses.size());
     CHECK_EQ(doctest::Approx(0.696853).epsilon(0.00001), guesses[0]);
-    delete model.get_lambda();
+    delete model.get_sigma();
 }
 
 TEST_CASE_FIXTURE(Inference, "base_model creates lambda_epsilon_optimizer if requested")
@@ -332,7 +332,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_creates__gamma_lambda_optimizer_if_not
     REQUIRE(opt);
     CHECK_EQ("Optimizing Sigma Alpha ", opt->description());
 
-    delete model.get_lambda();
+    delete model.get_sigma();
 }
 
 TEST_CASE_FIXTURE(Inference, "base_model_reconstruction")
@@ -1055,19 +1055,6 @@ TEST_CASE("Simulation: gamma_model_get_simulation_lambda_uses_multiplier_based_o
 
     CHECK_EQ(doctest::Approx(0.057), accumulate(results.begin(), results.end(), 0.0) / 100.0);
 
-}
-
-TEST_CASE("Inference: model_vitals")
-{
-    mock_model model;
-    sigma lambda(0.05);
-    model.set_lambda(&lambda);
-    std::ostringstream ost;
-    model.write_vital_statistics(ost, new clade("A", 5), 0.01);
-    STRCMP_CONTAINS("Model mockmodel Final Likelihood (-lnL): 0.01", ost.str().c_str());
-    STRCMP_CONTAINS("Lambda:            0.05", ost.str().c_str());
-    STRCMP_CONTAINS("Maximum possible lambda for this topology: 0.2", ost.str().c_str());
-    STRCMP_CONTAINS("No attempts made", ost.str().c_str());
 }
 
 TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade")

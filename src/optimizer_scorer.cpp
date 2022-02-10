@@ -419,7 +419,7 @@ TEST_CASE("sigma_optimizer_scorer updates model alpha and lambda")
     vector<double> values{ 0.01, 0.25 };
     optimizer.calculate_score(values.data());
     CHECK_EQ(doctest::Approx(0.25), m.get_alpha());
-    CHECK_EQ(doctest::Approx(0.01), m.get_lambda()->get_lambdas()[0]);
+    CHECK_EQ(doctest::Approx(0.01), m.get_sigma()->get_lambdas()[0]);
 }
 
 TEST_CASE("calculate_score translates nan to inf")

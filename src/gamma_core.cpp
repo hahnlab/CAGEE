@@ -86,7 +86,7 @@ void gamma_model::write_probabilities(ostream& ost)
 sigma* gamma_model::get_simulation_lambda()
 {
     discrete_distribution<int> dist(_gamma_cat_probs.begin(), _gamma_cat_probs.end());
-    return _p_lambda->multiply(_lambda_multipliers[dist(randomizer_engine)]);
+    return _p_sigma->multiply(_lambda_multipliers[dist(randomizer_engine)]);
 }
 
 std::vector<double> gamma_model::get_posterior_probabilities(std::vector<double> cat_likelihoods)
@@ -105,7 +105,7 @@ std::vector<double> gamma_model::get_posterior_probabilities(std::vector<double>
 
 bool gamma_model::can_infer() const
 {
-    if (!_p_lambda->is_valid())
+    if (!_p_sigma->is_valid())
         return false;
 
     if (_alpha < 0)
@@ -227,17 +227,17 @@ sigma_optimizer_scorer* gamma_model::get_sigma_optimizer(const user_data& data, 
 
     if (estimate_sigma && estimate_alpha)
     {
-        _p_lambda = initialize_search_sigma(data.p_lambda_tree, sample_groups);
-        return new sigma_optimizer_scorer(this, data, prior, _p_lambda);
+        _p_sigma = initialize_search_sigma(data.p_lambda_tree, sample_groups);
+        return new sigma_optimizer_scorer(this, data, prior, _p_sigma);
     }
     else if (estimate_sigma && !estimate_alpha)
     {
-        _p_lambda = initialize_search_sigma(data.p_lambda_tree, sample_groups);
-        return new sigma_optimizer_scorer(dynamic_cast<model *>(this), data, prior, _p_lambda);
+        _p_sigma = initialize_search_sigma(data.p_lambda_tree, sample_groups);
+        return new sigma_optimizer_scorer(dynamic_cast<model *>(this), data, prior, _p_sigma);
     }
     else if (!estimate_sigma && estimate_alpha)
     {
-        _p_lambda = data.p_lambda->clone();
+        _p_sigma = data.p_lambda->clone();
         return new sigma_optimizer_scorer(this, data, prior);
     }
     else
@@ -269,7 +269,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
 {
     LOG(INFO) << "Starting reconstruction processes for Gamma model";
 
-    auto values = _p_lambda->get_lambdas();
+    auto values = _p_sigma->get_lambdas();
     vector<double> all;
     for (double multiplier : _lambda_multipliers)
     {
@@ -279,7 +279,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
         }
     }
 
-    calc->precalculate_matrices(_p_lambda->get_lambdas(), get_all_bounds(ud.gene_families),  ud.p_tree->get_branch_lengths());
+    calc->precalculate_matrices(_p_sigma->get_lambdas(), get_all_bounds(ud.gene_families),  ud.p_tree->get_branch_lengths());
 
     gamma_model_reconstruction* result = new gamma_model_reconstruction(_lambda_multipliers);
     vector<gamma_model_reconstruction::gamma_reconstruction *> recs(ud.gene_families.size());
@@ -293,7 +293,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
     for (size_t k = 0; k < _gamma_cat_probs.size(); ++k)
     {
         VLOG(1) << "Reconstructing for multiplier " << _lambda_multipliers[k];
-        unique_ptr<sigma> ml(_p_lambda->multiply(_lambda_multipliers[k]));
+        unique_ptr<sigma> ml(_p_sigma->multiply(_lambda_multipliers[k]));
 
         transcript_reconstructor tr(ml.get(), ud.p_tree, calc);
 
@@ -372,7 +372,7 @@ TEST_CASE("Inference: gamma_model__creates__lambda_optimizer__if_alpha_provided"
 
     REQUIRE(opt);
     CHECK_EQ("Optimizing Sigma ", opt->description());
-    delete model.get_lambda();
+    delete model.get_sigma();
 }
 
 TEST_CASE("Inference: gamma_model__creates__gamma_optimizer__if_lambda_provided")
@@ -389,7 +389,7 @@ TEST_CASE("Inference: gamma_model__creates__gamma_optimizer__if_lambda_provided"
     REQUIRE(opt);
     CHECK_EQ("Optimizing Alpha ", opt->description());
 
-    delete model.get_lambda();
+    delete model.get_sigma();
 }
 
 TEST_CASE("Inference: gamma_model_creates_nothing_if_lambda_and_alpha_provided")
