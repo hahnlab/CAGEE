@@ -686,7 +686,7 @@ families to remove from the analysis for success.
 Acknowledgements
 ================
 
-Many people have contributed to the CAFE project, either by code or
+Many people have contributed to the CAGEEE project, either by code or
 ideas. Thanks to:
 
 -   Ben Fulton
@@ -701,7 +701,9 @@ ideas. Thanks to:
 
 -	Dan Vanderpool
 
-CAFE uses the EasyLogging logging framework. https://github.com/amrayn/easyloggingpp
+CAGEE uses the EasyLogging logging framework. https://github.com/amrayn/easyloggingpp
 
-CAFE uses the DocTest testing framework. https://github.com/onqtam/doctest
+CAGEE uses the DocTest testing framework. https://github.com/onqtam/doctest
+
+CAGEE uses the LBFGSpp implementation of the Limited-memory BFGS optimizer, with modifications from Matjaž Payrits https://github.com/yixuan/LBFGSpp
 

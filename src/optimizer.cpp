@@ -370,8 +370,6 @@ public:
             pfm->chi *= 25;				// expansion
             pfm->delta = 0.4;
         }
-        pfm->tolx = 1e-3;
-        pfm->tolf = 1e-3;
         fminsearch_min(pfm, &initial[0]);
         auto result = get_best_result(pfm);
 
@@ -608,6 +606,8 @@ optimizer::result optimizer::optimize(const optimizer_parameters& params)
     result r;
 
     auto initial = get_initial_guesses();
+    pfm->tolx = 1e-3;
+    pfm->tolf = 1e-3;
     fminsearch_set_equation(pfm, _p_scorer, initial.size());
 
     strat->Run(pfm, r, initial);
