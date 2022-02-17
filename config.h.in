@@ -26,7 +26,7 @@
 #cmakedefine BLAS_FOUND @BLAS_FOUND@
 #cmakedefine Boost_FOUND @Boost_FOUND@
 
-#cmakedefine MODEL_GENE_EXPRESSION_LOGS @MODEL_GENE_EXPRESSION_LOGS@
+#cmakedefine MODEL_GENE_EXPRESSION_LINEAR @MODEL_GENE_EXPRESSION_LINEAR@
 #cmakedefine LOG_OFFSET @LOG_OFFSET@
 
 /* Verbose log keys for various aspects of the application */

@@ -34,12 +34,12 @@ public:
 
     std::string rootdist_params_or_default() const
     {
-        return rootdist_params.empty() ? "gamma:0.75:30.0" : rootdist_params;
+        return rootdist_params.empty() ? "gamma:0.375:1600.0" : rootdist_params;
     }
 
     std::string prior_params_or_default() const
     {
-        return prior.empty() ? "gamma:0.75:30.0" : prior;
+        return prior.empty() ? "gamma:0.375:1600.0" : prior;
     }
 };
 

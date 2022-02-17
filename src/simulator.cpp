@@ -35,12 +35,8 @@ public:
     {
         double t = p_tree->distance_from_root_to_tip();
         double sigma = p_lambda->get_value_for_clade(p_tree);
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-        // root_size is already in log space here, so we un-log it in order to calculate the log of the whole statement
-        root_size = pv::to_user_space(root_size);
-#endif
 
-        _max_value = pv::to_computational_space(root_size + 4.5 * sigma * sqrt(t));
+        _max_value = pv::to_computational_space(pv::to_user_space(root_size) + 4.5 * sigma * sqrt(t));
         VLOG(SIMULATOR) << "Root size: " << root_size << " => max value: " << _max_value << " (Tree length: " << t << ", Sigma: " << sigma << ")";
     }
 
@@ -77,11 +73,7 @@ simulated_family create_simulated_family(const clade *p_tree, const sigma* p_sig
     sim.lambda = p_sigma->get_value_for_clade(p_tree);
 
     binner b(p_sigma, p_tree, root_value);
-#ifdef MODEL_GENE_EXPRESSION_LOGS 
-    boundaries bounds(log(LOG_OFFSET), b.max_value());
-#else
-    boundaries bounds(0, b.max_value());
-#endif
+    boundaries bounds(pv::to_computational_space(0), b.max_value());
 
     sim.values[p_tree] = root_value;
 
@@ -295,12 +287,12 @@ TEST_CASE("create_trial")
 
     simulated_family actual = sim.create_trial(&lam, 2);
 
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-    CHECK_EQ(doctest::Approx(1.7918).epsilon(0.0001), actual.values.at(p_tree.get()));
+    CHECK_EQ(doctest::Approx(pv::to_computational_space(5.0)), actual.values.at(p_tree.get()));
+
+#ifndef MODEL_GENE_EXPRESSION_LINEAR
     CHECK_EQ(doctest::Approx(1.656).epsilon(0.0001), actual.values.at(p_tree->find_descendant("A")));
     CHECK_EQ(doctest::Approx(1.7695).epsilon(0.0001), actual.values.at(p_tree->find_descendant("B")));
 #else
-    CHECK_EQ(doctest::Approx(5.0), actual.values.at(p_tree.get()));
     CHECK_EQ(doctest::Approx(4.85931), actual.values.at(p_tree->find_descendant("A")));
     CHECK_EQ(doctest::Approx(4.988327), actual.values.at(p_tree->find_descendant("B")));
 #endif
@@ -312,7 +304,7 @@ TEST_CASE("binner")
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     binner b(&lam, p_tree.get(), 5);
 
-#ifdef MODEL_GENE_EXPRESSION_LOGS
+#ifndef MODEL_GENE_EXPRESSION_LINEAR
     CHECK_EQ(106, b.bin(2.7));
     CHECK_EQ(doctest::Approx(3.02936), b.value(120));
     CHECK_EQ(51, b.bin(1.3));
@@ -330,7 +322,7 @@ TEST_CASE("binner unbins small values correctly")
     sigma s(0.25);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     binner b(&s, p_tree.get(), 5);
-#ifdef MODEL_GENE_EXPRESSION_LOGS
+#ifndef MODEL_GENE_EXPRESSION_LINEAR
     CHECK_EQ(doctest::Approx(0.55538), b.value(22));
 #else
     CHECK_EQ(doctest::Approx(0.94606), b.value(22));
@@ -411,7 +403,7 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
         return accumulator + ((val - mean) * (val - mean) / (sz - 1));
      });
 
-#ifdef MODEL_GENE_EXPRESSION_LOGS
+#ifndef MODEL_GENE_EXPRESSION_LINEAR
     CHECK_EQ(doctest::Approx(4.4569), mean);
     CHECK_EQ(doctest::Approx(2.0525), variance);
 #else
@@ -449,7 +441,7 @@ TEST_CASE("print_header default rootdist")
     input_parameters p;
     p.fixed_lambda = 2.5;
     print_header(ost, p, 100, nullptr, cladevector());
-    CHECK_STREAM_CONTAINS(ost, "# Root distribution: gamma:0.75:30.0");
+    CHECK_STREAM_CONTAINS(ost, "# Root distribution: gamma:0.375:1600.0");
 }
 
 TEST_CASE("print_header multiple sigmas")

@@ -202,7 +202,7 @@ TEST_CASE( "Inference: gamma_adjust_family_gamma_membership")
     CHECK(true);
 }
 
-#ifdef MODEL_GENE_EXPRESSION_LOGS
+#ifndef MODEL_GENE_EXPRESSION_LINEAR
 TEST_CASE_FIXTURE(Inference, "gamma_model_infers_processes_without_crashing" * doctest::skip(true))
 #else
 TEST_CASE_FIXTURE(Inference, "gamma_model_infers_processes_without_crashing")

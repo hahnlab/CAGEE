@@ -14,7 +14,7 @@ namespace proportional_variance
 
     inline double to_user_space(double val)
     {
-#ifdef MODEL_GENE_EXPRESSION_LOGS
+#ifndef MODEL_GENE_EXPRESSION_LINEAR
         return std::exp(val) - LOG_OFFSET;
 #else
         return val;
@@ -23,7 +23,7 @@ namespace proportional_variance
 
     inline double to_computational_space(double val)
     {
-#ifdef MODEL_GENE_EXPRESSION_LOGS
+#ifndef MODEL_GENE_EXPRESSION_LINEAR
         return std::log(val + LOG_OFFSET);
 #else
         return val;

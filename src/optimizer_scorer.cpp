@@ -396,7 +396,7 @@ TEST_CASE("prepare_calculation sets sigma and gamma correctly ")
     CHECK_EQ(doctest::Approx(0.25), model.get_alpha());
 }
 
-#ifdef MODEL_GENE_EXPRESSION_LOGS
+#ifndef MODEL_GENE_EXPRESSION_LINEAR
 TEST_CASE("sigma_optimizer_scorer updates model alpha and lambda" * doctest::skip(true))
 #else
 TEST_CASE("sigma_optimizer_scorer updates model alpha and lambda")
