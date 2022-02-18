@@ -60,6 +60,7 @@ public:
     void estimate_missing_variables(std::vector<model *>& models, user_data& data);
     void estimate_lambda_per_family(model *p_model, std::ostream& ost);
 
+    std::gamma_distribution<double> prior() const { return _prior; }
 };
 
 void initialization_failure_advice(std::ostream& ost, const std::vector<gene_transcript>& families);

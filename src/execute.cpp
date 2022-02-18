@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iterator>
 
+#include "doctest.h"
 #include "easylogging++.h"
 
 #include "execute.h"
@@ -35,7 +36,7 @@ estimator::estimator(user_data& d, const input_parameters& ui) : action(d, ui)
 
     auto k = stof(tokens[1]), theta = stof(tokens[2]);
     LOG(INFO) << "Using gamma prior with k=" << k << ", theta=" << theta << ")";
-    _prior = gamma_distribution<double>(k, 1/theta);
+    _prior = gamma_distribution<double>(k, theta);
 
 }
 
@@ -206,4 +207,13 @@ void initialization_failure_advice(std::ostream& ost, const std::vector<gene_tra
     for (auto& t : m)
         ost << t.first << ": " << t.second << "\n";
     ost << "\nYou may want to try removing the top few families with the largest difference\nbetween the max and min counts and then re-run the analysis.\n\n";
+}
+
+
+TEST_CASE("create_rootdist throws error if nothing set")
+{
+    user_data ud;
+    input_parameters ip;
+    estimator e(ud, ip);
+    CHECK_EQ(gamma_distribution<double>(0.375, 1600.0), e.prior());
 }

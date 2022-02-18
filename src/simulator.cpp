@@ -449,7 +449,7 @@ TEST_CASE("print_header default rootdist")
     input_parameters p;
     p.fixed_lambda = 2.5;
     print_header(ost, p, 100, nullptr, cladevector());
-    CHECK_STREAM_CONTAINS(ost, "# Root distribution: gamma:0.75:30.0");
+    CHECK_STREAM_CONTAINS(ost, "# Root distribution: gamma:0.375:1600.0");
 }
 
 TEST_CASE("print_header multiple sigmas")

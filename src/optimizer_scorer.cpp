@@ -18,12 +18,14 @@
 #include "root_equilibrium_distribution.h"
 #include "gene_transcript.h"
 #include "user_data.h"
+#include "proportional_variance.h"
 
 #define GAMMA_INITIAL_GUESS_EXPONENTIAL_DISTRIBUTION_LAMBDA 1.75
 
 extern std::mt19937 randomizer_engine;
 
 using namespace std;
+namespace pv = proportional_variance;
 
 double compute_distribution_mean(const user_data& user_data)
 {
@@ -35,7 +37,7 @@ double compute_distribution_mean(const user_data& user_data)
     for (auto& tt : user_data.gene_families)
     {
         vector<double> v(species.size());
-        transform(species.begin(), species.end(), v.begin(), [&tt](string s) {return tt.get_expression_value(s);  });
+        transform(species.begin(), species.end(), v.begin(), [&tt](string s) {return pv::to_user_space(tt.get_expression_value(s));  });
         double sz = v.size();
         auto mean = std::accumulate(v.begin(), v.end(), 0.0) / sz;
         variances.push_back(std::accumulate(v.begin(), v.end(), 0.0, [&mean, &sz](double accumulator, const double& val) {

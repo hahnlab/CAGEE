@@ -21,7 +21,7 @@ For simulations, a rootdist argument will be made available. The possible format
 - rootdist=fixed:value
 - rootdist=file:filename
 
-If the user does not provide a rootdist argument, the gamma distribution (k=0.75, theta=30) will be used.
+If the user does not provide a rootdist argument, the gamma distribution <del>(k=0.75, theta=30)</del>(k=0.375, theta=1600) will be used.
 The root distribution will be calculated from the sub-argument:
 
 - gamma: a gamma probability will be used with the specified k and theta
@@ -31,7 +31,7 @@ The root distribution will be calculated from the sub-argument:
 For estimations, a prior argument will be made available. 
 - prior=gamma:k:theta
 
-If the user does not provide a prior argument, the gamma distribution (k=0.75, theta=30) will be used.
+If the user does not provide a prior argument, the gamma distribution <del>(k=0.75, theta=30)</del>(k=0.375, theta=1600) will be used.
 
 Specifying a --rootdist argument without the --simulate argument will result in an error.
 Specifying a --prior argument with the --simulate argument will result in an error.
