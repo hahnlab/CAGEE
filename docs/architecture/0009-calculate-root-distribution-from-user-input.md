@@ -1,7 +1,6 @@
 # 9. Calculate a prior of root distributions based on user input
 
 Date: 2021-08-31
-Modified: 2022-02-17
 
 ## Status
 
@@ -22,9 +21,7 @@ For simulations, a rootdist argument will be made available. The possible format
 - rootdist=fixed:value
 - rootdist=file:filename
 
-~~ If the user does not provide a rootdist argument, the gamma distribution (k=0.75, theta=30) will be used. ~~
-SUPERSEDED: If the user does not provide a rootdist argument, the gamma distribution (k=0.375, theta=1600.0) will be used.
-
+If the user does not provide a rootdist argument, the gamma distribution (k=0.75, theta=30) will be used.
 The root distribution will be calculated from the sub-argument:
 
 - gamma: a gamma probability will be used with the specified k and theta
@@ -34,8 +31,7 @@ The root distribution will be calculated from the sub-argument:
 For estimations, a prior argument will be made available. 
 - prior=gamma:k:theta
 
-~~ If the user does not provide a prior argument, the gamma distribution (k=0.75, theta=30) will be used. ~~
-SUPERSEDED: If the user does not provide a prior argument, the gamma distribution (k=0.375, theta=1600.0) will be used.
+If the user does not provide a prior argument, the gamma distribution (k=0.75, theta=30) will be used.
 
 Specifying a --rootdist argument without the --simulate argument will result in an error.
 Specifying a --prior argument with the --simulate argument will result in an error.

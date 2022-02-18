@@ -71,7 +71,7 @@ set<int> get_all_bounds(const vector<gene_transcript>& transcripts)
 
 inline double computational_space_prior(double val, const gamma_distribution<double>& prior)
 {
-#ifndef MODEL_GENE_EXPRESSION_LINEAR
+#ifdef MODEL_GENE_EXPRESSION_LOGS
     return exp(val) * gammapdf(exp(val), prior);
 #else
     return gammapdf(val, prior);
@@ -229,7 +229,7 @@ TEST_CASE("compute_prior_likelihood combines prior and inference correctly")
     vector<double> inf{ 0.1, 0.2, 0.3};
 
     double actual = compute_prior_likelihood(inf, gt, prior);
-#ifndef MODEL_GENE_EXPRESSION_LINEAR
+#ifdef MODEL_GENE_EXPRESSION_LOGS
     CHECK_EQ(doctest::Approx(-36.4831), actual);
 #else
     CHECK_EQ(doctest::Approx(-5.584), actual);
