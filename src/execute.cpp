@@ -170,13 +170,16 @@ void estimator::execute(std::vector<model *>& models)
                 std::unique_ptr<reconstruction> rec(p_model->reconstruct_ancestral_states(data, &cache));
 
                 branch_probabilities probs;
-
+#if 0
                 for (size_t i = 0; i<data.gene_families.size(); ++i)
                 {
                     for_each(data.p_tree->reverse_level_begin(), data.p_tree->reverse_level_end(), [&](const clade* c) {
                         probs.set(data.gene_families[i], c, compute_viterbi_sum(c, data.gene_families[i], rec.get(), cache, p_model->get_sigma()));
                         });
                 }
+#else
+                LOG(WARNING) << "Branch Probabilities not supported yet";
+#endif
 
 #ifdef RUN_LHRTEST
                 LikelihoodRatioTest::lhr_for_diff_lambdas(data, p_model);
@@ -217,3 +220,4 @@ TEST_CASE("create_rootdist throws error if nothing set")
     estimator e(ud, ip);
     CHECK_EQ(gamma_distribution<double>(0.375, 1600.0), e.prior());
 }
+
