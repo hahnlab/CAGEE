@@ -20,8 +20,10 @@
 #include "io.h"
 #include "DiffMat.h"
 #include "transcript_reconstructor.h"
+#include "proportional_variance.h"
 
 using namespace std;
+namespace pv = proportional_variance;
 
 extern mt19937 randomizer_engine;
 
@@ -234,4 +236,23 @@ TEST_CASE("compute_prior_likelihood combines prior and inference correctly")
 #else
     CHECK_EQ(doctest::Approx(-5.584), actual);
 #endif
+}
+
+TEST_CASE("base optimizer guesses sigma only")
+{
+    user_data ud;
+    ud.p_lambda = NULL;
+    ud.p_tree = parse_newick("(A:1,B:1);");
+    ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.gene_families[0].set_expression_value("A", pv::to_computational_space(1));
+    ud.gene_families[0].set_expression_value("B", pv::to_computational_space(2));
+    randomizer_engine.seed(10);
+
+    base_model model(ud.p_lambda, NULL, NULL);
+
+    unique_ptr<sigma_optimizer_scorer> opt(model.get_sigma_optimizer(ud, vector<string>(), std::gamma_distribution<double>(1, 2)));
+    auto guesses = opt->initial_guesses();
+    CHECK_EQ(1, guesses.size());
+    CHECK_EQ(doctest::Approx(0.696853).epsilon(0.00001), guesses[0]);
+    delete model.get_sigma();
 }

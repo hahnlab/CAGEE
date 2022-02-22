@@ -215,8 +215,8 @@ TEST_CASE("sigma_optimizer_scorer constructor calculates tree length and varianc
 
     user_data ud;
     ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
-    ud.gene_families[0].set_expression_value("A", 1);
-    ud.gene_families[0].set_expression_value("B", 2);
+    ud.gene_families[0].set_expression_value("A", pv::to_computational_space(1));
+    ud.gene_families[0].set_expression_value("B", pv::to_computational_space(2));
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     ud.p_tree = p_tree.get();
@@ -242,10 +242,10 @@ TEST_CASE("sigma_optimizer_scorer constructor averages variances across all tran
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     ud.p_tree = p_tree.get();
-    ud.gene_families[0].set_expression_value("A", 1);
-    ud.gene_families[0].set_expression_value("B", 2);
-    ud.gene_families[1].set_expression_value("A", 5);
-    ud.gene_families[1].set_expression_value("B", 8);
+    ud.gene_families[0].set_expression_value("A", pv::to_computational_space(1));
+    ud.gene_families[0].set_expression_value("B", pv::to_computational_space(2));
+    ud.gene_families[1].set_expression_value("A", pv::to_computational_space(5));
+    ud.gene_families[1].set_expression_value("B", pv::to_computational_space(8));
 
     sigma s(5);
     sigma_optimizer_scorer soc((model*)nullptr, ud, std::gamma_distribution<double>(1, 2), &s);

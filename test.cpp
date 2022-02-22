@@ -293,18 +293,6 @@ TEST_CASE("Probability: get_random_probabilities" * doctest::skip(true))
     CHECK_EQ(doctest::Approx(0.001905924).scale(10000), probs[0]);
 }
 
-TEST_CASE_FIXTURE(Inference, "base_optimizer_guesses_lambda_only")
-{
-    _user_data.p_lambda = NULL;
-
-    base_model model(_user_data.p_lambda,  NULL, NULL);
-
-    unique_ptr<sigma_optimizer_scorer> opt(model.get_sigma_optimizer(_user_data, vector<string>(), std::gamma_distribution<double>(1, 2)));
-    auto guesses = opt->initial_guesses();
-    CHECK_EQ(1, guesses.size());
-    CHECK_EQ(doctest::Approx(0.696853).epsilon(0.00001), guesses[0]);
-    delete model.get_sigma();
-}
 
 TEST_CASE_FIXTURE(Inference, "base_model creates lambda_epsilon_optimizer if requested")
 {
