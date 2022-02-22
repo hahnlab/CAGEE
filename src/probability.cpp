@@ -102,8 +102,9 @@ double chooseln(double n, double r)
 int get_upper_bound(const gene_transcript& gt)
 {
     int val = gt.get_max_expression_value() * MATRIX_SIZE_MULTIPLIER;
+
     int remainder = val % BOUNDING_STEP_SIZE;
-    if (remainder == 0) return val;
+    if (remainder == 0 && val > 0) return val;
 
     return val + BOUNDING_STEP_SIZE - remainder;
 }
@@ -605,5 +606,13 @@ TEST_CASE("Bounds never returns less than 20")
     gene_transcript gt;
     gt.set_expression_value("A", 5);
     gt.set_expression_value("B", 4);
+    CHECK_EQ(20, get_upper_bound(gt));
+}
+
+TEST_CASE("Bounds never returns less than 20 even if all values are less than .3")
+{
+    gene_transcript gt;
+    gt.set_expression_value("A", 0.254007);
+    gt.set_expression_value("B", 0.1);
     CHECK_EQ(20, get_upper_bound(gt));
 }
