@@ -66,13 +66,13 @@ clade * user_data::read_lambda_tree(const input_parameters &my_input_parameters)
 }
 
 //! Read user provided single or multiple lambdas
-sigma* user_data::read_lambda(const input_parameters &my_input_parameters, clade *p_lambda_tree) {
+sigma_squared* user_data::read_lambda(const input_parameters &my_input_parameters, clade *p_lambda_tree) {
 
-    sigma*p_lambda = NULL; // lambda is an abstract class, and so we can only instantiate it as single_lambda or multiple lambda -- therefore initializing it to NULL
+    sigma_squared*p_lambda = NULL; // lambda is an abstract class, and so we can only instantiate it as single_lambda or multiple lambda -- therefore initializing it to NULL
 
                              // -l
     if (my_input_parameters.fixed_lambda > 0.0) {
-        p_lambda = new sigma(my_input_parameters.fixed_lambda);
+        p_lambda = new sigma_squared(my_input_parameters.fixed_lambda);
         // call_viterbi(max_family_size, max_root_family_size, 15, p_lambda, *p_gene_families, p_tree);
     }
 
@@ -87,7 +87,7 @@ sigma* user_data::read_lambda(const input_parameters &my_input_parameters, clade
             [](string const& val) { return stod(val); } // this is the equivalent of a Python's lambda function
         );
 
-        p_lambda = new sigma(node_name_to_lambda_index, lambdas, sigma_type::lineage_specific);
+        p_lambda = new sigma_squared(node_name_to_lambda_index, lambdas, sigma_type::lineage_specific);
     }
 
     return p_lambda;

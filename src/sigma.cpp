@@ -11,49 +11,49 @@
 
 using namespace std;
 
-void sigma::update(const double* values)
+void sigma_squared::update(const double* values)
 {
-    std::copy(values, values + _lambdas.size(), _lambdas.begin());
+    std::copy(values, values + _values.size(), _values.begin());
 }
 
-std::string sigma::to_string() const
+std::string sigma_squared::to_string() const
 {
     ostringstream ost;
     ost << setw(15) << setprecision(14);
-    for (size_t i = 0; i < _lambdas.size(); ++i)
+    for (size_t i = 0; i < _values.size(); ++i)
     {
-        ost << _lambdas[i];
-        if (i != _lambdas.size() - 1) ost << ", ";
+        ost << _values[i];
+        if (i != _values.size() - 1) ost << ", ";
     }
     return ost.str();
 }
 
-bool sigma::is_valid() const
+bool sigma_squared::is_valid() const
 {
-    return std::none_of(_lambdas.begin(), _lambdas.end(), [](double d) { return d < 0; });
+    return std::none_of(_values.begin(), _values.end(), [](double d) { return d < 0; });
 }
 
-double sigma::get_value_for_clade(const clade *c) const {
+double sigma_squared::get_value_for_clade(const clade *c) const {
     if (count() == 1)
-        return _lambdas[0];
+        return _values[0];
 
-    int index = _node_name_to_lambda_index.at(c->get_taxon_name());
-    return _lambdas[index];
+    int index = _node_name_to_sigma_index.at(c->get_taxon_name());
+    return _values[index];
 }
 
-double sigma::get_named_value(const clade* c, const gene_transcript& t) const {
+double sigma_squared::get_named_value(const clade* c, const gene_transcript& t) const {
     string name;
     switch (_type)
     {
     case sigma_type::uniform:
-        return _lambdas[0];
+        return _values[0];
     case sigma_type::lineage_specific:
         name = c->get_taxon_name();
         break;
     case sigma_type::sample_specific:
         name = t.tissue();
     }
-    return _lambdas[_node_name_to_lambda_index.at(name)];
+    return _values[_node_name_to_sigma_index.at(name)];
 }
 
 
@@ -64,7 +64,7 @@ TEST_CASE("lineage_specific sigma returns correct values")
     map<string, int> key;
     key["A"] = 5;
     key["B"] = 3;
-    sigma ml(key, { .03, .05, .07, .011, .013, .017 }, sigma_type::lineage_specific);
+    sigma_squared ml(key, { .03, .05, .07, .011, .013, .017 }, sigma_type::lineage_specific);
     CHECK_EQ(.017, ml.get_value_for_clade(p_tree->find_descendant("A")));
     CHECK_EQ(.011, ml.get_value_for_clade(p_tree->find_descendant("B")));
 
@@ -81,7 +81,7 @@ TEST_CASE("sample_specific sigma returns correct values")
     map<string, int> key;
     key["heart"] = 2;
     key["lungs"] = 4;
-    sigma ml(key, { .03, .05, .07, .011, .013, .017 }, sigma_type::sample_specific);
+    sigma_squared ml(key, { .03, .05, .07, .011, .013, .017 }, sigma_type::sample_specific);
     gene_transcript t("C", "", "heart");
     gene_transcript t2("D", "", "lungs");
     CHECK_EQ(.07, ml.get_named_value(p_tree->find_descendant("A"), t));
@@ -91,19 +91,19 @@ TEST_CASE("sample_specific sigma returns correct values")
 TEST_CASE("is_valid returns false if any value is negative")
 {
     map<string, int> key;
-    sigma ml(key, { .03, .05, .07, .011, .013, .017 }, sigma_type::sample_specific);
+    sigma_squared ml(key, { .03, .05, .07, .011, .013, .017 }, sigma_type::sample_specific);
 
     CHECK(ml.is_valid());
 
-    sigma m2(key, { .03, .05, .07, .011, -.013, .017 }, sigma_type::sample_specific);
+    sigma_squared m2(key, { .03, .05, .07, .011, -.013, .017 }, sigma_type::sample_specific);
     CHECK_FALSE(m2.is_valid());
 }
 
 TEST_CASE("update")
 {
     map<string, int> key;
-    sigma ml(key, { .03, .05, .07 }, sigma_type::sample_specific);
+    sigma_squared ml(key, { .03, .05, .07 }, sigma_type::sample_specific);
     double newvalues[3] = { .11, .15, .17 };
     ml.update(newvalues);
-    CHECK_EQ(vector<double>({ .11, .15, .17 }), ml.get_lambdas());
+    CHECK_EQ(vector<double>({ .11, .15, .17 }), ml.get_values());
 }

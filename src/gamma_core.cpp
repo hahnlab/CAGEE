@@ -27,7 +27,7 @@ using namespace std;
 
 extern mt19937 randomizer_engine;
 
-gamma_model::gamma_model(sigma* p_lambda, std::vector<gene_transcript>* p_gene_families, int n_gamma_cats, double fixed_alpha, error_model* p_error_model) :
+gamma_model::gamma_model(sigma_squared* p_lambda, std::vector<gene_transcript>* p_gene_families, int n_gamma_cats, double fixed_alpha, error_model* p_error_model) :
     model(p_lambda, p_gene_families, p_error_model) {
 
     _gamma_cat_probs.resize(n_gamma_cats);
@@ -37,7 +37,7 @@ gamma_model::gamma_model(sigma* p_lambda, std::vector<gene_transcript>* p_gene_f
     set_alpha(fixed_alpha);
 }
 
-gamma_model::gamma_model(sigma* p_lambda, std::vector<gene_transcript>* p_gene_families, std::vector<double> gamma_categories, std::vector<double> multipliers, error_model *p_error_model) :
+gamma_model::gamma_model(sigma_squared* p_lambda, std::vector<gene_transcript>* p_gene_families, std::vector<double> gamma_categories, std::vector<double> multipliers, error_model *p_error_model) :
     model(p_lambda, p_gene_families,  p_error_model)
 {
     _gamma_cat_probs = gamma_categories;
@@ -83,7 +83,7 @@ void gamma_model::write_probabilities(ostream& ost)
     ost << "Lambda multipliers are: " << comma_separated(_lambda_multipliers) << endl;
 }
 
-sigma* gamma_model::get_simulation_lambda()
+sigma_squared* gamma_model::get_simulation_lambda()
 {
     discrete_distribution<int> dist(_gamma_cat_probs.begin(), _gamma_cat_probs.end());
     return _p_sigma->multiply(_lambda_multipliers[dist(randomizer_engine)]);
@@ -114,7 +114,7 @@ bool gamma_model::can_infer() const
     return true;
 }
 
-bool gamma_model::prune(const gene_transcript& family, const std::gamma_distribution<double>& prior, const matrix_cache& diff_mat, const sigma*p_lambda,
+bool gamma_model::prune(const gene_transcript& family, const std::gamma_distribution<double>& prior, const matrix_cache& diff_mat, const sigma_squared*p_lambda,
     const clade *p_tree, std::vector<double>& category_likelihoods) 
 {
     category_likelihoods.clear();
@@ -142,7 +142,7 @@ bool gamma_model::prune(const gene_transcript& family, const std::gamma_distribu
 }
 
 //! Infer bundle
-double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma*p_lambda, const std::gamma_distribution<double>& prior) {
+double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma_squared*p_lambda, const std::gamma_distribution<double>& prior) {
 
     _monitor.Event_InferenceAttempt_Started();
 
@@ -165,8 +165,8 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma*p_
     vector<double> multipliers;
     for (auto multiplier : _lambda_multipliers)
     {
-        unique_ptr<sigma> mult(p_lambda->multiply(multiplier));
-        auto values = mult->get_lambdas();
+        unique_ptr<sigma_squared> mult(p_lambda->multiply(multiplier));
+        auto values = mult->get_values();
         multipliers.insert(multipliers.end(), values.begin(), values.end());
     }
     cache.precalculate_matrices(multipliers, get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
@@ -269,7 +269,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
 {
     LOG(INFO) << "Starting reconstruction processes for Gamma model";
 
-    auto values = _p_sigma->get_lambdas();
+    auto values = _p_sigma->get_values();
     vector<double> all;
     for (double multiplier : _lambda_multipliers)
     {
@@ -279,7 +279,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
         }
     }
 
-    calc->precalculate_matrices(_p_sigma->get_lambdas(), get_all_bounds(ud.gene_families),  ud.p_tree->get_branch_lengths());
+    calc->precalculate_matrices(_p_sigma->get_values(), get_all_bounds(ud.gene_families),  ud.p_tree->get_branch_lengths());
 
     gamma_model_reconstruction* result = new gamma_model_reconstruction(_lambda_multipliers);
     vector<gamma_model_reconstruction::gamma_reconstruction *> recs(ud.gene_families.size());
@@ -293,7 +293,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
     for (size_t k = 0; k < _gamma_cat_probs.size(); ++k)
     {
         VLOG(1) << "Reconstructing for multiplier " << _lambda_multipliers[k];
-        unique_ptr<sigma> ml(_p_sigma->multiply(_lambda_multipliers[k]));
+        unique_ptr<sigma_squared> ml(_p_sigma->multiply(_lambda_multipliers[k]));
 
         transcript_reconstructor tr(ml.get(), ud.p_tree, calc);
 
@@ -381,7 +381,7 @@ TEST_CASE("Inference: gamma_model__creates__gamma_optimizer__if_lambda_provided"
 
     user_data data;
 
-    sigma sl(0.05);
+    sigma_squared sl(0.05);
     data.p_lambda = &sl;
 
     auto opt = model.get_sigma_optimizer(data, vector<string>(), std::gamma_distribution<double>(1, 2));
@@ -398,7 +398,7 @@ TEST_CASE("Inference: gamma_model_creates_nothing_if_lambda_and_alpha_provided")
 
     user_data data;
 
-    sigma sl(0.05);
+    sigma_squared sl(0.05);
     data.p_lambda = &sl;
 
     CHECK(model.get_sigma_optimizer(data, vector<string>(), std::gamma_distribution<double>(1, 2)) == nullptr);

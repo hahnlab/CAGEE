@@ -113,7 +113,7 @@ void estimator::estimate_missing_variables(std::vector<model *>& models, user_da
 void estimator::estimate_lambda_per_family(model *p_model, ostream& ost)
 {
     auto families = data.gene_families;
-    vector<sigma*> result(data.gene_families.size());
+    vector<sigma_squared*> result(data.gene_families.size());
     std::transform(data.gene_families.begin(), data.gene_families.end(), result.begin(),
         [this, p_model](gene_transcript& fam)
     {
@@ -130,7 +130,7 @@ void estimator::estimate_lambda_per_family(model *p_model, ostream& ost)
     });
     std::transform(data.gene_families.begin(), data.gene_families.end(), result.begin(),
         ostream_iterator<string>(ost, "\n"),
-        [](const gene_transcript& fam, sigma* lambda)
+        [](const gene_transcript& fam, sigma_squared* lambda)
     {
         return fam.id() + '\t' + lambda->to_string();
     });

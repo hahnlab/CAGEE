@@ -8,7 +8,7 @@
 class user_data;
 class model;
 class gamma_model;
-class sigma;
+class sigma_squared;
 class error_model;
 class root_distribution_gamma;
 
@@ -30,7 +30,7 @@ class sigma_optimizer_scorer : public optimizer_scorer
     error_model* _p_error_model = nullptr;
     std::vector<double> current_epsilon_guesses;
     bool optimize_sigma, optimize_epsilon, optimize_gamma;
-    sigma* _p_sigma;
+    sigma_squared* _p_sigma;
     model* _p_model;
     const user_data& _user_data;
     const std::gamma_distribution<double>& _prior;
@@ -38,13 +38,13 @@ class sigma_optimizer_scorer : public optimizer_scorer
     double* _distribution_mean = nullptr;
 public:
     // sigma only
-    sigma_optimizer_scorer(model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma* p_lambda);
+    sigma_optimizer_scorer(model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma_squared* p_lambda);
 
     // sigma and epsilon
-    sigma_optimizer_scorer(model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma* p_lambda, error_model* p_error_model);
+    sigma_optimizer_scorer(model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma_squared* p_lambda, error_model* p_error_model);
 
     // alpha and sigma
-    sigma_optimizer_scorer(gamma_model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma* p_lambda);
+    sigma_optimizer_scorer(gamma_model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma_squared* p_lambda);
 
     // alpha only
     sigma_optimizer_scorer(gamma_model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior);

@@ -24,7 +24,7 @@ namespace LikelihoodRatioTest
 
     double get_likelihood_for_diff_lambdas(const gene_transcript & gf, const clade * p_tree, const clade * p_lambda_tree, 
         int lambda_index, 
-        std::vector<sigma*> & lambda_cache,
+        std::vector<sigma_squared*> & lambda_cache,
         optimizer *opt)
     {
         const double bl_augment = 0.5;
@@ -33,9 +33,9 @@ namespace LikelihoodRatioTest
         {
             auto result = opt->optimize(optimizer_parameters());
             if (p_lambda_tree)
-                lambda_cache[lambda_index] = new sigma(map<string, int>(), result.values, sigma_type::lineage_specific);
+                lambda_cache[lambda_index] = new sigma_squared(map<string, int>(), result.values, sigma_type::lineage_specific);
             else
-                lambda_cache[lambda_index] = new sigma(result.values[0]);
+                lambda_cache[lambda_index] = new sigma_squared(result.values[0]);
         }
 
         matrix_cache cache;
@@ -46,7 +46,7 @@ namespace LikelihoodRatioTest
     void compute_for_diff_lambdas_i(const user_data & data,
         std::vector<int> & lambda_index,
         std::vector<double> & pvalues,
-        std::vector<sigma*> & lambda_cache,
+        std::vector<sigma_squared*> & lambda_cache,
         optimizer* p_opt
     )
     {
@@ -78,7 +78,7 @@ namespace LikelihoodRatioTest
         const clade * pcafe,
         const std::vector<double> & pvalues,
         const std::vector<int> & plambda,
-        const std::vector<sigma*> & lambda_cache)
+        const std::vector<sigma_squared*> & lambda_cache)
     {
         for (size_t i = 0; i < families.size(); ++i)
         {
@@ -91,7 +91,7 @@ namespace LikelihoodRatioTest
 
     void lhr_for_diff_lambdas(const user_data & data, model *p_model, const std::gamma_distribution<double>& prior)
     {
-        std::vector<sigma*> lambda_cache(100);
+        std::vector<sigma_squared*> lambda_cache(100);
 
         cout << "Running Likelihood Ratio Test 2....\n";
 

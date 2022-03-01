@@ -69,14 +69,14 @@ public:
     {
 
     }
-    void set_lambda(sigma* lambda)
+    void set_lambda(sigma_squared* lambda)
     {
         _p_sigma = lambda;
     }
     void set_invalid_likelihood() { _invalid_likelihood = true;  }
 
     // Inherited via model
-    virtual double infer_family_likelihoods(const user_data& ud, const sigma* p_lambda, const std::gamma_distribution<double>& prior) override
+    virtual double infer_family_likelihoods(const user_data& ud, const sigma_squared* p_lambda, const std::gamma_distribution<double>& prior) override
     {
         return _invalid_likelihood ? nan("") : 0.0;
     }
@@ -86,11 +86,11 @@ class Inference
 {
 public:
     user_data _user_data;
-    sigma* _p_lambda;
+    sigma_squared* _p_lambda;
 
     Inference()
     {
-        _p_lambda = new sigma(0.05);
+        _p_lambda = new sigma_squared(0.05);
         _user_data.p_tree = parse_newick("(A:1,B:1);");
         _user_data.p_lambda = _p_lambda;
         _user_data.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
@@ -175,7 +175,7 @@ TEST_CASE_FIXTURE(Inference, "infer_processes"
     fam4.set_expression_value("B", 3);
     families.push_back(fam4);
 
-    sigma lambda(0.01);
+    sigma_squared lambda(0.01);
 
     base_model core(&lambda, &families, NULL);
 
@@ -232,12 +232,12 @@ TEST_CASE("Inference: stash_stream")
 
 TEST_CASE("Probability:matrices_take_fractional_branch_lengths_into_account" * doctest::skip(true))
 {
-    sigma lambda(0.006335);
+    sigma_squared lambda(0.006335);
     matrix_cache calc;
     std::set<double> branch_lengths{ 68, 68.7105 };
-    calc.precalculate_matrices(lambda.get_lambdas(), set<int>({3}), branch_lengths);
-    CHECK_EQ(doctest::Approx(0.194661).epsilon(0.0001), calc.get_matrix(lambda.get_lambdas()[0], 68.7105, 0.006335)(5, 5)); // a value 
-    CHECK_EQ(doctest::Approx(0.195791).epsilon(0.0001), calc.get_matrix(lambda.get_lambdas()[0], 68,0.006335)(5, 5));
+    calc.precalculate_matrices(lambda.get_values(), set<int>({3}), branch_lengths);
+    CHECK_EQ(doctest::Approx(0.194661).epsilon(0.0001), calc.get_matrix(lambda.get_values()[0], 68.7105, 0.006335)(5, 5)); // a value 
+    CHECK_EQ(doctest::Approx(0.195791).epsilon(0.0001), calc.get_matrix(lambda.get_values()[0], 68,0.006335)(5, 5));
 }
 
 bool operator==(const MatrixXd& m1, const MatrixXd& m2)
@@ -258,11 +258,11 @@ bool operator==(const MatrixXd& m1, const MatrixXd& m2)
 
 TEST_CASE("Probability: probability_of_matrix" * doctest::skip(true))
 {
-    sigma lambda(0.05);
+    sigma_squared lambda(0.05);
     matrix_cache calc;
     std::set<double> branch_lengths{ 5 };
-    calc.precalculate_matrices(lambda.get_lambdas(), set<int>(), branch_lengths);
-    auto actual = calc.get_matrix(5, lambda.get_lambdas()[0], 0);
+    calc.precalculate_matrices(lambda.get_values(), set<int>(), branch_lengths);
+    auto actual = calc.get_matrix(5, lambda.get_values()[0], 0);
     MatrixXd expected(5,5);
     double values[5][5] = {
     {1,0,0,0,0},
@@ -276,7 +276,7 @@ TEST_CASE("Probability: probability_of_matrix" * doctest::skip(true))
     CHECK(actual == expected);
 
     // a second call should get the same results as the first
-    actual = calc.get_matrix(5, lambda.get_lambdas()[0], 0);
+    actual = calc.get_matrix(5, lambda.get_values()[0], 0);
     CHECK(actual == expected);
 }
 
@@ -284,7 +284,7 @@ TEST_CASE("Probability: get_random_probabilities" * doctest::skip(true))
 {
     unique_ptr<clade> p_tree(parse_newick("((A:1,B:1):1,(C:1,D:1):1);"));
 
-    sigma lam(0.05);
+    sigma_squared lam(0.05);
     matrix_cache cache;
 
     pvalue_parameters p = { p_tree.get(),  &lam, 12, 8, cache };
@@ -325,7 +325,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_creates__gamma_lambda_optimizer_if_not
 
 TEST_CASE_FIXTURE(Inference, "base_model_reconstruction")
 {
-    sigma sl(0.05);
+    sigma_squared sl(0.05);
 
     std::vector<gene_transcript> families(1);
     families[0].set_expression_value("A", 3);
@@ -376,10 +376,10 @@ TEST_CASE("Inference: increase_decrease")
 
 TEST_CASE( "Inference: precalculate_matrices_calculates_all_boundaries_all_branchlengths")
 {
-    sigma s(0.05);
+    sigma_squared s(0.05);
     matrix_cache calc;
     set<int> b{ 1,2,5,10 };
-    calc.precalculate_matrices(s.get_lambdas(), b, set<double>({ 1,2,3 }));
+    calc.precalculate_matrices(s.get_values(), b, set<double>({ 1,2,3 }));
     CHECK_EQ(12, calc.get_cache_size());
 }
 
@@ -598,9 +598,9 @@ TEST_CASE_FIXTURE(Reconstruction, "print_branch_probabilities__skips_families_wi
 
 TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities" * doctest::skip(true))
 {
-    sigma lm(0.05);
+    sigma_squared lm(0.05);
     matrix_cache cache;
-    cache.precalculate_matrices(lm.get_lambdas(), set<int>(), { 1,3,7 });
+    cache.precalculate_matrices(lm.get_values(), set<int>(), { 1,3,7 });
     base_model_reconstruction rec;
     rec._reconstructions[fam.id()][p_tree->find_descendant("AB")] = 10;
     rec._reconstructions[fam.id()][p_tree->find_descendant("ABCD")] = 12;
@@ -609,9 +609,9 @@ TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities" * doctest::skip(tr
 
 TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities_returns_invalid_if_root")
 {
-    sigma lm(0.05);
+    sigma_squared lm(0.05);
     matrix_cache cache;
-    cache.precalculate_matrices(lm.get_lambdas(), set<int>(), { 1,3,7 });
+    cache.precalculate_matrices(lm.get_values(), set<int>(), { 1,3,7 });
     base_model_reconstruction rec;
     rec._reconstructions[fam.id()][p_tree.get()] = 11;
     CHECK_FALSE(compute_viterbi_sum(p_tree.get(), fam, &rec, cache, &lm)._is_valid);
@@ -641,7 +641,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_prune" * doctest::skip(true))
     families[0].set_expression_value("A", 3);
     families[0].set_expression_value("B", 6);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-    sigma lambda(0.005);
+    sigma_squared lambda(0.005);
     matrix_cache cache;
 
     std::gamma_distribution<double> prior(1,2);
@@ -662,7 +662,7 @@ TEST_CASE("gamma_model_prune_returns_false_if_saturated" * doctest::skip(true))
     families[0].set_expression_value("A", 3);
     families[0].set_expression_value("B", 6);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-    sigma lambda(0.9);
+    sigma_squared lambda(0.9);
     matrix_cache cache;
 
     vector<double> cat_likelihoods;
@@ -720,7 +720,7 @@ TEST_CASE("Inference: build_models__uses_error_model_if_provided")
     user_data data;
     data.p_error_model = &em;
     data.p_tree = new clade("A", 5);
-    sigma lambda(0.05);
+    sigma_squared lambda(0.05);
     data.p_lambda = &lambda;
     auto model = build_models(params, data)[0];
     std::ostringstream ost;
@@ -735,7 +735,7 @@ TEST_CASE("Inference: build_models__creates_default_error_model_if_needed")
     params.use_error_model = true;
     user_data data;
     data.p_tree = new clade("A", 5);
-    sigma lambda(0.05);
+    sigma_squared lambda(0.05);
     data.p_lambda = &lambda;
     auto model = build_models(params, data)[0];
     std::ostringstream ost;
@@ -1033,12 +1033,12 @@ TEST_CASE("Simulation: gamma_model_get_simulation_lambda_uses_multiplier_based_o
 {
     vector<double> gamma_categories{ 0.3, 0.7 };
     vector<double> multipliers{ 0.5, 1.5 };
-    sigma lam(0.05);
+    sigma_squared lam(0.05);
     gamma_model m(&lam, NULL, gamma_categories, multipliers, NULL);
     vector<double> results(100);
     generate(results.begin(), results.end(), [&m]() {
-        unique_ptr<sigma> new_lam(dynamic_cast<sigma*>(m.get_simulation_lambda()));
-        return new_lam->get_lambdas()[0];
+        unique_ptr<sigma_squared> new_lam(dynamic_cast<sigma_squared*>(m.get_simulation_lambda()));
+        return new_lam->get_values()[0];
         });
 
     CHECK_EQ(doctest::Approx(0.057), accumulate(results.begin(), results.end(), 0.0) / 100.0);
@@ -1231,7 +1231,7 @@ TEST_CASE_FIXTURE(Inference, "initialization_failure_advice_shows_20_families_wi
 
 TEST_CASE("Simulation, simulate_processes" * doctest::skip(true))
 {
-    sigma lam(0.05);
+    sigma_squared lam(0.05);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     mock_model m;
     m.set_lambda(&lam);
@@ -1572,13 +1572,13 @@ TEST_CASE("LikelihoodRatioTest, get_likelihood_for_diff_lambdas" * doctest::skip
     gf.set_expression_value("A", 5);
     gf.set_expression_value("B", 9);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-    std::vector<sigma*> cache(100);
+    std::vector<sigma_squared*> cache(100);
     CHECK_EQ(0.0, LikelihoodRatioTest::get_likelihood_for_diff_lambdas(gf, p_tree.get(), 0, 0, cache, &opt));
 }
 
 TEST_CASE("LikelihoodRatioTest, compute_for_diff_lambdas" * doctest::skip(true))
 {
-    sigma lam(0.05);
+    sigma_squared lam(0.05);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     user_data data;
     data.p_lambda = &lam;
@@ -1588,7 +1588,7 @@ TEST_CASE("LikelihoodRatioTest, compute_for_diff_lambdas" * doctest::skip(true))
     data.gene_families[0].set_expression_value("B", 9);
     vector<int> lambda_index(data.gene_families.size(), -1);
     vector<double> pvalues(data.gene_families.size());
-    vector<sigma*> lambdas(100);
+    vector<sigma_squared*> lambdas(100);
     mock_scorer scorer;
     optimizer opt(&scorer);
     LikelihoodRatioTest::compute_for_diff_lambdas_i(data, lambda_index, pvalues, lambdas, &opt);

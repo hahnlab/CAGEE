@@ -52,10 +52,10 @@ private:
 public:
 
     //! Calculate gamma categories and lambda multipliers based on category count and a fixed alpha
-    gamma_model(sigma* p_lambda, std::vector<gene_transcript>* p_gene_families, int n_gamma_cats, double fixed_alpha, error_model *p_error_model);
+    gamma_model(sigma_squared* p_lambda, std::vector<gene_transcript>* p_gene_families, int n_gamma_cats, double fixed_alpha, error_model *p_error_model);
 
     //! Specify gamma categories and lambda multipliers explicitly
-    gamma_model(sigma* p_lambda, std::vector<gene_transcript>* p_gene_families, std::vector<double> gamma_categories, std::vector<double> multipliers, error_model *p_error_model);
+    gamma_model(sigma_squared* p_lambda, std::vector<gene_transcript>* p_gene_families, std::vector<double> gamma_categories, std::vector<double> multipliers, error_model *p_error_model);
 
     void set_alpha(double alpha);
     double get_alpha() const { return _alpha; }
@@ -63,9 +63,9 @@ public:
     void write_probabilities(std::ostream& ost);
 
     //! Randomly select one of the multipliers to apply to the simulation
-    virtual sigma* get_simulation_lambda() override;
+    virtual sigma_squared* get_simulation_lambda() override;
 
-    double infer_family_likelihoods(const user_data& ud, const sigma*p_lambda, const std::gamma_distribution<double>& prior) override;
+    double infer_family_likelihoods(const user_data& ud, const sigma_squared*p_lambda, const std::gamma_distribution<double>& prior) override;
 
     virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const std::vector<std::string>& sample_groups, const std::gamma_distribution<double>& prior) override;
 
@@ -92,7 +92,7 @@ public:
 
     bool can_infer() const;
 
-    bool prune(const gene_transcript& family, const std::gamma_distribution<double>& prior, const matrix_cache& calc, const sigma*p_lambda,
+    bool prune(const gene_transcript& family, const std::gamma_distribution<double>& prior, const matrix_cache& calc, const sigma_squared*p_lambda,
         const clade *p_tree, std::vector<double>& category_likelihoods);
 };
 

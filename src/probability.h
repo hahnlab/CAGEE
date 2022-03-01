@@ -6,7 +6,7 @@
 
 class DiffMat;
 class gene_transcript;
-class sigma;
+class sigma_squared;
 class clade;
 class error_model;
 class matrix_cache;
@@ -14,7 +14,7 @@ class matrix_cache;
 struct pvalue_parameters
 {
     const clade* p_tree;
-    const sigma* p_lambda;
+    const sigma_squared* p_lambda;
     const int max_family_size;
     const int max_root_family_size;
     const matrix_cache& cache;
@@ -29,7 +29,7 @@ size_t adjust_for_error_model(size_t c, const error_model *p_error_model);
 
 double pvalue(double v, const std::vector<double>& conddist);
 
-std::vector<double> inference_prune(const gene_transcript& gf, const matrix_cache& cache, const sigma* _lambda, const error_model* p_error_model, const clade* _p_tree, double _lambda_multiplier);
+std::vector<double> inference_prune(const gene_transcript& gf, const matrix_cache& cache, const sigma_squared* _lambda, const error_model* p_error_model, const clade* _p_tree, double _lambda_multiplier);
 
 int get_upper_bound(const gene_transcript& gt);
 

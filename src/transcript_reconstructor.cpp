@@ -21,7 +21,7 @@ using namespace std;
 using namespace Eigen;
 namespace pv = proportional_variance;
 
-transcript_reconstructor::transcript_reconstructor(const sigma* p_sigma, const clade* p_tree, const matrix_cache* p_cache)
+transcript_reconstructor::transcript_reconstructor(const sigma_squared* p_sigma, const clade* p_tree, const matrix_cache* p_cache)
     : _p_sigma(p_sigma),
     _p_tree(p_tree),
     _p_cache(p_cache)
@@ -267,7 +267,7 @@ branch_probabilities::branch_probability compute_viterbi_sum(const clade* c,
     const gene_transcript& transcript, 
     const reconstruction* rec, 
     const matrix_cache& cache, 
-    const sigma* p_lambda)
+    const sigma_squared* p_lambda)
 {
     if (c->is_root())
     {
@@ -329,12 +329,12 @@ public:
 
 TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript assigns actual values to leaves")
 {
-    sigma sig(0.1);
+    sigma_squared sig(0.1);
     fam.set_expression_value("A", 3.7);
     fam.set_expression_value("D", 9.4);
 
     matrix_cache calc;
-    calc.precalculate_matrices(sig.get_lambdas(), set<int>({ get_upper_bound(fam) }), p_tree->get_branch_lengths());
+    calc.precalculate_matrices(sig.get_values(), set<int>({ get_upper_bound(fam) }), p_tree->get_branch_lengths());
 
     transcript_reconstructor tr(&sig, p_tree.get(), &calc);
 
@@ -346,12 +346,12 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript assigns actual va
 
 TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript calculates parent node values correctly")
 {
-    sigma sig(10.1);
+    sigma_squared sig(10.1);
     fam.set_expression_value("A", 45.2);
     fam.set_expression_value("B", 61.8);
 
     matrix_cache calc;
-    calc.precalculate_matrices(sig.get_lambdas(), set<int>({ get_upper_bound(fam) }), p_tree->get_branch_lengths());
+    calc.precalculate_matrices(sig.get_values(), set<int>({ get_upper_bound(fam) }), p_tree->get_branch_lengths());
 
     transcript_reconstructor tr(&sig, p_tree.get(), &calc);
 
@@ -363,12 +363,12 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript calculates parent
 
 TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns parent 0 with 0s at the leafs")
 {
-    sigma sig(10.1);
+    sigma_squared sig(10.1);
     fam.set_expression_value("A", 0);
     fam.set_expression_value("B", 0);
 
     matrix_cache calc;
-    calc.precalculate_matrices(sig.get_lambdas(), set<int>({ get_upper_bound(fam) }), p_tree->get_branch_lengths());
+    calc.precalculate_matrices(sig.get_values(), set<int>({ get_upper_bound(fam) }), p_tree->get_branch_lengths());
 
     transcript_reconstructor tr(&sig, p_tree.get(), &calc);
     auto actual = tr.reconstruct_gene_transcript(fam);
@@ -378,12 +378,12 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns parent 0 
 TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns correct value at root" * doctest::skip(true))
 {
     // TODO: Create reasonable test case values
-    sigma sig(10.1);
+    sigma_squared sig(10.1);
     fam.set_expression_value("A", 0);
     fam.set_expression_value("B", 0);
 
     matrix_cache calc;
-    calc.precalculate_matrices(sig.get_lambdas(), set<int>({ get_upper_bound(fam) }), p_tree->get_branch_lengths());
+    calc.precalculate_matrices(sig.get_values(), set<int>({ get_upper_bound(fam) }), p_tree->get_branch_lengths());
 
     transcript_reconstructor tr(&sig, p_tree.get(), &calc);
     auto actual = tr.reconstruct_gene_transcript(fam);

@@ -64,7 +64,7 @@ std::ostream& operator<<(std::ostream& ost, const family_info_stash& r)
     return ost;
 }
 
-model::model(sigma* p_lambda,
+model::model(sigma_squared* p_lambda,
     const vector<gene_transcript> *p_gene_families,
     error_model *p_error_model) :
     _ost(cout), _p_sigma(p_lambda),  _p_error_model(p_error_model) 
@@ -84,7 +84,7 @@ void model::write_vital_statistics(std::ostream& ost, const clade *p_tree, doubl
 
 }
 
-sigma* model::get_simulation_lambda()
+sigma_squared* model::get_simulation_lambda()
 {
     return _p_sigma->clone();
 }
@@ -160,27 +160,27 @@ map<string, int> get_sigma_index_map(const std::vector<string>& sample_groups)
 /// be estimated. If the p_lambda_tree is NULL, uses a single
 /// lambda; otherwise uses the number of unique lambdas in the provided
 /// tree
-sigma* initialize_search_sigma(clade* p_lambda_tree, const std::vector<string>& sample_groups)
+sigma_squared* initialize_search_sigma(clade* p_lambda_tree, const std::vector<string>& sample_groups)
 {
-    sigma* p_lambda = NULL;
+    sigma_squared* p_lambda = NULL;
     if (p_lambda_tree != NULL)
     {
         std::set<int> unique_lambdas;
         auto fn = [&unique_lambdas](const clade* p_node) { unique_lambdas.insert(p_node->get_lambda_index()); };
         p_lambda_tree->apply_prefix_order(fn);
         auto node_name_to_lambda_index = p_lambda_tree->get_lambda_index_map();
-        p_lambda = new sigma(node_name_to_lambda_index, std::vector<double>(unique_lambdas.size()), sigma_type::lineage_specific);
+        p_lambda = new sigma_squared(node_name_to_lambda_index, std::vector<double>(unique_lambdas.size()), sigma_type::lineage_specific);
         LOG(INFO) << "Searching for " << unique_lambdas.size() << " sigmas" << endl;
     }
     else if (!sample_groups.empty())
     {
         auto sample_name_to_sigma_index = get_sigma_index_map(sample_groups);
-        p_lambda = new sigma(sample_name_to_sigma_index, std::vector<double>(sample_groups.size()), sigma_type::sample_specific);
+        p_lambda = new sigma_squared(sample_name_to_sigma_index, std::vector<double>(sample_groups.size()), sigma_type::sample_specific);
         LOG(INFO) << "Searching for " << sample_groups.size() << " sigmas" << endl;
     }
     else
     {
-        p_lambda = new sigma(0.0);
+        p_lambda = new sigma_squared(0.0);
     }
 
     return p_lambda;
@@ -188,8 +188,8 @@ sigma* initialize_search_sigma(clade* p_lambda_tree, const std::vector<string>& 
 
 TEST_CASE("initialize_search_sigma returns single sigma if no arguments")
 {
-    unique_ptr<sigma> sig(initialize_search_sigma(nullptr, vector<string>()));
-    CHECK_EQ(1, sig->get_lambdas().size());
+    unique_ptr<sigma_squared> sig(initialize_search_sigma(nullptr, vector<string>()));
+    CHECK_EQ(1, sig->get_values().size());
 }
 
 TEST_CASE("initialize_search_sigma returns lineage-specific with a sigma tree")
@@ -197,8 +197,8 @@ TEST_CASE("initialize_search_sigma returns lineage-specific with a sigma tree")
     string s = "((((cat:1,horse:1):1,cow:1):1,(((((chimp:2,human:2):2,orang:1):1,gibbon:1):1,(macaque:1,baboon:1):1):1,marmoset:1):1):1,(rat:1,mouse:1):1);";
     unique_ptr<clade> p_tree(parse_newick(s, true));
 
-    unique_ptr<sigma> sig(initialize_search_sigma(p_tree.get(), vector<string>()));
-    REQUIRE_EQ(2, sig->get_lambdas().size());
+    unique_ptr<sigma_squared> sig(initialize_search_sigma(p_tree.get(), vector<string>()));
+    REQUIRE_EQ(2, sig->get_values().size());
 
     double values[2] = { 7,14 };
     sig->update(values);
@@ -208,8 +208,8 @@ TEST_CASE("initialize_search_sigma returns lineage-specific with a sigma tree")
 
 TEST_CASE("initialize_search_sigma returns sample-specific with sample groups")
 {
-    unique_ptr<sigma> sig(initialize_search_sigma(nullptr, vector<string>({"heart", "lungs"})));
-    REQUIRE_EQ(2, sig->get_lambdas().size());
+    unique_ptr<sigma_squared> sig(initialize_search_sigma(nullptr, vector<string>({"heart", "lungs"})));
+    REQUIRE_EQ(2, sig->get_values().size());
 
     double values[2] = { 7,14 };
     sig->update(values);
@@ -241,13 +241,13 @@ class mock_model : public model {
     virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const std::vector<string>& sample_groups, const std::gamma_distribution<double>& prior) override { return nullptr; }
     bool _invalid_likelihood = false;
 public:
-    mock_model(sigma *s) : model(s, NULL, NULL) {}
-    virtual double infer_family_likelihoods(const user_data& ud, const sigma* p_lambda, const std::gamma_distribution<double>& prior) override { return 0;  }
+    mock_model(sigma_squared*s) : model(s, NULL, NULL) {}
+    virtual double infer_family_likelihoods(const user_data& ud, const sigma_squared* p_lambda, const std::gamma_distribution<double>& prior) override { return 0;  }
 };
 
 TEST_CASE("Inference: model_vitals")
 {
-    sigma s(75.5);
+    sigma_squared s(75.5);
     mock_model model(&s);
     std::ostringstream ost;
     model.write_vital_statistics(ost, new clade("A", 5), 0.01);

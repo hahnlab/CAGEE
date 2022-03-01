@@ -36,7 +36,7 @@ struct simulated_family
     }
 };
 
-simulated_family create_simulated_family(const clade* p_tree, const sigma* p_sigma, double root_value);
+simulated_family create_simulated_family(const clade* p_tree, const sigma_squared* p_sigma, double root_value);
 root_equilibrium_distribution* create_rootdist(std::string param, const std::vector<std::pair<float, int>>& rootdist);
 
 /*! @brief Build simulated families based on the user's input
@@ -71,7 +71,7 @@ class simulator : public action
 public:
     simulator(user_data& d, const input_parameters& ui);
 
-    simulated_family create_trial(const sigma*p_lambda, int family_number);
+    simulated_family create_trial(const sigma_squared*p_lambda, int family_number);
 
     virtual void execute(std::vector<model *>& models);
     void print_simulations(std::ostream& ost, bool include_internal_nodes, const std::vector<simulated_family>& results, const cladevector& order);

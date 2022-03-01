@@ -7,7 +7,7 @@
 #include "io.h"
 
 struct input_parameters;
-class sigma;
+class sigma_squared;
 class matrix_cache;
 class model;
 class root_distribution_gamma;

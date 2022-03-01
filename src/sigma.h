@@ -9,32 +9,32 @@ class gene_transcript;
 
 enum class sigma_type { uniform, lineage_specific, sample_specific };
 
-class sigma {
+class sigma_squared {
 private:
-    std::map<std::string, int> _node_name_to_lambda_index;
-    std::vector<double> _lambdas;
+    std::map<std::string, int> _node_name_to_sigma_index;
+    std::vector<double> _values;
     sigma_type _type = sigma_type::uniform;
 public:
-    sigma(double lam)
+    sigma_squared(double lam)
     {
-        _lambdas.push_back(lam);
+        _values.push_back(lam);
     }
 
-    sigma(std::map<std::string, int> nodename_index_map, std::vector<double> lambda_vector, sigma_type t) :
-        _node_name_to_lambda_index(nodename_index_map), _lambdas(lambda_vector), _type(t) { } //!< Constructor
+    sigma_squared(std::map<std::string, int> nodename_index_map, std::vector<double> value_vector, sigma_type t) :
+        _node_name_to_sigma_index(nodename_index_map), _values(value_vector), _type(t) { } //!< Constructor
 
-    sigma* multiply(double factor) const
+    sigma_squared* multiply(double factor) const
     {
-        auto npi = _lambdas;
+        auto npi = _values;
 
         for (auto& i : npi)
             i *= factor;
 
-        return new sigma(_node_name_to_lambda_index, npi, _type);
+        return new sigma_squared(_node_name_to_sigma_index, npi, _type);
     }
     void update(const double* values) ;
     int count() const  {
-        return _lambdas.size();
+        return _values.size();
     }
     std::string to_string() const;
     double get_value_for_clade(const clade* c) const ;
@@ -42,16 +42,16 @@ public:
 
     bool is_valid() const ;
 
-    std::vector<double> get_lambdas() const {
-        return _lambdas;
+    std::vector<double> get_values() const {
+        return _values;
     }
-    virtual sigma* clone() const  {
-        return new sigma(_node_name_to_lambda_index, _lambdas, _type);
+    virtual sigma_squared* clone() const  {
+        return new sigma_squared(_node_name_to_sigma_index, _values, _type);
     }
 
 };
 
-inline std::ostream& operator<<(std::ostream& ost, const sigma& sigma)
+inline std::ostream& operator<<(std::ostream& ost, const sigma_squared& sigma)
 {
     ost << sigma.to_string();
     return ost;

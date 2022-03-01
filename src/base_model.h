@@ -6,7 +6,7 @@
 class gene_family_reconstructor;
 class matrix_cache;
 class gene_transcript;
-class sigma;
+class sigma_squared;
 class error_model;
 class root_equilibrium_distribution;
 class reconstruction;
@@ -25,10 +25,10 @@ class base_model : public model {
 
 public:
     //! Computation or estimation constructor
-    base_model(sigma* p_lambda, const std::vector<gene_transcript>* p_gene_families,
+    base_model(sigma_squared* p_lambda, const std::vector<gene_transcript>* p_gene_families,
         error_model *p_error_model);
 
-    virtual double infer_family_likelihoods(const user_data& ud, const sigma*p_lambda, const std::gamma_distribution<double>& prior) override;
+    virtual double infer_family_likelihoods(const user_data& ud, const sigma_squared*p_lambda, const std::gamma_distribution<double>& prior) override;
 
     virtual std::string name() const {
         return "Base";
@@ -40,7 +40,7 @@ public:
 
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache *p_calc);
 
-    virtual sigma* get_simulation_lambda();
+    virtual sigma_squared* get_simulation_lambda();
 
 };
 

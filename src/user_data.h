@@ -12,7 +12,7 @@
 
 class root_equilibrium_distribution;
 class clade;
-class sigma;
+class sigma_squared;
 class error_model;
 struct input_parameters;
 
@@ -24,7 +24,7 @@ public:
 
     }
     clade *p_tree = NULL; // instead of new clade(), o.w. mem leak
-    sigma*p_lambda = NULL;
+    sigma_squared*p_lambda = NULL;
     clade *p_lambda_tree = NULL;
     error_model *p_error_model = NULL;
 
@@ -46,7 +46,7 @@ public:
     clade * read_lambda_tree(const input_parameters &my_input_parameters);
 
     //! Read in single or multiple lambda
-    sigma* read_lambda(const input_parameters &my_input_parameters, clade *p_lambda_tree);
+    sigma_squared* read_lambda(const input_parameters &my_input_parameters, clade *p_lambda_tree);
 
     void read_rootdist(std::string rootdist_file_path);
 };

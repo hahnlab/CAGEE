@@ -118,7 +118,7 @@ public:
 class model {
 protected:
     std::ostream & _ost; 
-    sigma*_p_sigma;
+    sigma_squared*_p_sigma;
     error_model* _p_error_model;
     std::vector<std::vector<int> > _rootdist_bins; // holds the distribution for each lambda bin
 
@@ -130,20 +130,20 @@ protected:
     event_monitor _monitor;
 
 public:
-    model(sigma* p_lambda,
+    model(sigma_squared* p_lambda,
         const std::vector<gene_transcript>* p_gene_families,
         error_model *p_error_model);
     
     virtual ~model() {}
     
-    sigma* get_sigma() const {
+    sigma_squared* get_sigma() const {
         return _p_sigma;
     }
 
     //! Returns a lambda suitable for creating a simulated family. Default case is simply to return the lambda provided by the user.
-    virtual sigma* get_simulation_lambda();
+    virtual sigma_squared* get_simulation_lambda();
 
-    virtual double infer_family_likelihoods(const user_data& ud, const sigma*p_lambda, const std::gamma_distribution<double>& prior) = 0;  // return vector of likelihoods
+    virtual double infer_family_likelihoods(const user_data& ud, const sigma_squared*p_lambda, const std::gamma_distribution<double>& prior) = 0;  // return vector of likelihoods
     
     virtual std::string name() const = 0;
     virtual void write_family_likelihoods(std::ostream& ost) = 0;
@@ -183,7 +183,7 @@ std::set<int> get_all_bounds(const std::vector<gene_transcript>& transcripts);
 /// be estimated. If the sigma tree is NULL, uses a single
 /// sigma; otherwise uses the number of unique sigmas in the provided
 /// tree
-sigma* initialize_search_sigma(clade* p_sigma_tree, const std::vector<std::string>& sample_groups);
+sigma_squared* initialize_search_sigma(clade* p_sigma_tree, const std::vector<std::string>& sample_groups);
 
 #endif /* CORE_H */
 

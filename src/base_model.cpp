@@ -27,7 +27,7 @@ namespace pv = proportional_variance;
 
 extern mt19937 randomizer_engine;
 
-base_model::base_model(sigma* p_lambda, const vector<gene_transcript>* p_gene_families,
+base_model::base_model(sigma_squared* p_lambda, const vector<gene_transcript>* p_gene_families,
     error_model *p_error_model) :
     model(p_lambda, p_gene_families, p_error_model)
 {
@@ -99,7 +99,7 @@ double compute_prior_likelihood(const vector<double>& partial_likelihood, const 
     return *max_element(full.begin(), full.end()); // get max (CAFE's approach)
 }
 
-double base_model::infer_family_likelihoods(const user_data& ud, const sigma *p_sigma, const gamma_distribution<double>& prior) {
+double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squared *p_sigma, const gamma_distribution<double>& prior) {
     //TIMED_FUNC(timerObj);
     _monitor.Event_InferenceAttempt_Started();
 
@@ -113,7 +113,7 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma *p_
     std::vector<double> all_families_likelihood(ud.gene_families.size());
 
     matrix_cache calc;
-    calc.precalculate_matrices(p_sigma->get_lambdas(), get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
+    calc.precalculate_matrices(p_sigma->get_values(), get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
 
     vector<vector<double>> partial_likelihoods(ud.gene_families.size());
 #pragma omp parallel for
@@ -172,7 +172,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
     auto result = new base_model_reconstruction();
 
-    p_calc->precalculate_matrices(_p_sigma->get_lambdas(), get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
+    p_calc->precalculate_matrices(_p_sigma->get_values(), get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
 
 
     for (size_t i = 0; i < ud.gene_families.size(); ++i)
@@ -206,7 +206,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
     return result;
 }
 
-sigma* base_model::get_simulation_lambda()
+sigma_squared* base_model::get_simulation_lambda()
 {
     return _p_sigma->multiply(simulation_lambda_multiplier);
 }
