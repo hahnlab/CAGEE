@@ -650,7 +650,7 @@ bool threshold_achieved(FMinSearch* pfm)
 OptimizerStrategy *optimizer::get_strategy(const optimizer_parameters& params)
 {
 #ifndef OPTIMIZER_STRATEGY
-#define OPTIMIZER_STRATEGY LBFGS
+#define OPTIMIZER_STRATEGY NelderMead
 #endif
 
     pfm->chi = params.neldermead_expansion;
