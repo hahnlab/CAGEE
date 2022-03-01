@@ -77,18 +77,15 @@ simulated_family create_simulated_family(const clade *p_tree, const sigma* p_sig
     sim.lambda = p_sigma->get_value_for_clade(p_tree);
 
     binner b(p_sigma, p_tree, root_value);
-#ifdef MODEL_GENE_EXPRESSION_LOGS 
-    boundaries bounds(log(LOG_OFFSET), b.max_value());
-#else
-    boundaries bounds(0, b.max_value());
-#endif
+
+    boundaries bounds(pv::to_computational_space(0), b.max_value());
 
     sim.values[p_tree] = root_value;
 
     std::function <void(const clade*)> get_child_value;
     get_child_value = [&](const clade* c) {
         double sigma = p_sigma->get_value_for_clade(c);
-        MatrixXd m = ConvProp_bounds(c->get_branch_length(), sigma * sigma / 2, DiffMat::instance(), bounds);
+        MatrixXd m = ConvProp_bounds(c->get_branch_length(), sigma, DiffMat::instance(), bounds);
         VectorXd v = VectorPos_bounds(sim.values[c->get_parent()], DISCRETIZATION_RANGE, bounds);
         VectorXd probs = m * v;
         std::discrete_distribution<int> distribution(probs.data(), probs.data() + probs.size());
@@ -297,11 +294,11 @@ TEST_CASE("create_trial")
 
 #ifdef MODEL_GENE_EXPRESSION_LOGS
     CHECK_EQ(doctest::Approx(1.7918).epsilon(0.0001), actual.values.at(p_tree.get()));
-    CHECK_EQ(doctest::Approx(1.656).epsilon(0.0001), actual.values.at(p_tree->find_descendant("A")));
-    CHECK_EQ(doctest::Approx(1.7695).epsilon(0.0001), actual.values.at(p_tree->find_descendant("B")));
+    CHECK_EQ(doctest::Approx(1.3612).epsilon(0.0001), actual.values.at(p_tree->find_descendant("A")));
+    CHECK_EQ(doctest::Approx(1.372549).epsilon(0.0001), actual.values.at(p_tree->find_descendant("B")));
 #else
     CHECK_EQ(doctest::Approx(5.0), actual.values.at(p_tree.get()));
-    CHECK_EQ(doctest::Approx(4.85931), actual.values.at(p_tree->find_descendant("A")));
+    CHECK_EQ(doctest::Approx(4.6443), actual.values.at(p_tree->find_descendant("A")));
     CHECK_EQ(doctest::Approx(4.988327), actual.values.at(p_tree->find_descendant("B")));
 #endif
 }
@@ -412,11 +409,11 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
      });
 
 #ifdef MODEL_GENE_EXPRESSION_LOGS
-    CHECK_EQ(doctest::Approx(4.4569), mean);
-    CHECK_EQ(doctest::Approx(2.0525), variance);
+    CHECK_EQ(doctest::Approx(6.51779), mean);
+    CHECK_EQ(doctest::Approx(1.22626), variance);
 #else
     CHECK_EQ(doctest::Approx(9.37455), mean);
-    CHECK_EQ(doctest::Approx(9.90501), variance);
+    CHECK_EQ(doctest::Approx(2.78436), variance);
 #endif
 }
 
