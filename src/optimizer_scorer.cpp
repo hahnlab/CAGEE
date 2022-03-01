@@ -37,7 +37,7 @@ double compute_distribution_mean(const user_data& user_data)
     for (auto& tt : user_data.gene_families)
     {
         vector<double> v(species.size());
-        transform(species.begin(), species.end(), v.begin(), [&tt](string s) {return pv::to_user_space(tt.get_expression_value(s));  });
+        transform(species.begin(), species.end(), v.begin(), [&tt](string s) {return tt.get_expression_value(s);  });
         double sz = v.size();
         auto mean = std::accumulate(v.begin(), v.end(), 0.0) / sz;
         variances.push_back(std::accumulate(v.begin(), v.end(), 0.0, [&mean, &sz](double accumulator, const double& val) {
@@ -48,7 +48,7 @@ double compute_distribution_mean(const user_data& user_data)
 
     double species_variance = std::accumulate(variances.begin(), variances.end(), 0.0) / double(variances.size());
 
-    return sqrt(species_variance / user_data.p_tree->distance_from_root_to_tip());
+    return sqrt(species_variance * user_data.p_tree->distance_from_root_to_tip());
 }
 
 // sigma only
@@ -215,8 +215,8 @@ TEST_CASE("sigma_optimizer_scorer constructor calculates tree length and varianc
 
     user_data ud;
     ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
-    ud.gene_families[0].set_expression_value("A", pv::to_computational_space(1));
-    ud.gene_families[0].set_expression_value("B", pv::to_computational_space(2));
+    ud.gene_families[0].set_expression_value("A", 1);
+    ud.gene_families[0].set_expression_value("B", 2);
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     ud.p_tree = p_tree.get();
@@ -225,7 +225,7 @@ TEST_CASE("sigma_optimizer_scorer constructor calculates tree length and varianc
 
     auto guesses = soc.initial_guesses();
     REQUIRE(guesses.size() == 1);
-    CHECK_EQ(doctest::Approx(0.213353), guesses[0]);
+    CHECK_EQ(doctest::Approx(2.22581), guesses[0]);
 
     ud.gene_families.push_back(gene_transcript("TestFamily2", "", ""));
     ud.gene_families[1].set_expression_value("A", 5);
@@ -242,17 +242,17 @@ TEST_CASE("sigma_optimizer_scorer constructor averages variances across all tran
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     ud.p_tree = p_tree.get();
-    ud.gene_families[0].set_expression_value("A", pv::to_computational_space(1));
-    ud.gene_families[0].set_expression_value("B", pv::to_computational_space(2));
-    ud.gene_families[1].set_expression_value("A", pv::to_computational_space(5));
-    ud.gene_families[1].set_expression_value("B", pv::to_computational_space(8));
+    ud.gene_families[0].set_expression_value("A", 1);
+    ud.gene_families[0].set_expression_value("B", 2);
+    ud.gene_families[1].set_expression_value("A", 5);
+    ud.gene_families[1].set_expression_value("B", 8);
 
     sigma s(5);
     sigma_optimizer_scorer soc((model*)nullptr, ud, std::gamma_distribution<double>(1, 2), &s);
 
     auto guesses = soc.initial_guesses();
     REQUIRE(guesses.size() == 1);
-    CHECK_EQ(doctest::Approx(0.48974), guesses[0]);
+    CHECK_EQ(doctest::Approx(4.9897), guesses[0]);
 }
 
 
