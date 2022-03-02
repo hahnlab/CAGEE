@@ -1,10 +1,11 @@
 # 8. Initial guess for Sigma
 
 Date: 2021-03-04
+Modified: 2022-03-22
 
 ## Status
 
-Candidate
+Approved
 
 ## Context
 
@@ -15,7 +16,7 @@ The Nelder-Mead optimizer performs better if given an initial guess that will ap
 The initial guess will be calculated as follows:
 
 * Calculate the mean variance of all of the transcripts (i.e., calculate the variance of each transcript and take the mean)
-* Multiply that by the length of the tree
+* <strike>Multiply </strike>Divide that by the length of the tree
 * Take the square root of that value
 * Select the initial guess from a normal distribution with the mean of that value and stddev of 0.2
 

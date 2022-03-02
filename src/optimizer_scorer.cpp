@@ -48,7 +48,7 @@ double compute_distribution_mean(const user_data& user_data)
 
     double species_variance = std::accumulate(variances.begin(), variances.end(), 0.0) / double(variances.size());
 
-    return sqrt(species_variance * user_data.p_tree->distance_from_root_to_tip());
+    return sqrt(species_variance / user_data.p_tree->distance_from_root_to_tip());
 }
 
 // sigma only
@@ -225,7 +225,7 @@ TEST_CASE("sigma_optimizer_scorer constructor calculates tree length and varianc
 
     auto guesses = soc.initial_guesses();
     REQUIRE(guesses.size() == 1);
-    CHECK_EQ(doctest::Approx(2.22581), guesses[0]);
+    CHECK_EQ(doctest::Approx(0.21335), guesses[0]);
 
     ud.gene_families.push_back(gene_transcript("TestFamily2", "", ""));
     ud.gene_families[1].set_expression_value("A", 5);
@@ -252,7 +252,7 @@ TEST_CASE("sigma_optimizer_scorer constructor averages variances across all tran
 
     auto guesses = soc.initial_guesses();
     REQUIRE(guesses.size() == 1);
-    CHECK_EQ(doctest::Approx(4.9897), guesses[0]);
+    CHECK_EQ(doctest::Approx(0.48974), guesses[0]);
 }
 
 
