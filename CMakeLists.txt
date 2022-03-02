@@ -29,7 +29,7 @@ configure_file(config.h.in config.h)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-set(OPTIMIZER_STRATEGY "LBFGS" CACHE STRING "Optimizer strategy (LBFGS, Nelder-Mead, some others)")
+set(OPTIMIZER_STRATEGY "NelderMead" CACHE STRING "Optimizer strategy (LBFGS, Nelder-Mead, some others)")
 add_definitions(-DOPTIMIZER_STRATEGY=${OPTIMIZER_STRATEGY})
 
 # Define the two required variables before including
