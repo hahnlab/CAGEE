@@ -50,7 +50,12 @@ public:
     }
     double value(int bin) const
     {
-        return bin * _max_value / double(DISCRETIZATION_RANGE-1);
+        double val = bin * _max_value / double(DISCRETIZATION_RANGE - 1);
+
+        // subtract a small amount to deal with floating point inaccuracy
+        // (The value was occasionally larger than max_value otherwise)
+        return val > _max_value ? _max_value - 0.000005 : val;
+
     }
     double max_value() const
     {
