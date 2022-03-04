@@ -14,6 +14,7 @@
 
 #define BOUNDING_STEP_SIZE 20
 #define MATRIX_SIZE_MULTIPLIER 3.0
+#define MATRIX_EPSILON 5e-6
 
 #cmakedefine NOMINMAX @NOMINMAX@
 

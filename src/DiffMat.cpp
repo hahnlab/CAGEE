@@ -99,7 +99,7 @@ VectorXd VectorPos_bounds(double x, int Npts, boundaries bounds) {
         throw std::runtime_error(ost.str());
     }
     VectorXd X = VectorXd::Zero(Npts);
-    if (x == bounds.second)
+    if (abs(x - bounds.second) < MATRIX_EPSILON)
     {
         X[Npts - 1] = 1;
     }

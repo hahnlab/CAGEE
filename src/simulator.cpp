@@ -54,7 +54,7 @@ public:
 
         // subtract a small amount to deal with floating point inaccuracy
         // (The value was occasionally larger than max_value otherwise)
-        return val > _max_value ? _max_value - 0.000005 : val;
+        return val > _max_value ? _max_value - MATRIX_EPSILON : val;
 
     }
     double max_value() const
@@ -76,12 +76,12 @@ void simulator::execute(std::vector<model *>& models)
     simulate(models, _user_input);
 }
 
-simulated_family create_simulated_family(const clade *p_tree, const sigma_squared* p_sigma, double root_value)
+simulated_family create_simulated_family(const clade *p_tree, const sigma_squared* p_sigsqrd, double root_value)
 {
     simulated_family sim;
-    sim.lambda = p_sigma->get_value_for_clade(p_tree);
+    sim.lambda = p_sigsqrd->get_value_for_clade(p_tree);
 
-    binner b(p_sigma, p_tree, root_value);
+    binner b(p_sigsqrd, p_tree, root_value);
 
     boundaries bounds(pv::to_computational_space(0), b.max_value());
 
@@ -89,8 +89,7 @@ simulated_family create_simulated_family(const clade *p_tree, const sigma_square
 
     std::function <void(const clade*)> get_child_value;
     get_child_value = [&](const clade* c) {
-        double sigma = p_sigma->get_value_for_clade(c);
-        MatrixXd m = ConvProp_bounds(c->get_branch_length(), sigma, DiffMat::instance(), bounds);
+        MatrixXd m = ConvProp_bounds(c->get_branch_length(), p_sigsqrd->get_value_for_clade(c) / 2, DiffMat::instance(), bounds);
         VectorXd v = VectorPos_bounds(sim.values[c->get_parent()], DISCRETIZATION_RANGE, bounds);
         VectorXd probs = m * v;
         std::discrete_distribution<int> distribution(probs.data(), probs.data() + probs.size());
@@ -299,11 +298,11 @@ TEST_CASE("create_trial")
 
 #ifdef MODEL_GENE_EXPRESSION_LOGS
     CHECK_EQ(doctest::Approx(1.7918).epsilon(0.0001), actual.values.at(p_tree.get()));
-    CHECK_EQ(doctest::Approx(1.3612).epsilon(0.0001), actual.values.at(p_tree->find_descendant("A")));
-    CHECK_EQ(doctest::Approx(1.372549).epsilon(0.0001), actual.values.at(p_tree->find_descendant("B")));
+    CHECK_EQ(doctest::Approx(1.52001).epsilon(0.0001), actual.values.at(p_tree->find_descendant("A")));
+    CHECK_EQ(doctest::Approx(1.5767).epsilon(0.0001), actual.values.at(p_tree->find_descendant("B")));
 #else
     CHECK_EQ(doctest::Approx(5.0), actual.values.at(p_tree.get()));
-    CHECK_EQ(doctest::Approx(4.6443), actual.values.at(p_tree->find_descendant("A")));
+    CHECK_EQ(doctest::Approx(4.73031), actual.values.at(p_tree->find_descendant("A")));
     CHECK_EQ(doctest::Approx(4.988327), actual.values.at(p_tree->find_descendant("B")));
 #endif
 }
@@ -414,11 +413,11 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
      });
 
 #ifdef MODEL_GENE_EXPRESSION_LOGS
-    CHECK_EQ(doctest::Approx(6.51779), mean);
-    CHECK_EQ(doctest::Approx(1.22626), variance);
+    CHECK_EQ(doctest::Approx(7.53986), mean);
+    CHECK_EQ(doctest::Approx(0.60892), variance);
 #else
-    CHECK_EQ(doctest::Approx(9.37455), mean);
-    CHECK_EQ(doctest::Approx(2.78436), variance);
+    CHECK_EQ(doctest::Approx(9.62125), mean);
+    CHECK_EQ(doctest::Approx(1.2324), variance);
 #endif
 }
 
