@@ -31,16 +31,12 @@ class binner
 {
     double _max_value;
 public:
-    binner(const sigma_squared* p_lambda, const clade* p_tree, double root_size)
+    binner(const sigma_squared* p_sigsqrd, const clade* p_tree, double root_size)
     {
         double t = p_tree->distance_from_root_to_tip();
-        double sigma = p_lambda->get_value_for_clade(p_tree);
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-        // root_size is already in log space here, so we un-log it in order to calculate the log of the whole statement
-        root_size = pv::to_user_space(root_size);
-#endif
+        double sigma = sqrt(p_sigsqrd->get_value_for_clade(p_tree));
 
-        _max_value = pv::to_computational_space(root_size + 4.5 * sigma * sqrt(t));
+        _max_value = root_size + 4.5 * sigma * sqrt(t);
         VLOG(SIMULATOR) << "Root size: " << root_size << " => max value: " << _max_value << " (Tree length: " << t << ", Sigma: " << sigma << ")";
     }
 
@@ -288,7 +284,7 @@ TEST_CASE("create_trial")
 
     user_data data;
     data.p_tree = p_tree.get();
-    data.rootdist = vector<pair<float, int>>({ {1, 1}, { 2,1 }, { 5,1 } });
+    data.rootdist = vector<pair<float, int>>({ {pv::to_user_space(1), 1}, { pv::to_user_space(2),1 }, { pv::to_user_space(5),1 } });
 
     input_parameters params;
     params.rootdist_params = "file:rd.txt";
@@ -296,15 +292,9 @@ TEST_CASE("create_trial")
 
     simulated_family actual = sim.create_trial(&lam, 2);
 
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-    CHECK_EQ(doctest::Approx(1.7918).epsilon(0.0001), actual.values.at(p_tree.get()));
-    CHECK_EQ(doctest::Approx(1.52001).epsilon(0.0001), actual.values.at(p_tree->find_descendant("A")));
-    CHECK_EQ(doctest::Approx(1.5767).epsilon(0.0001), actual.values.at(p_tree->find_descendant("B")));
-#else
     CHECK_EQ(doctest::Approx(5.0), actual.values.at(p_tree.get()));
-    CHECK_EQ(doctest::Approx(4.73031), actual.values.at(p_tree->find_descendant("A")));
-    CHECK_EQ(doctest::Approx(4.988327), actual.values.at(p_tree->find_descendant("B")));
-#endif
+    CHECK_EQ(doctest::Approx(4.74864), actual.values.at(p_tree->find_descendant("A")));
+    CHECK_EQ(doctest::Approx(4.99216), actual.values.at(p_tree->find_descendant("B")));
 }
 
 TEST_CASE("binner")
@@ -313,17 +303,10 @@ TEST_CASE("binner")
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     binner b(&lam, p_tree.get(), 5);
 
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-    CHECK_EQ(106, b.bin(2.7));
-    CHECK_EQ(doctest::Approx(3.02936), b.value(120));
-    CHECK_EQ(51, b.bin(1.3));
-    CHECK_EQ(doctest::Approx(1.0098), b.value(40));
-#else
-    CHECK_EQ(62, b.bin(2.7));
-    CHECK_EQ(doctest::Approx(5.16033), b.value(120));
-    CHECK_EQ(30, b.bin(1.3));
-    CHECK_EQ(doctest::Approx(1.720113), b.value(40)); 
-#endif
+    CHECK_EQ(44, b.bin(2.7));
+    CHECK_EQ(doctest::Approx(7.3056), b.value(120));
+    CHECK_EQ(21, b.bin(1.3));
+    CHECK_EQ(doctest::Approx(2.4352), b.value(40));
 }
 
 TEST_CASE("binner unbins small values correctly")
@@ -331,11 +314,7 @@ TEST_CASE("binner unbins small values correctly")
     sigma_squared s(0.25);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     binner b(&s, p_tree.get(), 5);
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-    CHECK_EQ(doctest::Approx(0.55538), b.value(22));
-#else
-    CHECK_EQ(doctest::Approx(0.94606), b.value(22));
-#endif
+    CHECK_EQ(doctest::Approx(1.33936), b.value(22));
 }
 
 #define CHECK_STREAM_CONTAINS(x,y) CHECK_MESSAGE(x.str().find(y) != std::string::npos, x.str())
@@ -412,13 +391,8 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
         return accumulator + ((val - mean) * (val - mean) / (sz - 1));
      });
 
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-    CHECK_EQ(doctest::Approx(7.53986), mean);
-    CHECK_EQ(doctest::Approx(0.60892), variance);
-#else
-    CHECK_EQ(doctest::Approx(9.62125), mean);
-    CHECK_EQ(doctest::Approx(1.2324), variance);
-#endif
+    CHECK_EQ(doctest::Approx(9.486477), mean);
+    CHECK_EQ(doctest::Approx(1.2909285), variance);
 }
 
 TEST_CASE("print_header")
