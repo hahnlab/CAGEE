@@ -232,7 +232,7 @@ TEST_CASE("compute_prior_likelihood combines prior and inference correctly")
 
     double actual = compute_prior_likelihood(inf, gt, prior);
 #ifdef MODEL_GENE_EXPRESSION_LOGS
-    CHECK_EQ(doctest::Approx(-36.4831), actual);
+    CHECK_EQ(doctest::Approx(-35.7683), actual);
 #else
     CHECK_EQ(doctest::Approx(-5.584), actual);
 #endif

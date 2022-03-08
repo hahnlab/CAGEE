@@ -99,6 +99,12 @@ double chooseln(double n, double r)
 
 /* END: Math tools ----------------------- */
 
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+int get_upper_bound(const gene_transcript& gt)
+{
+    return ceil(gt.get_max_expression_value() * MATRIX_SIZE_MULTIPLIER);
+}
+#else
 int get_upper_bound(const gene_transcript& gt)
 {
     int val = gt.get_max_expression_value() * MATRIX_SIZE_MULTIPLIER;
@@ -108,6 +114,7 @@ int get_upper_bound(const gene_transcript& gt)
 
     return val + BOUNDING_STEP_SIZE - remainder;
 }
+#endif
 
 void print_probabilities(const std::map<const clade*, VectorXd>& probabilities, const clade *node)
 {
@@ -361,6 +368,10 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
 
     vector<double> expected(DISCRETIZATION_RANGE);
 
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+    expected[65] = 2.49285;
+    expected[66] = 0.99836;
+#else
     if (MATRIX_SIZE_MULTIPLIER == 1.5)
     {
         expected[93] = 4.8133125;
@@ -370,8 +381,8 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     {
         expected[62] = 3.2448055556;
         expected[63] = 0.0718611111;
-
     }
+#endif
 
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
@@ -384,6 +395,10 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     actual = probabilities[B];
 
     expected = vector<double>(DISCRETIZATION_RANGE);
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+    expected[65] = 2.49285;
+    expected[66] = 0.99836;
+#else
     if (MATRIX_SIZE_MULTIPLIER == 1.5)
     {
         expected[86] = 4.6391875;
@@ -394,6 +409,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
         expected[57] = 2.0618611111;
         expected[58] = 1.2548055556;
     }
+#endif
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
     {
@@ -584,6 +600,41 @@ TEST_CASE("Inference: prune" * doctest::skip(true))
     }
 }
 
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+/// Bounds are next largest integer if in log space.
+TEST_CASE("Bounds returns next integer of the largest value times MATRIX_SIZE_MULTIPLIER")
+{
+    vector<int> expected({ 3,4,6 });
+
+    gene_transcript gt;
+    gt.set_expression_value("A", .3);
+    gt.set_expression_value("B", .8);
+    CHECK_EQ(expected[0], get_upper_bound(gt));
+
+    gt.set_expression_value("A", 1.1);
+    CHECK_EQ(expected[1], get_upper_bound(gt));
+
+    gt.set_expression_value("B", 1.8);
+    CHECK_EQ(expected[2], get_upper_bound(gt));
+}
+
+TEST_CASE("Bounds never returns less than 1")
+{
+    gene_transcript gt;
+    gt.set_expression_value("A", 0.00005);
+    gt.set_expression_value("B", 0.00004);
+    CHECK_EQ(1, get_upper_bound(gt));
+}
+
+TEST_CASE("Bounds never returns less than 1 even if all values are very small")
+{
+    gene_transcript gt;
+    gt.set_expression_value("A", 0.0000000002);
+    gt.set_expression_value("B", 0.0000000005);
+    CHECK_EQ(1, get_upper_bound(gt));
+}
+#else
+/// Bounds are next largest multiple of 20 if in linear space.
 TEST_CASE("Bounds returns next multiple of 20, of the largest value times MATRIX_SIZE_MULTIPLIER")
 {
     vector<int> expected({ 80,120,140 });
@@ -616,3 +667,4 @@ TEST_CASE("Bounds never returns less than 20 even if all values are less than .3
     gt.set_expression_value("B", 0.1);
     CHECK_EQ(20, get_upper_bound(gt));
 }
+#endif

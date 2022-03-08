@@ -357,7 +357,11 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript calculates parent
 
     auto actual = tr.reconstruct_gene_transcript(fam);
 
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+    CHECK_EQ(47.43, actual[p_tree->find_descendant("AB")]);
+#else
     CHECK_EQ(47.0, actual[p_tree->find_descendant("AB")]);
+#endif
 
 }
 
