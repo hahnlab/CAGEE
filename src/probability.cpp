@@ -396,8 +396,8 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
 
     expected = vector<double>(DISCRETIZATION_RANGE);
 #ifdef MODEL_GENE_EXPRESSION_LOGS
-    expected[65] = 2.49285;
-    expected[66] = 0.99836;
+    expected[60] = 2.10086;
+    expected[61] = 1.390366;
 #else
     if (MATRIX_SIZE_MULTIPLIER == 1.5)
     {

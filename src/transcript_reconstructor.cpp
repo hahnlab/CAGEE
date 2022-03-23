@@ -350,17 +350,22 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript calculates parent
     fam.set_expression_value("A", 45.2);
     fam.set_expression_value("B", 61.8);
 
+    MatrixXd doubler = MatrixXd::Identity(DISCRETIZATION_RANGE, DISCRETIZATION_RANGE) * 2;
     matrix_cache calc;
-    calc.precalculate_matrices(sig.get_values(), set<int>({ get_upper_bound(fam) }), p_tree->get_branch_lengths());
+    for (auto len : p_tree->get_branch_lengths())
+    {
+        calc.set_matrix(len, 10.1, get_upper_bound(fam), doubler);
+    }
+//    calc.precalculate_matrices(sig.get_values(), set<int>({ get_upper_bound(fam) }), p_tree->get_branch_lengths());
 
     transcript_reconstructor tr(&sig, p_tree.get(), &calc);
 
     auto actual = tr.reconstruct_gene_transcript(fam);
 
 #ifdef MODEL_GENE_EXPRESSION_LOGS
-    CHECK_EQ(47.43, actual[p_tree->find_descendant("AB")]);
+    CHECK_EQ(61.38, actual[p_tree->find_descendant("AB")]);
 #else
-    CHECK_EQ(47.0, actual[p_tree->find_descendant("AB")]);
+    CHECK_EQ(45.0, actual[p_tree->find_descendant("AB")]);
 #endif
 
 }

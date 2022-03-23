@@ -230,16 +230,6 @@ TEST_CASE("Inference: stash_stream")
 
 }
 
-TEST_CASE("Probability:matrices_take_fractional_branch_lengths_into_account" * doctest::skip(true))
-{
-    sigma_squared lambda(0.006335);
-    matrix_cache calc;
-    std::set<double> branch_lengths{ 68, 68.7105 };
-    calc.precalculate_matrices(lambda.get_values(), set<int>({3}), branch_lengths);
-    CHECK_EQ(doctest::Approx(0.194661).epsilon(0.0001), calc.get_matrix(lambda.get_values()[0], 68.7105, 0.006335)(5, 5)); // a value 
-    CHECK_EQ(doctest::Approx(0.195791).epsilon(0.0001), calc.get_matrix(lambda.get_values()[0], 68,0.006335)(5, 5));
-}
-
 bool operator==(const MatrixXd& m1, const MatrixXd& m2)
 {
     if (m1.size() != m2.size())
@@ -255,30 +245,6 @@ bool operator==(const MatrixXd& m1, const MatrixXd& m2)
     return true;
 }
 
-
-TEST_CASE("Probability: probability_of_matrix" * doctest::skip(true))
-{
-    sigma_squared lambda(0.05);
-    matrix_cache calc;
-    std::set<double> branch_lengths{ 5 };
-    calc.precalculate_matrices(lambda.get_values(), set<int>(), branch_lengths);
-    auto actual = calc.get_matrix(5, lambda.get_values()[0], 0);
-    MatrixXd expected(5,5);
-    double values[5][5] = {
-    {1,0,0,0,0},
-    { 0.2,0.64,0.128,0.0256,0.00512 },
-    { 0.04,0.256,0.4608,0.17408,0.0512 },
-    { 0.008,0.0768,0.26112,0.36352,0.187392 },
-    { 0.0016,0.02048,0.1024,0.249856,0.305562 } };
-    for (int i = 0; i < 5; ++i)
-        for (int j = 0; j < 5; ++j)
-            expected(i, j) = values[i][j];
-    CHECK(actual == expected);
-
-    // a second call should get the same results as the first
-    actual = calc.get_matrix(5, lambda.get_values()[0], 0);
-    CHECK(actual == expected);
-}
 
 TEST_CASE("Probability: get_random_probabilities" * doctest::skip(true))
 {
