@@ -101,6 +101,7 @@ VectorXd VectorPos_bounds(double x, int Npts, boundaries bounds) {
     VectorXd X = VectorXd::Zero(Npts);
     if (abs(x - bounds.second) < MATRIX_EPSILON)
     {
+        LOG(WARNING) << "Calculating probability for " << x << " with upper bound of " << bounds.second;
         X[Npts - 1] = 1;
     }
     else
