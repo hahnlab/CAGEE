@@ -25,10 +25,10 @@ void maybe_set(const po::variables_map& vm, string key, T& value)
 void show_version()
 {
     string desc = "\nUsage: cagee [options]\n\n"
-        "CAGEE is a software that provides a statistical foundation for evolutionary inferences about changes in gene family size.\n "
-        "The program employs a birth and death process to model gene gain and loss across a user-specified phylogenetic tree,\n "
-        "thus accounting for the species phylogenetic history. The distribution of family sizes generated under this model can\n "
-        "provide a basis for assessing the significance of the observed family size differences among taxa.\n\n";
+        "CAGEE is a software that provides a statistical foundation for evolutionary inferences about changes in gene expression.\n "
+        "The program employs a Brownian motion process to model gene expression across a user-specified phylogenetic tree,\n "
+        "thus accounting for the species phylogenetic history. The distribution of gene expression generated under this model can\n "
+        "provide a basis for assessing the significance of the observed expression differences among taxa.\n\n";
 
     cout << PROJECT_NAME " " PROJECT_VER << endl;
     cout << desc;
