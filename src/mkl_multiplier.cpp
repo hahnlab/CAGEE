@@ -13,6 +13,7 @@ vector<MatrixXd> mkl_multiplier::doit(const vector<MatrixXcd>& matrices, const M
 
     size_t count = matrices.size();
     vector<MatrixXd> vResult(count);
+#pragma omp parallel for
     for (size_t k = 0; k < count; ++k)
     {
         MatrixXcd a(Npts, Npts);

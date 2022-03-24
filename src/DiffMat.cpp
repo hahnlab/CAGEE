@@ -76,9 +76,12 @@ vector<MatrixXd> ConvProp_bounds_batched(vector<double> vt, vector<double> cCoef
             expD[i] = exp(cCoeff[k] * (vt[k] / tau) * dMat.eig[i].real());
         }
         MatrixXcd temp(Npts, Npts);
+#pragma omp parallel for
         for (int i = 0; i < Npts; ++i)
+        {
             for (int j = 0; j < Npts; ++j)
                 temp(i, j) = dMat.passage(i, j) * expD[j];
+        }
         vTemp[k] = temp;
     }
     MatrixXcd transpose = dMat.passage.transpose();
