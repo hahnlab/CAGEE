@@ -89,10 +89,9 @@ std::vector<double> sigma_optimizer_scorer::initial_guesses()
             _distribution_mean = new double(compute_distribution_mean(_user_data));
 
         guesses.resize(_p_sigma->count());
-        std::normal_distribution<double> distribution(*_distribution_mean, 0.2);
         for (auto& i : guesses)
         {
-            i = distribution(randomizer_engine);
+            i = *_distribution_mean;
         }
     }
 
@@ -211,8 +210,6 @@ void sigma_optimizer_scorer::force_distribution_mean(double tree_length, double 
 
 TEST_CASE("sigma_optimizer_scorer constructor calculates tree length and variance")
 {
-    randomizer_engine.seed(10);
-
     user_data ud;
     ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
     ud.gene_families[0].set_expression_value("A", 1);
@@ -225,7 +222,7 @@ TEST_CASE("sigma_optimizer_scorer constructor calculates tree length and varianc
 
     auto guesses = soc.initial_guesses();
     REQUIRE(guesses.size() == 1);
-    CHECK_EQ(doctest::Approx(0.21335), guesses[0]);
+    CHECK_EQ(doctest::Approx(0.22360), guesses[0]);
 
     ud.gene_families.push_back(gene_transcript("TestFamily2", "", ""));
     ud.gene_families[1].set_expression_value("A", 5);
@@ -234,8 +231,6 @@ TEST_CASE("sigma_optimizer_scorer constructor calculates tree length and varianc
 
 TEST_CASE("sigma_optimizer_scorer constructor averages variances across all transcripts")
 {
-    randomizer_engine.seed(10);
-
     user_data ud;
     ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
     ud.gene_families.push_back(gene_transcript("TestFamily2", "", ""));
@@ -252,7 +247,7 @@ TEST_CASE("sigma_optimizer_scorer constructor averages variances across all tran
 
     auto guesses = soc.initial_guesses();
     REQUIRE(guesses.size() == 1);
-    CHECK_EQ(doctest::Approx(0.48974), guesses[0]);
+    CHECK_EQ(doctest::Approx(0.5), guesses[0]);
 }
 
 
@@ -274,8 +269,6 @@ public:
 
 TEST_CASE("lambda_epsilon_optimizer guesses lambda and unique epsilons")
 {
-    randomizer_engine.seed(10);
-
     error_model err;
     err.set_probabilities(0, { .0, .7, .3 });
     err.set_probabilities(1, { .4, .2, .4 });
@@ -287,7 +280,7 @@ TEST_CASE("lambda_epsilon_optimizer guesses lambda and unique epsilons")
     leo.force_distribution_mean(10, 1);
     auto guesses = leo.initial_guesses();
     REQUIRE(guesses.size() == 3);
-    CHECK_EQ(doctest::Approx(0.30597).epsilon(0.00001), guesses[0]);
+    CHECK_EQ(doctest::Approx(0.31622).epsilon(0.00001), guesses[0]);
     CHECK_EQ(0.3, guesses[1]);
     CHECK_EQ(0.4, guesses[2]);
 }

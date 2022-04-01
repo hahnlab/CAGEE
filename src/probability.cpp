@@ -102,7 +102,7 @@ double chooseln(double n, double r)
 #ifdef MODEL_GENE_EXPRESSION_LOGS
 int get_upper_bound(const gene_transcript& gt)
 {
-    return ceil(gt.get_max_expression_value() * MATRIX_SIZE_MULTIPLIER);
+    return max(1.0, ceil(gt.get_max_expression_value() * MATRIX_SIZE_MULTIPLIER));
 }
 #else
 int get_upper_bound(const gene_transcript& gt)
@@ -604,18 +604,16 @@ TEST_CASE("Inference: prune" * doctest::skip(true))
 /// Bounds are next largest integer if in log space.
 TEST_CASE("Bounds returns next integer of the largest value times MATRIX_SIZE_MULTIPLIER")
 {
-    vector<int> expected({ 3,4,6 });
-
     gene_transcript gt;
     gt.set_expression_value("A", .3);
     gt.set_expression_value("B", .8);
-    CHECK_EQ(expected[0], get_upper_bound(gt));
+    CHECK_EQ(3, get_upper_bound(gt));
 
     gt.set_expression_value("A", 1.1);
-    CHECK_EQ(expected[1], get_upper_bound(gt));
+    CHECK_EQ(4, get_upper_bound(gt));
 
     gt.set_expression_value("B", 1.8);
-    CHECK_EQ(expected[2], get_upper_bound(gt));
+    CHECK_EQ(6, get_upper_bound(gt));
 }
 
 TEST_CASE("Bounds never returns less than 1")
@@ -633,23 +631,30 @@ TEST_CASE("Bounds never returns less than 1 even if all values are very small")
     gt.set_expression_value("B", 0.0000000005);
     CHECK_EQ(1, get_upper_bound(gt));
 }
+
+TEST_CASE("Bounds never returns less than 1 even if all values are zero")
+{
+    gene_transcript gt;
+    gt.set_expression_value("A", 0);
+    gt.set_expression_value("B", 0);
+    CHECK_EQ(1, get_upper_bound(gt));
+}
 #else
 /// Bounds are next largest multiple of 20 if in linear space.
 TEST_CASE("Bounds returns next multiple of 20, of the largest value times MATRIX_SIZE_MULTIPLIER")
 {
-    vector<int> expected({ 80,120,140 });
     if (MATRIX_SIZE_MULTIPLIER < 3) expected = vector<int>({ 40, 60, 80 });
 
     gene_transcript gt;
     gt.set_expression_value("A", 12);
     gt.set_expression_value("B", 24);
-    CHECK_EQ(expected[0], get_upper_bound(gt));
+    CHECK_EQ(80, get_upper_bound(gt));
 
     gt.set_expression_value("A", 40);
-    CHECK_EQ(expected[1], get_upper_bound(gt));
+    CHECK_EQ(120, get_upper_bound(gt));
 
     gt.set_expression_value("B", 41);
-    CHECK_EQ(expected[2], get_upper_bound(gt));
+    CHECK_EQ(140, get_upper_bound(gt));
 }
 
 TEST_CASE("Bounds never returns less than 20")

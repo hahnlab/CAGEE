@@ -246,13 +246,12 @@ TEST_CASE("base optimizer guesses sigma only")
     ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
     ud.gene_families[0].set_expression_value("A", 1);
     ud.gene_families[0].set_expression_value("B", 2);
-    randomizer_engine.seed(10);
 
     base_model model(ud.p_lambda, NULL, NULL);
 
     unique_ptr<sigma_optimizer_scorer> opt(model.get_sigma_optimizer(ud, vector<string>(), std::gamma_distribution<double>(1, 2)));
     auto guesses = opt->initial_guesses();
     CHECK_EQ(1, guesses.size());
-    CHECK_EQ(doctest::Approx(0.69685).epsilon(0.00001), guesses[0]);
+    CHECK_EQ(doctest::Approx(0.7071).epsilon(0.00001), guesses[0]);
     delete model.get_sigma();
 }
