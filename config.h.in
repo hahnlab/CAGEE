@@ -29,6 +29,7 @@
 
 #cmakedefine MODEL_GENE_EXPRESSION_LOGS @MODEL_GENE_EXPRESSION_LOGS@
 #cmakedefine LOG_OFFSET @LOG_OFFSET@
+#cmakedefine USE_MAX_PROBABILITY @USE_MAX_PROBABILITY@
 
 /* Verbose log keys for various aspects of the application */
 #define TRANSCRIPT_RECONSTRUCTION 2

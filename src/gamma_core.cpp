@@ -134,8 +134,11 @@ bool gamma_model::prune(const gene_transcript& family, const std::gamma_distribu
             full[j] = partial_likelihood[j] * eq_freq;
         }
 
-        //        _category_likelihoods.push_back(accumulate(full.begin(), full.end(), 0.0) * _gamma_cat_probs[k]); // sum over all sizes (Felsenstein's approach)
+#ifdef USE_MAX_PROBABILITY
         category_likelihoods.push_back(*max_element(full.begin(), full.end()) * _gamma_cat_probs[k]); // get max (CAFE's approach)
+#else
+        category_likelihoods.push_back(accumulate(full.begin(), full.end(), 0.0) * _gamma_cat_probs[k]); // sum over all sizes (Felsenstein's approach)
+#endif
     }
 
     return true;

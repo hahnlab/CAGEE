@@ -95,8 +95,11 @@ double compute_prior_likelihood(const vector<double>& partial_likelihood, const 
                full[j] = -numeric_limits<double>::infinity();
     }
 
-    // return accumulate(full.begin(), full.end(), 0.0); // sum over all sizes (Felsenstein's approach)
+#ifdef USE_MAX_PROBABILITY
     return *max_element(full.begin(), full.end()); // get max (CAFE's approach)
+#else
+    return accumulate(full.begin(), full.end(), 0.0); // sum over all sizes (Felsenstein's approach)
+#endif
 }
 
 double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squared *p_sigma, const gamma_distribution<double>& prior) {
@@ -232,7 +235,11 @@ TEST_CASE("compute_prior_likelihood combines prior and inference correctly")
 
     double actual = compute_prior_likelihood(inf, gt, prior);
 #ifdef MODEL_GENE_EXPRESSION_LOGS
+#ifdef USE_MAX_PROBABILITY
     CHECK_EQ(doctest::Approx(-35.7683), actual);
+#else
+    CHECK_EQ(doctest::Approx(-158.5437), actual);
+#endif
 #else
     CHECK_EQ(doctest::Approx(-5.584), actual);
 #endif
