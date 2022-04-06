@@ -50,7 +50,7 @@ const Eigen::MatrixXd& matrix_cache::get_matrix(double branch_length, double sig
     }
 }
 
-void matrix_cache::precalculate_matrices(const std::vector<double>& sigmas, const set<int>& boundses, const std::set<double>& branch_lengths)
+void matrix_cache::precalculate_matrices(const std::vector<double>& squared_sigmas, const set<int>& boundses, const std::set<double>& branch_lengths)
 {
     // build a list of required matrices
     vector<matrix_cache_key> keys;
@@ -58,9 +58,9 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& sigmas, cons
     {
         for (double branch_length : branch_lengths)
         {
-            for (double sigma : sigmas)
+            for (double sigsqd : squared_sigmas)
             {
-                matrix_cache_key key(bounds, sigma, branch_length);
+                matrix_cache_key key(bounds, sigsqd, branch_length);
                 if (_matrix_cache.find(key) == _matrix_cache.end())
                 {
                     keys.push_back(key);
@@ -74,11 +74,11 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& sigmas, cons
     size_t num_keys = keys.size();
     vector<boundaries> vBounds(keys.size());
     vector<double> vBranches(keys.size());
-    vector<double> vSigmas(keys.size());
+    vector<double> vSigSqd(keys.size());
     transform(keys.begin(), keys.end(), vBounds.begin(), [](matrix_cache_key k) { return boundaries(0,k.bound()); });
     transform(keys.begin(), keys.end(), vBranches.begin(), [](matrix_cache_key k) { return k.branch_length(); });
-    transform(keys.begin(), keys.end(), vSigmas.begin(), [](matrix_cache_key k) { return k.sigma() / 2; });
-    auto matrices = ConvProp_bounds_batched(vBranches, vSigmas, DiffMat::instance(), vBounds);
+    transform(keys.begin(), keys.end(), vSigSqd.begin(), [](matrix_cache_key k) { return k.sigma() / 2; });
+    auto matrices = ConvProp_bounds_batched(vBranches, vSigSqd, DiffMat::instance(), vBounds);
     for (i = 0; i < num_keys; ++i)
     {
         _matrix_cache[keys[i]] = matrices[i];

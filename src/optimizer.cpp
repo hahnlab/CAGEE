@@ -339,6 +339,8 @@ optimizer::~optimizer()
 
 std::vector<double> optimizer::get_initial_guesses()
 {
+    LOG(INFO) << "Starting Search for Initial Parameter Values";
+
     auto initial = _p_scorer->initial_guesses();
 
     int i = 0;
@@ -354,6 +356,7 @@ std::vector<double> optimizer::get_initial_guesses()
         throw OptimizerInitializationFailure();
     }
 
+    LOG(INFO) << "Initial values selected";
     return initial;
 }
 
@@ -597,7 +600,6 @@ optimizer::result optimizer::optimize(const optimizer_parameters& params)
         LOG(INFO) << "Iterations: " << params.neldermead_iterations;
         LOG(INFO) << "Expansion: " << params.neldermead_expansion;
         LOG(INFO) << "Reflection: " << params.neldermead_reflection << "\n";
-        LOG(INFO) << "Starting Search for Initial Parameter Values";
     }
 
     using clock = std::chrono::system_clock;

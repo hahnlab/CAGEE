@@ -262,6 +262,6 @@ TEST_CASE("base optimizer guesses sigma only")
     unique_ptr<sigma_optimizer_scorer> opt(model.get_sigma_optimizer(ud, vector<string>(), std::gamma_distribution<double>(1, 2)));
     auto guesses = opt->initial_guesses();
     CHECK_EQ(1, guesses.size());
-    CHECK_EQ(doctest::Approx(0.7071).epsilon(0.00001), guesses[0]);
+    CHECK_EQ(0.5, guesses[0]);
     delete model.get_sigma();
 }
