@@ -115,13 +115,13 @@ bool gamma_model::can_infer() const
 }
 
 bool gamma_model::prune(const gene_transcript& family, const std::gamma_distribution<double>& prior, const matrix_cache& diff_mat, const sigma_squared*p_lambda,
-    const clade *p_tree, std::vector<double>& category_likelihoods) 
+    const clade *p_tree, std::vector<double>& category_likelihoods, int upper_bound) 
 {
     category_likelihoods.clear();
 
     for (size_t k = 0; k < _gamma_cat_probs.size(); ++k)
     {
-        auto partial_likelihood = inference_prune(family, diff_mat, p_lambda, _p_error_model, p_tree, _lambda_multipliers[k]);
+        auto partial_likelihood = inference_prune(family, diff_mat, p_lambda, _p_error_model, p_tree, _lambda_multipliers[k], upper_bound);
         if (accumulate(partial_likelihood.begin(), partial_likelihood.end(), 0.0) == 0.0)
             return false;   // saturation
 
@@ -148,6 +148,8 @@ bool gamma_model::prune(const gene_transcript& family, const std::gamma_distribu
 double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma_squared*p_lambda, const std::gamma_distribution<double>& prior) {
 
     _monitor.Event_InferenceAttempt_Started();
+
+    unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create());
 
     results.clear();
 
@@ -178,7 +180,7 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma_sq
     for (int i = 0; i < ud.gene_families.size(); i++) {
         auto& cat_likelihoods = _category_likelihoods[i];
 
-        if (prune(ud.gene_families.at(i), prior, cache, p_lambda, ud.p_tree, cat_likelihoods))
+        if (prune(ud.gene_families.at(i), prior, cache, p_lambda, ud.p_tree, cat_likelihoods, bound_calculator->get(ud.gene_families.at(i))))
         {
             double family_likelihood = accumulate(cat_likelihoods.begin(), cat_likelihoods.end(), 0.0);
 
@@ -272,6 +274,8 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
 {
     LOG(INFO) << "Starting reconstruction processes for Gamma model";
 
+    unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create());
+
     auto values = _p_sigma->get_values();
     vector<double> all;
     for (double multiplier : _lambda_multipliers)
@@ -302,7 +306,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
 
         for (int i = 0; i < ud.gene_families.size(); ++i)
         {
-            recs[i]->category_reconstruction[k] = tr.reconstruct_gene_transcript(ud.gene_families[i]);
+            recs[i]->category_reconstruction[k] = tr.reconstruct_gene_transcript(ud.gene_families[i], bound_calculator->get(ud.gene_families[i]));
         }
     }
 

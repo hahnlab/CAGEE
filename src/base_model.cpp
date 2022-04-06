@@ -62,9 +62,10 @@ vector<size_t> build_reference_list(const vector<gene_transcript>& families)
 
 set<int> get_all_bounds(const vector<gene_transcript>& transcripts)
 {
+    unique_ptr<upper_bound_calculator> calc(upper_bound_calculator::create());
     vector<int> boundses(transcripts.size());
-    transform(transcripts.begin(), transcripts.end(), boundses.begin(), [](const gene_transcript& gf) {
-        return get_upper_bound(gf);
+    transform(transcripts.begin(), transcripts.end(), boundses.begin(), [&calc](const gene_transcript& gf) {
+        return calc->get(gf);
         });
 
     return set<int>(boundses.begin(), boundses.end());
@@ -80,12 +81,11 @@ inline double computational_space_prior(double val, const gamma_distribution<dou
 #endif
 
 }
-double compute_prior_likelihood(const vector<double>& partial_likelihood, const gene_transcript& t, const gamma_distribution<double>& prior)
+double compute_prior_likelihood(const vector<double>& partial_likelihood, const gene_transcript& t, const gamma_distribution<double>& prior, int upper_bound)
 {
     std::vector<double> full(partial_likelihood.size());
-    double bound = get_upper_bound(t);
     for (size_t j = 0; j < partial_likelihood.size(); ++j) {
-        double x = (double(j) + 0.5) * bound / (DISCRETIZATION_RANGE - 1);
+        double x = (double(j) + 0.5) * double(upper_bound) / (DISCRETIZATION_RANGE - 1);
 
         full[j] = partial_likelihood[j] * computational_space_prior(x, prior);
 
@@ -105,6 +105,8 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
     //TIMED_FUNC(timerObj);
     _monitor.Event_InferenceAttempt_Started();
 
+    unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create());
+
     if (!p_sigma->is_valid())
     {
         _monitor.Event_InferenceAttempt_InvalidValues();
@@ -121,7 +123,7 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
 #pragma omp parallel for
     for (int i = 0; i < ud.gene_families.size(); ++i) {
         if (references[i] == i)
-            partial_likelihoods[i] = inference_prune(ud.gene_families.at(i), calc, p_sigma, _p_error_model, ud.p_tree, 1.0);
+            partial_likelihoods[i] = inference_prune(ud.gene_families.at(i), calc, p_sigma, _p_error_model, ud.p_tree, 1.0, bound_calculator->get(ud.gene_families.at(i)));
             // probabilities of various family sizes
     }
 
@@ -129,7 +131,7 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
 #pragma omp parallel for
     for (int i = 0; i < ud.gene_families.size(); ++i) {
 
-        all_families_likelihood[i] = compute_prior_likelihood(partial_likelihoods[references[i]], ud.gene_families[i], prior);
+        all_families_likelihood[i] = compute_prior_likelihood(partial_likelihoods[references[i]], ud.gene_families[i], prior, bound_calculator->get(ud.gene_families[i]));
         
         results[i] = family_info_stash(ud.gene_families.at(i).id(), 0.0, 0.0, 0.0, all_families_likelihood[i], false);
     }
@@ -188,9 +190,11 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 //    pupko_reconstructor::pupko_data data(ud.gene_families.size(), ud.p_tree, ud.max_family_size, ud.max_root_family_size);
     transcript_reconstructor tr(_p_sigma, ud.p_tree, p_calc);
 
+    unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create());
+
     for (int i = 0; i< ud.gene_families.size(); ++i)
     {
-        result->_reconstructions[ud.gene_families[i].id()] = tr.reconstruct_gene_transcript(ud.gene_families[i]);
+        result->_reconstructions[ud.gene_families[i].id()] = tr.reconstruct_gene_transcript(ud.gene_families[i], bound_calculator->get(ud.gene_families[i]));
     }
 
 //    size_t success = count_if(tr.v_all_node_Ls.begin(), tr.v_all_node_Ls.end(), [this, &ud](const clademap<Eigen::VectorXd>& L)
@@ -232,12 +236,12 @@ TEST_CASE("compute_prior_likelihood combines prior and inference correctly")
     gamma_distribution<double> prior(0.75, 1/30.0);
     vector<double> inf{ 0.1, 0.2, 0.3};
 
-    double actual = compute_prior_likelihood(inf, gt, prior);
+    double actual = compute_prior_likelihood(inf, gt, prior, 80);
 #ifdef MODEL_GENE_EXPRESSION_LOGS
 #ifdef USE_MAX_PROBABILITY
     CHECK_EQ(doctest::Approx(-35.7683), actual);
 #else
-    CHECK_EQ(doctest::Approx(-35.76831), actual);
+    CHECK_EQ(doctest::Approx(-36.4831), actual);
 #endif
 #else
     CHECK_EQ(doctest::Approx(-5.584), actual);

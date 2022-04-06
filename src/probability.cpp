@@ -99,22 +99,39 @@ double chooseln(double n, double r)
 
 /* END: Math tools ----------------------- */
 
+
+class upper_bound_calculator_linear_space : public upper_bound_calculator
+{
+public:
+    virtual int get(const gene_transcript& gt) const override
+    {
+        int val = gt.get_max_expression_value() * MATRIX_SIZE_MULTIPLIER;
+
+        int remainder = val % BOUNDING_STEP_SIZE;
+        if (remainder == 0 && val > 0) return val;
+
+        return val + BOUNDING_STEP_SIZE - remainder;
+    }
+};
+
+class upper_bound_calculator_log_space : public upper_bound_calculator
+{
+public:
+    virtual int get(const gene_transcript& gt) const override
+    {
+        return max(1.0, ceil(gt.get_max_expression_value() * MATRIX_SIZE_MULTIPLIER));
+    }
+};
+
+upper_bound_calculator* upper_bound_calculator::create()
+{
 #ifdef MODEL_GENE_EXPRESSION_LOGS
-int get_upper_bound(const gene_transcript& gt)
-{
-    return max(1.0, ceil(gt.get_max_expression_value() * MATRIX_SIZE_MULTIPLIER));
-}
+    return new upper_bound_calculator_log_space();
 #else
-int get_upper_bound(const gene_transcript& gt)
-{
-    int val = gt.get_max_expression_value() * MATRIX_SIZE_MULTIPLIER;
-
-    int remainder = val % BOUNDING_STEP_SIZE;
-    if (remainder == 0 && val > 0) return val;
-
-    return val + BOUNDING_STEP_SIZE - remainder;
-}
+    return new upper_bound_calculator_linear_space();
 #endif
+}
+
 
 void print_probabilities(const std::map<const clade*, VectorXd>& probabilities, const clade *node)
 {
@@ -136,7 +153,8 @@ void compute_node_probability(const clade* node,
     const error_model* p_error_model,
     std::map<const clade*, VectorXd>& probabilities,
     const sigma_squared* p_sigma,
-    const matrix_cache& cache)
+    const matrix_cache& cache,
+    int upper_bound)
 {
     if (node->is_leaf()) {
         double species_size = gene_transcript.get_expression_value(node->get_taxon_name());
@@ -156,7 +174,7 @@ void compute_node_probability(const clade* node,
         else
         {
             // cout << "Leaf node " << node->get_taxon_name() << " has " << _probabilities[node].size() << " probabilities" << endl;
-            probabilities[node] = VectorPos_bounds(species_size, DISCRETIZATION_RANGE, boundaries(0, get_upper_bound(gene_transcript)));
+            probabilities[node] = VectorPos_bounds(species_size, DISCRETIZATION_RANGE, boundaries(0, upper_bound));
             //print_probabilities(probabilities, node);
         }
     }
@@ -165,7 +183,7 @@ void compute_node_probability(const clade* node,
         node_probs = VectorXd::Constant(DISCRETIZATION_RANGE, 1);
 
         for (auto it = node->descendant_begin(); it != node->descendant_end(); ++it) {
-            const MatrixXd& m = cache.get_matrix((*it)->get_branch_length(), p_sigma->get_named_value(*it, gene_transcript), get_upper_bound(gene_transcript));
+            const MatrixXd& m = cache.get_matrix((*it)->get_branch_length(), p_sigma->get_named_value(*it, gene_transcript), upper_bound);
 
             VectorXd result = m * probabilities[*it];
             for (VectorXd::Index i = 0; i < node_probs.size(); i++) {
@@ -194,7 +212,7 @@ std::vector<int> uniform_dist(int n_draws, int min, int max) {
     return uniform_vec;
 }
 
-vector<double> compute_family_probabilities(pvalue_parameters p, vector<simulated_family>& sizes, int root_family_size)
+vector<double> compute_family_probabilities(pvalue_parameters p, vector<simulated_family>& sizes, int root_family_size, const upper_bound_calculator& bound_calculator)
 {
     vector<double> result(sizes.size());
 
@@ -226,7 +244,7 @@ vector<double> compute_family_probabilities(pvalue_parameters p, vector<simulate
     for (int i = 0; i < result.size(); ++i)
     {
         for (auto it = p.p_tree->reverse_level_begin(); it != p.p_tree->reverse_level_end(); ++it)
-            compute_node_probability(*it, families[i], NULL, pruners[i], p.p_lambda, p.cache);
+            compute_node_probability(*it, families[i], NULL, pruners[i], p.p_lambda, p.cache, bound_calculator.get(families[i]));
         result[i] = *std::max_element(pruners[i].at(p.p_tree).data(), pruners[i].at(p.p_tree).data() + pruners[i].at(p.p_tree).size());
     }
     return result;
@@ -244,11 +262,12 @@ vector<double> compute_family_probabilities(pvalue_parameters p, vector<simulate
 */
 std::vector<double> get_random_probabilities(pvalue_parameters p, int number_of_simulations, int root_family_size)
 {
+    unique_ptr< upper_bound_calculator> bound(upper_bound_calculator::create());
     vector<simulated_family> families(number_of_simulations);
 
     generate(families.begin(), families.end(), [p, root_family_size]() { return create_simulated_family(p.p_tree, p.p_lambda, root_family_size); });
 
-    auto result = compute_family_probabilities(p, families, root_family_size);
+    auto result = compute_family_probabilities(p, families, root_family_size, *bound.get());
 
     sort(result.begin(), result.end());
 
@@ -310,14 +329,20 @@ double find_best_pvalue(const gene_transcript& fam, const VectorXd& root_probabi
 /// and a given multiplier. Works by calling \ref compute_node_probability on all nodes of the tree
 /// using the species counts for the family. 
 /// \returns a vector of probabilities for gene counts at the root of the tree 
-std::vector<double> inference_prune(const gene_transcript& gf, const matrix_cache& cache, const sigma_squared* p_lambda, const error_model* p_error_model, const clade* p_tree, double lambda_multiplier)
+std::vector<double> inference_prune(const gene_transcript& gf, 
+    const matrix_cache& cache, 
+    const sigma_squared* p_lambda, 
+    const error_model* p_error_model, 
+    const clade* p_tree, 
+    double lambda_multiplier,
+    int upper_bound)
 {
     unique_ptr<sigma_squared> multiplier(p_lambda->multiply(lambda_multiplier));
     clademap<VectorXd> probabilities;
     auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(DISCRETIZATION_RANGE); };
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
 
-    auto compute_func = [&](const clade* c) { compute_node_probability(c, gf, p_error_model, probabilities, multiplier.get(), cache); };
+    auto compute_func = [&](const clade* c) { compute_node_probability(c, gf, p_error_model, probabilities, multiplier.get(), cache, upper_bound); };
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), compute_func);
 
     return vector<double>(probabilities.at(p_tree).data(), probabilities.at(p_tree).data() + probabilities.at(p_tree).size()); // likelihood of the whole tree = multiplication of likelihood of all nodes
@@ -363,15 +388,11 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
 
     auto A = p_tree->find_descendant("A");
-    compute_node_probability(A, family, NULL, probabilities, &lambda, cache);
+    compute_node_probability(A, family, NULL, probabilities, &lambda, cache, 60);
     auto& actual = probabilities[A];
 
     vector<double> expected(DISCRETIZATION_RANGE);
 
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-    expected[65] = 2.49285;
-    expected[66] = 0.99836;
-#else
     if (MATRIX_SIZE_MULTIPLIER == 1.5)
     {
         expected[93] = 4.8133125;
@@ -382,7 +403,6 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
         expected[62] = 3.2448055556;
         expected[63] = 0.0718611111;
     }
-#endif
 
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
@@ -391,14 +411,11 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     }
 
     auto B = p_tree->find_descendant("B");
-    compute_node_probability(B, family, NULL, probabilities, &lambda, cache);
+    compute_node_probability(B, family, NULL, probabilities, &lambda, cache, 60);
     actual = probabilities[B];
 
     expected = vector<double>(DISCRETIZATION_RANGE);
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-    expected[60] = 2.10086;
-    expected[61] = 1.390366;
-#else
+
     if (MATRIX_SIZE_MULTIPLIER == 1.5)
     {
         expected[86] = 4.6391875;
@@ -409,7 +426,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
         expected[57] = 2.0618611111;
         expected[58] = 1.2548055556;
     }
-#endif
+
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
     {
@@ -431,8 +448,8 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly")
     MatrixXd doubler = MatrixXd::Identity(DISCRETIZATION_RANGE, DISCRETIZATION_RANGE) * 2;
     sigma_squared lambda(0.03);
     matrix_cache cache;
-    cache.set_matrix(1, 0.03, get_upper_bound(family), doubler);
-    cache.set_matrix(3, 0.03, get_upper_bound(family), doubler);
+    cache.set_matrix(1, 0.03, 40, doubler);
+    cache.set_matrix(3, 0.03, 40, doubler);
     std::map<const clade*, VectorXd> probabilities;
     auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(DISCRETIZATION_RANGE); };
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
@@ -441,7 +458,7 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly")
     probabilities[p_tree->find_descendant("A")] = equal_probs;
     probabilities[p_tree->find_descendant("B")] = equal_probs;
 
-    compute_node_probability(AB, family, NULL, probabilities, &lambda, cache);
+    compute_node_probability(AB, family, NULL, probabilities, &lambda, cache, 40);
 
     auto& actual = probabilities[AB];
     double expected = (2 * prob) * (2 * prob);
@@ -479,7 +496,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_from_error_model_if_pr
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
 
     auto A = p_tree->find_descendant("A");
-    compute_node_probability(A, family, &model, probabilities, &lambda, cache);
+    compute_node_probability(A, family, &model, probabilities, &lambda, cache, 40);
     VectorXd& actual = probabilities[A];
 
     vector<double> expected(DISCRETIZATION_RANGE);
@@ -561,7 +578,7 @@ TEST_CASE("compute_family_probabilities")
     fam.set_expression_value("B", 2);
     fam.set_expression_value("C", 5);
     fam.set_expression_value("D", 6);
-    cache.precalculate_matrices(lambda.get_values(), set<int>{get_upper_bound(fam)}, set<double>{1, 3, 7, 11, 17, 23});
+    cache.precalculate_matrices(lambda.get_values(), set<int>{40}, set<double>{1, 3, 7, 11, 17, 23});
 
     // note we do not use an error model for creating family sizes. See architecture decision #6
     p.p_tree->apply_prefix_order([&v, &fam](const clade* c)
@@ -571,7 +588,8 @@ TEST_CASE("compute_family_probabilities")
             else
                 v[0].values[c] = 5;
         });
-    auto result = compute_family_probabilities(p, v, 5);
+
+    auto result = compute_family_probabilities(p, v, 5, upper_bound_calculator_linear_space());
 
     CHECK_EQ(1, result.size());
     CHECK_EQ(doctest::Approx(0.0000000001), result[0]);
@@ -588,7 +606,7 @@ TEST_CASE("Inference: prune" * doctest::skip(true))
     sigma_squared lambda(0.03);
     matrix_cache cache;
     cache.precalculate_matrices(lambda.get_values(), get_all_bounds(vector<gene_transcript>{fam}), set<double>{1, 3, 7});
-    auto actual = inference_prune(fam, cache, &lambda, nullptr, p_tree.get(), 1.5);
+    auto actual = inference_prune(fam, cache, &lambda, nullptr, p_tree.get(), 1.5, 20);
 
     vector<double> log_expected{ -17.2771, -10.0323 , -5.0695 , -4.91426 , -5.86062 , -7.75163 , -10.7347 , -14.2334 , -18.0458 ,
         -22.073 , -26.2579 , -30.5639 , -34.9663 , -39.4472 , -43.9935 , -48.595 , -53.2439 , -57.9338 , -62.6597 , -67.4173 };
@@ -600,36 +618,38 @@ TEST_CASE("Inference: prune" * doctest::skip(true))
     }
 }
 
-#ifdef MODEL_GENE_EXPRESSION_LOGS
 /// Bounds are next largest integer if in log space.
 TEST_CASE("Bounds returns next integer of the largest value times MATRIX_SIZE_MULTIPLIER")
 {
+    upper_bound_calculator_log_space calc;
     gene_transcript gt;
     gt.set_expression_value("A", .3);
     gt.set_expression_value("B", .8);
-    CHECK_EQ(3, get_upper_bound(gt));
+    CHECK_EQ(3, calc.get(gt));
 
     gt.set_expression_value("A", 1.1);
-    CHECK_EQ(4, get_upper_bound(gt));
+    CHECK_EQ(4, calc.get(gt));
 
     gt.set_expression_value("B", 1.8);
-    CHECK_EQ(6, get_upper_bound(gt));
+    CHECK_EQ(6, calc.get(gt));
 }
 
 TEST_CASE("Bounds never returns less than 1")
 {
+    upper_bound_calculator_log_space calc;
     gene_transcript gt;
     gt.set_expression_value("A", 0.00005);
     gt.set_expression_value("B", 0.00004);
-    CHECK_EQ(1, get_upper_bound(gt));
+    CHECK_EQ(1, calc.get(gt));
 }
 
 TEST_CASE("Bounds never returns less than 1 even if all values are very small")
 {
+    upper_bound_calculator_log_space calc;
     gene_transcript gt;
     gt.set_expression_value("A", 0.0000000002);
     gt.set_expression_value("B", 0.0000000005);
-    CHECK_EQ(1, get_upper_bound(gt));
+    CHECK_EQ(1, calc.get(gt));
 }
 
 TEST_CASE("Bounds never returns less than 1 even if all values are zero")
@@ -637,37 +657,24 @@ TEST_CASE("Bounds never returns less than 1 even if all values are zero")
     gene_transcript gt;
     gt.set_expression_value("A", 0);
     gt.set_expression_value("B", 0);
-    CHECK_EQ(1, get_upper_bound(gt));
-}
-#else
-/// Bounds are next largest multiple of 20 if in linear space.
-TEST_CASE("Bounds returns next multiple of 20, of the largest value times MATRIX_SIZE_MULTIPLIER")
-{
-    gene_transcript gt;
-    gt.set_expression_value("A", 12);
-    gt.set_expression_value("B", 24);
-    CHECK_EQ(80, get_upper_bound(gt));
-
-    gt.set_expression_value("A", 40);
-    CHECK_EQ(120, get_upper_bound(gt));
-
-    gt.set_expression_value("B", 41);
-    CHECK_EQ(140, get_upper_bound(gt));
+    upper_bound_calculator_log_space calc;
+    CHECK_EQ(1, calc.get(gt));
 }
 
 TEST_CASE("Bounds never returns less than 20")
 {
+    upper_bound_calculator_linear_space calc;
     gene_transcript gt;
     gt.set_expression_value("A", 5);
     gt.set_expression_value("B", 4);
-    CHECK_EQ(20, get_upper_bound(gt));
+    CHECK_EQ(20, calc.get(gt));
 }
 
 TEST_CASE("Bounds never returns less than 20 even if all values are less than .3")
 {
+    upper_bound_calculator_linear_space calc;
     gene_transcript gt;
     gt.set_expression_value("A", 0.254007);
     gt.set_expression_value("B", 0.1);
-    CHECK_EQ(20, get_upper_bound(gt));
+    CHECK_EQ(20, calc.get(gt));
 }
-#endif

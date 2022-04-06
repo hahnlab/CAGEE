@@ -296,7 +296,7 @@ TEST_CASE_FIXTURE(Inference, "base_model_reconstruction")
     std::vector<gene_transcript> families(1);
     families[0].set_expression_value("A", 3);
     families[0].set_expression_value("B", 4);
-    boundaries b(0, get_upper_bound(families[0]));
+    boundaries b(0, 20);
     base_model model(&sl, &families, NULL);
 
     matrix_cache calc;
@@ -339,15 +339,6 @@ TEST_CASE("Inference: increase_decrease")
     CHECK_EQ(0, bmr.get_difference_from_parent(gf, ab));
 }
 #endif
-
-TEST_CASE( "Inference: precalculate_matrices_calculates_all_boundaries_all_branchlengths")
-{
-    sigma_squared s(0.05);
-    matrix_cache calc;
-    set<int> b{ 1,2,5,10 };
-    calc.precalculate_matrices(s.get_values(), b, set<double>({ 1,2,3 }));
-    CHECK_EQ(12, calc.get_cache_size());
-}
 
 class Reconstruction
 {
@@ -562,6 +553,11 @@ TEST_CASE_FIXTURE(Reconstruction, "print_branch_probabilities__skips_families_wi
 }
 #endif
 
+class constant_upper_bound : public upper_bound_calculator
+{
+    int get(const gene_transcript& gt) const override { return 20; } 
+};
+
 TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities" * doctest::skip(true))
 {
     sigma_squared lm(0.05);
@@ -570,7 +566,7 @@ TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities" * doctest::skip(tr
     base_model_reconstruction rec;
     rec._reconstructions[fam.id()][p_tree->find_descendant("AB")] = 10;
     rec._reconstructions[fam.id()][p_tree->find_descendant("ABCD")] = 12;
-    CHECK_EQ(doctest::Approx(0.537681), compute_viterbi_sum(p_tree->find_descendant("AB"), fam, &rec, cache, &lm)._value);
+    CHECK_EQ(doctest::Approx(0.537681), compute_viterbi_sum(p_tree->find_descendant("AB"), fam, &rec, cache, &lm,  constant_upper_bound())._value);
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities_returns_invalid_if_root")
@@ -580,7 +576,7 @@ TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities_returns_invalid_if_
     cache.precalculate_matrices(lm.get_values(), set<int>(), { 1,3,7 });
     base_model_reconstruction rec;
     rec._reconstructions[fam.id()][p_tree.get()] = 11;
-    CHECK_FALSE(compute_viterbi_sum(p_tree.get(), fam, &rec, cache, &lm)._is_valid);
+    CHECK_FALSE(compute_viterbi_sum(p_tree.get(), fam, &rec, cache, &lm, constant_upper_bound())._is_valid);
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "pvalues")
@@ -615,7 +611,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_prune" * doctest::skip(true))
     gamma_model model(&lambda, &families, { 0.01, 0.05 }, { 0.1, 0.5 }, NULL);
 
     vector<double> cat_likelihoods;
-    CHECK(model.prune(families[0], prior, cache, &lambda, p_tree.get(), cat_likelihoods));
+    CHECK(model.prune(families[0], prior, cache, &lambda, p_tree.get(), cat_likelihoods, 20));
 
     CHECK_EQ(2, cat_likelihoods.size());
     CHECK_EQ(doctest::Approx(-23.04433), log(cat_likelihoods[0]));
@@ -635,7 +631,7 @@ TEST_CASE("gamma_model_prune_returns_false_if_saturated" * doctest::skip(true))
 
     gamma_model model(&lambda, &families, { 1.0,1.0 }, { 0.1, 0.5 }, NULL);
 
-    CHECK(!model.prune(families[0], std::gamma_distribution<double>(1, 2), cache, &lambda, p_tree.get(), cat_likelihoods));
+    CHECK(!model.prune(families[0], std::gamma_distribution<double>(1, 2), cache, &lambda, p_tree.get(), cat_likelihoods, 20));
 }
 
 
@@ -1539,7 +1535,7 @@ TEST_CASE("LikelihoodRatioTest, get_likelihood_for_diff_lambdas" * doctest::skip
     gf.set_expression_value("B", 9);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     std::vector<sigma_squared*> cache(100);
-    CHECK_EQ(0.0, LikelihoodRatioTest::get_likelihood_for_diff_lambdas(gf, p_tree.get(), 0, 0, cache, &opt));
+    CHECK_EQ(0.0, LikelihoodRatioTest::get_likelihood_for_diff_lambdas(gf, p_tree.get(), 0, 0, cache, &opt, 20));
 }
 
 TEST_CASE("LikelihoodRatioTest, compute_for_diff_lambdas" * doctest::skip(true))

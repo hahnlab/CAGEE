@@ -29,8 +29,21 @@ size_t adjust_for_error_model(size_t c, const error_model *p_error_model);
 
 double pvalue(double v, const std::vector<double>& conddist);
 
-std::vector<double> inference_prune(const gene_transcript& gf, const matrix_cache& cache, const sigma_squared* _lambda, const error_model* p_error_model, const clade* _p_tree, double _lambda_multiplier);
+std::vector<double> inference_prune(const gene_transcript& gf, 
+    const matrix_cache& cache, 
+    const sigma_squared* sigma, 
+    const error_model* p_error_model, 
+    const clade* _p_tree, 
+    double _sigma_multiplier,
+    int upper_bound);
 
-int get_upper_bound(const gene_transcript& gt);
+class upper_bound_calculator
+{
+public:
+    virtual int get(const gene_transcript& gt) const = 0;
 
+    static upper_bound_calculator* create();
+};
+
+ 
 #endif

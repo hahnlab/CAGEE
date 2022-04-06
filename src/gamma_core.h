@@ -92,8 +92,13 @@ public:
 
     bool can_infer() const;
 
-    bool prune(const gene_transcript& family, const std::gamma_distribution<double>& prior, const matrix_cache& calc, const sigma_squared*p_lambda,
-        const clade *p_tree, std::vector<double>& category_likelihoods);
+    bool prune(const gene_transcript& family, 
+        const std::gamma_distribution<double>& prior, 
+        const matrix_cache& calc, 
+        const sigma_squared*p_sigma,
+        const clade *p_tree, 
+        std::vector<double>& category_likelihoods, 
+        int upper_bound);
 };
 
 //! \ingroup gamma

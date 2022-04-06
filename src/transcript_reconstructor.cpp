@@ -32,15 +32,14 @@ transcript_reconstructor::transcript_reconstructor(const sigma_squared* p_sigma,
     }
 }
 
-double get_value(const gene_transcript& t, const VectorXd& likelihood)
+double get_value(const gene_transcript& t, const VectorXd& likelihood, int upper_bound)
 {
-    auto bound = get_upper_bound(t);
     Index i;
     auto m = likelihood.maxCoeff(&i);
-    return (float(i) / 200.0) * bound;
+    return (float(i) / 200.0) * upper_bound;
 }
 
-clademap<double> transcript_reconstructor::reconstruct_gene_transcript(const gene_transcript& t)
+clademap<double> transcript_reconstructor::reconstruct_gene_transcript(const gene_transcript& t, int upper_bound)
 {
     IOFormat CleanFmt(4, DontAlignCols, " ", " ", "", "");
     for (auto it = _p_tree->reverse_level_begin(); it != _p_tree->reverse_level_end(); ++it)
@@ -48,7 +47,7 @@ clademap<double> transcript_reconstructor::reconstruct_gene_transcript(const gen
         const clade* c = *it;
         if (c->is_leaf())
         {
-            std::pair<double, double> bounds(0, get_upper_bound(t));
+            std::pair<double, double> bounds(0, upper_bound);
 
             all_node_Ls[c] = VectorPos_bounds(t.get_expression_value(c->get_taxon_name()), DISCRETIZATION_RANGE, bounds);
             VLOG(TRANSCRIPT_RECONSTRUCTION) << c->get_taxon_name() << " " << all_node_Ls[c].format(CleanFmt) << endl;
@@ -59,8 +58,8 @@ clademap<double> transcript_reconstructor::reconstruct_gene_transcript(const gen
             //    So mean(child1 * m, child2 * m)
             
             vector<VectorXd> child_likelihoods(2);
-            transform(c->descendant_begin(), c->descendant_end(), child_likelihoods.begin(), [this, t, &CleanFmt](const clade* child) {
-                auto matrix = _p_cache->get_matrix(child->get_branch_length(), _p_sigma->get_named_value(child, t), get_upper_bound(t));
+            transform(c->descendant_begin(), c->descendant_end(), child_likelihoods.begin(), [this, t, &CleanFmt, upper_bound](const clade* child) {
+                auto matrix = _p_cache->get_matrix(child->get_branch_length(), _p_sigma->get_named_value(child, t), upper_bound);
                 VectorXd result = matrix * all_node_Ls[child];
                 VLOG(TRANSCRIPT_RECONSTRUCTION) << "ConvPropBounds * L[" << child->get_taxon_name() << "] " << result.format(CleanFmt) << endl;
 
@@ -78,7 +77,7 @@ clademap<double> transcript_reconstructor::reconstruct_gene_transcript(const gen
     clademap<double> result;
     for (auto it = _p_tree->reverse_level_begin(); it != _p_tree->reverse_level_end(); ++it)
     {
-        result[*it] = (*it)->is_leaf() ? t.get_expression_value((*it)->get_taxon_name()) : get_value(t, all_node_Ls[*it]);
+        result[*it] = (*it)->is_leaf() ? t.get_expression_value((*it)->get_taxon_name()) : get_value(t, all_node_Ls[*it], upper_bound);
     }
     return result;
 }
@@ -267,14 +266,15 @@ branch_probabilities::branch_probability compute_viterbi_sum(const clade* c,
     const gene_transcript& transcript, 
     const reconstruction* rec, 
     const matrix_cache& cache, 
-    const sigma_squared* p_lambda)
+    const sigma_squared* p_lambda,
+    const upper_bound_calculator& bound_calculator)
 {
     if (c->is_root())
     {
         return branch_probabilities::invalid();
     }
 
-    auto probs = cache.get_matrix(c->get_branch_length(), p_lambda->get_named_value(c, transcript), get_upper_bound(transcript));
+    auto probs = cache.get_matrix(c->get_branch_length(), p_lambda->get_named_value(c, transcript), bound_calculator.get(transcript));
 
     int parent_size = rec->get_node_count(transcript, c->get_parent());
     int child_size = rec->get_node_count(transcript, c);
@@ -334,11 +334,11 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript assigns actual va
     fam.set_expression_value("D", 9.4);
 
     matrix_cache calc;
-    calc.precalculate_matrices(sig.get_values(), set<int>({ get_upper_bound(fam) }), p_tree->get_branch_lengths());
+    calc.precalculate_matrices(sig.get_values(), set<int>({ 20 }), p_tree->get_branch_lengths());
 
     transcript_reconstructor tr(&sig, p_tree.get(), &calc);
 
-    auto actual = tr.reconstruct_gene_transcript(fam);
+    auto actual = tr.reconstruct_gene_transcript(fam, 20);
 
     CHECK_EQ(3.7, actual[p_tree->find_descendant("A")]);
     CHECK_EQ(9.4, actual[p_tree->find_descendant("D")]);
@@ -354,19 +354,13 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript calculates parent
     matrix_cache calc;
     for (auto len : p_tree->get_branch_lengths())
     {
-        calc.set_matrix(len, 10.1, get_upper_bound(fam), doubler);
+        calc.set_matrix(len, 10.1, 200, doubler);
     }
-//    calc.precalculate_matrices(sig.get_values(), set<int>({ get_upper_bound(fam) }), p_tree->get_branch_lengths());
-
     transcript_reconstructor tr(&sig, p_tree.get(), &calc);
 
-    auto actual = tr.reconstruct_gene_transcript(fam);
+    auto actual = tr.reconstruct_gene_transcript(fam, 200);
 
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-    CHECK_EQ(61.38, actual[p_tree->find_descendant("AB")]);
-#else
     CHECK_EQ(45.0, actual[p_tree->find_descendant("AB")]);
-#endif
 
 }
 
@@ -377,10 +371,10 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns parent 0 
     fam.set_expression_value("B", 0);
 
     matrix_cache calc;
-    calc.precalculate_matrices(sig.get_values(), set<int>({ get_upper_bound(fam) }), p_tree->get_branch_lengths());
+    calc.precalculate_matrices(sig.get_values(), set<int>({ 20 }), p_tree->get_branch_lengths());
 
     transcript_reconstructor tr(&sig, p_tree.get(), &calc);
-    auto actual = tr.reconstruct_gene_transcript(fam);
+    auto actual = tr.reconstruct_gene_transcript(fam, 20);
     CHECK_EQ(0, actual[p_tree->find_descendant("AB")]);
 }
 
@@ -392,10 +386,10 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns correct v
     fam.set_expression_value("B", 0);
 
     matrix_cache calc;
-    calc.precalculate_matrices(sig.get_values(), set<int>({ get_upper_bound(fam) }), p_tree->get_branch_lengths());
+    calc.precalculate_matrices(sig.get_values(), set<int>({ 20 }), p_tree->get_branch_lengths());
 
     transcript_reconstructor tr(&sig, p_tree.get(), &calc);
-    auto actual = tr.reconstruct_gene_transcript(fam);
+    auto actual = tr.reconstruct_gene_transcript(fam, 20);
     CHECK_EQ(50, actual[p_tree.get()]);
 }
 
