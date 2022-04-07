@@ -98,7 +98,7 @@ double compute_prior_likelihood(const vector<double>& partial_likelihood, const 
 #ifdef USE_MAX_PROBABILITY
     return *max_element(full.begin(), full.end()); // get max (CAFE's approach)
 #else
-    return accumulate(full.begin(), full.end(), 0.0); // sum over all sizes (Felsenstein's approach)
+    return accumulate(full.begin(), full.end(), 0.0, [](double a, double b) { return isinf(b) ? a : a+b; }); // sum over all sizes (Felsenstein's approach)
 #endif
 }
 
