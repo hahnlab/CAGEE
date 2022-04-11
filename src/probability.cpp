@@ -643,8 +643,6 @@ TEST_CASE("Bounds never returns less than 1 even if all values are zero")
 /// Bounds are next largest multiple of 20 if in linear space.
 TEST_CASE("Bounds returns next multiple of 20, of the largest value times MATRIX_SIZE_MULTIPLIER")
 {
-    if (MATRIX_SIZE_MULTIPLIER < 3) expected = vector<int>({ 40, 60, 80 });
-
     gene_transcript gt;
     gt.set_expression_value("A", 12);
     gt.set_expression_value("B", 24);

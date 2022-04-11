@@ -85,21 +85,20 @@ double compute_prior_likelihood(const vector<double>& partial_likelihood, const 
     std::vector<double> full(partial_likelihood.size());
     double bound = get_upper_bound(t);
     for (size_t j = 0; j < partial_likelihood.size(); ++j) {
-        full[j] = std::log(partial_likelihood[j]);
-
         double x = (double(j) + 0.5) * bound / (DISCRETIZATION_RANGE - 1);
 
-        full[j] += log(computational_space_prior(x, prior));
+        full[j] = partial_likelihood[j] * computational_space_prior(x, prior);
 
         if (isnan(full[j]))
                full[j] = -numeric_limits<double>::infinity();
     }
 
 #ifdef USE_MAX_PROBABILITY
-    return *max_element(full.begin(), full.end()); // get max (CAFE's approach)
+    double likelihood = *max_element(full.begin(), full.end()); // get max (CAFE's approach)
 #else
-    return accumulate(full.begin(), full.end(), 0.0, [](double a, double b) { return isinf(b) ? a : a+b; }); // sum over all sizes (Felsenstein's approach)
+    double likelihood = accumulate(full.begin(), full.end(), 0.0, [](double a, double b) { return isinf(b) ? a : a+b; }); // sum over all sizes (Felsenstein's approach)
 #endif
+    return log(likelihood);
 }
 
 double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squared *p_sigma, const gamma_distribution<double>& prior) {
@@ -238,7 +237,7 @@ TEST_CASE("compute_prior_likelihood combines prior and inference correctly")
 #ifdef USE_MAX_PROBABILITY
     CHECK_EQ(doctest::Approx(-35.7683), actual);
 #else
-    CHECK_EQ(doctest::Approx(-158.5437), actual);
+    CHECK_EQ(doctest::Approx(-35.76831), actual);
 #endif
 #else
     CHECK_EQ(doctest::Approx(-5.584), actual);
