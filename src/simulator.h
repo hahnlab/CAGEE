@@ -71,15 +71,13 @@ class simulator : public action
 public:
     simulator(user_data& d, const input_parameters& ui);
 
-    simulated_family create_trial(const sigma_squared*p_lambda, int family_number);
-
     virtual void execute(std::vector<model *>& models);
     void print_simulations(std::ostream& ost, bool include_internal_nodes, const std::vector<simulated_family>& results, const cladevector& order);
 
     //! Does the actual work of simulation. Calls the given model to load simulation parameters,
     //! and places the simulations in results. Every fifty simulations, the model's \ref model::perturb_lambda
     //! is called in order to provide a bit of additional randomness in the simulation.
-    void simulate_processes(model *p_model, std::vector<simulated_family>& results);
+    std::vector<simulated_family> simulate_processes(model* p_model);
 
 };
 

@@ -98,43 +98,34 @@ simulated_family create_simulated_family(const clade *p_tree, const sigma_square
     return sim;
 }
 
-// At the root, we have a vector of length DISCRETIZATION_RANGE. This has probability 1 at the size of the root
-// and 0 everywhere else
-// for each child, generate the transition matrix and multiply
-simulated_family simulator::create_trial(const sigma_squared*p_sigma, int family_number) {
-    double root_size = _p_rootdist->select_root_value(family_number);
-
+std::vector<simulated_family> simulator::simulate_processes(model *p_model) {
+    
     if (data.p_tree == NULL)
         throw runtime_error("No tree specified for simulation");
 
-    return create_simulated_family(data.p_tree, p_sigma, root_size);
-}
-
-void simulator::simulate_processes(model *p_model, std::vector<simulated_family>& results) {
-
-    if (_user_input.nsims > 0)
+    int num_sims = _user_input.nsims;
+    if (num_sims == 0)
     {
-        results.resize(_user_input.nsims);
+        num_sims = accumulate(data.rootdist.begin(), data.rootdist.end(), 0,
+            [](int acc, std::pair<int, int> p) { return (acc + p.second); });
     }
-    else
-    {
-        results.resize(accumulate(data.rootdist.begin(), data.rootdist.end(), 0,
-            [](int acc, std::pair<int, int> p) { return (acc + p.second); }));
-    }
+
+    std::vector<simulated_family> results(num_sims);
 
     LOG(INFO) << "Simulating " << results.size() << " families for model " << p_model->name();
 
-    for (size_t i = 0; i < results.size(); i+= LAMBDA_PERTURBATION_STEP_SIZE)
-    {
-        unique_ptr<sigma_squared> sim_lambda(p_model->get_simulation_lambda());
-
-        int n = 0;
-
-        auto end_it = i + LAMBDA_PERTURBATION_STEP_SIZE > results.size() ? results.end() : results.begin() + i + LAMBDA_PERTURBATION_STEP_SIZE;
-        generate(results.begin()+i, end_it, [this, &sim_lambda, i, &n]() mutable {
-            return create_trial(sim_lambda.get(), i+n++);
+    vector<double> root_sizes(results.size());
+    int n = 0;
+    generate(root_sizes.begin(), root_sizes.end(), [this, &n]() mutable {
+        return _p_rootdist->select_root_value(n++);
         });
-    }
+
+    unique_ptr<sigma_squared> sim_sigsqd(p_model->get_simulation_lambda());
+    transform(root_sizes.begin(), root_sizes.end(), results.begin(), [this, &sim_sigsqd](double root_size) {
+        return create_simulated_family(data.p_tree, sim_sigsqd.get(), root_size);
+        });
+
+    return results;
 }
 
 void print_header(std::ostream& ost, const input_parameters& p, size_t c, const clade *p_tree, const cladevector& order)
@@ -180,9 +171,7 @@ void simulator::simulate(std::vector<model *>& models, const input_parameters &m
 
     for (auto p_model : models) {
 
-        std::vector<simulated_family> results;
-
-        simulate_processes(p_model, results);
+        auto results = simulate_processes(p_model);
 
         string fname = filename("simulation", my_input_parameters.output_prefix);
         std::ofstream ofst2(fname);
@@ -279,18 +268,10 @@ TEST_CASE("create_trial")
 {
     randomizer_engine.seed(10);
 
-    sigma_squared lam(0.25);
+    sigma_squared ss(0.25);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
-    user_data data;
-    data.p_tree = p_tree.get();
-    data.rootdist = vector<pair<float, int>>({ {pv::to_user_space(1), 1}, { pv::to_user_space(2),1 }, { pv::to_user_space(5),1 } });
-
-    input_parameters params;
-    params.rootdist_params = "file:rd.txt";
-    simulator sim(data, params);
-
-    simulated_family actual = sim.create_trial(&lam, 2);
+    simulated_family actual = create_simulated_family(p_tree.get(), &ss, 5.0);
 
     CHECK_EQ(doctest::Approx(5.0), actual.values.at(p_tree.get()));
     CHECK_EQ(doctest::Approx(4.74864), actual.values.at(p_tree->find_descendant("A")));
@@ -467,3 +448,36 @@ TEST_CASE("create_rootdist creates fixed root if requested")
     REQUIRE(dynamic_cast<root_distribution_fixed*>(rd.get()));
     CHECK_EQ(doctest::Approx(pv::to_computational_space(6.0)), rd->select_root_value(0));
 }
+
+class mock_model : public model {
+    // Inherited via model
+    virtual std::string name() const override { return "mockmodel"; }
+    virtual void write_family_likelihoods(std::ostream& ost) override {}
+    virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache* p_calc) override { return nullptr; }
+    virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const std::vector<string>& sample_groups, const std::gamma_distribution<double>& prior) override { return nullptr; }
+    bool _invalid_likelihood = false;
+public:
+    mock_model(sigma_squared* s) : model(s, NULL, NULL) {}
+    virtual double infer_family_likelihoods(const user_data& ud, const sigma_squared* p_lambda, const std::gamma_distribution<double>& prior) override { return 0; }
+};
+
+TEST_CASE("Simulation, simulate_processes")
+{
+    sigma_squared lam(0.05);
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    mock_model m(&lam);
+
+    user_data ud;
+    ud.p_tree = p_tree.get();
+    ud.p_lambda = &lam;
+    //    ud.p_prior = new root_distribution_uniform(size_t(100));
+
+    input_parameters ip;
+    ip.nsims = 100;
+    simulator sim(ud, ip);
+
+    auto sims = sim.simulate_processes(&m);
+    CHECK_EQ(100, sims.size());
+}
+
+

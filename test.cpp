@@ -1191,27 +1191,6 @@ TEST_CASE_FIXTURE(Inference, "initialization_failure_advice_shows_20_families_wi
     STRCMP_CONTAINS("TestFamily2: 52\nTestFamily1: 1", ost.str().c_str());
 }
 
-TEST_CASE("Simulation, simulate_processes" * doctest::skip(true))
-{
-    sigma_squared lam(0.05);
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-    mock_model m;
-    m.set_lambda(&lam);
-
-    user_data ud;
-    ud.p_tree = p_tree.get();
-    ud.p_lambda = &lam;
-//    ud.p_prior = new root_distribution_uniform(size_t(100));
-
-    input_parameters ip;
-    ip.nsims = 100;
-    simulator sim(ud, ip);
-    vector<simulated_family> results(1);
-    sim.simulate_processes(&m, results);
-    CHECK_EQ(100, results.size());
-}
-
-
 TEST_CASE_FIXTURE(Optimizer, "fminsearch_sort_sorts_scores_and_moves_values")
 {
     c[0].score = 3;
