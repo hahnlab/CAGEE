@@ -26,13 +26,19 @@ namespace pv = proportional_variance;
 
 extern std::mt19937 randomizer_engine; // seeding random number engine
 
-double get_upper_bound(const sigma_squared* p_sigsqrd, const clade* p_tree, double root_size)
+int get_upper_bound(const sigma_squared* p_sigsqrd, const clade* p_tree, double root_size)
 {
     double t = p_tree->distance_from_root_to_tip();
     double sigma = sqrt(p_sigsqrd->get_value_for_clade(p_tree));
 
-    VLOG(SIMULATOR) << "Root size: " << root_size << " => max value: " << root_size + 4.5 * sigma * sqrt(t) << " (Tree length: " << t << ", Sigma: " << sigma << ")";
-    return root_size + 4.5 * sigma * sqrt(t);
+    int val = int(root_size + 4.5 * sigma * sqrt(t));
+
+    const int multiple = 5;
+    int remainder = val % multiple;
+    if (remainder == 0 && val > 0) return val;
+
+    VLOG(SIMULATOR) << "Root size: " << root_size << " => max value: " << val + multiple - remainder << " (Tree length: " << t << ", Sigma: " << sigma << ")";
+    return val + multiple - remainder;
 }
 
 class binner
@@ -289,28 +295,24 @@ TEST_CASE("create_trial")
     simulated_family actual = create_simulated_family(p_tree.get(), &ss, ub, 5.0, cache);
 
     CHECK_EQ(doctest::Approx(5.0), actual.values.at(p_tree.get()));
-    CHECK_EQ(doctest::Approx(4.80952), actual.values.at(p_tree->find_descendant("A")));
-    CHECK_EQ(doctest::Approx(4.99216), actual.values.at(p_tree->find_descendant("B")));
+    CHECK_EQ(doctest::Approx(4.82412), actual.values.at(p_tree->find_descendant("A")));
+    CHECK_EQ(doctest::Approx(4.97487), actual.values.at(p_tree->find_descendant("B")));
 }
 
 TEST_CASE("binner")
 {
-    sigma_squared lam(0.25);
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-    binner b(get_upper_bound(&lam, p_tree.get(), 5));
+    binner b(100);
 
-    CHECK_EQ(44, b.bin(2.7));
-    CHECK_EQ(doctest::Approx(7.3056), b.value(120));
-    CHECK_EQ(21, b.bin(1.3));
-    CHECK_EQ(doctest::Approx(2.4352), b.value(40));
+    CHECK_EQ(5, b.bin(2.7));
+    CHECK_EQ(doctest::Approx(60.3015), b.value(120));
+    CHECK_EQ(25, b.bin(13));
+    CHECK_EQ(doctest::Approx(20.1005), b.value(40));
 }
 
 TEST_CASE("binner unbins small values correctly")
 {
-    sigma_squared s(0.25);
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-    binner b(get_upper_bound(&s, p_tree.get(), 5));
-    CHECK_EQ(doctest::Approx(1.33936), b.value(22));
+    binner b(20);
+    CHECK_EQ(doctest::Approx(8.0402), b.value(80));
 }
 
 #define CHECK_STREAM_CONTAINS(x,y) CHECK_MESSAGE(x.str().find(y) != std::string::npos, x.str())
@@ -389,8 +391,8 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
         return accumulator + ((val - mean) * (val - mean) / (sz - 1));
      });
 
-    CHECK_EQ(doctest::Approx(9.63785), mean);
-    CHECK_EQ(doctest::Approx(0.69511), variance);
+    CHECK_EQ(doctest::Approx(9.64824), mean);
+    CHECK_EQ(doctest::Approx(0.568167), variance);
 }
 
 TEST_CASE("print_header")
@@ -499,12 +501,15 @@ TEST_CASE("Simulation, simulate_processes")
 
 TEST_CASE("get_upper_bound")
 {
-    randomizer_engine.seed(10);
-
     sigma_squared ss(0.25);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
-    CHECK_EQ(doctest::Approx(12.1151), get_upper_bound(&ss, p_tree.get(), 5.0));
+    CHECK_EQ(15, get_upper_bound(&ss, p_tree.get(), 5.0));
+
+    sigma_squared ss_zero(0.0);
+    CHECK_EQ(5, get_upper_bound(&ss_zero, p_tree.get(), 0.0));
+
+    CHECK_EQ(5, get_upper_bound(&ss_zero, p_tree.get(), 0.0000001));
 }
 
 
