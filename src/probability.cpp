@@ -250,30 +250,6 @@ vector<double> compute_family_probabilities(pvalue_parameters p, vector<simulate
     return result;
 }
 
-/*! Create a sorted vector of probabilities by generating random trees 
-    \param p_tree The structure of the tree to generate
-    \param number_of_simulations The number of random probabilities to return
-    \param root_family_size The count of the family at the root. All other family sizes will be generated randomly based on this
-    \param max_family_size The maximum possible family size (Used to cut off probability calculations at a reasonable value)
-    \param root_family_size The maximum possible family size at the root
-    \param lambda The rate of change of the family
-
-    \returns a sorted vector of probabilities of the requested number of randomly generated trees
-*/
-std::vector<double> get_random_probabilities(pvalue_parameters p, int number_of_simulations, int root_family_size)
-{
-    unique_ptr< upper_bound_calculator> bound(upper_bound_calculator::create());
-    vector<simulated_family> families(number_of_simulations);
-
-    generate(families.begin(), families.end(), [p, root_family_size]() { return create_simulated_family(p.p_tree, p.p_lambda, root_family_size); });
-
-    auto result = compute_family_probabilities(p, families, root_family_size, *bound.get());
-
-    sort(result.begin(), result.end());
-
-    return result;
-}
-
 size_t adjust_for_error_model(size_t c, const error_model *p_error_model)
 {
     if (p_error_model == nullptr)

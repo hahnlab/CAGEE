@@ -24,7 +24,6 @@ double chooseln(double n, double k);
 
 std::vector<int> uniform_dist(int n_draws, int min, int max);
 
-std::vector<double> get_random_probabilities(pvalue_parameters p, int number_of_simulations, int root_family_size);
 size_t adjust_for_error_model(size_t c, const error_model *p_error_model);
 
 double pvalue(double v, const std::vector<double>& conddist);

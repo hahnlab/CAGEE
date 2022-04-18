@@ -26,20 +26,21 @@ namespace pv = proportional_variance;
 
 extern std::mt19937 randomizer_engine; // seeding random number engine
 
+double get_upper_bound(const sigma_squared* p_sigsqrd, const clade* p_tree, double root_size)
+{
+    double t = p_tree->distance_from_root_to_tip();
+    double sigma = sqrt(p_sigsqrd->get_value_for_clade(p_tree));
+
+    VLOG(SIMULATOR) << "Root size: " << root_size << " => max value: " << root_size + 4.5 * sigma * sqrt(t) << " (Tree length: " << t << ", Sigma: " << sigma << ")";
+    return root_size + 4.5 * sigma * sqrt(t);
+}
 
 class binner
 {
     double _max_value;
 public:
-    binner(const sigma_squared* p_sigsqrd, const clade* p_tree, double root_size)
-    {
-        double t = p_tree->distance_from_root_to_tip();
-        double sigma = sqrt(p_sigsqrd->get_value_for_clade(p_tree));
 
-        _max_value = root_size + 4.5 * sigma * sqrt(t);
-        VLOG(SIMULATOR) << "Root size: " << root_size << " => max value: " << _max_value << " (Tree length: " << t << ", Sigma: " << sigma << ")";
-    }
-
+    binner(double max_value) : _max_value(max_value) {}
     int bin(double value) const
     {
         return value / _max_value * (DISCRETIZATION_RANGE-1);
@@ -72,20 +73,17 @@ void simulator::execute(std::vector<model *>& models)
     simulate(models, _user_input);
 }
 
-simulated_family create_simulated_family(const clade *p_tree, const sigma_squared* p_sigsqrd, double root_value)
+simulated_family create_simulated_family(const clade *p_tree, const sigma_squared* p_sigsqrd, double upper_bound, double root_value, const matrix_cache& cache)
 {
     simulated_family sim;
-    sim.lambda = p_sigsqrd->get_value_for_clade(p_tree);
-
-    binner b(p_sigsqrd, p_tree, root_value);
-
-    boundaries bounds(pv::to_computational_space(0), b.max_value());
+    sim.sigma = p_sigsqrd->get_value_for_clade(p_tree);
 
     sim.values[p_tree] = root_value;
-
+    boundaries bounds(pv::to_computational_space(0), upper_bound);
+    binner b(upper_bound);
     std::function <void(const clade*)> get_child_value;
     get_child_value = [&](const clade* c) {
-        MatrixXd m = ConvProp_bounds(c->get_branch_length(), p_sigsqrd->get_value_for_clade(c) / 2, DiffMat::instance(), bounds);
+        auto m = cache.get_matrix(c->get_branch_length(), p_sigsqrd->get_value_for_clade(c) / 2, upper_bound);
         VectorXd v = VectorPos_bounds(sim.values[c->get_parent()], DISCRETIZATION_RANGE, bounds);
         VectorXd probs = m * v;
         std::discrete_distribution<int> distribution(probs.data(), probs.data() + probs.size());
@@ -121,8 +119,20 @@ std::vector<simulated_family> simulator::simulate_processes(model *p_model) {
         });
 
     unique_ptr<sigma_squared> sim_sigsqd(p_model->get_simulation_lambda());
-    transform(root_sizes.begin(), root_sizes.end(), results.begin(), [this, &sim_sigsqd](double root_size) {
-        return create_simulated_family(data.p_tree, sim_sigsqd.get(), root_size);
+
+    vector<int> upper_bounds(results.size());
+    transform(root_sizes.begin(), root_sizes.end(), upper_bounds.begin(), [&](double root_size) {
+        return get_upper_bound(sim_sigsqd.get(), data.p_tree, root_size);
+        });
+
+    matrix_cache cache;
+    auto s = sim_sigsqd->get_values();
+    vector<double> halves(s.size());
+    transform(s.begin(), s.end(), halves.begin(), [](double d) { return d / 2.0; });
+    cache.precalculate_matrices(halves, set<int>(upper_bounds.begin(), upper_bounds.end()), data.p_tree->get_branch_lengths());
+
+    transform(root_sizes.begin(), root_sizes.end(), upper_bounds.begin(), results.begin(), [this, &sim_sigsqd, &cache](double root_size, double upper_bound) {
+        return create_simulated_family(data.p_tree, sim_sigsqd.get(), upper_bound, root_size, cache);
         });
 
     return results;
@@ -217,7 +227,7 @@ void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes
     for (size_t j = 0; j < results.size(); ++j) {
         auto& transcript = results[j];
         // Printing gene counts
-        ost << "SIG" << transcript.lambda << "\ttranscript" << j;
+        ost << "SIG" << transcript.sigma << "\ttranscript" << j;
         for (size_t i = 0; i < order.size(); ++i)
         {
             if (!order[i]) continue;
@@ -271,10 +281,15 @@ TEST_CASE("create_trial")
     sigma_squared ss(0.25);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
-    simulated_family actual = create_simulated_family(p_tree.get(), &ss, 5.0);
+    auto ub = get_upper_bound(&ss, p_tree.get(), 5.0);
+
+    matrix_cache cache;
+    cache.precalculate_matrices(vector<double>{0.125}, set<int>{ub}, p_tree->get_branch_lengths());
+
+    simulated_family actual = create_simulated_family(p_tree.get(), &ss, ub, 5.0, cache);
 
     CHECK_EQ(doctest::Approx(5.0), actual.values.at(p_tree.get()));
-    CHECK_EQ(doctest::Approx(4.74864), actual.values.at(p_tree->find_descendant("A")));
+    CHECK_EQ(doctest::Approx(4.80952), actual.values.at(p_tree->find_descendant("A")));
     CHECK_EQ(doctest::Approx(4.99216), actual.values.at(p_tree->find_descendant("B")));
 }
 
@@ -282,7 +297,7 @@ TEST_CASE("binner")
 {
     sigma_squared lam(0.25);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-    binner b(&lam, p_tree.get(), 5);
+    binner b(get_upper_bound(&lam, p_tree.get(), 5));
 
     CHECK_EQ(44, b.bin(2.7));
     CHECK_EQ(doctest::Approx(7.3056), b.value(120));
@@ -294,7 +309,7 @@ TEST_CASE("binner unbins small values correctly")
 {
     sigma_squared s(0.25);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-    binner b(&s, p_tree.get(), 5);
+    binner b(get_upper_bound(&s, p_tree.get(), 5));
     CHECK_EQ(doctest::Approx(1.33936), b.value(22));
 }
 
@@ -356,14 +371,16 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
     randomizer_engine.seed(10);
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:1):1"));
-    sigma_squared sigma(10);
+    sigma_squared sim_sigsqd(10);
     auto a = p_tree->find_descendant("A");
+    auto ub = get_upper_bound(&sim_sigsqd, p_tree.get(), 10);
 
     matrix_cache cache;
+    cache.precalculate_matrices(vector<double>{5}, set<int>{ub}, p_tree->get_branch_lengths());
     size_t sz = 3;
     vector<double> v(sz);
     generate(v.begin(), v.end(), [&]() {
-        auto sim = create_simulated_family(p_tree.get(), &sigma, 10);
+        auto sim = create_simulated_family(p_tree.get(), &sim_sigsqd, ub, 10, cache);
         return sim.values[a];
         });
 
@@ -372,8 +389,8 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
         return accumulator + ((val - mean) * (val - mean) / (sz - 1));
      });
 
-    CHECK_EQ(doctest::Approx(9.486477), mean);
-    CHECK_EQ(doctest::Approx(1.2909285), variance);
+    CHECK_EQ(doctest::Approx(9.63785), mean);
+    CHECK_EQ(doctest::Approx(0.69511), variance);
 }
 
 TEST_CASE("print_header")
@@ -478,6 +495,16 @@ TEST_CASE("Simulation, simulate_processes")
 
     auto sims = sim.simulate_processes(&m);
     CHECK_EQ(100, sims.size());
+}
+
+TEST_CASE("get_upper_bound")
+{
+    randomizer_engine.seed(10);
+
+    sigma_squared ss(0.25);
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    CHECK_EQ(doctest::Approx(12.1151), get_upper_bound(&ss, p_tree.get(), 5.0));
 }
 
 

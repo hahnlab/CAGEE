@@ -10,9 +10,9 @@ class matrix_cache;
 struct simulated_family
 {
     clademap<double> values;
-    double lambda;
+    double sigma;
 
-    simulated_family() : lambda(0)
+    simulated_family() : sigma(0)
     {
 
     }
@@ -31,12 +31,11 @@ struct simulated_family
     simulated_family& operator=(simulated_family&& other) noexcept
     { 
         values = std::move(other.values);
-        lambda = other.lambda;
+        sigma = other.sigma;
         return *this; 
     }
 };
 
-simulated_family create_simulated_family(const clade* p_tree, const sigma_squared* p_sigma, double root_value);
 root_equilibrium_distribution* create_rootdist(std::string param, const std::vector<std::pair<float, int>>& rootdist);
 
 /*! @brief Build simulated families based on the user's input

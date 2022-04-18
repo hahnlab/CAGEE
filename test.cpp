@@ -246,20 +246,6 @@ bool operator==(const MatrixXd& m1, const MatrixXd& m2)
 }
 
 
-TEST_CASE("Probability: get_random_probabilities" * doctest::skip(true))
-{
-    unique_ptr<clade> p_tree(parse_newick("((A:1,B:1):1,(C:1,D:1):1);"));
-
-    sigma_squared lam(0.05);
-    matrix_cache cache;
-
-    pvalue_parameters p = { p_tree.get(),  &lam, 12, 8, cache };
-    auto probs = get_random_probabilities(p, 10, 3);
-    CHECK_EQ(10, probs.size());
-    CHECK_EQ(doctest::Approx(0.001905924).scale(10000), probs[0]);
-}
-
-
 TEST_CASE_FIXTURE(Inference, "base_model creates lambda_epsilon_optimizer if requested")
 {
     error_model err;
