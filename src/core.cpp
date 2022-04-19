@@ -252,7 +252,7 @@ TEST_CASE("Inference: model_vitals")
     std::ostringstream ost;
     model.write_vital_statistics(ost, new clade("A", 5), 0.01);
     CHECK_STREAM_CONTAINS(ost, "Model mockmodel Final Likelihood (-lnL): 0.01");
-    CHECK_STREAM_CONTAINS(ost, "Sigma:            75.5");
+    CHECK_STREAM_CONTAINS(ost, "Sigma: 75.5");
     CHECK_STREAM_CONTAINS(ost, "No attempts made");
 }
 

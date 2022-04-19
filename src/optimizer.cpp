@@ -634,7 +634,7 @@ std::ostream& operator<<(std::ostream& ost, const optimizer::result& r)
         ost << "Time: " << chrono::duration_cast<chrono::hours>(r.duration).count() << "H";
         ost << " " << chrono::duration_cast<chrono::minutes>(r.duration).count() % 60 << "M";
         ost << " " << chrono::duration_cast<chrono::seconds>(r.duration).count() % 60 << "S" << endl;
-        ost << "Best match" << (r.values.size() == 1 ? " is: " : "es are: ") << setw(15) << setprecision(14);
+        ost << "Best match" << (r.values.size() == 1 ? " is: " : "es are: ") << setprecision(14);
         for (size_t i = 0; i < r.values.size() - 1; ++i)
             ost << r.values[i] << ',';
         ost << r.values[r.values.size() - 1] << endl; 

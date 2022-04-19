@@ -19,7 +19,7 @@ void sigma_squared::update(const double* values)
 std::string sigma_squared::to_string() const
 {
     ostringstream ost;
-    ost << setw(15) << setprecision(14);
+    ost << setprecision(14);
     for (size_t i = 0; i < _values.size(); ++i)
     {
         ost << _values[i];

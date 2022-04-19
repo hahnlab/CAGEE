@@ -1096,7 +1096,7 @@ TEST_CASE("Inference, optimizer_result_stream")
     ost << r;
     STRCMP_CONTAINS("Completed 10 iterations", ost.str().c_str());
     STRCMP_CONTAINS("Time: 1H 23M 20S", ost.str().c_str());
-    STRCMP_CONTAINS("Best matches are:            0.05,0.03", ost.str().c_str());
+    STRCMP_CONTAINS("Best matches are: 0.05,0.03", ost.str().c_str());
     STRCMP_CONTAINS("Final -lnL: 5", ost.str().c_str());
 }
 
