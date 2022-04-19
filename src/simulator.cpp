@@ -89,7 +89,7 @@ simulated_family create_simulated_family(const clade *p_tree, const sigma_square
     binner b(upper_bound);
     std::function <void(const clade*)> get_child_value;
     get_child_value = [&](const clade* c) {
-        auto m = cache.get_matrix(c->get_branch_length(), p_sigsqrd->get_value_for_clade(c) / 2, upper_bound);
+        auto m = cache.get_matrix(c->get_branch_length(), p_sigsqrd->get_value_for_clade(c), upper_bound);
         VectorXd v = VectorPos_bounds(sim.values[c->get_parent()], DISCRETIZATION_RANGE, bounds);
         VectorXd probs = m * v;
         std::discrete_distribution<int> distribution(probs.data(), probs.data() + probs.size());
@@ -132,10 +132,7 @@ std::vector<simulated_family> simulator::simulate_processes(model *p_model) {
         });
 
     matrix_cache cache;
-    auto s = sim_sigsqd->get_values();
-    vector<double> halves(s.size());
-    transform(s.begin(), s.end(), halves.begin(), [](double d) { return d / 2.0; });
-    cache.precalculate_matrices(halves, set<int>(upper_bounds.begin(), upper_bounds.end()), data.p_tree->get_branch_lengths());
+    cache.precalculate_matrices(sim_sigsqd->get_values(), set<int>(upper_bounds.begin(), upper_bounds.end()), data.p_tree->get_branch_lengths());
 
     transform(root_sizes.begin(), root_sizes.end(), upper_bounds.begin(), results.begin(), [this, &sim_sigsqd, &cache](double root_size, double upper_bound) {
         return create_simulated_family(data.p_tree, sim_sigsqd.get(), upper_bound, root_size, cache);
@@ -290,12 +287,12 @@ TEST_CASE("create_trial")
     auto ub = get_upper_bound(&ss, p_tree.get(), 5.0);
 
     matrix_cache cache;
-    cache.precalculate_matrices(vector<double>{0.125}, set<int>{ub}, p_tree->get_branch_lengths());
+    cache.precalculate_matrices(ss.get_values(), set<int>{ub}, p_tree->get_branch_lengths());
 
     simulated_family actual = create_simulated_family(p_tree.get(), &ss, ub, 5.0, cache);
 
     CHECK_EQ(doctest::Approx(5.0), actual.values.at(p_tree.get()));
-    CHECK_EQ(doctest::Approx(4.82412), actual.values.at(p_tree->find_descendant("A")));
+    CHECK_EQ(doctest::Approx(4.7487), actual.values.at(p_tree->find_descendant("A")));
     CHECK_EQ(doctest::Approx(4.97487), actual.values.at(p_tree->find_descendant("B")));
 }
 
@@ -372,13 +369,14 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
 {
     randomizer_engine.seed(10);
 
+    const double actual_sigma = 10;
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:1):1"));
-    sigma_squared sim_sigsqd(10);
+    sigma_squared sim_sigsqd(actual_sigma);
     auto a = p_tree->find_descendant("A");
     auto ub = get_upper_bound(&sim_sigsqd, p_tree.get(), 10);
 
     matrix_cache cache;
-    cache.precalculate_matrices(vector<double>{5}, set<int>{ub}, p_tree->get_branch_lengths());
+    cache.precalculate_matrices(vector<double>{10}, set<int>{ub}, p_tree->get_branch_lengths());
     size_t sz = 3;
     vector<double> v(sz);
     generate(v.begin(), v.end(), [&]() {
@@ -391,8 +389,8 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
         return accumulator + ((val - mean) * (val - mean) / (sz - 1));
      });
 
-    CHECK_EQ(doctest::Approx(9.64824), mean);
-    CHECK_EQ(doctest::Approx(0.568167), variance);
+    CHECK_EQ(doctest::Approx(actual_sigma).epsilon(1), mean);
+    CHECK_EQ(doctest::Approx(1.4545), variance);
 }
 
 TEST_CASE("print_header")
