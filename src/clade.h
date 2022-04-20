@@ -22,14 +22,14 @@ using cladefunc = std::function<void(const clade*)>;
 */
 class clade {
 
-    friend clade* parse_newick(std::string newick_string, bool parse_lambdas); // allows newick_parser to set parameter values
+    friend clade* parse_newick(std::string newick_string, bool parse_sigmas); // allows newick_parser to set parameter values
 
 private:
     clade *_p_parent; // needs to be pointer; instance creates infinite loop
     std::string _taxon_name;
-    double _branch_length; // or lambda value
-    int _lambda_index;
-    bool is_lambda_clade;
+    double _branch_length; // or sigma value
+    int _sigma_index;
+    bool is_sigma_clade;
 
     std::vector<clade*> _descendants; // same as above
 
@@ -45,10 +45,10 @@ public:
     typedef std::vector<clade*>::const_iterator descendant_iterator;
 
     /* methods */
-    clade() : _p_parent(nullptr), _branch_length(0), _lambda_index(0), is_lambda_clade(false) {} // basic constructor
+    clade() : _p_parent(nullptr), _branch_length(0), _sigma_index(0), is_sigma_clade(false) {} // basic constructor
 
     //! constructor giving taxon name and branch length
-    clade(std::string taxon_name, double length) : _p_parent(nullptr), _taxon_name(taxon_name), _branch_length(length), _lambda_index(0), is_lambda_clade(false) {}
+    clade(std::string taxon_name, double length) : _p_parent(nullptr), _taxon_name(taxon_name), _branch_length(length), _sigma_index(0), is_sigma_clade(false) {}
 
     clade(const clade& c, clade *parent = nullptr, std::function<double(const clade& c)> branchlength_setter = nullptr);
 
@@ -71,8 +71,8 @@ public:
 
     double distance_from_root_to_tip() const;
 
-    //! In a multiple lambda situation, returns the index of the lambda associated with this particular clade
-    int get_lambda_index() const;
+    //! In a multiple sigma situation, returns the index of the sigma associated with this particular clade
+    int get_sigma_index() const;
 
     //! returns descendant nodes of this clade that are not leaves
     std::vector<const clade*> find_internal_nodes() const;
@@ -86,14 +86,14 @@ public:
 
     void write_newick(std::ostream& ost, std::function<std::string(const clade *c)> textwriter) const;
 
-    std::map<std::string, int> get_lambda_index_map();
+    std::map<std::string, int> get_sigma_index_map();
 
     //! Return a unique list of all brnach lengths for this clade and its descendants
     std::set<double> get_branch_lengths() const;
 
-    /// Checks that the list of node names of the lambda tree matches this one
+    /// Checks that the list of node names of the sigma tree matches this one
     /// throw an exception if not
-    void validate_lambda_tree(const clade* p_lambda_tree) const;
+    void validate_sigma_tree(const clade* p_sigma_tree) const;
 
     //! apply the function f to direct descendants. Does not automatically recurse.
     void apply_to_descendants(const cladefunc& f) const;
@@ -127,7 +127,7 @@ using cladevector = std::vector<const clade *>;
 
 std::string clade_index_or_name(const clade* node, const cladevector& order);
 
-clade* parse_newick(std::string newick_string, bool parse_lambdas);
+clade* parse_newick(std::string newick_string, bool parse_sigmas);
 inline clade* parse_newick(std::string newick_string) { return parse_newick(newick_string, false); }
 
 #endif

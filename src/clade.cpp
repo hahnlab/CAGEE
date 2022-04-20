@@ -17,8 +17,8 @@ clade::clade(const clade& c, clade* parent, std::function<double(const clade& c)
         _branch_length = branchlength_setter(c);
     else
         _branch_length = c._branch_length;
-    _lambda_index = c._lambda_index;
-    is_lambda_clade = c.is_lambda_clade;
+    _sigma_index = c._sigma_index;
+    is_sigma_clade = c.is_sigma_clade;
     _descendants.resize(c._descendants.size());
     transform(c._descendants.begin(), c._descendants.end(), _descendants.begin(), [&](const clade* c) { return new clade(*c, this, branchlength_setter);});
 
@@ -41,18 +41,18 @@ const clade *clade::get_parent() const {
 
 double clade::get_branch_length() const
 {
-    if (is_lambda_clade)
-        throw std::runtime_error("Requested branch length from lambda tree");
+    if (is_sigma_clade)
+        throw std::runtime_error("Requested branch length from sigma tree");
 
     return _branch_length;
 }
 
-int clade::get_lambda_index() const
+int clade::get_sigma_index() const
 {
-    if (!is_lambda_clade)
-        throw std::runtime_error("Requested lambda index from branch length tree");
+    if (!is_sigma_clade)
+        throw std::runtime_error("Requested sigma index from branch length tree");
 
-    return _lambda_index;
+    return _sigma_index;
 }
 
 /* Adds descendant to vector of descendants */
@@ -192,16 +192,16 @@ void print_clade_name(clade *clade) {
   LOG(INFO) << clade->get_taxon_name() << " (length of subtending branch: " << clade->get_branch_length() << ")" << endl;
 }
 
-std::map<std::string, int> clade::get_lambda_index_map()
+std::map<std::string, int> clade::get_sigma_index_map()
 {
-    std::map<std::string, int> node_name_to_lambda_index;
+    std::map<std::string, int> node_name_to_sigma_index;
     
-    auto fn = [&node_name_to_lambda_index](const clade *c) { 
-        node_name_to_lambda_index[c->get_taxon_name()] = c->get_lambda_index() - 1; // -1 is to adjust the index offset
+    auto fn = [&node_name_to_sigma_index](const clade *c) {
+        node_name_to_sigma_index[c->get_taxon_name()] = c->get_sigma_index() - 1; // -1 is to adjust the index offset
     };
 
     apply_prefix_order(fn);
-    return node_name_to_lambda_index;
+    return node_name_to_sigma_index;
 }
 
 void clade::write_newick(ostream& ost, std::function<std::string(const clade *c)> textwriter) const
@@ -265,7 +265,7 @@ std::set<double> clade::get_branch_lengths() const
     return result;
 }
 
-void clade::validate_lambda_tree(const clade* p_lambda_tree) const
+void clade::validate_sigma_tree(const clade* p_sigma_tree) const
 {
     auto g = [](set<string>& s, const clade* c) {
         s.insert(c->get_taxon_name());
@@ -273,12 +273,12 @@ void clade::validate_lambda_tree(const clade* p_lambda_tree) const
     set<string> my_taxa;
     apply_prefix_order([g, &my_taxa](const clade* c) { g(my_taxa, c);  });
 
-    set<string> lambda_taxa;
-    p_lambda_tree->apply_prefix_order([g, &lambda_taxa](const clade* c) { g(lambda_taxa, c);  });
+    set<string> sigma_taxa;
+    p_sigma_tree->apply_prefix_order([g, &sigma_taxa](const clade* c) { g(sigma_taxa, c);  });
 
-    if (my_taxa != lambda_taxa)
+    if (my_taxa != sigma_taxa)
     {
-        throw std::runtime_error("The lambda tree structure does not match that of the tree");
+        throw std::runtime_error("The sigma tree structure does not match that of the tree");
     }
 }
 
@@ -311,7 +311,7 @@ void clade::apply_prefix_order(const cladefunc& f) const {
     }
 }
 
-clade* parse_newick(std::string newick_string, bool parse_to_lambdas) {
+clade* parse_newick(std::string newick_string, bool parse_to_sigmas) {
 
     std::regex tokenizer("\\(|\\)|[^\\s\\(\\)\\:\\;\\,]+|\\:[+-]?[0-9]*\\.?[0-9]+([eE][+-]?[0-9]+)?|\\,|\\;");
 
@@ -330,7 +330,7 @@ clade* parse_newick(std::string newick_string, bool parse_to_lambdas) {
     clade* p_root_clade = new_clade(NULL);
     p_root_clade->_source_newick = newick_string;
 
-    p_root_clade->is_lambda_clade = parse_to_lambdas; // if user does not provide lambda for root, we need to make the root specifically a lambda clade if we are parsing to lambdas
+    p_root_clade->is_sigma_clade = parse_to_sigmas; // if user does not provide sigma for root, we need to make the root specifically a sigma clade if we are parsing to sigmas
 
     clade* p_current_clade = p_root_clade; // current_clade starts as the root
 
@@ -387,16 +387,16 @@ clade* parse_newick(std::string newick_string, bool parse_to_lambdas) {
             /* Checking ':' regex */
             // cout << "Found :: " << regex_it->str() << endl;
 
-            if (parse_to_lambdas)
+            if (parse_to_sigmas)
             {
                 int ind = strtol(regex_it->str().substr(1).c_str(), nullptr, 0);
-                p_current_clade->_lambda_index = ind;
-                p_current_clade->is_lambda_clade = true;
+                p_current_clade->_sigma_index = ind;
+                p_current_clade->is_sigma_clade = true;
             }
             else
             {
                 p_current_clade->_branch_length = atof(regex_it->str().substr(1).c_str()); // atof() converts string into float
-                p_current_clade->is_lambda_clade = false;
+                p_current_clade->is_sigma_clade = false;
             }
         }
 
@@ -415,16 +415,16 @@ clade* parse_newick(std::string newick_string, bool parse_to_lambdas) {
     }
 
     std::function<void(const clade*)> validator;
-    if (p_root_clade->is_lambda_clade)
+    if (p_root_clade->is_sigma_clade)
     {
-        // since user is not required to set a lambda index for the root, go ahead and assign it to the first lambda
+        // since user is not required to set a sigma index for the root, go ahead and assign it to the first sigma
         // so the rest of the code doesn't get confused
-        if (p_root_clade->get_lambda_index() == 0)
-            p_root_clade->_lambda_index = 1;
+        if (p_root_clade->get_sigma_index() == 0)
+            p_root_clade->_sigma_index = 1;
 
         validator = [](const clade* c) {
-            if (c->_lambda_index < 1)
-                throw std::runtime_error("Invalid lambda index set for " + c->get_taxon_name());
+            if (c->_sigma_index < 1)
+                throw std::runtime_error("Invalid sigma index set for " + c->get_taxon_name());
         };
     }
     else

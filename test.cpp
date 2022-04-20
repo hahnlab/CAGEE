@@ -928,7 +928,7 @@ TEST_CASE("Clade: get_lambda_index_throws_from_branch_length_tree")
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
     CHECK_EQ(7, p_tree->get_branch_length());
-    CHECK_THROWS_WITH_AS(p_tree->get_lambda_index(), "Requested lambda index from branch length tree", runtime_error);
+    CHECK_THROWS_WITH_AS(p_tree->get_sigma_index(), "Requested sigma index from branch length tree", runtime_error);
 
 }
 
@@ -936,8 +936,8 @@ TEST_CASE("Clade: get_branch_length_throws_from_lambda_tree")
 {
     ostringstream ost;
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7", true));
-    CHECK_EQ(7, p_tree->get_lambda_index());
-    CHECK_THROWS_WITH_AS(p_tree->get_branch_length(), "Requested branch length from lambda tree", runtime_error);
+    CHECK_EQ(7, p_tree->get_sigma_index());
+    CHECK_THROWS_WITH_AS(p_tree->get_branch_length(), "Requested branch length from sigma tree", runtime_error);
 
 }
 
@@ -945,13 +945,13 @@ TEST_CASE("Clade: lambda_tree_root_index_is_1_if_not_specified")
 {
     ostringstream ost;
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:2)", true));
-    CHECK_EQ(1, p_tree->get_lambda_index());
+    CHECK_EQ(1, p_tree->get_sigma_index());
 }
 
 TEST_CASE("Clade: parse_newick_throws_exception_for_invalid_lambdas_in_tree")
 {
-    CHECK_THROWS_WITH_AS(parse_newick("(A:1,B:0):2", true), "Invalid lambda index set for B", runtime_error);
-    CHECK_THROWS_WITH_AS(parse_newick("(A:-1,B:2)", true), "Invalid lambda index set for A", runtime_error);
+    CHECK_THROWS_WITH_AS(parse_newick("(A:1,B:0):2", true), "Invalid sigma index set for B", runtime_error);
+    CHECK_THROWS_WITH_AS(parse_newick("(A:-1,B:2)", true), "Invalid sigma index set for A", runtime_error);
 }
 
 TEST_CASE("Clade: parse_newick_throws_exception_for_invalid_branch_length_in_tree")

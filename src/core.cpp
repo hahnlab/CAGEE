@@ -144,46 +144,46 @@ void branch_probabilities::set(const gene_transcript& fam, const clade* c, branc
 
 map<string, int> get_sigma_index_map(const std::vector<string>& sample_groups)
 {
-    map<string, int> sample_to_lambda_index;
+    map<string, int> sample_to_sigma_index;
     for (size_t i = 0; i < sample_groups.size(); ++i)
     {
         vector<string> groups;
         boost::split(groups, sample_groups[i], boost::is_any_of(","));
         for (auto g : groups)
-            sample_to_lambda_index[g] = i;
+            sample_to_sigma_index[g] = i;
     }
-    return sample_to_lambda_index;
+    return sample_to_sigma_index;
 }
 
-//! Create a lambda based on the lambda tree model the user passed.
-/// Called when the user has provided no lambda value and one must
-/// be estimated. If the p_lambda_tree is NULL, uses a single
-/// lambda; otherwise uses the number of unique lambdas in the provided
+//! Create a sigma based on the sigma tree model the user passed.
+/// Called when the user has provided no sigma value and one must
+/// be estimated. If the p_sigma_tree is NULL, uses a single
+/// sigma; otherwise uses the number of unique sigmas in the provided
 /// tree
-sigma_squared* initialize_search_sigma(clade* p_lambda_tree, const std::vector<string>& sample_groups)
+sigma_squared* initialize_search_sigma(clade* p_sigma_tree, const std::vector<string>& sample_groups)
 {
-    sigma_squared* p_lambda = NULL;
-    if (p_lambda_tree != NULL)
+    sigma_squared* p_sigma = NULL;
+    if (p_sigma_tree != NULL)
     {
-        std::set<int> unique_lambdas;
-        auto fn = [&unique_lambdas](const clade* p_node) { unique_lambdas.insert(p_node->get_lambda_index()); };
-        p_lambda_tree->apply_prefix_order(fn);
-        auto node_name_to_lambda_index = p_lambda_tree->get_lambda_index_map();
-        p_lambda = new sigma_squared(node_name_to_lambda_index, std::vector<double>(unique_lambdas.size()), sigma_type::lineage_specific);
-        LOG(INFO) << "Searching for " << unique_lambdas.size() << " sigmas" << endl;
+        std::set<int> unique_sigmas;
+        auto fn = [&unique_sigmas](const clade* p_node) { unique_sigmas.insert(p_node->get_sigma_index()); };
+        p_sigma_tree->apply_prefix_order(fn);
+        auto node_name_to_sigma_index = p_sigma_tree->get_sigma_index_map();
+        p_sigma = new sigma_squared(node_name_to_sigma_index, std::vector<double>(unique_sigmas.size()), sigma_type::lineage_specific);
+        LOG(INFO) << "Searching for " << unique_sigmas.size() << " sigmas" << endl;
     }
     else if (!sample_groups.empty())
     {
         auto sample_name_to_sigma_index = get_sigma_index_map(sample_groups);
-        p_lambda = new sigma_squared(sample_name_to_sigma_index, std::vector<double>(sample_groups.size()), sigma_type::sample_specific);
+        p_sigma = new sigma_squared(sample_name_to_sigma_index, std::vector<double>(sample_groups.size()), sigma_type::sample_specific);
         LOG(INFO) << "Searching for " << sample_groups.size() << " sigmas" << endl;
     }
     else
     {
-        p_lambda = new sigma_squared(0.0);
+        p_sigma = new sigma_squared(0.0);
     }
 
-    return p_lambda;
+    return p_sigma;
 }
 
 TEST_CASE("initialize_search_sigma returns single sigma if no arguments")

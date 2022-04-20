@@ -68,29 +68,26 @@ clade * user_data::read_lambda_tree(const input_parameters &my_input_parameters)
 //! Read user provided single or multiple lambdas
 sigma_squared* user_data::read_lambda(const input_parameters &my_input_parameters, clade *p_lambda_tree) {
 
-    sigma_squared*p_lambda = NULL; // lambda is an abstract class, and so we can only instantiate it as single_lambda or multiple lambda -- therefore initializing it to NULL
+    sigma_squared*p_sigma = NULL; // sigma is an abstract class, and so we can only instantiate it as single_sigma or multiple sigma -- therefore initializing it to NULL
 
                              // -l
     if (my_input_parameters.fixed_lambda > 0.0) {
-        p_lambda = new sigma_squared(my_input_parameters.fixed_lambda);
+        p_sigma = new sigma_squared(my_input_parameters.fixed_lambda);
         // call_viterbi(max_family_size, max_root_family_size, 15, p_lambda, *p_gene_families, p_tree);
     }
 
     // -m
     if (!my_input_parameters.fixed_multiple_lambdas.empty()) {
-        map<std::string, int> node_name_to_lambda_index = p_lambda_tree->get_lambda_index_map(); // allows matching different lambda values to nodes in lambda tree
-        vector<string> lambdastrings = tokenize_str(my_input_parameters.fixed_multiple_lambdas, ',');
-        vector<double> lambdas(lambdastrings.size());
+        map<std::string, int> node_name_to_sigma_index = p_lambda_tree->get_sigma_index_map(); // allows matching different sigma values to nodes in sigma tree
+        vector<string> sigmastrings = tokenize_str(my_input_parameters.fixed_multiple_lambdas, ',');
+        vector<double> sigmas(sigmastrings.size());
 
-        // transform is like R's apply (vector lambdas takes the outputs, here we are making doubles from strings
-        transform(lambdastrings.begin(), lambdastrings.end(), lambdas.begin(),
-            [](string const& val) { return stod(val); } // this is the equivalent of a Python's lambda function
-        );
+        transform(sigmastrings.begin(), sigmastrings.end(), sigmas.begin(), [](string const& val) { return stod(val); });
 
-        p_lambda = new sigma_squared(node_name_to_lambda_index, lambdas, sigma_type::lineage_specific);
+        p_sigma = new sigma_squared(node_name_to_sigma_index, sigmas, sigma_type::lineage_specific);
     }
 
-    return p_lambda;
+    return p_sigma;
 }
 
 //! Populate famdist_map with root family distribution read from famdist_file_path
@@ -140,7 +137,7 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
     /* -y */
     if (!my_input_parameters.lambda_tree_file_path.empty()) {
         p_lambda_tree = read_lambda_tree(my_input_parameters);
-		p_tree->validate_lambda_tree(p_lambda_tree);
+		p_tree->validate_sigma_tree(p_lambda_tree);
     }
 
     /* -l/-m (in the absence of -l, estimate) */
