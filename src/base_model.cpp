@@ -217,7 +217,7 @@ sigma_squared* base_model::get_simulation_lambda()
     return _p_sigma->multiply(simulation_lambda_multiplier);
 }
 
-double base_model_reconstruction::get_node_count(const gene_transcript& family, const clade *c) const
+double base_model_reconstruction::get_node_value(const gene_transcript& family, const clade *c) const
 {
     if (c->is_leaf())
         return family.get_expression_value(c->get_taxon_name());
@@ -265,3 +265,103 @@ TEST_CASE("base optimizer guesses sigma only")
     CHECK_EQ(0.5, guesses[0]);
     delete model.get_sigma();
 }
+
+class Reconstruction
+{
+public:
+    gene_transcript fam;
+    unique_ptr<clade> p_tree;
+    cladevector order;
+
+    Reconstruction() : fam("Family5", "", "")
+    {
+        p_tree.reset(parse_newick("((A:1,B:3):7,(C:11,D:17):23);"));
+
+        fam.set_expression_value("A", pv::to_computational_space(11));
+        fam.set_expression_value("B", pv::to_computational_space(2));
+        fam.set_expression_value("C", pv::to_computational_space(5));
+        fam.set_expression_value("D", pv::to_computational_space(6));
+
+        vector<string> nodes{ "A", "B", "C", "D", "AB", "CD", "ABCD" };
+        order.resize(nodes.size());
+        const clade* t = p_tree.get();
+        transform(nodes.begin(), nodes.end(), order.begin(), [t](string s) { return t->find_descendant(s); });
+
+    }
+};
+
+#define CHECK_STREAM_CONTAINS(x,y) CHECK_MESSAGE(x.str().find(y) != std::string::npos, x.str())
+
+TEST_CASE_FIXTURE(Reconstruction, "base_model_reconstruction__print_reconstructed_states")
+{
+    base_model_reconstruction bmr;
+    auto& values = bmr._reconstructions["Family5"];
+
+    values[p_tree.get()] = pv::to_computational_space(7);
+    values[p_tree->find_descendant("AB")] = pv::to_computational_space(8);
+    values[p_tree->find_descendant("CD")] = pv::to_computational_space(6);
+
+    branch_probabilities branch_probs;
+
+    ostringstream ost;
+
+    bmr.print_reconstructed_states(ost, order, { fam }, p_tree.get(), 0.05, branch_probs);
+    CHECK_STREAM_CONTAINS(ost, "#nexus");
+    CHECK_STREAM_CONTAINS(ost, "BEGIN TREES;");
+    CHECK_STREAM_CONTAINS(ost, "  TREE Family5 = ((A<0>_11.000000:1,B<1>_2.000000:3)<4>_8.000000:7,(C<2>_5.000000:11,D<3>_6.000000:17)<5>_6.000000:23)<6>_7.000000;");
+    CHECK_STREAM_CONTAINS(ost, "END;");
+
+}
+
+TEST_CASE("increase_decrease")
+{
+    base_model_reconstruction bmr;
+    gene_transcript gf("myid", "", "");
+
+    unique_ptr<clade> p_tree(parse_newick("((A:1,B:3):7,(C:11,D:17):23);"));
+
+    auto a = p_tree->find_descendant("A");
+    auto b = p_tree->find_descendant("B");
+    auto ab = p_tree->find_descendant("AB");
+    auto abcd = p_tree->find_descendant("ABCD");
+
+    gf.set_expression_value("A", pv::to_computational_space(4));
+    gf.set_expression_value("B", pv::to_computational_space(2));
+    bmr._reconstructions["myid"][ab] = pv::to_computational_space(3);
+    bmr._reconstructions["myid"][abcd] = pv::to_computational_space(3);
+
+    CHECK_EQ(doctest::Approx(1.0), bmr.get_difference_from_parent(gf, a));
+    CHECK_EQ(doctest::Approx(-1.0), bmr.get_difference_from_parent(gf, b));
+    CHECK_EQ(0, bmr.get_difference_from_parent(gf, ab));
+}
+
+class constant_upper_bound : public upper_bound_calculator
+{
+    int get(const gene_transcript& gt) const override { return 20; }
+};
+
+
+TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities" * doctest::skip(true))
+{
+    sigma_squared lm(0.05);
+    matrix_cache cache;
+    cache.precalculate_matrices(lm.get_values(), set<int>(), { 1,3,7 });
+    base_model_reconstruction rec;
+    rec._reconstructions[fam.id()][p_tree->find_descendant("AB")] = 10;
+    rec._reconstructions[fam.id()][p_tree->find_descendant("ABCD")] = 12;
+    CHECK_EQ(doctest::Approx(0.537681), compute_viterbi_sum(p_tree->find_descendant("AB"), fam, &rec, cache, &lm, constant_upper_bound())._value);
+}
+
+TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities_returns_invalid_if_root")
+{
+    sigma_squared lm(0.05);
+    matrix_cache cache;
+    cache.precalculate_matrices(lm.get_values(), set<int>(), { 1,3,7 });
+    base_model_reconstruction rec;
+    rec._reconstructions[fam.id()][p_tree.get()] = 11;
+    CHECK_FALSE(compute_viterbi_sum(p_tree.get(), fam, &rec, cache, &lm, constant_upper_bound())._is_valid);
+}
+
+
+
+

@@ -20,11 +20,11 @@ public:
     {
     }
 
-    void print_additional_data(const cladevector& order, familyvector& gene_families, std::string output_prefix) override;
+    void print_additional_data(const cladevector& order, transcript_vector& gene_families, std::string output_prefix) override;
 
-    void print_category_likelihoods(std::ostream& ost, const cladevector& order, familyvector& gene_families);
+    void print_category_likelihoods(std::ostream& ost, const cladevector& order, transcript_vector& gene_families);
 
-    double get_node_count(const gene_transcript& gf, const clade* c) const override;
+    double get_node_value(const gene_transcript& gf, const clade* c) const override;
 
     struct gamma_reconstruction {
         std::vector<clademap<double>> category_reconstruction;
@@ -100,7 +100,4 @@ public:
         std::vector<double>& category_likelihoods, 
         int upper_bound);
 };
-
-//! \ingroup gamma
-clademap<double> get_weighted_averages(const std::vector<clademap<int>>& m, const std::vector<double>& probabilities);
 

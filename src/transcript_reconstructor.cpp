@@ -93,7 +93,7 @@ string newick_node(const clade *node, const cladevector& order, bool significant
     return ost.str();
 }
 
-void reconstruction::print_node_change(std::ostream& ost, const cladevector& order, familyvector& gene_families, const clade* p_tree)
+void reconstruction::print_node_change(std::ostream& ost, const cladevector& order, transcript_vector& gene_families, const clade* p_tree)
 {
     print_family_clade_table(ost, order, gene_families, p_tree, [this, &gene_families](int family_index, const clade* c) {
         ostringstream ost;
@@ -102,7 +102,7 @@ void reconstruction::print_node_change(std::ostream& ost, const cladevector& ord
         });
 }
 
-void reconstruction::print_increases_decreases_by_clade(std::ostream& ost, const cladevector& order, familyvector& gene_transcripts) {
+void reconstruction::print_increases_decreases_by_clade(std::ostream& ost, const cladevector& order, transcript_vector& gene_transcripts) {
     clademap<pair<int, int>> increase_decrease_map;
 
     for (auto& transcript : gene_transcripts)
@@ -111,7 +111,7 @@ void reconstruction::print_increases_decreases_by_clade(std::ostream& ost, const
         {
             if (node)
             {
-                int val = get_difference_from_parent(transcript, node);
+                double val = get_difference_from_parent(transcript, node);
                 if (val > 0)
                     increase_decrease_map[node].first++;
                 if (val < 0)
@@ -141,7 +141,7 @@ void write_node_ordered(std::ostream& ost, std::string title, const cladevector&
     ost << endl;
 }
 
-void reconstruction::print_family_clade_table(std::ostream& ost, const cladevector& order, familyvector& gene_families, const clade* p_tree, std::function<string(int family_index, const clade *c)> get_family_clade_value)
+void reconstruction::print_family_clade_table(std::ostream& ost, const cladevector& order, transcript_vector& gene_families, const clade* p_tree, std::function<string(int family_index, const clade *c)> get_family_clade_value)
 {
     write_node_ordered(ost, "FamilyID", order, [order](const clade* c) { return clade_index_or_name(c, order); });
     for (size_t i = 0; i < gene_families.size(); ++i)
@@ -170,14 +170,14 @@ void print_branch_probabilities(std::ostream& ost, const cladevector& order, con
 
 }
 
-void reconstruction::print_reconstructed_states(std::ostream& ost, const cladevector& order, familyvector& transcripts, const clade* p_tree, double test_pvalue, const branch_probabilities& branch_probabilities)
+void reconstruction::print_reconstructed_states(std::ostream& ost, const cladevector& order, transcript_vector& transcripts, const clade* p_tree, double test_pvalue, const branch_probabilities& branch_probabilities)
 {
     ost << "#nexus\nBEGIN TREES;\n";
     for (size_t i = 0; i < transcripts.size(); ++i)
     {
         auto& gene_transcript = transcripts[i];
         auto g = [gene_transcript, this](const clade* node) {
-            return std::to_string(pv::to_user_space(get_node_count(gene_transcript, node)));
+            return std::to_string(pv::to_user_space(get_node_value(gene_transcript, node)));
         };
 
         function<string(const clade*)> text_func;
@@ -209,21 +209,21 @@ void reconstruction::print_reconstructed_states(std::ostream& ost, const cladeve
     
 }
 
-void reconstruction::print_node_counts(std::ostream& ost, const cladevector& order, familyvector& gene_families, const clade* p_tree)
+void reconstruction::print_node_values(std::ostream& ost, const cladevector& order, transcript_vector& transcripts, const clade* p_tree)
 {
-    print_family_clade_table(ost, order, gene_families, p_tree, [this, gene_families](int family_index, const clade* c) {
-        auto& gf = gene_families[family_index];
+    print_family_clade_table(ost, order, transcripts, p_tree, [this, transcripts](int family_index, const clade* c) {
+        auto& gf = transcripts[family_index];
         if (c->is_leaf())
-            return to_string(gf.get_expression_value(c->get_taxon_name()));
+            return to_string(pv::to_user_space(gf.get_expression_value(c->get_taxon_name())));
         else
-            return to_string(get_node_count(gf, c));
+            return to_string(pv::to_user_space(get_node_value(gf, c)));
         });
 }
 
 void reconstruction::write_results(std::string model_identifier, 
     std::string output_prefix, 
     const clade *p_tree, 
-    familyvector& families, 
+    transcript_vector& families, 
     double test_pvalue, 
     const branch_probabilities& branch_probabilities)
 {
@@ -235,9 +235,9 @@ void reconstruction::write_results(std::string model_identifier,
     std::ofstream ofst(filename(model_identifier + "_asr", output_prefix, "tre"));
     print_reconstructed_states(ofst, order, families, p_tree, test_pvalue, branch_probabilities);
 
-    VLOG(TRANSCRIPT_RECONSTRUCTION) << "writing node counts";
+    VLOG(TRANSCRIPT_RECONSTRUCTION) << "writing node transcript values";
     std::ofstream counts(filename(model_identifier + "_count", output_prefix, "tab"));
-    print_node_counts(counts, order, families, p_tree);
+    print_node_values(counts, order, families, p_tree);
 
     VLOG(TRANSCRIPT_RECONSTRUCTION) << "writing node changes";
     std::ofstream change(filename(model_identifier + "_change", output_prefix, "tab"));
@@ -254,12 +254,12 @@ void reconstruction::write_results(std::string model_identifier,
     print_additional_data(order, families, output_prefix);
 }
 
-int reconstruction::get_difference_from_parent(const gene_transcript& gf, const clade* c)
+double reconstruction::get_difference_from_parent(const gene_transcript& gf, const clade* c)
 {
     if (c->is_root())
         return 0;
 
-    return get_node_count(gf, c) - get_node_count(gf, c->get_parent());
+    return pv::to_user_space(get_node_value(gf, c)) - pv::to_user_space(get_node_value(gf, c->get_parent()));
 }
 
 branch_probabilities::branch_probability compute_viterbi_sum(const clade* c, 
@@ -276,8 +276,8 @@ branch_probabilities::branch_probability compute_viterbi_sum(const clade* c,
 
     auto probs = cache.get_matrix(c->get_branch_length(), p_lambda->get_named_value(c, transcript), bound_calculator.get(transcript));
 
-    int parent_size = rec->get_node_count(transcript, c->get_parent());
-    int child_size = rec->get_node_count(transcript, c);
+    int parent_size = rec->get_node_value(transcript, c->get_parent());
+    int child_size = rec->get_node_value(transcript, c);
     double result = 0;
     double calculated_probability = probs(parent_size, child_size);
     for (int m = 0; m < 200; m++)
@@ -395,7 +395,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns correct v
 
 class mock_reconstruction : public reconstruction
 {
-    double get_node_count(const gene_transcript& gf, const clade* c) const override
+    double get_node_value(const gene_transcript& gf, const clade* c) const override
     { 
         if (_reconstructions.find(gf.id()) == _reconstructions.end())
             return 3;
@@ -414,7 +414,7 @@ TEST_CASE_FIXTURE(Reconstruction, "print_node_counts")
     mock_reconstruction r;
 
     ostringstream ost;
-    r.print_node_counts(ost, order, std::vector<gene_transcript>({ fam }), p_tree.get());
+    r.print_node_values(ost, order, std::vector<gene_transcript>({ fam }), p_tree.get());
     CHECK_STREAM_CONTAINS(ost, "FamilyID\tA<0>\tB<1>\tC<2>\tD<3>\t<4>\t<5>\t<6>");
 }
 
@@ -425,7 +425,7 @@ TEST_CASE_FIXTURE(Reconstruction, "print_node_counts handles no zero id")
     ostringstream ost;
     order.push_back(order[0]);
     order[0] = nullptr;
-    r.print_node_counts(ost, order, std::vector<gene_transcript>({ fam }), p_tree.get());
+    r.print_node_values(ost, order, std::vector<gene_transcript>({ fam }), p_tree.get());
     CHECK_STREAM_CONTAINS(ost, "FamilyID\tB<1>\tC<2>\tD<3>\t<4>\t<5>\t<6>\tA<7>");
 }
 
@@ -458,3 +458,69 @@ TEST_CASE("Reconstruction: print_increases_decreases_by_clade")
     CHECK_STREAM_CONTAINS(ost, "A<1>\t1\t0");
     CHECK_STREAM_CONTAINS(ost, "B<2>\t0\t1");
 }
+
+TEST_CASE_FIXTURE(Reconstruction, "get_difference_from_parent")
+{
+    mock_reconstruction r;
+    r._reconstructions["Family5"][p_tree->find_descendant("A")] = pv::to_computational_space(22.11);
+    r._reconstructions["Family5"][p_tree->find_descendant("AB")] = pv::to_computational_space(17.6);
+
+    CHECK_EQ(doctest::Approx(4.51), r.get_difference_from_parent(fam, p_tree->find_descendant("A")));
+}
+
+TEST_CASE_FIXTURE(Reconstruction, "clade_index_or_name__returns_node_index_in_angle_brackets_for_non_leaf")
+{
+    CHECK_EQ(string("<0>"), clade_index_or_name(p_tree.get(), { p_tree.get() }).c_str());
+}
+
+TEST_CASE_FIXTURE(Reconstruction, "clade_index_or_name__returns_node_name_plus_index_in_angle_brackets_for_leaf")
+{
+    auto a = p_tree->find_descendant("A");
+    CHECK_EQ(string("A<1>"), clade_index_or_name(a, { p_tree.get(), a }).c_str());
+}
+
+TEST_CASE_FIXTURE(Reconstruction, "pvalues")
+{
+    vector<double> cd(10);
+    double n = 0;
+    std::generate(cd.begin(), cd.end(), [&n]() mutable { return n += 0.01; });
+    CHECK_EQ(0.5, pvalue(0.05, cd));
+    CHECK_EQ(0.0, pvalue(0.0001, cd));
+    CHECK_EQ(0.9, pvalue(0.099, cd));
+}
+
+TEST_CASE_FIXTURE(Reconstruction, "pvalues 2")
+{
+    double v = .35;
+    std::vector<double> conddist = { .1, .2, .3, .4, .5, .6, .7, .8, .9 };
+    double actual = pvalue(v, conddist);
+    CHECK_EQ(doctest::Approx(3.0 / 9.0), actual);
+}
+
+
+#if 0
+TEST_CASE_FIXTURE(Reconstruction, "print_branch_probabilities__shows_NA_for_invalids")
+{
+    gene_transcript gf("Family5", "", "");
+    std::ostringstream ost;
+    branch_probabilities probs;
+    for (auto c : order)
+        probs.set(gf, c, 0.05);
+    probs.set(gf, p_tree->find_descendant("B"), branch_probabilities::invalid());
+    probs.set(gf, p_tree.get(), branch_probabilities::invalid());
+
+    print_branch_probabilities(ost, order, { fam }, probs);
+    CHECK_STREAM_CONTAINS(ost, "FamilyID\tA<0>\tB<1>\tC<2>\tD<3>\t<4>\t<5>\t<6>");
+    CHECK_STREAM_CONTAINS(ost, "Family5\t0.05\tN/A\t0.05\t0.05\t0.05\t0.05\tN/A\n");
+}
+
+TEST_CASE_FIXTURE(Reconstruction, "print_branch_probabilities__skips_families_without_reconstructions")
+{
+    std::ostringstream ost;
+    branch_probabilities probs;
+
+    print_branch_probabilities(ost, order, { fam }, probs);
+    CHECK(ost.str().find("Family5") == string::npos);
+}
+
+#endif
