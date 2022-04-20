@@ -29,7 +29,9 @@ extern std::mt19937 randomizer_engine; // seeding random number engine
 int get_upper_bound(const sigma_squared* p_sigsqrd, const clade* p_tree, double root_size)
 {
     double t = p_tree->distance_from_root_to_tip();
-    double sigma = sqrt(p_sigsqrd->get_value_for_clade(p_tree));
+
+    auto v = p_sigsqrd->get_values();
+    double sigma = sqrt(*max_element(v.begin(), v.end()));
 
     int val = int(root_size + 4.5 * sigma * sqrt(t));
 
@@ -508,6 +510,16 @@ TEST_CASE("get_upper_bound")
     CHECK_EQ(5, get_upper_bound(&ss_zero, p_tree.get(), 0.0));
 
     CHECK_EQ(5, get_upper_bound(&ss_zero, p_tree.get(), 0.0000001));
+}
+
+
+TEST_CASE("get_upper_bound uses largest sigma if there are several")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):6"));
+
+    sigma_squared ss({{"A",0},{"B",1},{"AB",0} }, { 4,16 }, sigma_type::lineage_specific);
+
+    CHECK_EQ(65, get_upper_bound(&ss, p_tree.get(), 7.0));
 }
 
 
