@@ -123,7 +123,8 @@ bool gamma_model::prune(const gene_transcript& family, const std::gamma_distribu
 
     for (size_t k = 0; k < _gamma_cat_probs.size(); ++k)
     {
-        auto partial_likelihood = inference_prune(family, diff_mat, p_lambda, _p_error_model, p_tree, _lambda_multipliers[k], upper_bound);
+        inference_pruner pruner(diff_mat, p_lambda, _p_error_model, p_tree, _lambda_multipliers[k]);
+        auto partial_likelihood = pruner.prune(family, upper_bound);
         if (accumulate(partial_likelihood.begin(), partial_likelihood.end(), 0.0) == 0.0)
             return false;   // saturation
 

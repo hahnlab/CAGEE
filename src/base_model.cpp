@@ -120,10 +120,11 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
     calc.precalculate_matrices(p_sigma->get_values(), get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
 
     vector<vector<double>> partial_likelihoods(ud.gene_families.size());
+    inference_pruner pruner(calc, p_sigma, _p_error_model, ud.p_tree, 1.0);
 #pragma omp parallel for
     for (int i = 0; i < ud.gene_families.size(); ++i) {
         if (references[i] == i)
-            partial_likelihoods[i] = inference_prune(ud.gene_families.at(i), calc, p_sigma, _p_error_model, ud.p_tree, 1.0, bound_calculator->get(ud.gene_families.at(i)));
+            partial_likelihoods[i] = pruner.prune(ud.gene_families.at(i), bound_calculator->get(ud.gene_families.at(i)));
             // probabilities of various family sizes
     }
 

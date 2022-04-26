@@ -28,13 +28,28 @@ size_t adjust_for_error_model(size_t c, const error_model *p_error_model);
 
 double pvalue(double v, const std::vector<double>& conddist);
 
-std::vector<double> inference_prune(const gene_transcript& gf, 
-    const matrix_cache& cache, 
-    const sigma_squared* sigma, 
-    const error_model* p_error_model, 
-    const clade* _p_tree, 
-    double _sigma_multiplier,
-    int upper_bound);
+template<typename T>
+using clademap = std::map<const clade*, T>;
+
+class inference_pruner
+{
+    const matrix_cache& _cache;
+    const sigma_squared* _p_sigsqd;
+    const error_model* _p_error_model;
+    const clade* _p_tree;
+    const double _sigma_multiplier;
+
+    clademap<Eigen::VectorXd> compute_all_probabilities(const gene_transcript& gf, int upper_bound);
+public:
+    inference_pruner(const matrix_cache& cache,
+        const sigma_squared* sigma,
+        const error_model* p_error_model,
+        const clade* _p_tree,
+        double _sigma_multiplier);
+
+    std::vector<double> prune(const gene_transcript& gf, int upper_bound);
+    clademap<double> reconstruct(const gene_transcript& gf, int upper_bound);
+};
 
 class upper_bound_calculator
 {

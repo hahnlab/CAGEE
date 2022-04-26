@@ -16,6 +16,7 @@
 #include "DiffMat.h"
 #include "newick_ape_loader.h"
 #include "proportional_variance.h"
+#include "probability.h"
 
 using namespace std;
 using namespace Eigen;
@@ -32,54 +33,10 @@ transcript_reconstructor::transcript_reconstructor(const sigma_squared* p_sigma,
     }
 }
 
-double get_value(const gene_transcript& t, const VectorXd& likelihood, int upper_bound)
-{
-    Index i;
-    auto m = likelihood.maxCoeff(&i);
-    return (float(i) / 200.0) * upper_bound;
-}
-
 clademap<double> transcript_reconstructor::reconstruct_gene_transcript(const gene_transcript& t, int upper_bound)
 {
-    IOFormat CleanFmt(4, DontAlignCols, " ", " ", "", "");
-    for (auto it = _p_tree->reverse_level_begin(); it != _p_tree->reverse_level_end(); ++it)
-    {
-        const clade* c = *it;
-        if (c->is_leaf())
-        {
-            std::pair<double, double> bounds(0, upper_bound);
-
-            all_node_Ls[c] = VectorPos_bounds(t.get_expression_value(c->get_taxon_name()), DISCRETIZATION_RANGE, bounds);
-            VLOG(TRANSCRIPT_RECONSTRUCTION) << c->get_taxon_name() << " " << all_node_Ls[c].format(CleanFmt) << endl;
-        }
-        else
-        {
-            // Each child should be propagated separately, and then take the mean of the resulting vectors
-            //    So mean(child1 * m, child2 * m)
-            
-            vector<VectorXd> child_likelihoods(2);
-            transform(c->descendant_begin(), c->descendant_end(), child_likelihoods.begin(), [this, t, &CleanFmt, upper_bound](const clade* child) {
-                auto matrix = _p_cache->get_matrix(child->get_branch_length(), _p_sigma->get_named_value(child, t), upper_bound);
-                VectorXd result = matrix * all_node_Ls[child];
-                VLOG(TRANSCRIPT_RECONSTRUCTION) << "ConvPropBounds * L[" << child->get_taxon_name() << "] " << result.format(CleanFmt) << endl;
-
-                return result;
-                });
-            for (int i = 0; i < DISCRETIZATION_RANGE; ++i)
-            {
-                all_node_Ls[c][i] = (child_likelihoods[0][i] + child_likelihoods[1][i]) / 2.0;
-            }
-            VLOG(TRANSCRIPT_RECONSTRUCTION) << c->get_taxon_name() << " " << all_node_Ls[c].format(CleanFmt) << endl;
-        }
-
-    }
-
-    clademap<double> result;
-    for (auto it = _p_tree->reverse_level_begin(); it != _p_tree->reverse_level_end(); ++it)
-    {
-        result[*it] = (*it)->is_leaf() ? t.get_expression_value((*it)->get_taxon_name()) : get_value(t, all_node_Ls[*it], upper_bound);
-    }
-    return result;
+    inference_pruner pruner(*_p_cache, _p_sigma, nullptr, _p_tree, 1.0);
+    return pruner.reconstruct(t, upper_bound);
 }
 
 string newick_node(const clade *node, const cladevector& order, bool significant, std::function<std::string(const clade *c)> textwriter)
@@ -347,8 +304,6 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript assigns actual va
 TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript calculates parent node values correctly")
 {
     sigma_squared sig(10.1);
-    fam.set_expression_value("A", 45.2);
-    fam.set_expression_value("B", 61.8);
 
     MatrixXd doubler = MatrixXd::Identity(DISCRETIZATION_RANGE, DISCRETIZATION_RANGE) * 2;
     matrix_cache calc;
@@ -360,7 +315,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript calculates parent
 
     auto actual = tr.reconstruct_gene_transcript(fam, 200);
 
-    CHECK_EQ(45.0, actual[p_tree->find_descendant("AB")]);
+    CHECK_EQ(2.0, actual[p_tree->find_descendant("AB")]);
 
 }
 

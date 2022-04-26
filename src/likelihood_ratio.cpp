@@ -40,7 +40,8 @@ namespace LikelihoodRatioTest
         }
 
         matrix_cache cache;
-        auto probs = inference_prune(gf, cache, lambda_cache[lambda_index], nullptr, adjusted_tree.get(), 1.0, upper_bound);
+        inference_pruner pruner(cache, lambda_cache[lambda_index], nullptr, adjusted_tree.get(), 1.0);
+        auto probs = pruner.prune(gf, upper_bound);
         return *max_element(probs.begin(), probs.end());
     }
 
@@ -55,13 +56,14 @@ namespace LikelihoodRatioTest
         unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create());
 
         matrix_cache cache;
+        inference_pruner pruner(cache, data.p_lambda, data.p_error_model, data.p_tree, 1.0);
         for (size_t i = 0; i < data.gene_families.size(); i += 1)
         {
             auto& pitem = data.gene_families[i];
             if (references[i] != i) continue;
 
             //cache.precalculate_matrices(get_lambda_values(data.p_lambda), data.p_tree->get_branch_lengths());
-            auto values = inference_prune(pitem, cache, data.p_lambda, data.p_error_model, data.p_tree, 1.0, bound_calculator->get(pitem));
+            auto values = pruner.prune(pitem, bound_calculator->get(pitem));
             double maxlh1 = *max_element(values.begin(), values.end());
             double prev = -1;
             double next = get_likelihood_for_diff_lambdas(pitem, data.p_tree, data.p_lambda_tree, 0, lambda_cache, p_opt, bound_calculator->get(pitem));
