@@ -1,0 +1,31 @@
+#!/bin/bash
+# script to rebuild local cagee installation for development purposes
+# jtourig / hahnlab 2022
+
+set -euo pipefail
+
+procs=$(( $(lscpu | grep '^CPU(s):' | awk '{print $2}') / 4 )) # get 1/4 of available CPUs (prob linux-only)
+
+msg() { >&2 echo -e "  $@"; }
+warn() { msg "WARNING: $1"; }
+err() { msg "ERROR: $1"; msg "EXITING..."; exit 1; }
+set_wd() { cd "${0%/*}" && msg "set current working dir to script dir:\n    ${PWD}/"; }
+
+set_wd 				# go to CAGEE/utils/ dir
+msg "Rebuilding CAGEE from current local source..."
+
+msg "removing existing build and install dirs if present..."
+{ [[ -d ../build/ ]] && rm -vr ../build/; } || msg '../build/ not found'
+{ [[ -d ../install/ ]] && rm -vr ../install/; } || msg '../install/ not found'
+
+msg 'creating new build and install dirs...'
+mkdir -vp ../build/ ../install/
+cd ../build/ && msg "moved to $PWD"
+
+msg "building CAGEE with $procs procs"
+cmake -DCMAKE_INSTALL_PREFIX=../install/ -DMODEL_GENE_EXPRESSION_LOGS=1 ..
+make -j "$procs" && make install
+
+msg "CAGEE built and installed to CAGEE/install/bin/cagee"
+
+exit
