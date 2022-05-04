@@ -50,21 +50,18 @@ const Eigen::MatrixXd& matrix_cache::get_matrix(double branch_length, double sig
     }
 }
 
-void matrix_cache::precalculate_matrices(const std::vector<double>& squared_sigmas, const set<int>& boundses, const std::set<double>& branch_lengths)
+void matrix_cache::precalculate_matrices(const std::vector<double>& squared_sigmas, const std::set<double>& branch_lengths, int upper_bound)
 {
     // build a list of required matrices
     vector<matrix_cache_key> keys;
-    for (auto bounds : boundses)
+    for (double branch_length : branch_lengths)
     {
-        for (double branch_length : branch_lengths)
+        for (double sigsqd : squared_sigmas)
         {
-            for (double sigsqd : squared_sigmas)
+            matrix_cache_key key(upper_bound, sigsqd, branch_length);
+            if (_matrix_cache.find(key) == _matrix_cache.end())
             {
-                matrix_cache_key key(bounds, sigsqd, branch_length);
-                if (_matrix_cache.find(key) == _matrix_cache.end())
-                {
-                    keys.push_back(key);
-                }
+                keys.push_back(key);
             }
         }
     }
@@ -146,7 +143,7 @@ TEST_CASE("Probability:matrices_take_fractional_branch_lengths_into_account")
     sigma_squared sigsq(9.1);
     matrix_cache calc;
     std::set<double> branch_lengths{ 68, 68.7105 };
-    calc.precalculate_matrices(sigsq.get_values(), set<int>({ 3 }), branch_lengths);
+    calc.precalculate_matrices(sigsq.get_values(), branch_lengths, 3);
     CHECK_EQ(doctest::Approx(0.005), calc.get_matrix(68.7105, sigsq.get_values()[0], 3)(100, 100)); // a value 
     CHECK_EQ(doctest::Approx(0.005), calc.get_matrix(68,      sigsq.get_values()[0], 3)(100, 100));
 }
@@ -156,7 +153,7 @@ TEST_CASE("Probability: probability_of_matrix")
     sigma_squared sigsq(0.05);
     matrix_cache calc;
     std::set<double> branch_lengths{ 5 };
-    calc.precalculate_matrices(sigsq.get_values(), set<int>({ 3 }), branch_lengths);
+    calc.precalculate_matrices(sigsq.get_values(), branch_lengths, 3);
     MatrixXd actual = calc.get_matrix(5, sigsq.get_values()[0], 3);
     CHECK_EQ(200, actual.rows());
     CHECK_EQ(200, actual.cols());

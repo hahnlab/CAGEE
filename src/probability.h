@@ -57,6 +57,8 @@ public:
     virtual int get(const gene_transcript& gt) const = 0;
 
     static upper_bound_calculator* create();
+
+    int get_max_bound(const std::vector<gene_transcript>& transcripts) const;
 };
 
  

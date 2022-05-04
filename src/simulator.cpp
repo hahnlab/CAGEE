@@ -81,7 +81,7 @@ void simulator::execute(std::vector<model *>& models)
     simulate(models, _user_input);
 }
 
-simulated_family create_simulated_family(const clade *p_tree, const sigma_squared* p_sigsqrd, double upper_bound, double root_value, const matrix_cache& cache)
+simulated_family create_simulated_family(const clade *p_tree, const sigma_squared* p_sigsqrd, int upper_bound, double root_value, const matrix_cache& cache)
 {
     simulated_family sim;
     sim.sigma = p_sigsqrd->get_value_for_clade(p_tree);
@@ -128,15 +128,16 @@ std::vector<simulated_family> simulator::simulate_processes(model *p_model) {
 
     unique_ptr<sigma_squared> sim_sigsqd(p_model->get_simulation_lambda());
 
-    vector<int> upper_bounds(results.size());
-    transform(root_sizes.begin(), root_sizes.end(), upper_bounds.begin(), [&](double root_size) {
+    vector<int> bounds(results.size());
+    transform(root_sizes.begin(), root_sizes.end(), bounds.begin(), [&](double root_size) {
         return get_upper_bound(sim_sigsqd.get(), data.p_tree, root_size);
         });
+    int upper_bound = *max_element(bounds.begin(), bounds.end());
 
     matrix_cache cache;
-    cache.precalculate_matrices(sim_sigsqd->get_values(), set<int>(upper_bounds.begin(), upper_bounds.end()), data.p_tree->get_branch_lengths());
+    cache.precalculate_matrices(sim_sigsqd->get_values(), data.p_tree->get_branch_lengths(), upper_bound);
 
-    transform(root_sizes.begin(), root_sizes.end(), upper_bounds.begin(), results.begin(), [this, &sim_sigsqd, &cache](double root_size, double upper_bound) {
+    transform(root_sizes.begin(), root_sizes.end(), results.begin(), [this, &sim_sigsqd, &cache, upper_bound](double root_size) {
         return create_simulated_family(data.p_tree, sim_sigsqd.get(), upper_bound, root_size, cache);
         });
 
@@ -289,7 +290,7 @@ TEST_CASE("create_trial")
     auto ub = get_upper_bound(&ss, p_tree.get(), 5.0);
 
     matrix_cache cache;
-    cache.precalculate_matrices(ss.get_values(), set<int>{ub}, p_tree->get_branch_lengths());
+    cache.precalculate_matrices(ss.get_values(), p_tree->get_branch_lengths(), ub);
 
     simulated_family actual = create_simulated_family(p_tree.get(), &ss, ub, 5.0, cache);
 
@@ -378,7 +379,7 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
     auto ub = get_upper_bound(&sim_sigsqd, p_tree.get(), 10);
 
     matrix_cache cache;
-    cache.precalculate_matrices(vector<double>{10}, set<int>{ub}, p_tree->get_branch_lengths());
+    cache.precalculate_matrices(vector<double>{10}, p_tree->get_branch_lengths(), ub);
     size_t sz = 3;
     vector<double> v(sz);
     generate(v.begin(), v.end(), [&]() {

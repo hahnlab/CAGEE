@@ -100,6 +100,16 @@ double chooseln(double n, double r)
 /* END: Math tools ----------------------- */
 
 
+int upper_bound_calculator::get_max_bound(const vector<gene_transcript>& transcripts) const
+{
+    vector<int> bounds(transcripts.size());
+    transform(transcripts.begin(), transcripts.end(), bounds.begin(), [this](const gene_transcript& gf) {
+        return get(gf);
+        });
+
+    return *max_element(bounds.begin(), bounds.end());
+}
+
 class upper_bound_calculator_linear_space : public upper_bound_calculator
 {
 public:
@@ -539,7 +549,7 @@ TEST_CASE("inference_pruner: check stats of returned probabilities")
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     sigma_squared ss(10.0);
     matrix_cache cache;
-    cache.precalculate_matrices(ss.get_values(), set<int>{20}, set<double>{1, 3, 7});
+    cache.precalculate_matrices(ss.get_values(), set<double>{1, 3, 7}, 20);
     inference_pruner pruner(cache, &ss, nullptr, p_tree.get(), 1.0);
 
     auto actual = pruner.prune(fam, 20);

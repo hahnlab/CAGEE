@@ -60,17 +60,6 @@ vector<size_t> build_reference_list(const vector<gene_transcript>& families)
     return reff;
 }
 
-set<int> get_all_bounds(const vector<gene_transcript>& transcripts)
-{
-    unique_ptr<upper_bound_calculator> calc(upper_bound_calculator::create());
-    vector<int> boundses(transcripts.size());
-    transform(transcripts.begin(), transcripts.end(), boundses.begin(), [&calc](const gene_transcript& gf) {
-        return calc->get(gf);
-        });
-
-    return set<int>(boundses.begin(), boundses.end());
-
-}
 
 inline double computational_space_prior(double val, const gamma_distribution<double>& prior)
 {
@@ -105,26 +94,27 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
     //TIMED_FUNC(timerObj);
     _monitor.Event_InferenceAttempt_Started();
 
-    unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create());
-
     if (!p_sigma->is_valid())
     {
         _monitor.Event_InferenceAttempt_InvalidValues();
         return -log(0);
     }
 
+    unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create());
+    int upper_bound = bound_calculator->get_max_bound(ud.gene_families);
+
     results.resize(ud.gene_families.size());
     std::vector<double> all_families_likelihood(ud.gene_families.size());
 
     matrix_cache calc;
-    calc.precalculate_matrices(p_sigma->get_values(), get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
+    calc.precalculate_matrices(p_sigma->get_values(),  ud.p_tree->get_branch_lengths(), upper_bound);
 
     vector<vector<double>> partial_likelihoods(ud.gene_families.size());
     inference_pruner pruner(calc, p_sigma, _p_error_model, ud.p_tree, 1.0);
 #pragma omp parallel for
     for (int i = 0; i < ud.gene_families.size(); ++i) {
         if (references[i] == i)
-            partial_likelihoods[i] = pruner.prune(ud.gene_families.at(i), bound_calculator->get(ud.gene_families.at(i)));
+            partial_likelihoods[i] = pruner.prune(ud.gene_families.at(i), upper_bound);
             // probabilities of various family sizes
     }
 
@@ -177,8 +167,10 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
     auto result = new base_model_reconstruction();
 
-    p_calc->precalculate_matrices(_p_sigma->get_values(), get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
+    unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create());
+    int upper_bound = bound_calculator->get_max_bound(ud.gene_families);
 
+    p_calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), upper_bound);
 
     for (size_t i = 0; i < ud.gene_families.size(); ++i)
     {
@@ -188,25 +180,12 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
             });
     }
 
-//    pupko_reconstructor::pupko_data data(ud.gene_families.size(), ud.p_tree, ud.max_family_size, ud.max_root_family_size);
     transcript_reconstructor tr(_p_sigma, ud.p_tree, p_calc);
-
-    unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create());
 
     for (int i = 0; i< ud.gene_families.size(); ++i)
     {
-        result->_reconstructions[ud.gene_families[i].id()] = tr.reconstruct_gene_transcript(ud.gene_families[i], bound_calculator->get(ud.gene_families[i]));
+        result->_reconstructions[ud.gene_families[i].id()] = tr.reconstruct_gene_transcript(ud.gene_families[i], upper_bound);
     }
-
-//    size_t success = count_if(tr.v_all_node_Ls.begin(), tr.v_all_node_Ls.end(), [this, &ud](const clademap<Eigen::VectorXd>& L)
-//        { 
-//            return *max_element( L.at(ud.p_tree).begin(), L.at(ud.p_tree).end()) > 0;
-//        });
-
-//    if (success != ud.gene_families.size())
-//    {
-//        LOG(WARNING) << "Failed to reconstruct " << ud.gene_families.size() - success << " families" << endl;
-//    }
 
     LOG(INFO) << "Done!\n";
 
@@ -346,7 +325,7 @@ TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities" * doctest::skip(tr
 {
     sigma_squared lm(0.05);
     matrix_cache cache;
-    cache.precalculate_matrices(lm.get_values(), set<int>(), { 1,3,7 });
+    cache.precalculate_matrices(lm.get_values(), { 1,3,7 }, 20);
     base_model_reconstruction rec;
     rec._reconstructions[fam.id()][p_tree->find_descendant("AB")] = 10;
     rec._reconstructions[fam.id()][p_tree->find_descendant("ABCD")] = 12;
@@ -357,7 +336,7 @@ TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities_returns_invalid_if_
 {
     sigma_squared lm(0.05);
     matrix_cache cache;
-    cache.precalculate_matrices(lm.get_values(), set<int>(), { 1,3,7 });
+    cache.precalculate_matrices(lm.get_values(), { 1,3,7 }, 20);
     base_model_reconstruction rec;
     rec._reconstructions[fam.id()][p_tree.get()] = 11;
     CHECK_FALSE(compute_viterbi_sum(p_tree.get(), fam, &rec, cache, &lm, constant_upper_bound())._is_valid);

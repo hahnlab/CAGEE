@@ -291,7 +291,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript assigns actual va
     fam.set_expression_value("D", 9.4);
 
     matrix_cache calc;
-    calc.precalculate_matrices(sig.get_values(), set<int>({ 20 }), p_tree->get_branch_lengths());
+    calc.precalculate_matrices(sig.get_values(), p_tree->get_branch_lengths(), 20);
 
     transcript_reconstructor tr(&sig, p_tree.get(), &calc);
 
@@ -326,7 +326,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns parent 0 
     fam.set_expression_value("B", 0);
 
     matrix_cache calc;
-    calc.precalculate_matrices(sig.get_values(), set<int>({ 20 }), p_tree->get_branch_lengths());
+    calc.precalculate_matrices(sig.get_values(), p_tree->get_branch_lengths(), 20);
 
     transcript_reconstructor tr(&sig, p_tree.get(), &calc);
     auto actual = tr.reconstruct_gene_transcript(fam, 20);
@@ -341,7 +341,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns correct v
     fam.set_expression_value("B", 0);
 
     matrix_cache calc;
-    calc.precalculate_matrices(sig.get_values(), set<int>({ 20 }), p_tree->get_branch_lengths());
+    calc.precalculate_matrices(sig.get_values(), p_tree->get_branch_lengths(), 20);
 
     transcript_reconstructor tr(&sig, p_tree.get(), &calc);
     auto actual = tr.reconstruct_gene_transcript(fam, 20);

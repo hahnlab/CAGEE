@@ -153,6 +153,7 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma_sq
     _monitor.Event_InferenceAttempt_Started();
 
     unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create());
+    int upper_bound = bound_calculator->get_max_bound(ud.gene_families);
 
     results.clear();
 
@@ -177,7 +178,7 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma_sq
         auto values = mult->get_values();
         multipliers.insert(multipliers.end(), values.begin(), values.end());
     }
-    cache.precalculate_matrices(multipliers, get_all_bounds(ud.gene_families), ud.p_tree->get_branch_lengths());
+    cache.precalculate_matrices(multipliers, ud.p_tree->get_branch_lengths(), upper_bound);
 
 #pragma omp parallel for
     for (int i = 0; i < ud.gene_families.size(); i++) {
@@ -278,6 +279,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
     LOG(INFO) << "Starting reconstruction processes for Gamma model";
 
     unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create());
+    int upper_bound = bound_calculator->get_max_bound(ud.gene_families);
 
     auto values = _p_sigma->get_values();
     vector<double> all;
@@ -289,7 +291,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
         }
     }
 
-    calc->precalculate_matrices(_p_sigma->get_values(), get_all_bounds(ud.gene_families),  ud.p_tree->get_branch_lengths());
+    calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), upper_bound);
 
     gamma_model_reconstruction* result = new gamma_model_reconstruction(_lambda_multipliers);
     vector<gamma_model_reconstruction::gamma_reconstruction *> recs(ud.gene_families.size());
@@ -309,7 +311,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
 
         for (int i = 0; i < ud.gene_families.size(); ++i)
         {
-            recs[i]->category_reconstruction[k] = tr.reconstruct_gene_transcript(ud.gene_families[i], bound_calculator->get(ud.gene_families[i]));
+            recs[i]->category_reconstruction[k] = tr.reconstruct_gene_transcript(ud.gene_families[i], upper_bound);
         }
     }
 
