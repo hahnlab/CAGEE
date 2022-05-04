@@ -81,7 +81,7 @@ void read_gene_families(std::istream& input_file, clade *p_tree, std::vector<gen
         
         // Header has ended, reading gene family counts
         else {
-            gene_transcript genfam(tokens[0], tokens[1], first_gene_index == 3 ? tokens[2] : "");
+            gene_transcript genfam(tokens[1], tokens[0], first_gene_index == 3 ? tokens[2] : "");
             
             for (size_t i = first_gene_index; i < tokens.size(); ++i) {
                 std::string sp_name = sp_col_map[i];
@@ -247,10 +247,12 @@ TEST_CASE("GeneFamilies: read_gene_families skips comment lines in input")
 
 TEST_CASE("GeneFamilies: read_gene_families_reads_cafe_files")
 {
-    std::string str = "Desc\tFamily ID\tA\tB\tC\tD\n\t (null)1\t5\t10\t2\t6\n\t (null)2\t5\t10\t2\t6\n\t (null)3\t5\t10\t2\t6\n\t (null)4\t5\t10\t2\t6";
+    std::string str = "Desc\tFamily ID\tA\tB\tC\tD\ndesc1\tid1\t5\t10\t2\t6\ndesc2\tid2\t5\t10\t2\t6\ndesc3\tid3\t5\t10\t2\t6\ndesc4\tid4\t\t5\t10\t2\t6";
     std::istringstream ist(str);
     std::vector<gene_transcript> families;
     read_gene_families(ist, NULL, families);
+    CHECK_EQ(string("id3"), families[2].id());
+    CHECK_EQ(string("desc4"), families[3].description());
     CHECK_EQ(doctest::Approx(5.0), pv::to_user_space(families.at(0).get_expression_value("A")));
     CHECK_EQ(doctest::Approx(10.0), pv::to_user_space(families.at(0).get_expression_value("B")));
     CHECK_EQ(doctest::Approx(2.0), pv::to_user_space(families.at(0).get_expression_value("C")));

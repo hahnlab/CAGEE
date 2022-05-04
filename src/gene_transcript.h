@@ -56,6 +56,7 @@ public:
 
     std::string id() const { return _id; }
     std::string tissue() const { return _tissue; }
+    std::string description() const { return _desc; }
 
     double get_expression_value(std::string species) const;
 
