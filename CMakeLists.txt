@@ -32,6 +32,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(OPTIMIZER_STRATEGY "NelderMead" CACHE STRING "Optimizer strategy (LBFGS, Nelder-Mead, some others)")
 add_definitions(-DOPTIMIZER_STRATEGY=${OPTIMIZER_STRATEGY})
 
+set(DISCRETIZATION_RANGE "200" CACHE STRING "How finely to divide the continuous range")
+add_definitions(-DDISCRETIZATION_RANGE=${DISCRETIZATION_RANGE})
+
 # Define the two required variables before including
 # the source code for watching a git repository.
 set(PRE_CONFIGURE_FILE "git_version.cpp.in")

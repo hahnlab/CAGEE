@@ -10,8 +10,6 @@
 /* Maximum family size to analyze before dropping to allocating heap memory */
 #undef MAX_STACK_FAMILY_SIZE
 
-#define DISCRETIZATION_RANGE 200
-
 #define BOUNDING_STEP_SIZE 20
 #define MATRIX_SIZE_MULTIPLIER 3.0
 #define MATRIX_EPSILON 5e-6
