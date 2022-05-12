@@ -231,7 +231,7 @@ branch_probabilities::branch_probability compute_viterbi_sum(const clade* c,
         return branch_probabilities::invalid();
     }
 
-    auto probs = cache.get_matrix(c->get_branch_length(), p_lambda->get_named_value(c, transcript), bound_calculator.get(transcript));
+    auto probs = cache.get_matrix(c->get_branch_length(), p_lambda->get_named_value(c, transcript), bound_calculator.get(transcript.get_max_expression_value()));
 
     int parent_size = rec->get_node_value(transcript, c->get_parent());
     int child_size = rec->get_node_value(transcript, c);

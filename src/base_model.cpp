@@ -100,7 +100,7 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
         return -log(0);
     }
 
-    unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create());
+    unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create(p_sigma, ud.p_tree));
     int upper_bound = bound_calculator->get_max_bound(ud.gene_families);
 
     results.resize(ud.gene_families.size());
@@ -122,7 +122,7 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
 #pragma omp parallel for
     for (int i = 0; i < ud.gene_families.size(); ++i) {
 
-        all_families_likelihood[i] = compute_prior_likelihood(partial_likelihoods[references[i]], ud.gene_families[i], prior, bound_calculator->get(ud.gene_families[i]));
+        all_families_likelihood[i] = compute_prior_likelihood(partial_likelihoods[references[i]], ud.gene_families[i], prior, upper_bound);
         
         results[i] = family_info_stash(ud.gene_families.at(i).id(), 0.0, 0.0, 0.0, all_families_likelihood[i], false);
     }
@@ -167,7 +167,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
     auto result = new base_model_reconstruction();
 
-    unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create());
+    unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create(_p_sigma, ud.p_tree));
     int upper_bound = bound_calculator->get_max_bound(ud.gene_families);
 
     p_calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), upper_bound);
@@ -317,7 +317,12 @@ TEST_CASE("increase_decrease")
 
 class constant_upper_bound : public upper_bound_calculator
 {
-    int get(const gene_transcript& gt) const override { return 20; }
+    int get(double val) const override { return 20; }
+public:    
+    constant_upper_bound() : upper_bound_calculator()
+    {
+
+    }
 };
 
 

@@ -53,12 +53,20 @@ public:
 
 class upper_bound_calculator
 {
+protected:
+    double _multiplier;
 public:
-    virtual int get(const gene_transcript& gt) const = 0;
+    upper_bound_calculator() : _multiplier(1.0) {}
+    upper_bound_calculator(const sigma_squared* p_sigsqrd, const clade* p_tree);
 
-    static upper_bound_calculator* create();
+    virtual int get(double val) const = 0;
+
+    static upper_bound_calculator* create(const sigma_squared* p_sigsqrd, const clade* p_tree);
 
     int get_max_bound(const std::vector<gene_transcript>& transcripts) const;
+    int get_max_bound(const std::vector<double>& values) const;
+
+    double multiplier() const { return _multiplier;  }
 };
 
  

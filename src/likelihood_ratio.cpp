@@ -53,8 +53,8 @@ namespace LikelihoodRatioTest
     )
     {
         auto references = build_reference_list(data.gene_families);
-        unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create());
-
+        unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create(data.p_lambda, data.p_tree));
+        int upper_bound = bound_calculator->get_max_bound(data.gene_families);
         matrix_cache cache;
         inference_pruner pruner(cache, data.p_lambda, data.p_error_model, data.p_tree, 1.0);
         for (size_t i = 0; i < data.gene_families.size(); i += 1)
@@ -63,15 +63,15 @@ namespace LikelihoodRatioTest
             if (references[i] != i) continue;
 
             //cache.precalculate_matrices(get_lambda_values(data.p_lambda), data.p_tree->get_branch_lengths());
-            auto values = pruner.prune(pitem, bound_calculator->get(pitem));
+            auto values = pruner.prune(pitem, upper_bound);
             double maxlh1 = *max_element(values.begin(), values.end());
             double prev = -1;
-            double next = get_likelihood_for_diff_lambdas(pitem, data.p_tree, data.p_lambda_tree, 0, lambda_cache, p_opt, bound_calculator->get(pitem));
+            double next = get_likelihood_for_diff_lambdas(pitem, data.p_tree, data.p_lambda_tree, 0, lambda_cache, p_opt, upper_bound);
             int j = 1;
             for (; prev < next; j++)
             {
                 prev = next;
-                next = get_likelihood_for_diff_lambdas(pitem, data.p_tree, data.p_lambda_tree, j, lambda_cache, p_opt, bound_calculator->get(pitem));
+                next = get_likelihood_for_diff_lambdas(pitem, data.p_tree, data.p_lambda_tree, j, lambda_cache, p_opt, upper_bound);
             }
             pvalues[i] = (prev == maxlh1) ? 1 : 2 * (log(prev) - log(maxlh1));
             lambda_index[i] = j - 2;

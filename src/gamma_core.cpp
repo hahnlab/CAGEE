@@ -148,11 +148,11 @@ bool gamma_model::prune(const gene_transcript& family, const std::gamma_distribu
 }
 
 //! Infer bundle
-double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma_squared*p_lambda, const std::gamma_distribution<double>& prior) {
+double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma_squared*p_sigma, const std::gamma_distribution<double>& prior) {
 
     _monitor.Event_InferenceAttempt_Started();
 
-    unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create());
+    unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create(p_sigma, ud.p_tree));
     int upper_bound = bound_calculator->get_max_bound(ud.gene_families);
 
     results.clear();
@@ -174,7 +174,7 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma_sq
     vector<double> multipliers;
     for (auto multiplier : _lambda_multipliers)
     {
-        unique_ptr<sigma_squared> mult(p_lambda->multiply(multiplier));
+        unique_ptr<sigma_squared> mult(p_sigma->multiply(multiplier));
         auto values = mult->get_values();
         multipliers.insert(multipliers.end(), values.begin(), values.end());
     }
@@ -184,7 +184,7 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma_sq
     for (int i = 0; i < ud.gene_families.size(); i++) {
         auto& cat_likelihoods = _category_likelihoods[i];
 
-        if (prune(ud.gene_families.at(i), prior, cache, p_lambda, ud.p_tree, cat_likelihoods, bound_calculator->get(ud.gene_families.at(i))))
+        if (prune(ud.gene_families.at(i), prior, cache, p_sigma, ud.p_tree, cat_likelihoods, upper_bound))
         {
             double family_likelihood = accumulate(cat_likelihoods.begin(), cat_likelihoods.end(), 0.0);
 
@@ -278,7 +278,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
 {
     LOG(INFO) << "Starting reconstruction processes for Gamma model";
 
-    unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create());
+    unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create(_p_sigma, ud.p_tree));
     int upper_bound = bound_calculator->get_max_bound(ud.gene_families);
 
     auto values = _p_sigma->get_values();

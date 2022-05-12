@@ -26,23 +26,6 @@ namespace pv = proportional_variance;
 
 extern std::mt19937 randomizer_engine; // seeding random number engine
 
-int get_upper_bound(const sigma_squared* p_sigsqrd, const clade* p_tree, double root_size)
-{
-    double t = p_tree->distance_from_root_to_tip();
-
-    auto v = p_sigsqrd->get_values();
-    double sigma = sqrt(*max_element(v.begin(), v.end()));
-
-    int val = int(root_size + 4.5 * sigma * sqrt(t));
-
-    const int multiple = 5;
-    int remainder = val % multiple;
-    if (remainder == 0 && val > 0) return val;
-
-    VLOG(SIMULATOR) << "Root size: " << root_size << " => max value: " << val + multiple - remainder << " (Tree length: " << t << ", Sigma: " << sigma << ")";
-    return val + multiple - remainder;
-}
-
 class binner
 {
     double _max_value;
@@ -128,12 +111,8 @@ std::vector<simulated_family> simulator::simulate_processes(model *p_model) {
         });
 
     unique_ptr<sigma_squared> sim_sigsqd(p_model->get_simulation_lambda());
-
-    vector<int> bounds(results.size());
-    transform(root_sizes.begin(), root_sizes.end(), bounds.begin(), [&](double root_size) {
-        return get_upper_bound(sim_sigsqd.get(), data.p_tree, root_size);
-        });
-    int upper_bound = *max_element(bounds.begin(), bounds.end());
+    unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create(sim_sigsqd.get(), data.p_tree));
+    int upper_bound = bound_calculator->get_max_bound(root_sizes);
 
     matrix_cache cache;
     cache.precalculate_matrices(sim_sigsqd->get_values(), data.p_tree->get_branch_lengths(), upper_bound);
@@ -280,7 +259,6 @@ root_equilibrium_distribution* create_rootdist(std::string param, const vector<p
     return p_dist;
 }
 
-
 TEST_CASE("create_trial")
 {
     randomizer_engine.seed(10);
@@ -288,7 +266,7 @@ TEST_CASE("create_trial")
     sigma_squared ss(0.25);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
-    auto ub = get_upper_bound(&ss, p_tree.get(), 5.0);
+    const int ub = 5;
 
     matrix_cache cache;
     cache.precalculate_matrices(ss.get_values(), p_tree->get_branch_lengths(), ub);
@@ -296,8 +274,8 @@ TEST_CASE("create_trial")
     simulated_family actual = create_simulated_family(p_tree.get(), &ss, ub, 5.0, cache);
 
     CHECK_EQ(doctest::Approx(5.0), actual.values.at(p_tree.get()));
-    CHECK_EQ(doctest::Approx(4.7487), actual.values.at(p_tree->find_descendant("A")));
-    CHECK_EQ(doctest::Approx(4.97487), actual.values.at(p_tree->find_descendant("B")));
+    CHECK_EQ(doctest::Approx(4.497487), actual.values.at(p_tree->find_descendant("A")));
+    CHECK_EQ(doctest::Approx(4.42211), actual.values.at(p_tree->find_descendant("B")));
 }
 
 TEST_CASE("binner")
@@ -377,7 +355,7 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:1):1"));
     sigma_squared sim_sigsqd(actual_sigma);
     auto a = p_tree->find_descendant("A");
-    auto ub = get_upper_bound(&sim_sigsqd, p_tree.get(), 10);
+    const int ub = 15;
 
     matrix_cache cache;
     cache.precalculate_matrices(vector<double>{10}, p_tree->get_branch_lengths(), ub);
@@ -394,7 +372,7 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
      });
 
     CHECK_EQ(doctest::Approx(actual_sigma).epsilon(1), mean);
-    CHECK_EQ(doctest::Approx(1.4545), variance);
+    CHECK_EQ(doctest::Approx(1.28027), variance);
 }
 
 TEST_CASE("print_header")
@@ -500,28 +478,4 @@ TEST_CASE("Simulation, simulate_processes")
     auto sims = sim.simulate_processes(&m);
     CHECK_EQ(100, sims.size());
 }
-
-TEST_CASE("get_upper_bound")
-{
-    sigma_squared ss(0.25);
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-
-    CHECK_EQ(15, get_upper_bound(&ss, p_tree.get(), 5.0));
-
-    sigma_squared ss_zero(0.0);
-    CHECK_EQ(5, get_upper_bound(&ss_zero, p_tree.get(), 0.0));
-
-    CHECK_EQ(5, get_upper_bound(&ss_zero, p_tree.get(), 0.0000001));
-}
-
-
-TEST_CASE("get_upper_bound uses largest sigma if there are several")
-{
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):6"));
-
-    sigma_squared ss({{"A",0},{"B",1},{"AB",0} }, { 4,16 }, sigma_type::lineage_specific);
-
-    CHECK_EQ(65, get_upper_bound(&ss, p_tree.get(), 7.0));
-}
-
 

@@ -99,11 +99,30 @@ double chooseln(double n, double r)
 
 /* END: Math tools ----------------------- */
 
+upper_bound_calculator::upper_bound_calculator(const sigma_squared* p_sigsqrd, const clade* p_tree)
+{
+    double t = p_tree->distance_from_root_to_tip();
+
+    auto v = p_sigsqrd->get_values();
+    double sigma = sqrt(*max_element(v.begin(), v.end()));
+
+    _multiplier = 4.5 * sigma * sqrt(t);
+}
 
 int upper_bound_calculator::get_max_bound(const vector<gene_transcript>& transcripts) const
 {
-    vector<int> bounds(transcripts.size());
-    transform(transcripts.begin(), transcripts.end(), bounds.begin(), [this](const gene_transcript& gf) {
+    vector<double> values(transcripts.size());
+    transform(transcripts.begin(), transcripts.end(), values.begin(), [this](const gene_transcript& gf) {
+        return gf.get_max_expression_value();
+        });
+
+    return get_max_bound(values);
+}
+
+int upper_bound_calculator::get_max_bound(const vector<double>& values) const
+{
+    vector<int> bounds(values.size());
+    transform(values.begin(), values.end(), bounds.begin(), [this](double gf) {
         return get(gf);
         });
 
@@ -113,9 +132,17 @@ int upper_bound_calculator::get_max_bound(const vector<gene_transcript>& transcr
 class upper_bound_calculator_linear_space : public upper_bound_calculator
 {
 public:
-    virtual int get(const gene_transcript& gt) const override
+    upper_bound_calculator_linear_space() : upper_bound_calculator()
     {
-        int val = gt.get_max_expression_value() * MATRIX_SIZE_MULTIPLIER;
+
+    }
+    upper_bound_calculator_linear_space(const sigma_squared* p_sigsqrd, const clade* p_tree) : upper_bound_calculator(p_sigsqrd, p_tree)
+    {
+
+    }
+    virtual int get(double value) const override
+    {
+        int val = value * MATRIX_SIZE_MULTIPLIER;
 
         int remainder = val % BOUNDING_STEP_SIZE;
         if (remainder == 0 && val > 0) return val;
@@ -127,18 +154,32 @@ public:
 class upper_bound_calculator_log_space : public upper_bound_calculator
 {
 public:
-    virtual int get(const gene_transcript& gt) const override
+    upper_bound_calculator_log_space() : upper_bound_calculator()
     {
-        return max(1.0, ceil(gt.get_max_expression_value() * MATRIX_SIZE_MULTIPLIER));
+
+    }
+    upper_bound_calculator_log_space(const sigma_squared* p_sigsqrd, const clade* p_tree) : upper_bound_calculator(p_sigsqrd, p_tree)
+    {
+
+    }
+    virtual int get(double value) const override
+    {
+        int val = int(value * _multiplier);
+
+        const int multiple = 5;
+        int remainder = val % multiple;
+        if (remainder == 0 && val > 0) return val;
+
+        return val + multiple - remainder;
     }
 };
 
-upper_bound_calculator* upper_bound_calculator::create()
+upper_bound_calculator* upper_bound_calculator::create(const sigma_squared* p_sigsqrd, const clade* p_tree)
 {
 #ifdef MODEL_GENE_EXPRESSION_LOGS
-    return new upper_bound_calculator_log_space();
+    return new upper_bound_calculator_log_space(p_sigsqrd, p_tree);
 #else
-    return new upper_bound_calculator_linear_space();
+    return new upper_bound_calculator_linear_space(p_sigsqrd, p_tree);
 #endif
 }
 
@@ -547,46 +588,46 @@ TEST_CASE("inference_pruner: check stats of returned probabilities")
 }
 
 /// Bounds are next largest integer if in log space.
-TEST_CASE("Bounds returns next integer of the largest value times MATRIX_SIZE_MULTIPLIER")
+TEST_CASE("Bounds returns next multiple of 5")
 {
     upper_bound_calculator_log_space calc;
     gene_transcript gt;
     gt.set_expression_value("A", .3);
     gt.set_expression_value("B", .8);
-    CHECK_EQ(3, calc.get(gt));
+    CHECK_EQ(5, calc.get_max_bound({ gt }));
 
     gt.set_expression_value("A", 1.1);
-    CHECK_EQ(4, calc.get(gt));
+    CHECK_EQ(5, calc.get_max_bound({ gt }));
 
-    gt.set_expression_value("B", 1.8);
-    CHECK_EQ(6, calc.get(gt));
+    gt.set_expression_value("B", 7.3);
+    CHECK_EQ(10, calc.get_max_bound({ gt }));
 }
 
-TEST_CASE("Bounds never returns less than 1")
+TEST_CASE("Bounds never returns less than 5")
 {
     upper_bound_calculator_log_space calc;
     gene_transcript gt;
     gt.set_expression_value("A", 0.00005);
     gt.set_expression_value("B", 0.00004);
-    CHECK_EQ(1, calc.get(gt));
+    CHECK_EQ(5, calc.get_max_bound({ gt }));
 }
 
-TEST_CASE("Bounds never returns less than 1 even if all values are very small")
+TEST_CASE("Bounds never returns less than 5 even if all values are very small")
 {
     upper_bound_calculator_log_space calc;
     gene_transcript gt;
     gt.set_expression_value("A", 0.0000000002);
     gt.set_expression_value("B", 0.0000000005);
-    CHECK_EQ(1, calc.get(gt));
+    CHECK_EQ(5, calc.get_max_bound({ gt }));
 }
 
-TEST_CASE("Bounds never returns less than 1 even if all values are zero")
+TEST_CASE("Bounds returns 5 even if all values are zero")
 {
     gene_transcript gt;
     gt.set_expression_value("A", 0);
     gt.set_expression_value("B", 0);
     upper_bound_calculator_log_space calc;
-    CHECK_EQ(1, calc.get(gt));
+    CHECK_EQ(5, calc.get_max_bound({ gt }));
 }
 
 TEST_CASE("Bounds never returns less than 20")
@@ -595,7 +636,7 @@ TEST_CASE("Bounds never returns less than 20")
     gene_transcript gt;
     gt.set_expression_value("A", 5);
     gt.set_expression_value("B", 4);
-    CHECK_EQ(20, calc.get(gt));
+    CHECK_EQ(20, calc.get_max_bound({ gt }));
 }
 
 TEST_CASE("Bounds never returns less than 20 even if all values are less than .3")
@@ -604,7 +645,7 @@ TEST_CASE("Bounds never returns less than 20 even if all values are less than .3
     gene_transcript gt;
     gt.set_expression_value("A", 0.254007);
     gt.set_expression_value("B", 0.1);
-    CHECK_EQ(20, calc.get(gt));
+    CHECK_EQ(20, calc.get_max_bound({gt}));
 }
 
 TEST_CASE("get_value")
@@ -621,3 +662,35 @@ TEST_CASE("get_value")
 
     CHECK_EQ(56, get_value(gt, v, 100));
 }
+
+TEST_CASE("upper_bound_calculator_log_space get_max_bound")
+{
+    sigma_squared ss(0.25);
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    upper_bound_calculator_log_space calc(&ss, p_tree.get());
+
+    vector<double> v(1);
+    v[0] = 5;
+    CHECK_EQ(35, calc.get_max_bound(v));
+
+    sigma_squared ss_zero(0.0);
+    upper_bound_calculator_log_space calc2(&ss_zero, p_tree.get());
+    v[0] = 0;
+    CHECK_EQ(5, calc2.get_max_bound(v));
+
+    v[0] = 0.0000001;
+    CHECK_EQ(5, calc2.get_max_bound(v));
+}
+
+
+TEST_CASE("get_upper_bound uses largest sigma if there are several")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):6"));
+
+    sigma_squared ss({ {"A",0},{"B",1},{"AB",0} }, { 4,16 }, sigma_type::lineage_specific);
+
+    upper_bound_calculator_log_space calc(&ss, p_tree.get());
+    CHECK_EQ(54, calc.multiplier());
+}
+
+
