@@ -93,29 +93,31 @@ MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, boundarie
     return ConvProp_bounds_batched(vector<double>({ t }), vector<double>({ cCoeff }), dMat, vector<boundaries>({ bounds }))[0];
 }
 
-VectorXd VectorPos_bounds(double x, int Npts, boundaries bounds) {
+// This function is used in tight parallel loops so make an effort to avoid having it allocate memory
+void VectorPos_bounds(double x, boundaries bounds, VectorXd& result) {
     
+    int Npts = result.size();
     if (x < bounds.first || x > bounds.second)
     {
         std::ostringstream ost;
         ost << "VectorPos_bounds error: " << x << " not between " << bounds.first << " and " << bounds.second;
         throw std::runtime_error(ost.str());
     }
-    VectorXd X = VectorXd::Zero(Npts);
+    result.setConstant(0);
     if (abs(x - bounds.second) < MATRIX_EPSILON)
     {
         LOG(WARNING) << "Calculating probability for " << x << " with upper bound of " << bounds.second;
-        X[Npts - 1] = 1;
+        result[Npts - 1] = 1;
     }
     else
     {
         double nx = (Npts - 1) * (x - bounds.first) / double(bounds.second - bounds.first);
         int ix = floor(nx);
         double ux = nx - ix;
-        X[ix + 1] = ux;
-        X[ix] = 1 - ux;
+        result[ix + 1] = ux;
+        result[ix] = 1 - ux;
     }
-    return X.unaryExpr([Npts, bounds](double x) {return x * (Npts - 1) / double(bounds.second - bounds.first); });
+    transform(result.begin(), result.end(), result.begin(), [Npts, bounds](double x) {return x * (Npts - 1) / double(bounds.second - bounds.first); });
 }
 
 vector<MatrixXd> eigen_multiplier::doit(const vector<MatrixXcd>& matrices, const MatrixXcd& transpose)
@@ -177,14 +179,40 @@ TEST_CASE("ConvProp_bounds returns different values for different values of sigm
     CHECK(actual != a2);
 }
 
+TEST_CASE("VectorPos_bounds")
+{
+    VectorXd actual(20);
+    VectorPos_bounds(7.0, pair<double, double>(0, 10), actual);
+    vector<double> expected{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.33, 0.57, 0, 0, 0, 0, 0 };
+    CHECK_EQ(expected.size(), actual.size());
+    for (size_t i = 0; i < expected.size(); ++i)
+    {
+        CHECK_EQ(doctest::Approx(expected[i]), actual[i]);
+    }
+}
+
+TEST_CASE("VectorPos_bounds at right edge")
+{
+    VectorXd actual(20);
+    VectorPos_bounds(10.0, pair<double, double>(0, 10), actual);
+    vector<double> expected{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.9 };
+    CHECK_EQ(expected.size(), actual.size());
+    for (size_t i = 0; i < expected.size(); ++i)
+    {
+        CHECK_EQ(doctest::Approx(expected[i]), actual[i]);
+    }
+}
+
 
 TEST_CASE("VectorPos_bounds handles negative numbers")
 {
-    VectorPos_bounds(-2.56793, 200, boundaries(-10.0, 20));
+    VectorXd v(200);
+    VectorPos_bounds(-2.56793, boundaries(-10.0, 20), v);
 
 }
 
 TEST_CASE("VectorPos_bounds throws on x outside boundaries")
 {
-    CHECK_THROWS_WITH(VectorPos_bounds(-2, 200, boundaries(0.0, 20)), "VectorPos_bounds error: -2 not between 0 and 20");
+    VectorXd v(200);
+    CHECK_THROWS_WITH(VectorPos_bounds(-2, boundaries(0.0, 20), v), "VectorPos_bounds error: -2 not between 0 and 20");
 }

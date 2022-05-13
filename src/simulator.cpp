@@ -92,7 +92,8 @@ simulated_family create_simulated_family(const clade *p_tree, const sigma_square
     std::function <void(const clade*)> get_child_value;
     get_child_value = [&](const clade* c) {
         auto m = cache.get_matrix(c->get_branch_length(), p_sigsqrd->get_value_for_clade(c), upper_bound);
-        VectorXd v = VectorPos_bounds(sim.values[c->get_parent()], DISCRETIZATION_RANGE, bounds);
+        VectorXd v(DISCRETIZATION_RANGE);
+        VectorPos_bounds(sim.values[c->get_parent()], bounds, v);
         VectorXd probs = m * v;
         std::discrete_distribution<int> distribution(probs.data(), probs.data() + probs.size());
         sim.values[c] = b.value(distribution(randomizer_engine));

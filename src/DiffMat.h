@@ -32,7 +32,9 @@ public:
 };
 
 Eigen::MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, boundaries bounds);
-Eigen::VectorXd VectorPos_bounds(double x, int Npts, boundaries bounds);
+
+
+void VectorPos_bounds(double x, boundaries bounds, Eigen::VectorXd& result);
 
 std::vector<Eigen::MatrixXd> ConvProp_bounds_batched(std::vector<double> vt, std::vector<double> cCoeff, const DiffMat& dMat, std::vector<boundaries> vbounds);
 

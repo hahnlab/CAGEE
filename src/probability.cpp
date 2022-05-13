@@ -179,7 +179,7 @@ void compute_node_probability(const clade* node,
         else
         {
             // cout << "Leaf node " << node->get_taxon_name() << " has " << _probabilities[node].size() << " probabilities" << endl;
-            probabilities[node] = VectorPos_bounds(species_size, DISCRETIZATION_RANGE, boundaries(0, upper_bound));
+            VectorPos_bounds(species_size, boundaries(0, upper_bound), probabilities[node]);
             //print_probabilities(probabilities, node);
         }
     }
@@ -322,28 +322,6 @@ clademap<double> inference_pruner::reconstruct(const gene_transcript& gf, int up
         reconstruction[*it] = (*it)->is_leaf() ? gf.get_expression_value((*it)->get_taxon_name()) : get_value(gf, probabilities[*it], upper_bound);
     }
     return reconstruction;
-}
-
-TEST_CASE("VectorPos_bounds")
-{
-    auto actual = VectorPos_bounds(7.0, 20, pair<double, double>(0, 10));
-    vector<double> expected{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.33, 0.57, 0, 0, 0, 0, 0 };
-    CHECK_EQ(expected.size(), actual.size());
-    for (size_t i = 0; i < expected.size(); ++i)
-    {
-        CHECK_EQ(doctest::Approx(expected[i]), actual[i]);
-    }
-}
-
-TEST_CASE("VectorPos_bounds at right edge")
-{
-    auto actual = VectorPos_bounds(10.0, 20, pair<double, double>(0, 10));
-    vector<double> expected{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.9 };
-    CHECK_EQ(expected.size(), actual.size());
-    for (size_t i = 0; i < expected.size(); ++i)
-    {
-        CHECK_EQ(doctest::Approx(expected[i]), actual[i]);
-    }
 }
 
 TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
