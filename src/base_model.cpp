@@ -70,17 +70,13 @@ inline double computational_space_prior(double val, const gamma_distribution<dou
 #endif
 
 }
-double compute_prior_likelihood(const vector<double>& partial_likelihood, const gene_transcript& t, const gamma_distribution<double>& prior, int upper_bound)
+double compute_prior_likelihood(const vector<double>& partial_likelihood, const vector<double>& priors)
 {
     std::vector<double> full(partial_likelihood.size());
-    for (size_t j = 0; j < partial_likelihood.size(); ++j) {
-        double x = (double(j) + 0.5) * double(upper_bound) / (DISCRETIZATION_RANGE - 1);
-
-        full[j] = partial_likelihood[j] * computational_space_prior(x, prior);
-
-        if (isnan(full[j]))
-               full[j] = -numeric_limits<double>::infinity();
-    }
+    std::transform(partial_likelihood.begin(), partial_likelihood.end(), priors.begin(), full.begin(), std::multiplies<double>());
+    std::transform(full.begin(), full.end(), full.begin(), [](double d) {
+        return isnan(d) ? -numeric_limits<double>::infinity() : d;
+        });
 
 #ifdef USE_MAX_PROBABILITY
     double likelihood = *max_element(full.begin(), full.end()); // get max (CAFE's approach)
@@ -118,11 +114,18 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
             // probabilities of various family sizes
     }
 
+    vector<double> priors(partial_likelihoods[0].size());
+    for (size_t j = 0; j < priors.size(); ++j) {
+        double x = (double(j) + 0.5) * double(upper_bound) / (DISCRETIZATION_RANGE - 1);
+
+        priors[j] = computational_space_prior(x, prior);
+    }
+
     // prune all the families with the same lambda
 #pragma omp parallel for
     for (int i = 0; i < ud.gene_families.size(); ++i) {
 
-        all_families_likelihood[i] = compute_prior_likelihood(partial_likelihoods[references[i]], ud.gene_families[i], prior, upper_bound);
+        all_families_likelihood[i] = compute_prior_likelihood(partial_likelihoods[references[i]], priors);
         
         results[i] = family_info_stash(ud.gene_families.at(i).id(), 0.0, 0.0, 0.0, all_families_likelihood[i], false);
     }
@@ -213,18 +216,16 @@ TEST_CASE("compute_prior_likelihood combines prior and inference correctly")
     gene_transcript gt;
     gt.set_expression_value("A", 12);
     gt.set_expression_value("B", 24);
-    gamma_distribution<double> prior(0.75, 1/30.0);
+
     vector<double> inf{ 0.1, 0.2, 0.3};
 
-    double actual = compute_prior_likelihood(inf, gt, prior, 80);
-#ifdef MODEL_GENE_EXPRESSION_LOGS
+    vector<double> priors({ 1.43078e-15,    2.5363e-23,  5.65526e-35 });
+    double actual = compute_prior_likelihood(inf, priors);
+
 #ifdef USE_MAX_PROBABILITY
     CHECK_EQ(doctest::Approx(-35.7683), actual);
 #else
     CHECK_EQ(doctest::Approx(-36.4831), actual);
-#endif
-#else
-    CHECK_EQ(doctest::Approx(-5.584), actual);
 #endif
 }
 
