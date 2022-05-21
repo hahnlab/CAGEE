@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 
 #include "doctest.h"
+#include "easylogging++.h"
 
 #include "io.h"
 #include "gene_transcript.h"
@@ -57,6 +58,7 @@ clade* read_tree(string tree_file_path, bool lambda_tree) {
   This function is called by execute::read_gene_transcript_data, which is itself called by CAFExp's main function when "--infile"/"-i" is specified  
 */
 void read_gene_families(std::istream& input_file, clade *p_tree, std::vector<gene_transcript> &gene_families) {
+
     map<int, std::string> sp_col_map; // For dealing with CAFE input format, {col_idx: sp_name} 
     std::string line;
     bool is_header = true;
@@ -95,6 +97,13 @@ void read_gene_families(std::istream& input_file, clade *p_tree, std::vector<gen
 
     if (gene_families.empty())
         throw std::runtime_error("No families found");
+
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+    LOG(INFO) << "Values converted to LOG space";
+#else
+    LOG(INFO) << "Values left in LINEAR space";
+#endif
+
 }
 /* END: Reading in gene family data */
 

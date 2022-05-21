@@ -20,8 +20,6 @@ public:
 
     DiffMat(int Npts);
 
-    static const DiffMat& instance();
-
 #ifdef HAVE_CUDA
     gpu_multiplier* multiplier;
 #elif defined BLAS_FOUND

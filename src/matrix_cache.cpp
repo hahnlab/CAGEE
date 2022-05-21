@@ -26,12 +26,19 @@ extern std::mt19937 randomizer_engine;
 using namespace Eigen;
 using namespace std;
 
+DiffMat* matrix_cache::diffusion_matrix = nullptr;
+
 std::ostream& operator<<(std::ostream& ost, const matrix_cache_key& k)
 {
     ost << "(" << k.branch_length() << ", " << k.branch_length() << ", (" << k.bound() << "));";
     return ost;
 }
 
+void matrix_cache::initialize(int Npts)
+{
+    LOG(INFO) << "Discretization range set to " << Npts;
+    diffusion_matrix = new DiffMat(Npts);
+}
 
 const Eigen::MatrixXd& matrix_cache::get_matrix(double branch_length, double sigma, int bound) const
 {
@@ -75,7 +82,7 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& squared_sigm
     transform(keys.begin(), keys.end(), vBounds.begin(), [](matrix_cache_key k) { return boundaries(0,k.bound()); });
     transform(keys.begin(), keys.end(), vBranches.begin(), [](matrix_cache_key k) { return k.branch_length(); });
     transform(keys.begin(), keys.end(), vSigSqd.begin(), [](matrix_cache_key k) { return k.sigma() / 2; });
-    auto matrices = ConvProp_bounds_batched(vBranches, vSigSqd, DiffMat::instance(), vBounds);
+    auto matrices = ConvProp_bounds_batched(vBranches, vSigSqd, *diffusion_matrix, vBounds);
     for (i = 0; i < num_keys; ++i)
     {
         _matrix_cache[keys[i]] = matrices[i];

@@ -38,6 +38,12 @@ estimator::estimator(user_data& d, const input_parameters& ui) : action(d, ui)
     LOG(INFO) << "Using gamma prior with k=" << k << ", theta=" << theta << ")";
     _prior = gamma_distribution<double>(k, theta);
 
+#ifdef USE_MAX_PROBABILITY
+    LOG(INFO) << "Maximum probability calculation";
+#else
+    LOG(INFO) << "Summation probability calculation";
+#endif
+
 }
 
 void estimator::write_error_model_if_specified(const input_parameters& my_input_parameters, const model * p_model)

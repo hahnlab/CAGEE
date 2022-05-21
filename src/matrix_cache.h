@@ -8,6 +8,7 @@
 #include <Eigen/Dense>
 
 class sigma;
+class DiffMat;
 
 class matrix_cache_key {
     int _bound;
@@ -51,6 +52,8 @@ public:
         return _matrix_cache.size();
     }
 
+    static DiffMat* diffusion_matrix;
+    static void initialize(int Npts);
     friend std::ostream& operator<<(std::ostream& ost, matrix_cache& c);
 
 };

@@ -52,14 +52,6 @@ DiffMat::DiffMat(int Npts) {
 
 DiffMat* p_diffmat = nullptr;
 
-const DiffMat& DiffMat::instance()
-{
-    if (!p_diffmat)
-        p_diffmat = new DiffMat(DISCRETIZATION_RANGE);
-
-    return *p_diffmat;
-}
-
 vector<MatrixXd> ConvProp_bounds_batched(vector<double> vt, vector<double> cCoeff, const DiffMat& dMat, vector<boundaries> vbounds) {
     // Calculate the transition density (dMat.diff to the power of cCoeff * t * (n-1)^2 / (b-a)^2
     // using eigenvectors to speed up the calculation
