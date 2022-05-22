@@ -30,9 +30,19 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(OPTIMIZER_STRATEGY "NelderMead" CACHE STRING "Optimizer strategy (LBFGS, Nelder-Mead, some others)")
-add_definitions(-DOPTIMIZER_STRATEGY=${OPTIMIZER_STRATEGY})
-
 set(DISCRETIZATION_RANGE "200" CACHE STRING "How finely to divide the continuous range")
+option(MODEL_GENE_EXPRESSION_LOGS "Perform calculations using log values rather than linear values" ON)
+option(USE_MAX_PROBABILITY "Evaluate probability as maximum value rather than cumulative" OFF)
+
+if (MODEL_GENE_EXPRESSION_LOGS)
+  add_definitions(-DMODEL_GENE_EXPRESSION_LOGS)
+endif()
+
+if (USE_MAX_PROBABILITY)
+  add_definitions(-DUSE_MAX_PROBABILITY)
+endif()
+
+add_definitions(-DOPTIMIZER_STRATEGY=${OPTIMIZER_STRATEGY})
 add_definitions(-DDISCRETIZATION_RANGE=${DISCRETIZATION_RANGE})
 
 # Define the two required variables before including
