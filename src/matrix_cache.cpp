@@ -96,6 +96,11 @@ void matrix_cache::set_matrix(double branch_length, double sigma, int bound, con
     _matrix_cache[key] = m;
 }
 
+Eigen::VectorXd matrix_cache::create_vector() const 
+{ 
+    return Eigen::VectorXd::Zero(diffusion_matrix->Diff.rows()); 
+}
+
 std::ostream& operator<<(std::ostream& ost, matrix_cache& c)
 {
     ost << c.get_cache_size() << " matrices. Keys: ";

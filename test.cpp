@@ -1199,7 +1199,8 @@ int main(int argc, char** argv)
     doctest::Context context;
     context.applyCommandLine(argc, argv);
 
-    matrix_cache::initialize(DISCRETIZATION_RANGE);
+    matrix_cache::initialize(200);
+
     int res;
     try {
         res = context.run(); // run

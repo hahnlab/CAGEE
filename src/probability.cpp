@@ -323,22 +323,18 @@ inference_pruner::inference_pruner(const matrix_cache& cache,
     const clade* p_tree,
     double sigma_multiplier) :
         _cache(cache),  _p_sigsqd(sigma), _p_error_model(p_error_model), _p_tree(p_tree), _sigma_multiplier(sigma_multiplier)
-    {
-    }
+{
+    auto init_func = [&](const clade* node) { _probabilities[node] = _cache.create_vector(); };
+    for_each(_p_tree->reverse_level_begin(), _p_tree->reverse_level_end(), init_func);
+}
 
 
-clademap<VectorXd> inference_pruner::compute_all_probabilities(const gene_transcript& gf, int upper_bound)
+void inference_pruner::compute_all_probabilities(const gene_transcript& gf, int upper_bound)
 {
     unique_ptr<sigma_squared> multiplier(_p_sigsqd->multiply(_sigma_multiplier));
-    clademap<VectorXd> probabilities;
 
-    auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(DISCRETIZATION_RANGE); };
-    for_each(_p_tree->reverse_level_begin(), _p_tree->reverse_level_end(), init_func);
-
-    auto compute_func = [&](const clade* c) { compute_node_probability(c, gf, _p_error_model, probabilities, multiplier.get(), _cache, upper_bound); };
+    auto compute_func = [gf, this, upper_bound, &multiplier](const clade* c) { compute_node_probability(c, gf, _p_error_model, _probabilities, multiplier.get(), _cache, upper_bound); };
     for_each(_p_tree->reverse_level_begin(), _p_tree->reverse_level_end(), compute_func);
-
-    return probabilities;
 
 }
 
@@ -348,25 +344,26 @@ clademap<VectorXd> inference_pruner::compute_all_probabilities(const gene_transc
 /// \returns a vector of probabilities for gene counts at the root of the tree 
 std::vector<double> inference_pruner::prune(const gene_transcript& gf, int upper_bound)
 {
-    auto probabilities = compute_all_probabilities(gf, upper_bound);
+    compute_all_probabilities(gf, upper_bound);
 
-    return vector<double>(probabilities.at(_p_tree).data(), probabilities.at(_p_tree).data() + probabilities.at(_p_tree).size());
+    return vector<double>(_probabilities[_p_tree].begin(), _probabilities[_p_tree].end());
 }
 
 clademap<double> inference_pruner::reconstruct(const gene_transcript& gf, int upper_bound)
 {
-    auto probabilities = compute_all_probabilities(gf, upper_bound);
+    compute_all_probabilities(gf, upper_bound);
 
     clademap<double> reconstruction;
     for (auto it = _p_tree->reverse_level_begin(); it != _p_tree->reverse_level_end(); ++it)
     {
-        reconstruction[*it] = (*it)->is_leaf() ? gf.get_expression_value((*it)->get_taxon_name()) : get_value(gf, probabilities[*it], upper_bound);
+        reconstruction[*it] = (*it)->is_leaf() ? gf.get_expression_value((*it)->get_taxon_name()) : get_value(gf, _probabilities[*it], upper_bound);
     }
     return reconstruction;
 }
 
 TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
 {
+    int Npts = 200;
     ostringstream ost;
     gene_transcript family;
     family.set_expression_value("A", 18.7);
@@ -379,14 +376,14 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
 
     std::map<const clade*, VectorXd> probabilities;
 
-    auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(DISCRETIZATION_RANGE); };
+    auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(Npts); };
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
 
     auto A = p_tree->find_descendant("A");
     compute_node_probability(A, family, NULL, probabilities, &lambda, cache, 60);
     auto& actual = probabilities[A];
 
-    vector<double> expected(DISCRETIZATION_RANGE);
+    vector<double> expected(Npts);
 
     if (MATRIX_SIZE_MULTIPLIER == 1.5)
     {
@@ -409,7 +406,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     compute_node_probability(B, family, NULL, probabilities, &lambda, cache, 60);
     actual = probabilities[B];
 
-    expected = vector<double>(DISCRETIZATION_RANGE);
+    expected = vector<double>(Npts);
 
     if (MATRIX_SIZE_MULTIPLIER == 1.5)
     {
@@ -431,6 +428,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
 
 TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly")
 {
+    int Npts = 200;
     ostringstream ost;
     gene_transcript family;
     family.set_expression_value("A", 14.7);
@@ -439,14 +437,14 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly")
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
     double prob = 0.005;
-    VectorXd equal_probs = VectorXd::Constant(DISCRETIZATION_RANGE, prob);
-    MatrixXd doubler = MatrixXd::Identity(DISCRETIZATION_RANGE, DISCRETIZATION_RANGE) * 2;
+    VectorXd equal_probs = VectorXd::Constant(Npts, prob);
+    MatrixXd doubler = MatrixXd::Identity(Npts, Npts) * 2;
     sigma_squared lambda(0.03);
     matrix_cache cache;
     cache.set_matrix(1, 0.03, 40, doubler);
     cache.set_matrix(3, 0.03, 40, doubler);
     std::map<const clade*, VectorXd> probabilities;
-    auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(DISCRETIZATION_RANGE); };
+    auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(Npts); };
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
 
     auto AB = p_tree->find_descendant("AB");
@@ -458,7 +456,7 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly")
     auto& actual = probabilities[AB];
     double expected = (2 * prob) * (2 * prob);
 
-    CHECK_EQ(DISCRETIZATION_RANGE, actual.size());
+    CHECK_EQ(Npts, actual.size());
     for (Eigen::Index i = 0; i < actual.size(); ++i)
     {
         CHECK_MESSAGE(doctest::Approx(expected) == actual[i], "At index " + to_string(i));
@@ -467,6 +465,7 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly")
 
 TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_from_error_model_if_provided")
 {
+    int Npts = 200;
     ostringstream ost;
 
     gene_transcript family;
@@ -487,14 +486,14 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_from_error_model_if_pr
     read_error_model_file(ist, &model);
 
     std::map<const clade*, VectorXd> probabilities;
-    auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(DISCRETIZATION_RANGE); };
+    auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(Npts); };
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
 
     auto A = p_tree->find_descendant("A");
     compute_node_probability(A, family, &model, probabilities, &lambda, cache, 40);
     VectorXd& actual = probabilities[A];
 
-    vector<double> expected(DISCRETIZATION_RANGE);
+    vector<double> expected(Npts);
     expected[16] = 0.2;
     expected[17] = 0.6;
     expected[18] = 0.2;
@@ -559,6 +558,7 @@ TEST_CASE("find_best_pvalue_selects_largest_value_in_range")
 
 TEST_CASE("inference_pruner: check stats of returned probabilities")
 {
+    int Npts = 200;
     ostringstream ost;
 
     gene_transcript fam;
@@ -574,7 +574,7 @@ TEST_CASE("inference_pruner: check stats of returned probabilities")
     auto actual = pruner.prune(fam, 20);
 
     size_t sz = actual.size();
-    CHECK_EQ(sz, DISCRETIZATION_RANGE);
+    CHECK_EQ(sz, Npts);
     auto mean = accumulate(actual.begin(), actual.end(), 0.0) / sz;
     auto variance = accumulate(actual.begin(), actual.end(), 0.0, [&mean, &sz](double accumulator, const double& val) {
         return accumulator + ((val - mean) * (val - mean) / (sz - 1));

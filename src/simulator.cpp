@@ -29,16 +29,17 @@ extern std::mt19937 randomizer_engine; // seeding random number engine
 class binner
 {
     double _max_value;
+    const int _Npts;
 public:
 
-    binner(double max_value) : _max_value(max_value) {}
+    binner(int Npts, double max_value) : _Npts(Npts), _max_value(max_value) {}
     int bin(double value) const
     {
-        return value / _max_value * (DISCRETIZATION_RANGE-1);
+        return value / _max_value * (_Npts -1);
     }
     double value(int bin) const
     {
-        double val = bin * _max_value / double(DISCRETIZATION_RANGE - 1);
+        double val = bin * _max_value / double(_Npts - 1);
 
         // subtract a small amount to deal with floating point inaccuracy
         // (The value was occasionally larger than max_value otherwise)
@@ -71,14 +72,14 @@ simulated_family create_simulated_family(const clade *p_tree, const sigma_square
 
     sim.values[p_tree] = root_value;
     boundaries bounds(pv::to_computational_space(0), upper_bound);
-    binner b(upper_bound);
     std::function <void(const clade*)> get_child_value;
     get_child_value = [&](const clade* c) {
         auto m = cache.get_matrix(c->get_branch_length(), p_sigsqrd->get_value_for_clade(c), upper_bound);
-        VectorXd v(DISCRETIZATION_RANGE);
+        VectorXd v(m.cols());
         VectorPos_bounds(sim.values[c->get_parent()], bounds, v);
         VectorXd probs = m * v;
         std::discrete_distribution<int> distribution(probs.data(), probs.data() + probs.size());
+        binner b(m.cols(), upper_bound);
         sim.values[c] = b.value(distribution(randomizer_engine));
         c->apply_to_descendants(get_child_value);
     };
@@ -280,7 +281,7 @@ TEST_CASE("create_trial")
 
 TEST_CASE("binner")
 {
-    binner b(100);
+    binner b(200, 100);
 
     CHECK_EQ(5, b.bin(2.7));
     CHECK_EQ(doctest::Approx(60.3015), b.value(120));
@@ -290,7 +291,7 @@ TEST_CASE("binner")
 
 TEST_CASE("binner unbins small values correctly")
 {
-    binner b(20);
+    binner b(200, 20);
     CHECK_EQ(doctest::Approx(8.0402), b.value(80));
 }
 

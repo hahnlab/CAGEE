@@ -98,7 +98,10 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
 
     unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create(p_sigma, ud.p_tree));
     int upper_bound = bound_calculator->get_max_bound(ud.gene_families);
-    vector<double> priors(DISCRETIZATION_RANGE);
+    matrix_cache calc;
+    auto v = calc.create_vector();
+    vector<double> priors(v.size());
+    copy(v.begin(), v.end(), priors.begin());
     for (size_t j = 0; j < priors.size(); ++j) {
         double x = (double(j) + 0.5) * double(upper_bound) / (priors.size() - 1);
 
@@ -113,15 +116,17 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
     results.resize(ud.gene_families.size());
     std::vector<double> all_families_likelihood(ud.gene_families.size());
 
-    matrix_cache calc;
     calc.precalculate_matrices(p_sigma->get_values(),  ud.p_tree->get_branch_lengths(), upper_bound);
 
     vector<vector<double>> partial_likelihoods(ud.gene_families.size());
-    inference_pruner pruner(calc, p_sigma, _p_error_model, ud.p_tree, 1.0);
+
+    vector<inference_pruner> pruners;
+    pruners.reserve(ud.gene_families.size());
+    std::generate_n(std::back_inserter(pruners), ud.gene_families.size(), [&]() {return inference_pruner(calc, p_sigma, _p_error_model, ud.p_tree, 1.0); });
 #pragma omp parallel for
     for (int i = 0; i < ud.gene_families.size(); ++i) {
         if (references[i] == i)
-            partial_likelihoods[i] = pruner.prune(ud.gene_families.at(i), upper_bound);
+            partial_likelihoods[i] = pruners[i].prune(ud.gene_families.at(i), upper_bound);
             // probabilities of various family sizes
     }
 

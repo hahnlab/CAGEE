@@ -39,7 +39,9 @@ class inference_pruner
     const clade* _p_tree;
     const double _sigma_multiplier;
 
-    clademap<Eigen::VectorXd> compute_all_probabilities(const gene_transcript& gf, int upper_bound);
+    clademap<Eigen::VectorXd> _probabilities;
+
+    void compute_all_probabilities(const gene_transcript& gf, int upper_bound);
 public:
     inference_pruner(const matrix_cache& cache,
         const sigma_squared* sigma,

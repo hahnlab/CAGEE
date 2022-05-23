@@ -48,6 +48,8 @@ public:
     const Eigen::MatrixXd& get_matrix(double branch_length, double sigma, int bound) const;
     void set_matrix(double branch_length, double sigma, int bound, const Eigen::MatrixXd& m);
 
+    Eigen::VectorXd create_vector() const;
+
     int get_cache_size() const {
         return _matrix_cache.size();
     }

@@ -303,9 +303,10 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript assigns actual va
 
 TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript calculates parent node values correctly")
 {
+    int Npts = 200;
     sigma_squared sig(10.1);
 
-    MatrixXd doubler = MatrixXd::Identity(DISCRETIZATION_RANGE, DISCRETIZATION_RANGE) * 2;
+    MatrixXd doubler = MatrixXd::Identity(Npts, Npts) * 2;
     matrix_cache calc;
     for (auto len : p_tree->get_branch_lengths())
     {
