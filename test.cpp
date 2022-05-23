@@ -156,36 +156,6 @@ TEST_CASE("GeneFamilies: species_size_differential")
     CHECK_EQ(11, gf.species_size_differential());
 }
 
-TEST_CASE_FIXTURE(Inference, "infer_processes"
-    * doctest::skip(true))
-{
-    vector<gene_transcript> families;
-    gene_transcript fam;
-    fam.set_expression_value("A", 1);
-    fam.set_expression_value("B", 2);
-    families.push_back(fam);
-    gene_transcript fam2;
-    fam2.set_expression_value("A", 2);
-    fam2.set_expression_value("B", 1);
-    families.push_back(fam2);
-    gene_transcript fam3;
-    fam3.set_expression_value("A", 3);
-    fam3.set_expression_value("B", 6);
-    families.push_back(fam3);
-    gene_transcript fam4;
-    fam4.set_expression_value("A", 6);
-    fam4.set_expression_value("B", 3);
-    families.push_back(fam4);
-
-    sigma_squared lambda(0.01);
-
-    base_model core(&lambda, &families, NULL);
-
-    double multi = core.infer_family_likelihoods(_user_data, &lambda, std::gamma_distribution<double>(1, 2));
-
-    CHECK_EQ(doctest::Approx(46.56632), multi);
-}
-
 TEST_CASE("Inference: gamma_set_alpha")
 {
     gamma_model model(NULL, NULL,  0, 0, NULL);

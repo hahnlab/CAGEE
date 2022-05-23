@@ -98,7 +98,18 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
 
     unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create(p_sigma, ud.p_tree));
     int upper_bound = bound_calculator->get_max_bound(ud.gene_families);
+    vector<double> priors(DISCRETIZATION_RANGE);
+    for (size_t j = 0; j < priors.size(); ++j) {
+        double x = (double(j) + 0.5) * double(upper_bound) / (priors.size() - 1);
 
+        priors[j] = computational_space_prior(x, prior);
+    }
+
+    if (all_of(priors.begin(), priors.end(), [](double prior) { return prior <= 0 || isnan(prior); }))
+    {
+        LOG(WARNING) << "Prior not valid for this sigma and data set";
+        return -log(0);
+    }
     results.resize(ud.gene_families.size());
     std::vector<double> all_families_likelihood(ud.gene_families.size());
 
@@ -112,13 +123,6 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
         if (references[i] == i)
             partial_likelihoods[i] = pruner.prune(ud.gene_families.at(i), upper_bound);
             // probabilities of various family sizes
-    }
-
-    vector<double> priors(partial_likelihoods[0].size());
-    for (size_t j = 0; j < priors.size(); ++j) {
-        double x = (double(j) + 0.5) * double(upper_bound) / (DISCRETIZATION_RANGE - 1);
-
-        priors[j] = computational_space_prior(x, prior);
     }
 
     // prune all the families with the same lambda
@@ -245,6 +249,54 @@ TEST_CASE("base optimizer guesses sigma only")
     CHECK_EQ(1, guesses.size());
     CHECK_EQ(0.5, guesses[0]);
     delete model.get_sigma();
+}
+
+TEST_CASE("infer_family_likelihoods")
+{
+    user_data ud;
+    unique_ptr<clade> tree(parse_newick("(A:1,B:1);"));
+    ud.p_tree = tree.get();
+
+    auto& families = ud.gene_families;
+    gene_transcript fam;
+    fam.set_expression_value("A", 1);
+    fam.set_expression_value("B", 2);
+    families.push_back(fam);
+    gene_transcript fam2;
+    fam2.set_expression_value("A", 2);
+    fam2.set_expression_value("B", 1);
+    families.push_back(fam2);
+    gene_transcript fam3;
+    fam3.set_expression_value("A", 3);
+    fam3.set_expression_value("B", 6);
+    families.push_back(fam3);
+    gene_transcript fam4;
+    fam4.set_expression_value("A", 6);
+    fam4.set_expression_value("B", 3);
+    families.push_back(fam4);
+
+    sigma_squared ss(0.01);
+
+    base_model core(&ss, &families, NULL);
+
+    double multi = core.infer_family_likelihoods(ud, &ss, std::gamma_distribution<double>(1, 2));
+
+    CHECK_EQ(doctest::Approx(108.101477), multi);
+}
+
+
+TEST_CASE("infer_family_likelihoods returns invalid on invalid prior")
+{
+    sigma_squared ss(5.0);
+    user_data ud;
+    ud.p_lambda = NULL;
+    ud.p_tree = parse_newick("(A:1,B:1);");
+    ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.gene_families[0].set_expression_value("A", 1);
+    ud.gene_families[0].set_expression_value("B", 2);
+
+    base_model model(&ss, &ud.gene_families, NULL);
+    CHECK_EQ(-log(0),  model.infer_family_likelihoods(ud, &ss, gamma_distribution<double>(0.0, 1600)));
 }
 
 class Reconstruction

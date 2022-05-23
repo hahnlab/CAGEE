@@ -106,7 +106,7 @@ upper_bound_calculator::upper_bound_calculator(const sigma_squared* p_sigsqrd, c
     auto v = p_sigsqrd->get_values();
     double sigma = sqrt(*max_element(v.begin(), v.end()));
 
-    _multiplier = 4.5 * sigma * sqrt(t);
+    _multiplier = max(1.0, 4.5 * sigma * sqrt(t));
 }
 
 int upper_bound_calculator::get_max_bound(const vector<gene_transcript>& transcripts) const
@@ -226,7 +226,7 @@ void compute_node_probability(const clade* node,
     }
     else  {
         auto& node_probs = probabilities[node];
-        node_probs = VectorXd::Constant(DISCRETIZATION_RANGE, 1);
+        node_probs.fill(1);
 
         for (auto it = node->descendant_begin(); it != node->descendant_end(); ++it) {
             const MatrixXd& m = cache.get_matrix((*it)->get_branch_length(), p_sigma->get_named_value(*it, gene_transcript), upper_bound);
