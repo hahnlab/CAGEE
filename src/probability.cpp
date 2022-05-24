@@ -164,7 +164,7 @@ public:
     }
     virtual int get(double value) const override
     {
-        int val = int(value * _multiplier);
+        int val = int(value + _multiplier); // add rather than multiply since we are in log space
 
         const int multiple = 5;
         int remainder = val % multiple;
@@ -671,7 +671,7 @@ TEST_CASE("upper_bound_calculator_log_space get_max_bound")
 
     vector<double> v(1);
     v[0] = 5;
-    CHECK_EQ(35, calc.get_max_bound(v));
+    CHECK_EQ(15, calc.get_max_bound(v));
 
     sigma_squared ss_zero(0.0);
     upper_bound_calculator_log_space calc2(&ss_zero, p_tree.get());

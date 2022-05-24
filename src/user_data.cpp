@@ -40,7 +40,7 @@ void user_data::read_gene_family_data(const input_parameters &my_input_parameter
         throw std::runtime_error(my_input_parameters.input_file_path + ": " + err.what() + ". Exiting...");
     }
     
-    LOG(DEBUG) << "Read input file " << my_input_parameters.input_file_path << "." << endl;
+    LOG(DEBUG) << "Read input file " << my_input_parameters.input_file_path << ".";
 }
 
 //! Read user provided error model file (whose path is stored in input_parameters instance)

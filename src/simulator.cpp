@@ -114,6 +114,7 @@ std::vector<simulated_family> simulator::simulate_processes(model *p_model) {
     unique_ptr<sigma_squared> sim_sigsqd(p_model->get_simulation_lambda());
     unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create(sim_sigsqd.get(), data.p_tree));
     int upper_bound = bound_calculator->get_max_bound(root_sizes);
+    LOG(DEBUG) << "Upper bound for discretization vector: " << upper_bound;
 
     matrix_cache cache;
     cache.precalculate_matrices(sim_sigsqd->get_values(), data.p_tree->get_branch_lengths(), upper_bound);
@@ -176,7 +177,7 @@ void simulator::simulate(std::vector<model *>& models, const input_parameters &m
 
         print_header(ofst2, my_input_parameters, results.size(), data.p_tree, order);
         print_simulations(ofst2, false, results, order);
-        LOG(INFO) << "Simulated values written to " << fname << endl;
+        LOG(INFO) << "Simulated values written to " << fname;
 
         string truth_fname = filename("simulation_truth", dir);
         std::ofstream ofst(truth_fname);
@@ -184,7 +185,7 @@ void simulator::simulate(std::vector<model *>& models, const input_parameters &m
 
         print_header(ofst, my_input_parameters, results.size(), data.p_tree, order);
         print_simulations(ofst, true, results, order);
-        LOG(INFO) << "Simulated values (including internal nodes) written to " << truth_fname << endl;
+        LOG(INFO) << "Simulated values (including internal nodes) written to " << truth_fname;
 
     }
 }

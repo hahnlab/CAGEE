@@ -98,6 +98,7 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
 
     unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create(p_sigma, ud.p_tree));
     int upper_bound = bound_calculator->get_max_bound(ud.gene_families);
+    VLOG(1) << "Upper bound for discretization vector: " << upper_bound;
     matrix_cache calc;
     auto v = calc.create_vector();
     vector<double> priors(v.size());
