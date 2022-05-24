@@ -68,7 +68,7 @@ int cagee(int argc, char *const argv[]) {
 
         gene_transcript::remove_ungrouped_transcripts(user_input.sample_groups, data.gene_families);
 
-        matrix_cache::initialize(DISCRETIZATION_RANGE);
+        matrix_cache::initialize(user_input.discretization_size);
         // When computing or simulating, only base or gamma model is used. When estimating, base and gamma model are used (to do: compare base and gamma w/ LRT)
         // Build model takes care of -f
         vector<model *> models = build_models(user_input, data);

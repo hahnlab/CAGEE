@@ -28,6 +28,7 @@ public:
     std::vector<std::string> sample_groups;
     std::string prior;
     bool help = false;
+    int discretization_size = 200;
 
     //! Check calls
     void check_input();

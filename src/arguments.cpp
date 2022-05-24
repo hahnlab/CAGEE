@@ -67,7 +67,7 @@ input_parameters read_arguments(int argc, char* const argv[])
     string config_file;
     po::options_description generic("Generic options");
     generic.add_options()
-        ("help", "produce help message")
+        ("help,h", "produce help message")
         ("version,v", "print version string")
         ("config,c", po::value<string>(&config_file),
             "Configuration file containing additional options");
@@ -95,6 +95,7 @@ input_parameters read_arguments(int argc, char* const argv[])
     
     po::options_description rare("Less Common Options");
     rare.add_options()
+        ("discretization_size,D", po::value<int>()->default_value(200), "Size (length) of the discretization vector, Default=200. Can increase resolution at the cost of computation time.")
         ("pvalue,P", po::value<double>(), "P-value to use for determining significance of family size change, Default=0.05.")
         ("zero_root,z", po::value<bool>()->implicit_value(true), "Exclude gene families that don't exist at the root, not recommended.")
         ("optimizer_expansion,E", po::value<double>(), "Expansion parameter for Nelder-Mead optimizer, Default=2.")
@@ -162,6 +163,7 @@ input_parameters read_arguments(int argc, char* const argv[])
     maybe_set(vm, "rootdist", my_input_parameters.rootdist_params);
     maybe_set(vm, "sample_group", my_input_parameters.sample_groups);
     maybe_set(vm, "prior", my_input_parameters.prior);
+    maybe_set(vm, "discretization_size", my_input_parameters.discretization_size);
 
     string simulate_string = vm["simulate"].as<string>();
     my_input_parameters.is_simulating = simulate_string != "false";
