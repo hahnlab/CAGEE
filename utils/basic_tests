@@ -1,0 +1,40 @@
+#!/bin/bash
+# basic commands to see if cagee will even run with changes (modify templated commands as needed)
+# jtourig / hahnlab 2022
+
+set -euo pipefail
+
+tree='../../CAGEE-testing/trees/3_tips.nwk'
+num_sims=1000
+output_dir='./cagee-testing/'
+procs=$(( $(lscpu | grep '^CPU(s):' | awk '{print $2}') / 4 )) # get 1/4 of available CPUs (prob linux-only)
+
+msg() { >&2 echo -e "  $@"; }
+warn() { msg "WARNING: $1"; }
+err() { msg "ERROR: $1"; msg "EXITING..."; exit 1; }
+set_wd() { cd "${0%/*}" && msg "set current working dir to script dir:\n    ${PWD}/"; }
+
+cagee_sim() {
+	local addl_opts="$@"
+	msg "Running CAGEE in simulation mode..."
+	../install/bin/cagee --cores "$procs" --tree "$tree" --simulate "$num_sims" --fixed_sigma 1 \
+		--output_prefix "${output_dir}/simulation/" $addl_opts \
+			|| err "Problem running CAGEE in simulation mode"
+}
+
+cagee_inf() {
+	local addl_opts="$@"
+	msg "Running CAGEE in inference mode..."
+	../install/bin/cagee --cores "$procs" --tree "$tree" --infile "${output_dir}/simulation/simulation.txt" \
+		--output_prefix cagee-testing/inference/ $addl_opts \
+			|| err "Problem running CAGEE in inference mode"
+}
+
+set_wd 				# go to CAGEE/utils/ dir
+msg "Testing CAGEE from current local source/build..."
+mkdir -vp "$output_dir"
+cagee_sim --discretization_size 1000
+cagee_inf --discretization_size 1000
+msg "Basic CAGEE testing complete"
+
+exit
