@@ -30,6 +30,7 @@
 /* Verbose log keys for various aspects of the application */
 #define TRANSCRIPT_RECONSTRUCTION 2
 #define SIMULATOR 3
+#define LIKELIHOOD 4
 #define MATRIX 6
 #define INFERENCE 8
 

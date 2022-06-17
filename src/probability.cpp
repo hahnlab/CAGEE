@@ -309,12 +309,39 @@ double find_best_pvalue(const gene_transcript& fam, const VectorXd& root_probabi
     return *idx;
 }
 
+// wrapper function, using old name, for getting max likelihood vs. weighted mean
+double get_value(const VectorXd& likelihood, int upper_bound)
+{
+    //TODO add a CLI option or compiler flag to pick which get function to use below
+    return(0.0)
+}
 
-double get_value(const gene_transcript& t, const VectorXd& likelihood, int upper_bound)
+// returns the discretized vector value with highest likelihood (mode)
+double get_max_value(const VectorXd& likelihood, int upper_bound)
 {
     Index max_likelihood_index;
     likelihood.maxCoeff(&max_likelihood_index);
     return (float(max_likelihood_index) / likelihood.size()) * upper_bound;
+}
+
+// returns the likelihood-weighted mean of discretized vector
+double get_mean_value(const VectorXd& likelihood, int upper_bound)
+{
+    // generate a vector of discretized values
+    int vector_size = likelihood.size();
+    VectorXd discretized_values(vector_size);
+    VLOG(LIKELIHOOD) << "the likelihood size / discretized_values length is: " << vector_size << endl; 
+    const double interval = upper_bound / (vector_size - 1);
+    VLOG(LIKELIHOOD) << "the calculated interval is: " << interval << endl;
+    for(int i = 0; i <= vector_size - 1; i++){
+        discretized_values[i] = i * interval;
+    }
+    VLOG(LIKELIHOOD) << "the discretized values are:" << endl << discretized_values << endl;
+    // divide the likelihood vector by the accumulated total likelihood to yield normalized/relative probabilities
+    const VectorXd normalized_probability { likelihood / likelihood.sum() };
+    VLOG(LIKELIHOOD) << "the normalized probabilities are:" << endl << normalized_probability << endl;
+    // multiply the values by normalized weight and return the sum
+    return normalized_probability.dot(discretized_values);
 }
 
 inference_pruner::inference_pruner(const matrix_cache& cache,
@@ -356,9 +383,20 @@ clademap<double> inference_pruner::reconstruct(const gene_transcript& gf, int up
     clademap<double> reconstruction;
     for (auto it = _p_tree->reverse_level_begin(); it != _p_tree->reverse_level_end(); ++it)
     {
-        reconstruction[*it] = (*it)->is_leaf() ? gf.get_expression_value((*it)->get_taxon_name()) : get_value(gf, _probabilities[*it], upper_bound);
+        reconstruction[*it] = (*it)->is_leaf() ? gf.get_expression_value((*it)->get_taxon_name()) : get_max_value(_probabilities[*it], upper_bound);
     }
     return reconstruction;
+}
+
+TEST_CASE("Inference: likelihood_weighted_mean_correct")
+{
+    int test_vector_size { 10 };
+    VectorXd test_likelihood(test_vector_size);
+    test_likelihood << 0.01, 0.03, 0.05, 0.07, 0.06, 0.05, 0.04, 0.03, 0.02, 0.01;
+    int upper_bound { 9 };
+    double test_weighted_mean = get_mean_value(test_likelihood, upper_bound);
+    double expected_value { 4.13513513513514 };
+    CHECK_EQ( doctest::Approx(expected_value), test_weighted_mean );
 }
 
 TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
