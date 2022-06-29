@@ -224,14 +224,14 @@ branch_probabilities::branch_probability compute_viterbi_sum(const clade* c,
     const reconstruction* rec, 
     const matrix_cache& cache, 
     const sigma_squared* p_lambda,
-    const upper_bound_calculator& bound_calculator)
+    int upper_bound)
 {
     if (c->is_root())
     {
         return branch_probabilities::invalid();
     }
 
-    auto probs = cache.get_matrix(c->get_branch_length(), p_lambda->get_named_value(c, transcript), bound_calculator.get(transcript.get_max_expression_value()));
+    auto probs = cache.get_matrix(c->get_branch_length(), p_lambda->get_named_value(c, transcript), upper_bound);
 
     int parent_size = rec->get_node_value(transcript, c->get_parent());
     int child_size = rec->get_node_value(transcript, c);

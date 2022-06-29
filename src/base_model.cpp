@@ -96,9 +96,7 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
         return -log(0);
     }
 
-    unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create(p_sigma, ud.p_tree));
-    int upper_bound = bound_calculator->get_max_bound(ud.gene_families);
-    VLOG(1) << "Upper bound for discretization vector: " << upper_bound;
+    int upper_bound = upper_bound_from_transcript_values(ud.gene_families);
     matrix_cache calc;
     auto v = calc.create_vector();
     vector<double> priors(v.size());
@@ -180,8 +178,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
     auto result = new base_model_reconstruction();
 
-    unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create(_p_sigma, ud.p_tree));
-    int upper_bound = bound_calculator->get_max_bound(ud.gene_families);
+    int upper_bound = upper_bound_from_transcript_values(ud.gene_families);
 
     p_calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), upper_bound);
 
@@ -287,7 +284,7 @@ TEST_CASE("infer_family_likelihoods")
 
     double multi = core.infer_family_likelihoods(ud, &ss, std::gamma_distribution<double>(1, 2));
 
-    CHECK_EQ(doctest::Approx(108.101477), multi);
+    CHECK_EQ(doctest::Approx(114.7321), multi);
 }
 
 
@@ -374,17 +371,6 @@ TEST_CASE("increase_decrease")
     CHECK_EQ(0, bmr.get_difference_from_parent(gf, ab));
 }
 
-class constant_upper_bound : public upper_bound_calculator
-{
-    int get(double val) const override { return 20; }
-public:    
-    constant_upper_bound() : upper_bound_calculator()
-    {
-
-    }
-};
-
-
 TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities" * doctest::skip(true))
 {
     sigma_squared lm(0.05);
@@ -393,7 +379,7 @@ TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities" * doctest::skip(tr
     base_model_reconstruction rec;
     rec._reconstructions[fam.id()][p_tree->find_descendant("AB")] = 10;
     rec._reconstructions[fam.id()][p_tree->find_descendant("ABCD")] = 12;
-    CHECK_EQ(doctest::Approx(0.537681), compute_viterbi_sum(p_tree->find_descendant("AB"), fam, &rec, cache, &lm, constant_upper_bound())._value);
+    CHECK_EQ(doctest::Approx(0.537681), compute_viterbi_sum(p_tree->find_descendant("AB"), fam, &rec, cache, &lm, 20)._value);
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities_returns_invalid_if_root")
@@ -403,8 +389,11 @@ TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities_returns_invalid_if_
     cache.precalculate_matrices(lm.get_values(), { 1,3,7 }, 20);
     base_model_reconstruction rec;
     rec._reconstructions[fam.id()][p_tree.get()] = 11;
-    CHECK_FALSE(compute_viterbi_sum(p_tree.get(), fam, &rec, cache, &lm, constant_upper_bound())._is_valid);
+    CHECK_FALSE(compute_viterbi_sum(p_tree.get(), fam, &rec, cache, &lm, 20)._is_valid);
 }
+
+
+
 
 
 

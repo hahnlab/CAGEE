@@ -53,8 +53,7 @@ namespace LikelihoodRatioTest
     )
     {
         auto references = build_reference_list(data.gene_families);
-        unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create(data.p_lambda, data.p_tree));
-        int upper_bound = bound_calculator->get_max_bound(data.gene_families);
+        int upper_bound = upper_bound_from_transcript_values(data.gene_families);
         matrix_cache cache;
         inference_pruner pruner(cache, data.p_lambda, data.p_error_model, data.p_tree, 1.0);
         for (size_t i = 0; i < data.gene_families.size(); i += 1)

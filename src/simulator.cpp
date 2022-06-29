@@ -89,6 +89,29 @@ simulated_family create_simulated_family(const clade *p_tree, const sigma_square
     return sim;
 }
 
+int upper_bound_from_root_values(const sigma_squared* p_sigsqrd, const clade* p_tree, const vector<double>& values)
+{
+    double t = p_tree->distance_from_root_to_tip();
+
+    auto v = p_sigsqrd->get_values();
+    double sigma = sqrt(*max_element(v.begin(), v.end()));
+
+    double multiplier = max(1.0, 4.5 * sigma * sqrt(t));
+    vector<int> bounds(values.size());
+
+    transform(values.begin(), values.end(), bounds.begin(), [multiplier](double value) {
+        int val = int(value + multiplier); // add rather than multiply since we are in log space
+
+        const int multiple = 5;
+        int remainder = val % multiple;
+        if (remainder == 0 && val > 0) return val;
+
+        return val + multiple - remainder;
+        });
+
+    return *max_element(bounds.begin(), bounds.end());
+}
+
 std::vector<simulated_family> simulator::simulate_processes(model *p_model) {
     
     if (data.p_tree == NULL)
@@ -112,8 +135,8 @@ std::vector<simulated_family> simulator::simulate_processes(model *p_model) {
         });
 
     unique_ptr<sigma_squared> sim_sigsqd(p_model->get_simulation_lambda());
-    unique_ptr<upper_bound_calculator> bound_calculator(upper_bound_calculator::create(sim_sigsqd.get(), data.p_tree));
-    int upper_bound = bound_calculator->get_max_bound(root_sizes);
+
+    int upper_bound = upper_bound_from_root_values(sim_sigsqd.get(), data.p_tree, root_sizes);
     LOG(DEBUG) << "Upper bound for discretization vector: " << upper_bound;
 
     matrix_cache cache;
@@ -481,3 +504,31 @@ TEST_CASE("Simulation, simulate_processes")
     CHECK_EQ(100, sims.size());
 }
 
+
+
+TEST_CASE("get_upper_bound uses largest sigma if there are several")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):6"));
+
+    sigma_squared ss({ {"A",0},{"B",1},{"AB",0} }, { 4,16 }, sigma_type::lineage_specific);
+
+    CHECK_EQ(55, upper_bound_from_root_values(&ss, p_tree.get(), {1.0}));
+}
+
+TEST_CASE("get_upper_bound get_max_bound")
+{
+    sigma_squared ss(0.25);
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    vector<double> v(1);
+    v[0] = 5;
+    CHECK_EQ(15, upper_bound_from_root_values(&ss, p_tree.get(), v));
+
+    sigma_squared ss_zero(0.0);
+    v[0] = 0;
+    CHECK_EQ(5, upper_bound_from_root_values(&ss_zero, p_tree.get(), v));
+
+    v[0] = 0.0000001;
+    CHECK_EQ(5, upper_bound_from_root_values(&ss_zero, p_tree.get(), v));
+
+}

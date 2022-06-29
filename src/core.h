@@ -176,7 +176,7 @@ inline std::string filename(std::string base, std::string suffix)
     return filename(base, suffix, "txt");
 }
 
-std::set<int> get_all_bounds(const std::vector<gene_transcript>& transcripts);
+int upper_bound_from_transcript_values(const std::vector<gene_transcript>& transcripts);
 
 //! Create a sigma based on the sigma tree model the user passed.
 /// Called when the user has provided no sigma value and one must
