@@ -9,3 +9,5 @@ target_sources(tests PRIVATE arguments.cpp easylogging++.cpp transcript_reconstr
 target_sources(tests PRIVATE base_model.cpp error_model.cpp gene_transcript.cpp matrix_cache.cpp probability.cpp)
 target_sources(tests PRIVATE execute.cpp gpu_multiplier.cpp mkl_multiplier.cpp root_equilibrium_distribution.cpp)
 target_sources(tests PRIVATE clade.cpp gamma.cpp io.cpp optimizer.cpp simulator.cpp newick_ape_loader.cpp)
+
+target_sources(diffmat_precalc PRIVATE DiffMat.cpp easylogging++.cpp mkl_multiplier.cpp)

@@ -38,6 +38,7 @@ void matrix_cache::initialize(int Npts)
 {
     LOG(INFO) << "Discretization range set to " << Npts;
     diffusion_matrix = new DiffMat(Npts);
+    diffusion_matrix->create_or_read_eigenvectors();
 }
 
 const Eigen::MatrixXd& matrix_cache::get_matrix(double branch_length, double sigma, int bound) const

@@ -1,3 +1,5 @@
+#include <zlib.h>
+
 #include "doctest.h"
 #include "easylogging++.h"
 
@@ -13,6 +15,25 @@
 
 using namespace Eigen;
 using namespace std;
+
+template<class Derived>
+void read_binary(const std::string& filename,
+    Eigen::PlainObjectBase<Derived>& matrix)
+{
+    typedef typename Derived::Index Index;
+    typedef typename Derived::Scalar Scalar;
+
+    gzFile in = gzopen(filename.c_str(), "rb");
+    if (!in)
+        throw std::runtime_error("Eigen file not found");
+
+    Index rows = 0, cols = 0;
+    gzread(in, (char*)(&rows), sizeof(Index));
+    gzread(in, (char*)(&cols), sizeof(Index));
+    matrix.resize(rows, cols);
+    gzread(in, (char*)matrix.data(), rows * cols * sizeof(Scalar));
+    gzclose(in);
+}
 
 class eigen_multiplier
 {
@@ -33,13 +54,7 @@ DiffMat::DiffMat(int Npts) {
     A(Npts - 1, Npts - 1) = -1;
 
     Diff = A;
-    EigenSolver<MatrixXd> es(Diff);
-    passage = es.eigenvectors();
-    eig = Diff.eigenvalues();
-    VLOG(MATRIX) << "Eigenvalues for Diff matrix";
-    VLOG(MATRIX) << eig;
-    VLOG(MATRIX) << "Eigenvalues end";
-
+    
 #ifdef BLAS_FOUND
     multiplier = new mkl_multiplier();
 #elif defined HAVE_CUDA    
@@ -48,6 +63,29 @@ DiffMat::DiffMat(int Npts) {
     LOG(WARNING) << "No math library available, calculations may be slow";
     multiplier = new eigen_multiplier();
 #endif
+}
+
+void DiffMat::create_or_read_eigenvectors()
+{
+    try
+    {
+        read_binary(std::string("eigenvalues") + to_string(Diff.cols()) + ".bin", eig);
+        read_binary(std::string("eigenvectors") + to_string(Diff.cols()) + ".bin", passage);
+    }
+    catch (std::runtime_error& err)
+    {
+        create_eigenvectors();
+    }
+    VLOG(MATRIX) << "Eigenvalues for Diff matrix";
+    VLOG(MATRIX) << eig;
+    VLOG(MATRIX) << "Eigenvalues end";
+}
+
+void DiffMat::create_eigenvectors()
+{
+    EigenSolver<MatrixXd> es(Diff);
+    passage = es.eigenvectors();
+    eig = Diff.eigenvalues();
 }
 
 DiffMat* p_diffmat = nullptr;
@@ -137,6 +175,7 @@ vector<MatrixXd> eigen_multiplier::doit(const vector<MatrixXcd>& matrices, const
 TEST_CASE("DiffMat creates the expected matrix")
 {
     DiffMat dMat(3);
+    dMat.create_eigenvectors();
 
     Matrix3d expected;
     expected <<
@@ -150,6 +189,7 @@ TEST_CASE("DiffMat creates the expected matrix")
 TEST_CASE("ConvProp_bounds")
 {
     DiffMat dMat(3);
+    dMat.create_eigenvectors();
     MatrixXd actual = ConvProp_bounds(2.0, 3.0, dMat, boundaries(0.0, 3.0));
 
     Matrix3d expected;
@@ -166,6 +206,7 @@ TEST_CASE("ConvProp_bounds")
 TEST_CASE("ConvProp_bounds returns different values for different values of sigma")
 {
     DiffMat dMat(200);
+    dMat.create_eigenvectors();
     MatrixXd actual = ConvProp_bounds(44, 3.2642504711034, dMat, boundaries(0.0, 85.0028));
     MatrixXd a2 = ConvProp_bounds(44, 3.1010379475482, dMat, boundaries(0.0, 85.0028));
     CHECK(actual != a2);

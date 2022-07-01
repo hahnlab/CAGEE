@@ -19,6 +19,8 @@ public:
     Eigen::VectorXcd eig;
 
     DiffMat(int Npts);
+    void create_or_read_eigenvectors();
+    void create_eigenvectors();
 
 #ifdef HAVE_CUDA
     gpu_multiplier* multiplier;
