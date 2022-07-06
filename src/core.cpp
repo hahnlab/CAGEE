@@ -141,19 +141,6 @@ void event_monitor::log(el::base::type::ostream_t& ost) const
     }
 }
 
-bool branch_probabilities::contains(const gene_transcript& fam) const { 
-    return _probabilities.find(fam.id()) != _probabilities.end(); 
-}
-
-branch_probabilities::branch_probability branch_probabilities::at(const gene_transcript& fam, const clade* c) const {
-    return _probabilities.at(fam.id()).at(c);
-}
-
-void branch_probabilities::set(const gene_transcript& fam, const clade* c, branch_probability p)
-{
-    _probabilities[fam.id()][c] = p;
-}
-
 map<string, int> get_sigma_index_map(const std::vector<string>& sample_groups)
 {
     map<string, int> sample_to_sigma_index;

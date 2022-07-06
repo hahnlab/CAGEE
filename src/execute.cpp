@@ -175,22 +175,10 @@ void estimator::execute(std::vector<model *>& models)
 
                 std::unique_ptr<reconstruction> rec(p_model->reconstruct_ancestral_states(data, &cache));
 
-                branch_probabilities probs;
-#if 0
-                for (size_t i = 0; i<data.gene_families.size(); ++i)
-                {
-                    for_each(data.p_tree->reverse_level_begin(), data.p_tree->reverse_level_end(), [&](const clade* c) {
-                        probs.set(data.gene_families[i], c, compute_viterbi_sum(c, data.gene_families[i], rec.get(), cache, p_model->get_sigma()));
-                        });
-                }
-#else
-                LOG(WARNING) << "Branch Probabilities not supported yet";
-#endif
-
 #ifdef RUN_LHRTEST
                 LikelihoodRatioTest::lhr_for_diff_lambdas(data, p_model);
 #endif
-                rec->write_results(p_model->name(), _user_input.output_prefix, data.p_tree, data.gene_families, _user_input.pvalue, probs);
+                rec->write_results(p_model->name(), _user_input.output_prefix, data.p_tree, data.gene_families, _user_input.pvalue);
             }
         }
         catch (const OptimizerInitializationFailure& e )

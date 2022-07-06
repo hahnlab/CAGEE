@@ -197,33 +197,6 @@ size_t adjust_for_error_model(size_t c, const error_model *p_error_model)
     return c;
 }
 
-double pvalue(double v, const vector<double>& conddist)
-{
-    int idx = conddist.size() - 1;
-
-    auto bound = std::upper_bound(conddist.begin(), conddist.end(), v);
-    if (bound != conddist.end())
-    {
-        idx = bound - conddist.begin();
-    }
-    return  idx / (double)conddist.size();
-}
-
-double find_best_pvalue(const gene_transcript& fam, const VectorXd& root_probabilities, const std::vector<std::vector<double> >& conditional_distribution)
-{    
-    vector<double> pvalues(root_probabilities.size());
-    int max_size_to_check = rint(fam.get_max_expression_value() * 1.25);
-    for (int j = 0; j < max_size_to_check; ++j)
-    {
-        pvalues[j] = pvalue(root_probabilities[j], conditional_distribution[j]);
-    }
-    auto idx = std::max_element(pvalues.begin(), pvalues.end());
-    LOG(TRACE) << "PValue for " << fam.id() << " : " << *idx << " found at family size " << idx - pvalues.begin();
-
-    return *idx;
-}
-
-
 double get_value(const gene_transcript& t, const VectorXd& likelihood, int upper_bound)
 {
     Index max_likelihood_index;
@@ -417,57 +390,6 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_from_error_model_if_pr
     {
         CHECK_MESSAGE(doctest::Approx(expected[i]) == actual[i], "At index " + to_string(i));
     }
-}
-
-TEST_CASE("find_best_pvalue")
-{
-    gene_transcript gt("TestFamily1", "", "");
-    gt.set_expression_value("A", 1);
-    gt.set_expression_value("B", 2);
-
-    std::vector<std::vector<double> > conditional_distribution(3);
-    conditional_distribution[0] = vector<double>({ .1, .2, .3, .4 });
-    conditional_distribution[1] = vector<double>({ .1, .2, .3, .4 });
-    conditional_distribution[2] = vector<double>({ .1, .2, .3, .4 });
-    Vector3d root_probabilities;
-    root_probabilities[0] = .15;
-    auto value = find_best_pvalue(gt, root_probabilities, conditional_distribution);
-    CHECK_EQ(doctest::Approx(0.25), value);
-}
-
-TEST_CASE("find_best_pvalue_skips_values_outside_of_range")
-{
-    gene_transcript gt("TestFamily1", "", "");
-    gt.set_expression_value("A", 1);
-    gt.set_expression_value("B", 2);
-
-    std::vector<std::vector<double> > conditional_distribution(3);
-    conditional_distribution[0] = vector<double>({ .1, .2, .3, .4 });
-    conditional_distribution[1] = vector<double>({ .1, .2, .3, .4 });
-    conditional_distribution[2] = vector<double>({ .1, .2, .3, .4 });
-    Vector3d root_probabilities;
-    root_probabilities[0] = .15;
-    root_probabilities[2] = .35;
-    auto value = find_best_pvalue(gt, root_probabilities, conditional_distribution);
-    CHECK_EQ(doctest::Approx(0.25), value);
-}
-
-
-TEST_CASE("find_best_pvalue_selects_largest_value_in_range")
-{
-    gene_transcript gt("TestFamily1", "", "");
-    gt.set_expression_value("A", 1);
-    gt.set_expression_value("B", 2);
-
-    std::vector<std::vector<double> > conditional_distribution(3);
-    conditional_distribution[0] = vector<double>({ .1, .2, .3, .4 });
-    conditional_distribution[1] = vector<double>({ .1, .2, .3, .4 });
-    conditional_distribution[2] = vector<double>({ .1, .2, .3, .4 });
-    Vector3d root_probabilities;
-    root_probabilities[0] = .15;
-    root_probabilities[1] = .25;
-    auto value = find_best_pvalue(gt, root_probabilities, conditional_distribution);
-    CHECK_EQ(doctest::Approx(0.5), value);
 }
 
 TEST_CASE("inference_pruner: check stats of returned probabilities")

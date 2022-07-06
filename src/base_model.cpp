@@ -337,11 +337,9 @@ TEST_CASE_FIXTURE(Reconstruction, "base_model_reconstruction__print_reconstructe
     values[p_tree->find_descendant("AB")] = pv::to_computational_space(8);
     values[p_tree->find_descendant("CD")] = pv::to_computational_space(6);
 
-    branch_probabilities branch_probs;
-
     ostringstream ost;
 
-    bmr.print_reconstructed_states(ost, order, { fam }, p_tree.get(), 0.05, branch_probs);
+    bmr.print_reconstructed_states(ost, order, { fam }, p_tree.get(), 0.05);
     CHECK_STREAM_CONTAINS(ost, "#nexus");
     CHECK_STREAM_CONTAINS(ost, "BEGIN TREES;");
     CHECK_STREAM_CONTAINS(ost, "  TREE Family5 = ((A<0>_11.000000:1,B<1>_2.000000:3)<4>_8.000000:7,(C<2>_5.000000:11,D<3>_6.000000:17)<5>_6.000000:23)<6>_7.000000;");
@@ -370,31 +368,4 @@ TEST_CASE("increase_decrease")
     CHECK_EQ(doctest::Approx(-1.0), bmr.get_difference_from_parent(gf, b));
     CHECK_EQ(0, bmr.get_difference_from_parent(gf, ab));
 }
-
-TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities" * doctest::skip(true))
-{
-    sigma_squared lm(0.05);
-    matrix_cache cache;
-    cache.precalculate_matrices(lm.get_values(), { 1,3,7 }, 20);
-    base_model_reconstruction rec;
-    rec._reconstructions[fam.id()][p_tree->find_descendant("AB")] = 10;
-    rec._reconstructions[fam.id()][p_tree->find_descendant("ABCD")] = 12;
-    CHECK_EQ(doctest::Approx(0.537681), compute_viterbi_sum(p_tree->find_descendant("AB"), fam, &rec, cache, &lm, 20)._value);
-}
-
-TEST_CASE_FIXTURE(Reconstruction, "viterbi_sum_probabilities_returns_invalid_if_root")
-{
-    sigma_squared lm(0.05);
-    matrix_cache cache;
-    cache.precalculate_matrices(lm.get_values(), { 1,3,7 }, 20);
-    base_model_reconstruction rec;
-    rec._reconstructions[fam.id()][p_tree.get()] = 11;
-    CHECK_FALSE(compute_viterbi_sum(p_tree.get(), fam, &rec, cache, &lm, 20)._is_valid);
-}
-
-
-
-
-
-
 

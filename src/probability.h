@@ -11,22 +11,11 @@ class clade;
 class error_model;
 class matrix_cache;
 
-struct pvalue_parameters
-{
-    const clade* p_tree;
-    const sigma_squared* p_lambda;
-    const int max_family_size;
-    const int max_root_family_size;
-    const matrix_cache& cache;
-};
-
 double chooseln(double n, double k);
 
 std::vector<int> uniform_dist(int n_draws, int min, int max);
 
 size_t adjust_for_error_model(size_t c, const error_model *p_error_model);
-
-double pvalue(double v, const std::vector<double>& conddist);
 
 template<typename T>
 using clademap = std::map<const clade*, T>;
