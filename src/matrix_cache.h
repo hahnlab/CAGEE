@@ -16,9 +16,10 @@ class matrix_cache_key {
     long _sigma;
 public:
     matrix_cache_key(double bound, double sigma, double branch_length) :
-        _sigma(long(sigma * 1000000000)),    // keep 9 significant digits
         _bound(bound),
-        _branch_length(long(branch_length * 1000)) {} // keep 3 significant digits
+        _branch_length(long(branch_length * 1000)),
+        _sigma(long(sigma * 1000000000))    // keep 9 significant digits
+    {} // keep 3 significant digits
 
     bool operator<(const matrix_cache_key& o) const {
         return std::tie(_bound, _branch_length, _sigma) < std::tie(o._bound, o._branch_length, o._sigma);

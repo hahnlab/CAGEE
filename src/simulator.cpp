@@ -28,8 +28,8 @@ extern std::mt19937 randomizer_engine; // seeding random number engine
 
 class binner
 {
-    double _max_value;
     const int _Npts;
+    double _max_value;
 public:
 
     binner(int Npts, double max_value) : _Npts(Npts), _max_value(max_value) {}

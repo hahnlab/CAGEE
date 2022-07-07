@@ -180,7 +180,7 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma_sq
     cache.precalculate_matrices(multipliers, ud.p_tree->get_branch_lengths(), upper_bound);
 
 #pragma omp parallel for
-    for (int i = 0; i < ud.gene_families.size(); i++) {
+    for (size_t i = 0; i < ud.gene_families.size(); i++) {
         auto& cat_likelihoods = _category_likelihoods[i];
 
         if (prune(ud.gene_families.at(i), prior, cache, p_sigma, ud.p_tree, cat_likelihoods, upper_bound))
@@ -307,7 +307,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
 
         transcript_reconstructor tr(ml.get(), ud.p_tree, calc);
 
-        for (int i = 0; i < ud.gene_families.size(); ++i)
+        for (size_t i = 0; i < ud.gene_families.size(); ++i)
         {
             recs[i]->category_reconstruction[k] = tr.reconstruct_gene_transcript(ud.gene_families[i], upper_bound);
         }

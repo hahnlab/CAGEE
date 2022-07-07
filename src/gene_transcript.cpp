@@ -114,7 +114,7 @@ void gene_transcript::remove_ungrouped_transcripts(const std::vector<std::string
         return find(all_groups.begin(), all_groups.end(), t.tissue()) == all_groups.end();
         });
 
-    int fmsize = transcripts.size();
+    auto fmsize = transcripts.size();
     transcripts.erase(rem, transcripts.end());
     if (fmsize != transcripts.size())
     {

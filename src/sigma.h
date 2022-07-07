@@ -45,7 +45,7 @@ public:
     std::vector<double> get_values() const {
         return _values;
     }
-    virtual sigma_squared* clone() const  {
+    sigma_squared* clone() const  {
         return new sigma_squared(_node_name_to_sigma_index, _values, _type);
     }
 

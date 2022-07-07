@@ -123,15 +123,15 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
     pruners.reserve(ud.gene_families.size());
     std::generate_n(std::back_inserter(pruners), ud.gene_families.size(), [&]() {return inference_pruner(calc, p_sigma, _p_error_model, ud.p_tree, 1.0); });
 #pragma omp parallel for
-    for (int i = 0; i < ud.gene_families.size(); ++i) {
-        if (references[i] == i)
+    for (int i = 0; i < (int)ud.gene_families.size(); ++i) {
+        if ((int)references[i] == i)
             partial_likelihoods[i] = pruners[i].prune(ud.gene_families.at(i), upper_bound);
             // probabilities of various family sizes
     }
 
     // prune all the families with the same lambda
 #pragma omp parallel for
-    for (int i = 0; i < ud.gene_families.size(); ++i) {
+    for (int i = 0; i < (int)ud.gene_families.size(); ++i) {
 
         all_families_likelihood[i] = compute_prior_likelihood(partial_likelihoods[references[i]], priors);
         
@@ -192,7 +192,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
     transcript_reconstructor tr(_p_sigma, ud.p_tree, p_calc);
 
-    for (int i = 0; i< ud.gene_families.size(); ++i)
+    for (size_t i = 0; i< ud.gene_families.size(); ++i)
     {
         result->_reconstructions[ud.gene_families[i].id()] = tr.reconstruct_gene_transcript(ud.gene_families[i], upper_bound);
     }

@@ -102,7 +102,7 @@ if(MSVC)
 else()
     # GCC or Clang
     add_definitions(-include config.h)
-    target_compile_options(tests PRIVATE -g -rdynamic)
+    target_compile_options(tests PRIVATE -g -rdynamic -Wall -Werror)
 endif()
 
 

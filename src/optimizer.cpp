@@ -9,10 +9,14 @@
 #include <chrono>
 #include <memory>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 #include "easylogging++.h"
 
 #include <Eigen/Core>
 #include "LBFGS.h"
+#pragma GCC diagnostic pop
+
 using namespace LBFGSpp;
 
 #include "optimizer.h"

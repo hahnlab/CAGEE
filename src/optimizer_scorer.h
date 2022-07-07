@@ -27,13 +27,13 @@ public:
 //! \ingroup optimizer
 class sigma_optimizer_scorer : public optimizer_scorer
 {
-    error_model* _p_error_model = nullptr;
-    std::vector<double> current_epsilon_guesses;
-    bool optimize_sigma, optimize_epsilon, optimize_gamma;
-    sigma_squared* _p_sigma;
     model* _p_model;
     const user_data& _user_data;
     const std::gamma_distribution<double>& _prior;
+    sigma_squared* _p_sigma;
+    error_model* _p_error_model = nullptr;
+    bool optimize_sigma, optimize_epsilon, optimize_gamma;
+    std::vector<double> current_epsilon_guesses;
 
     double* _distribution_mean = nullptr;
 public:
@@ -48,6 +48,8 @@ public:
 
     // alpha only
     sigma_optimizer_scorer(gamma_model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior);
+
+    virtual ~sigma_optimizer_scorer() {}
 
     void force_distribution_mean(double tl, double v);
 

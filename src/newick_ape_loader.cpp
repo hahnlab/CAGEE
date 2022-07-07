@@ -83,7 +83,7 @@ void add_terminal_edge_tiplabel(tree_data& phy, int& curtip, int& j, int curnode
 	double tmpd;
 	phy.edge[j] = curnode;
 	decode_terminal_edge(x, pr + 1, ps - 1, tip, &tmpd);
-	if (phy.tip_label.size() < curtip) phy.tip_label.resize(curtip);
+	if (phy.tip_label.size() < (size_t)curtip) phy.tip_label.resize(curtip);
 	phy.tip_label[curtip - 1] = tip;
 	phy.edge[j + nedge] = curtip;
 	phy.edge_length[j] = tmpd;
@@ -98,7 +98,7 @@ tree_data treeBuild(string nwk)
 	string x;
 	int n, i, ntip = 1, nleft = 0, nright = 0, nedge, curnode, node, j, nsk = 0, ps, pr, pt, l, k, stack_internal[10000], curtip = 1;
 	int nnode = 0;
-	double* el, tmpd;
+	double tmpd;
 	char lab[512], tip[512];
 	tree_data phy;
 	phy.tip_label.resize(1);
@@ -196,7 +196,7 @@ tree_data treeBuild(string nwk)
 set<int> get_connections(tree_data& td, int node_id)
 {
 	set<int> result;
-	int split = td.edge.size() / 2;
+	size_t split = td.edge.size() / 2;
 	for (size_t i = 0; i < td.edge.size(); ++i)
 	{
 		if (td.edge[i] == node_id)

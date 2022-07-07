@@ -42,7 +42,7 @@ void root_distribution_uniform::resize(size_t new_size)
 
 float root_distribution_uniform::get_raw_root_value(int family_number)
 {
-    if ((size_t)family_number >= _max_value)
+    if (family_number >= _max_value)
         return 0;
 
     std::uniform_real_distribution<float> distribution(0.0, _max_value);
