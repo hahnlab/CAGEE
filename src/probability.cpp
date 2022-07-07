@@ -201,7 +201,9 @@ double get_value(const gene_transcript& t, const VectorXd& likelihood, int upper
 {
     Index max_likelihood_index;
     likelihood.maxCoeff(&max_likelihood_index);
-    return (float(max_likelihood_index) / likelihood.size()) * upper_bound;
+    double bin_start = (double(max_likelihood_index) / likelihood.size()) * upper_bound;
+    double bin_width = double(upper_bound) / double(likelihood.size());
+    return bin_start + bin_width / 2.0;
 }
 
 inference_pruner::inference_pruner(const matrix_cache& cache,
@@ -435,6 +437,6 @@ TEST_CASE("get_value")
     v(112) = 22;
     v(158) = 9;
 
-    CHECK_EQ(56, get_value(gt, v, 100));
+    CHECK_EQ(doctest::Approx(56.25), get_value(gt, v, 100));
 }
 

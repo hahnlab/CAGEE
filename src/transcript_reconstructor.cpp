@@ -236,11 +236,11 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript calculates parent
 
     auto actual = tr.reconstruct_gene_transcript(fam, 200);
 
-    CHECK_EQ(2.0, actual[p_tree->find_descendant("AB")]);
+    CHECK_EQ(2.5, actual[p_tree->find_descendant("AB")]);
 
 }
 
-TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns parent 0 with 0s at the leafs")
+TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns parent above 0 with 0s at the leafs")
 {
     sigma_squared sig(10.1);
     fam.set_expression_value("A", 0);
@@ -251,7 +251,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns parent 0 
 
     transcript_reconstructor tr(&sig, p_tree.get(), &calc);
     auto actual = tr.reconstruct_gene_transcript(fam, 20);
-    CHECK_EQ(0, actual[p_tree->find_descendant("AB")]);
+    CHECK_EQ(0.05, actual[p_tree->find_descendant("AB")]);
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns correct value at root" * doctest::skip(true))
