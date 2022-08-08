@@ -64,6 +64,16 @@ void estimator::write_error_model_if_specified(const input_parameters& my_input_
     }
 }
 
+void check_tree(const clade* p_tree, gene_transcript& t)
+{
+    p_tree->apply_prefix_order([p_tree, t](const clade* c) {
+        if (c->is_leaf())
+        {
+            t.get_expression_value(c->get_taxon_name());
+        }
+        });
+}
+
 void estimator::compute(std::vector<model *>& models, const input_parameters &my_input_parameters)
 {
     std::vector<double> model_likelihoods(models.size());
@@ -148,6 +158,8 @@ void estimator::estimate_lambda_per_family(model *p_model, ostream& ost)
     calls \ref estimate_missing_variables; \ref compute; \ref compute_pvalues, and \ref model::reconstruct_ancestral_states */
 void estimator::execute(std::vector<model *>& models)
 {
+    check_tree(data.p_tree, data.gene_families[0]);
+
     string dir = _user_input.output_prefix;
     if (dir.empty()) dir = "results";
     create_directory(dir);
@@ -215,3 +227,24 @@ TEST_CASE("create_rootdist throws error if nothing set")
     CHECK_EQ(gamma_distribution<double>(0.375, 1600.0), e.prior());
 }
 
+TEST_CASE("check_tree checks tree against a gene family to make sure all leaf node species are available")
+{
+    gene_transcript gt;
+    gt.set_expression_value("Dog", 0.254007);
+    gt.set_expression_value("Rat", 0.1);
+
+    unique_ptr<clade> p_tree(parse_newick("(Dog:1,Rat:3):7"));
+
+    check_tree(p_tree.get(), gt);
+}
+
+TEST_CASE("check_tree throws error on unknown species")
+{
+    gene_transcript gt;
+    gt.set_expression_value("Dog", 0.254007);
+    gt.set_expression_value("Cow", 0.1);
+
+    unique_ptr<clade> p_tree(parse_newick("(Dog:1,Rat:3):7"));
+
+    CHECK_THROWS_WITH(check_tree(p_tree.get(), gt), "Rat was not found in gene family ");
+}

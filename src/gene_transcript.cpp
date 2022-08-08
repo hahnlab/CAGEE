@@ -38,11 +38,11 @@ double gene_transcript::get_max_expression_value() const {
 
 double gene_transcript::get_expression_value(std::string species) const {
     // First checks if species data has been entered (i.e., is key in map?)
-    if (_species_size_map.find(species) == _species_size_map.end()) {
+    auto it = _species_size_map.find(species);
+    if (it == _species_size_map.end()) {
         throw std::runtime_error(species + " was not found in gene family " + _id);
     }
-
-    return _species_size_map.at(species);
+    return it->second;
 }
 
 //! Return vector of species names
