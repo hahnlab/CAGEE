@@ -288,7 +288,8 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
     {
-        CHECK_MESSAGE(doctest::Approx(expected[i]) == actual[i], "At index " + to_string(i));
+        string x = string("At index ") + to_string(i);
+        CHECK_MESSAGE(doctest::Approx(expected[i]) == actual[i], x);
     }
 
     auto B = p_tree->find_descendant("B");
@@ -311,7 +312,8 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     CHECK_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
     {
-        CHECK_MESSAGE(doctest::Approx(expected[i]) == actual[i], "At index " + to_string(i));
+        string x = string("At index ") + to_string(i);
+        CHECK_MESSAGE(doctest::Approx(expected[i]) == actual[i], x);
     }
 }
 
@@ -348,7 +350,8 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly")
     CHECK_EQ(Npts, actual.size());
     for (Eigen::Index i = 0; i < actual.size(); ++i)
     {
-        CHECK_MESSAGE(doctest::Approx(expected) == actual[i], "At index " + to_string(i));
+        string x = string("At index ") + to_string(i);
+        CHECK_MESSAGE(doctest::Approx(expected) == actual[i], x);
     }
 }
 
@@ -390,7 +393,8 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_from_error_model_if_pr
     REQUIRE(expected.size() == actual.size());
     for (size_t i = 0; i < expected.size(); ++i)
     {
-        CHECK_MESSAGE(doctest::Approx(expected[i]) == actual[i], "At index " + to_string(i));
+        string x = string("At index ") + to_string(i);
+        CHECK_MESSAGE(doctest::Approx(expected[i]) == actual[i], x);
     }
 }
 

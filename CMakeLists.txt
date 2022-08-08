@@ -67,7 +67,7 @@ include_directories(LBFGSpp)
 target_compile_definitions(cagee PRIVATE DOCTEST_CONFIG_DISABLE)
 target_compile_definitions(diffmat_precalc PRIVATE DOCTEST_CONFIG_DISABLE)
 target_compile_definitions(tests PRIVATE SILENT ELPP_NO_CHECK_MACROS)
-
+target_compile_options(tests PRIVATE -Wno-range-loop-construct)
 add_subdirectory(src)
 
 link_libraries(Eigen3::Eigen)
