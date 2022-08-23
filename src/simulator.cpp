@@ -168,7 +168,7 @@ void print_header(std::ostream& ost, const input_parameters& p, size_t c, const 
         ost << endl;
     }
 
-    ost << "# Sigma: ";
+    ost << "# Sigma2: ";
     if (p.fixed_multiple_lambdas.empty())
         ost << p.fixed_lambda << endl;
     else
@@ -410,7 +410,7 @@ TEST_CASE("print_header")
     CHECK_STREAM_CONTAINS(ost, "# Simulated data set created ");
     CHECK_STREAM_CONTAINS(ost, "(100 transcripts)");
     CHECK_STREAM_CONTAINS(ost, "# Root distribution: Fixed:6.0");
-    CHECK_STREAM_CONTAINS(ost, "# Sigma: 2.5");
+    CHECK_STREAM_CONTAINS(ost, "# Sigma2: 2.5");
 }
 
 TEST_CASE("print_header displays tree")
@@ -438,7 +438,7 @@ TEST_CASE("print_header multiple sigmas")
     input_parameters p;
     p.fixed_multiple_lambdas = "1,2,3";
     print_header(ost, p, 100, nullptr, cladevector());
-    CHECK_STREAM_CONTAINS(ost, "# Sigma: 1,2,3");
+    CHECK_STREAM_CONTAINS(ost, "# Sigma2: 1,2,3");
 }
 
 TEST_CASE("create_rootdist creates__specifed_distribution_if_given")

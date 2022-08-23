@@ -513,7 +513,7 @@ TEST_CASE_FIXTURE(Reconstruction, "print_node_values")
     p_tree->apply_prefix_order(initializer);
 
     gmr.print_node_values(ost, order, { fam }, p_tree.get());
-    CHECK_STREAM_CONTAINS(ost, "FamilyID\tA<0>\tB<1>\tC<2>\tD<3>\t<4>\t<5>\t<6>");
+    CHECK_STREAM_CONTAINS(ost, "TranscriptID\tA<0>\tB<1>\tC<2>\tD<3>\t<4>\t<5>\t<6>");
     CHECK_STREAM_CONTAINS(ost, "Family5\t11.000000\t2.000000\t5.000000\t6.000000\t6.389056\t6.389056\t6.389056");
 }
 
@@ -530,7 +530,7 @@ TEST_CASE_FIXTURE(Reconstruction, "print_node_change")
         });
 
     gmr.print_node_change(ost, order, { fam }, p_tree.get());
-    CHECK_STREAM_CONTAINS(ost, "FamilyID\tA<0>\tB<1>\tC<2>\tD<3>\t<4>\t<5>\t<6>");
+    CHECK_STREAM_CONTAINS(ost, "TranscriptID\tA<0>\tB<1>\tC<2>\tD<3>\t<4>\t<5>\t<6>");
     CHECK_STREAM_CONTAINS(ost, "Family5\t+4.61094\t-4.38906\t+5\t+6\t+7.38906\t+1\t+0");
 }
 

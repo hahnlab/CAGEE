@@ -88,7 +88,7 @@ model::model(sigma_squared* p_lambda,
 void model::write_vital_statistics(std::ostream& ost, const clade *p_tree, double final_likelihood)
 {
     ost << "Model " << name() << " Final Likelihood (-lnL): " << final_likelihood << endl;
-    ost << "Sigma: " << *get_sigma() << endl;
+    ost << "Sigma2: " << *get_sigma() << endl;
     if (_p_error_model)
         ost << "Epsilon: " << _p_error_model->get_epsilons()[0] << endl;
 
@@ -250,7 +250,7 @@ TEST_CASE("Inference: model_vitals")
     std::ostringstream ost;
     model.write_vital_statistics(ost, new clade("A", 5), 0.01);
     CHECK_STREAM_CONTAINS(ost, "Model mockmodel Final Likelihood (-lnL): 0.01");
-    CHECK_STREAM_CONTAINS(ost, "Sigma: 75.5");
+    CHECK_STREAM_CONTAINS(ost, "Sigma2: 75.5");
     CHECK_STREAM_CONTAINS(ost, "No attempts made");
 }
 

@@ -100,7 +100,7 @@ void write_node_ordered(std::ostream& ost, std::string title, const cladevector&
 
 void reconstruction::print_family_clade_table(std::ostream& ost, const cladevector& order, transcript_vector& gene_families, const clade* p_tree, std::function<string(int family_index, const clade *c)> get_family_clade_value)
 {
-    write_node_ordered(ost, "FamilyID", order, [order](const clade* c) { return clade_index_or_name(c, order); });
+    write_node_ordered(ost, "TranscriptID", order, [order](const clade* c) { return clade_index_or_name(c, order); });
     for (size_t i = 0; i < gene_families.size(); ++i)
     {
         write_node_ordered(ost, gene_families[i].id(), order, [i, get_family_clade_value](const clade* c) { return get_family_clade_value(i, c); });
@@ -158,7 +158,7 @@ void reconstruction::write_results(std::string model_identifier,
     print_reconstructed_states(ofst, order, families, p_tree, test_pvalue);
 
     VLOG(TRANSCRIPT_RECONSTRUCTION) << "writing node transcript values";
-    std::ofstream counts(filename(model_identifier + "_count", output_prefix, "tab"));
+    std::ofstream counts(filename(model_identifier + "_levels", output_prefix, "tab"));
     print_node_values(counts, order, families, p_tree);
 
     VLOG(TRANSCRIPT_RECONSTRUCTION) << "writing node changes";
@@ -291,7 +291,7 @@ TEST_CASE_FIXTURE(Reconstruction, "print_node_counts")
 
     ostringstream ost;
     r.print_node_values(ost, order, std::vector<gene_transcript>({ fam }), p_tree.get());
-    CHECK_STREAM_CONTAINS(ost, "FamilyID\tA<0>\tB<1>\tC<2>\tD<3>\t<4>\t<5>\t<6>");
+    CHECK_STREAM_CONTAINS(ost, "TranscriptID\tA<0>\tB<1>\tC<2>\tD<3>\t<4>\t<5>\t<6>");
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "print_node_counts handles no zero id")
@@ -302,7 +302,7 @@ TEST_CASE_FIXTURE(Reconstruction, "print_node_counts handles no zero id")
     order.push_back(order[0]);
     order[0] = nullptr;
     r.print_node_values(ost, order, std::vector<gene_transcript>({ fam }), p_tree.get());
-    CHECK_STREAM_CONTAINS(ost, "FamilyID\tB<1>\tC<2>\tD<3>\t<4>\t<5>\t<6>\tA<7>");
+    CHECK_STREAM_CONTAINS(ost, "TranscriptID\tB<1>\tC<2>\tD<3>\t<4>\t<5>\t<6>\tA<7>");
 }
 
 TEST_CASE("Reconstruction: print_increases_decreases_by_clade")
