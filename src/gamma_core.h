@@ -73,7 +73,6 @@ public:
         return "Gamma";
     }
 
-    virtual void write_family_likelihoods(std::ostream& ost) override;
     virtual void write_vital_statistics(std::ostream& ost, const clade *p_tree, double final_likelihood) override;
 
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache *) override;

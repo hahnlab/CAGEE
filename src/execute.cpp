@@ -84,9 +84,6 @@ void estimator::compute(std::vector<model *>& models, const input_parameters &my
         std::ofstream results_file(filename(models[i]->name() + "_results", my_input_parameters.output_prefix));
         models[i]->write_vital_statistics(results_file, data.p_tree, result);
 
-        std::ofstream likelihoods_file(filename(models[i]->name() + "_family_likelihoods", my_input_parameters.output_prefix));
-        models[i]->write_family_likelihoods(likelihoods_file);
-
         write_error_model_if_specified(my_input_parameters, models[i]);
 
         model_likelihoods[i] = result;

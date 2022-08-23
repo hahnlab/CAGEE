@@ -54,14 +54,6 @@ void gamma_model::write_vital_statistics(std::ostream& ost, const clade *p_tree,
     ost << "Alpha: " << _alpha << endl;
 }
 
-void gamma_model::write_family_likelihoods(std::ostream& ost)
-{
-    ost << "#FamilyID\tGamma Cat Mean\tLikelihood of Category\tLikelihood of Family\tPosterior Probability\tSignificant" << endl;
-
-    std::ostream_iterator<family_info_stash> out_it(ost, "\n");
-    std::copy(results.begin(), results.end(), out_it);
-}
-
 //! Set alpha for gamma distribution
 void gamma_model::set_alpha(double alpha) {
 

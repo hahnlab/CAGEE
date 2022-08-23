@@ -51,9 +51,6 @@ class mock_model : public model {
     {
         return "mockmodel";
     }
-    virtual void write_family_likelihoods(std::ostream& ost) override
-    {
-    }
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache* p_calc) override
     {
         return nullptr;

@@ -144,15 +144,6 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
     return final_likelihood;
 }
 
-void base_model::write_family_likelihoods(std::ostream& ost)
-{
-    ost << "#FamilyID\tLikelihood of Family" << endl;
-    for (const auto& r : results)
-    {
-        ost << r.family_id << "\t" << r.posterior_probability << endl;
-    }
-}
-
 sigma_optimizer_scorer* base_model::get_sigma_optimizer(const user_data& data, const std::vector<string>& sample_groups, const std::gamma_distribution<double>& prior)
 {
     if (data.p_lambda != NULL)  // already have a lambda, nothing we want to optimize
