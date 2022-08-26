@@ -30,6 +30,7 @@ private:
     double _branch_length; // or sigma value
     int _sigma_index;
     bool is_sigma_clade;
+    int _ape_index;
 
     std::vector<clade*> _descendants; // same as above
 
@@ -45,10 +46,12 @@ public:
     typedef std::vector<clade*>::const_iterator descendant_iterator;
 
     /* methods */
-    clade() : _p_parent(nullptr), _branch_length(0), _sigma_index(0), is_sigma_clade(false) {} // basic constructor
+    clade() : _p_parent(nullptr), _branch_length(0), _sigma_index(0), is_sigma_clade(false), _ape_index(0) {} // basic constructor
 
     //! constructor giving taxon name and branch length
-    clade(std::string taxon_name, double length) : _p_parent(nullptr), _taxon_name(taxon_name), _branch_length(length), _sigma_index(0), is_sigma_clade(false) {}
+    clade(std::string taxon_name, double length) : _p_parent(nullptr), 
+        _taxon_name(taxon_name), _branch_length(length), _sigma_index(0), 
+        is_sigma_clade(false), _ape_index(0) {}
 
     clade(const clade& c, clade *parent = nullptr, std::function<double(const clade& c)> branchlength_setter = nullptr);
 
@@ -118,6 +121,10 @@ public:
     std::string get_source_newick() const {
         return _source_newick;
     }
+
+    int get_ape_index() const {
+        return _ape_index;
+    }
 };
 
 template<typename T>
@@ -125,7 +132,7 @@ using clademap = std::map<const clade *, T>;
 
 using cladevector = std::vector<const clade *>;
 
-std::string clade_index_or_name(const clade* node, const cladevector& order);
+std::string clade_index_or_name(const clade* node);
 
 clade* parse_newick(std::string newick_string, bool parse_sigmas);
 inline clade* parse_newick(std::string newick_string) { return parse_newick(newick_string, false); }

@@ -334,14 +334,14 @@ double gamma_model_reconstruction::get_node_value(const gene_transcript& family,
     return int(std::round(_reconstructions.at(family.id()).reconstruction.at(c)));
 }
 
-void gamma_model_reconstruction::print_category_likelihoods(std::ostream& ost, const cladevector& order, transcript_vector& gene_families)
+void gamma_model_reconstruction::print_category_likelihoods(std::ostream& ost, transcript_vector& transcripts)
 {
     ost << "Family ID\t";
     ostream_iterator<double> lm(ost, "\t");
     copy(_lambda_multipliers.begin(), _lambda_multipliers.end(), lm);
     ost << endl;
 
-    for (auto& gf : gene_families)
+    for (auto& gf : transcripts)
     {
         ost << gf.id() << '\t';
         auto rc = _reconstructions[gf.id()];
@@ -351,10 +351,10 @@ void gamma_model_reconstruction::print_category_likelihoods(std::ostream& ost, c
     }
 }
 
-void gamma_model_reconstruction::print_additional_data(const cladevector& order, transcript_vector& gene_families, std::string output_prefix)
+void gamma_model_reconstruction::print_additional_data(transcript_vector& gene_families, std::string output_prefix)
 {
     std::ofstream cat_likelihoods(filename("Gamma_category_likelihoods", output_prefix));
-    print_category_likelihoods(cat_likelihoods, order, gene_families);
+    print_category_likelihoods(cat_likelihoods, gene_families);
 
 }
 
@@ -466,8 +466,8 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__print_reconstruct
     rec.reconstruction[p_tree->find_descendant("CD")] = pv::to_computational_space(6);
 
     ostringstream ost;
-    gmr.print_reconstructed_states(ost, order, { fam }, p_tree.get(), 0.05);
-    CHECK_STREAM_CONTAINS(ost, "  TREE Family5 = ((A<0>_11.000000:1,B<1>_2.000000:3)<4>_6.389056:7,(C<2>_5.000000:11,D<3>_6.000000:17)<5>_6.389056:23)<6>_6.389056;");
+    gmr.print_reconstructed_states(ost, { fam }, p_tree.get(), 0.05);
+    CHECK_STREAM_CONTAINS(ost, "  TREE Family5 = ((A<1>_11.000000:1,B<2>_2.000000:3)<6>_6.389056:7,(C<3>_5.000000:11,D<4>_6.000000:17)<7>_6.389056:23)<5>_6.389056;");
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__print_additional_data__prints_likelihoods")
@@ -475,7 +475,7 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__print_additional_
     gamma_model_reconstruction gmr(vector<double>({ 0.3, 0.9, 1.4, 2.0 }));
     gmr._reconstructions["Family5"]._category_likelihoods = { 0.01, 0.03, 0.09, 0.07 };
     ostringstream ost;
-    gmr.print_category_likelihoods(ost, order, { fam });
+    gmr.print_category_likelihoods(ost, { fam });
     CHECK_STREAM_CONTAINS(ost, "Family ID\t0.3\t0.9\t1.4\t2\t\n");
     CHECK_STREAM_CONTAINS(ost, "Family5\t0.01\t0.03\0.09\t0.07");
 }
@@ -496,7 +496,7 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__prints_lambda_mul
     rec.reconstruction[p_tree->find_descendant("CD")] = 6;
 
     std::ostringstream ost;
-    gmr.print_reconstructed_states(ost, order, { fam }, p_tree.get(), 0.05);
+    gmr.print_reconstructed_states(ost, { fam }, p_tree.get(), 0.05);
 
     CHECK_STREAM_CONTAINS(ost, "BEGIN LAMBDA_MULTIPLIERS;");
     CHECK_STREAM_CONTAINS(ost, "  0.13;");
@@ -513,7 +513,7 @@ TEST_CASE_FIXTURE(Reconstruction, "print_node_values")
     p_tree->apply_prefix_order(initializer);
 
     gmr.print_node_values(ost, order, { fam }, p_tree.get());
-    CHECK_STREAM_CONTAINS(ost, "TranscriptID\tA<0>\tB<1>\tC<2>\tD<3>\t<4>\t<5>\t<6>");
+    CHECK_STREAM_CONTAINS(ost, "TranscriptID\tA<1>\tB<2>\tC<3>\tD<4>\t<6>\t<7>\t<5>");
     CHECK_STREAM_CONTAINS(ost, "Family5\t11.000000\t2.000000\t5.000000\t6.000000\t6.389056\t6.389056\t6.389056");
 }
 
@@ -530,17 +530,13 @@ TEST_CASE_FIXTURE(Reconstruction, "print_node_change")
         });
 
     gmr.print_node_change(ost, order, { fam }, p_tree.get());
-    CHECK_STREAM_CONTAINS(ost, "TranscriptID\tA<0>\tB<1>\tC<2>\tD<3>\t<4>\t<5>\t<6>");
+    CHECK_STREAM_CONTAINS(ost, "TranscriptID\tA<1>\tB<2>\tC<3>\tD<4>\t<6>\t<7>\t<5>");
     CHECK_STREAM_CONTAINS(ost, "Family5\t+4.61094\t-4.38906\t+5\t+6\t+7.38906\t+1\t+0");
 }
 
 TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade")
 {
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-
-    cladevector order{ p_tree->find_descendant("A"),
-        p_tree->find_descendant("B"),
-        p_tree->find_descendant("AB") };
 
     ostringstream empty;
 
@@ -549,7 +545,7 @@ TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade")
     vector<double> em;
     gamma_model_reconstruction gmr(em);
 
-    gmr.print_increases_decreases_by_clade(empty, order, {});
+    gmr.print_increases_decreases_by_clade(empty, p_tree.get(), {});
     CHECK_EQ(empty.str(), "#Taxon_ID\tIncrease\tDecrease\n");
 
     gmr._reconstructions["myid"].reconstruction[p_tree->find_descendant("AB")] = 5;
@@ -559,10 +555,10 @@ TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade")
     gf.set_expression_value("B", 2);
 
     ostringstream ost;
-    gmr.print_increases_decreases_by_clade(ost, order, { gf });
+    gmr.print_increases_decreases_by_clade(ost, p_tree.get(), {gf});
     CHECK_STREAM_CONTAINS(ost, "#Taxon_ID\tIncrease\tDecrease");
-    CHECK_STREAM_CONTAINS(ost, "A<0>\t1\t0");
-    CHECK_STREAM_CONTAINS(ost, "B<1>\t0\t1");
+    CHECK_STREAM_CONTAINS(ost, "A<1>\t1\t0");
+    CHECK_STREAM_CONTAINS(ost, "B<2>\t0\t1");
 }
 
 

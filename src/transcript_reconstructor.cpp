@@ -39,10 +39,10 @@ clademap<double> transcript_reconstructor::reconstruct_gene_transcript(const gen
     return pruner.reconstruct(t, upper_bound);
 }
 
-string newick_node(const clade *node, const cladevector& order, bool significant, std::function<std::string(const clade *c)> textwriter)
+string newick_node(const clade *node, bool significant, std::function<std::string(const clade *c)> textwriter)
 {
     ostringstream ost;
-    ost << clade_index_or_name(node, order) << (significant ? "*" : "") << "_" << textwriter(node);
+    ost << clade_index_or_name(node) << (significant ? "*" : "") << "_" << textwriter(node);
 
     if (!node->is_root())
         ost << ':' << node->get_branch_length();
@@ -59,27 +59,25 @@ void reconstruction::print_node_change(std::ostream& ost, const cladevector& ord
         });
 }
 
-void reconstruction::print_increases_decreases_by_clade(std::ostream& ost, const cladevector& order, transcript_vector& gene_transcripts) {
+void reconstruction::print_increases_decreases_by_clade(std::ostream& ost, const clade *p_tree, transcript_vector& gene_transcripts) 
+{
     clademap<pair<int, int>> increase_decrease_map;
 
     for (auto& transcript : gene_transcripts)
     {
-        for (auto node : order)
-        {
-            if (node)
+        for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), [this, &increase_decrease_map, &transcript](const clade* node)
             {
                 double val = get_difference_from_parent(transcript, node);
                 if (val > 0)
                     increase_decrease_map[node].first++;
                 if (val < 0)
                     increase_decrease_map[node].second++;
-            }
-        }
+            });
     }
 
     ost << "#Taxon_ID\tIncrease\tDecrease\n";
     for (auto& it : increase_decrease_map) {
-        ost << clade_index_or_name(it.first, order) << "\t";
+        ost << clade_index_or_name(it.first) << "\t";
         ost << it.second.first << "\t";
         ost << it.second.second << endl;
     }
@@ -100,14 +98,14 @@ void write_node_ordered(std::ostream& ost, std::string title, const cladevector&
 
 void reconstruction::print_family_clade_table(std::ostream& ost, const cladevector& order, transcript_vector& gene_families, const clade* p_tree, std::function<string(int family_index, const clade *c)> get_family_clade_value)
 {
-    write_node_ordered(ost, "TranscriptID", order, [order](const clade* c) { return clade_index_or_name(c, order); });
+    write_node_ordered(ost, "TranscriptID", order, [order](const clade* c) { return clade_index_or_name(c); });
     for (size_t i = 0; i < gene_families.size(); ++i)
     {
         write_node_ordered(ost, gene_families[i].id(), order, [i, get_family_clade_value](const clade* c) { return get_family_clade_value(i, c); });
     }
 }
 
-void reconstruction::print_reconstructed_states(std::ostream& ost, const cladevector& order, transcript_vector& transcripts, const clade* p_tree, double test_pvalue)
+void reconstruction::print_reconstructed_states(std::ostream& ost, transcript_vector& transcripts, const clade* p_tree, double test_pvalue)
 {
     ost << "#nexus\nBEGIN TREES;\n";
     for (size_t i = 0; i < transcripts.size(); ++i)
@@ -118,8 +116,8 @@ void reconstruction::print_reconstructed_states(std::ostream& ost, const cladeve
         };
 
         function<string(const clade*)> text_func;
-        text_func = [g, order](const clade* node) {
-            return newick_node(node, order, false, g);
+        text_func = [g](const clade* node) {
+            return newick_node(node, false, g);
         };
 
         ost << "  TREE " << gene_transcript.id() << " = ";
@@ -149,13 +147,16 @@ void reconstruction::write_results(std::string model_identifier,
     transcript_vector& families, 
     double test_pvalue)
 {
-    //cladevector order;
-    //for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), [&order](const clade* c) { order.push_back(c); });
-    auto order = get_ape_order(p_tree);
+    cladevector order;
+    for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), [&order](const clade* c)
+        {
+            order.push_back(c);
+        });
+    sort(order.begin(), order.end(), [](const clade* a, const clade* b) { return a->get_ape_index() < b->get_ape_index(); });
 
     VLOG(TRANSCRIPT_RECONSTRUCTION) << "writing reconstructed states";
     std::ofstream ofst(filename(model_identifier + "_asr", output_prefix, "tre"));
-    print_reconstructed_states(ofst, order, families, p_tree, test_pvalue);
+    print_reconstructed_states(ofst, families, p_tree, test_pvalue);
 
     VLOG(TRANSCRIPT_RECONSTRUCTION) << "writing node transcript values";
     std::ofstream counts(filename(model_identifier + "_levels", output_prefix, "tab"));
@@ -167,9 +168,9 @@ void reconstruction::write_results(std::string model_identifier,
 
     VLOG(TRANSCRIPT_RECONSTRUCTION) << "writing clade results";
     std::ofstream clade_results(filename(model_identifier + "_clade_results", output_prefix));
-    print_increases_decreases_by_clade(clade_results, order, families);
+    print_increases_decreases_by_clade(clade_results, p_tree, families);
 
-    print_additional_data(order, families, output_prefix);
+    print_additional_data(families, output_prefix);
 }
 
 double reconstruction::get_difference_from_parent(const gene_transcript& gf, const clade* c)
@@ -290,36 +291,30 @@ TEST_CASE_FIXTURE(Reconstruction, "print_node_counts")
     mock_reconstruction r;
 
     ostringstream ost;
-    r.print_node_values(ost, order, std::vector<gene_transcript>({ fam }), p_tree.get());
-    CHECK_STREAM_CONTAINS(ost, "TranscriptID\tA<0>\tB<1>\tC<2>\tD<3>\t<4>\t<5>\t<6>");
+    r.print_node_values(ost, order, { fam }, p_tree.get());
+    CHECK_STREAM_CONTAINS(ost, "TranscriptID\tA<1>\tB<2>\tC<3>\tD<4>\t<6>\t<7>\t<5>");
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "print_node_counts handles no zero id")
 {
     mock_reconstruction r;
-
-    ostringstream ost;
     order.push_back(order[0]);
     order[0] = nullptr;
+
+    ostringstream ost;
     r.print_node_values(ost, order, std::vector<gene_transcript>({ fam }), p_tree.get());
-    CHECK_STREAM_CONTAINS(ost, "TranscriptID\tB<1>\tC<2>\tD<3>\t<4>\t<5>\t<6>\tA<7>");
+    CHECK_STREAM_CONTAINS(ost, "TranscriptID\tB<2>\tC<3>\tD<4>\t<6>\t<7>\t<5>\tA<1>");
 }
 
 TEST_CASE("Reconstruction: print_increases_decreases_by_clade")
 {
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
-    cladevector order{ 
-        nullptr,
-        p_tree->find_descendant("A"),
-        p_tree->find_descendant("B"),
-        p_tree->find_descendant("AB") };
-
     ostringstream empty;
 
     mock_reconstruction bmr;
 
-    bmr.print_increases_decreases_by_clade(empty, order, {});
+    bmr.print_increases_decreases_by_clade(empty, p_tree.get(), {});
     CHECK_EQ(string("#Taxon_ID\tIncrease\tDecrease\n"), empty.str());
 
     bmr._reconstructions["myid"][p_tree->find_descendant("A")] = 22.11;
@@ -329,7 +324,7 @@ TEST_CASE("Reconstruction: print_increases_decreases_by_clade")
     gene_transcript gf("myid", "", "");
 
     ostringstream ost;
-    bmr.print_increases_decreases_by_clade(ost, order, { gf });
+    bmr.print_increases_decreases_by_clade(ost, p_tree.get(), {gf});
     CHECK_STREAM_CONTAINS(ost, "#Taxon_ID\tIncrease\tDecrease");
     CHECK_STREAM_CONTAINS(ost, "A<1>\t1\t0");
     CHECK_STREAM_CONTAINS(ost, "B<2>\t0\t1");
@@ -346,13 +341,13 @@ TEST_CASE_FIXTURE(Reconstruction, "get_difference_from_parent")
 
 TEST_CASE_FIXTURE(Reconstruction, "clade_index_or_name__returns_node_index_in_angle_brackets_for_non_leaf")
 {
-    CHECK_EQ(string("<0>"), clade_index_or_name(p_tree.get(), { p_tree.get() }).c_str());
+    CHECK_EQ(string("<5>"), clade_index_or_name(p_tree.get()));
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "clade_index_or_name__returns_node_name_plus_index_in_angle_brackets_for_leaf")
 {
     auto a = p_tree->find_descendant("A");
-    CHECK_EQ(string("A<1>"), clade_index_or_name(a, { p_tree.get(), a }).c_str());
+    CHECK_EQ(string("A<1>"), clade_index_or_name(a));
 }
 
 #if 0

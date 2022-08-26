@@ -20,9 +20,9 @@ public:
     {
     }
 
-    void print_additional_data(const cladevector& order, transcript_vector& gene_families, std::string output_prefix) override;
+    void print_additional_data(transcript_vector& gene_families, std::string output_prefix) override;
 
-    void print_category_likelihoods(std::ostream& ost, const cladevector& order, transcript_vector& gene_families);
+    void print_category_likelihoods(std::ostream& ost, transcript_vector& gene_families);
 
     double get_node_value(const gene_transcript& gf, const clade* c) const override;
 

@@ -36,8 +36,6 @@ struct simulated_family
     }
 };
 
-root_equilibrium_distribution* create_rootdist(std::string param, const std::vector<std::pair<float, int>>& rootdist);
-
 /*! @brief Build simulated families based on the user's input
 
 The user asks for a simulation given a lambda. We generate a multiplier m from a normal distribution 

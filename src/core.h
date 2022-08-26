@@ -47,9 +47,9 @@ public:
 
     void print_node_values(std::ostream& ost, const cladevector& order, transcript_vector& transcripts, const clade* p_tree);
 
-    void print_reconstructed_states(std::ostream& ost, const cladevector& order, transcript_vector& transcripts, const clade* p_tree, double test_pvalue);
+    void print_reconstructed_states(std::ostream& ost, transcript_vector& transcripts, const clade* p_tree, double test_pvalue);
 
-    void print_increases_decreases_by_clade(std::ostream& ost, const cladevector& order, transcript_vector& transcripts);
+    void print_increases_decreases_by_clade(std::ostream& ost, const clade *p_tree, transcript_vector& transcripts);
 
     void print_family_clade_table(std::ostream& ost, const cladevector& order, transcript_vector& transcripts, const clade* p_tree,
         std::function<std::string(int family_index, const clade* c)> get_family_clade_value);
@@ -64,7 +64,7 @@ public:
 
     double get_difference_from_parent(const gene_transcript& gf, const clade* c);
 private:
-    virtual void print_additional_data(const cladevector& order, transcript_vector& transcripts, std::string output_prefix) {};
+    virtual void print_additional_data(transcript_vector& transcripts, std::string output_prefix) {};
 
     virtual void write_nexus_extensions(std::ostream& ost) {};
 

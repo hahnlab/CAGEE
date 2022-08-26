@@ -26,6 +26,38 @@ namespace pv = proportional_variance;
 
 extern std::mt19937 randomizer_engine; // seeding random number engine
 
+root_equilibrium_distribution* create_rootdist(std::string param, const vector<pair<float, int>>& rootdist)
+{
+    if (param.empty())
+        throw std::runtime_error("No root distribution description provided");
+
+    root_equilibrium_distribution* p_dist = nullptr;
+    auto tokens = tokenize_str(param, ':');
+    if (tokens[0] == "fixed")
+    {
+        auto fixed_value = stof(tokens[1]);
+        LOG(INFO) << "Root distribution fixed at " << fixed_value;
+        p_dist = new root_distribution_fixed(fixed_value);
+    }
+    else if (tokens[0] == "gamma")
+    {
+        auto k = stof(tokens[1]), theta = stof(tokens[2]);
+        LOG(INFO) << "Using gamma root distribution with k=" << k << ", theta=" << theta << ")";
+        p_dist = new root_distribution_gamma(k, theta);
+    }
+    else if (tokens[0] == "file")
+    {
+        p_dist = new root_distribution_specific(rootdist);
+    }
+    else
+    {
+        throw std::runtime_error("Couldn't parse root distribution");
+    }
+
+    return p_dist;
+}
+
+
 class binner
 {
     const int _Npts;
@@ -149,7 +181,7 @@ std::vector<simulated_family> simulator::simulate_processes(model *p_model) {
     return results;
 }
 
-void print_header(std::ostream& ost, const input_parameters& p, size_t c, const clade *p_tree, const cladevector& order)
+void print_header(std::ostream& ost, const input_parameters& p, size_t c, const clade *p_tree)
 {
     auto tm = std::time(nullptr);
 
@@ -160,8 +192,8 @@ void print_header(std::ostream& ost, const input_parameters& p, size_t c, const 
 
     if (p_tree)
     {
-        auto text_func = [&order](const clade* c) {
-            return clade_index_or_name(c, order);
+        auto text_func = [](const clade* c) {
+            return clade_index_or_name(c);
         };
         ost << "# Tree: ";
         p_tree->write_newick(ost, text_func);
@@ -184,7 +216,12 @@ void simulator::simulate(std::vector<model *>& models, const input_parameters &m
     if (data.p_tree == nullptr)
         throw std::runtime_error("No tree specified for simulations");
 
-    auto order = get_ape_order(data.p_tree);
+    cladevector order;
+    for_each(data.p_tree->reverse_level_begin(), data.p_tree->reverse_level_end(), [&order](const clade* c)
+        {
+            order.push_back(c);
+        });
+    sort(order.begin(), order.end(), [](const clade* a, const clade *b) { return a->get_ape_index() < b->get_ape_index(); });
 
     string dir = my_input_parameters.output_prefix;
     if (dir.empty()) dir = "results";
@@ -198,7 +235,7 @@ void simulator::simulate(std::vector<model *>& models, const input_parameters &m
         std::ofstream ofst2(fname);
         if (!ofst2) throw std::runtime_error("Failed to open " + fname);
 
-        print_header(ofst2, my_input_parameters, results.size(), data.p_tree, order);
+        print_header(ofst2, my_input_parameters, results.size(), data.p_tree);
         print_simulations(ofst2, false, results, order);
         LOG(INFO) << "Simulated values written to " << fname;
 
@@ -206,7 +243,7 @@ void simulator::simulate(std::vector<model *>& models, const input_parameters &m
         std::ofstream ofst(truth_fname);
         if (!ofst) throw std::runtime_error("Failed to open " + truth_fname);
 
-        print_header(ofst, my_input_parameters, results.size(), data.p_tree, order);
+        print_header(ofst, my_input_parameters, results.size(), data.p_tree);
         print_simulations(ofst, true, results, order);
         LOG(INFO) << "Simulated values (including internal nodes) written to " << truth_fname;
 
@@ -251,37 +288,6 @@ void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes
         }
         ost << endl;
     }
-}
-
-root_equilibrium_distribution* create_rootdist(std::string param, const vector<pair<float, int>>& rootdist)
-{
-    if (param.empty())
-        throw std::runtime_error("No root distribution description provided");
-
-    root_equilibrium_distribution* p_dist = nullptr;
-    auto tokens = tokenize_str(param, ':');
-    if (tokens[0] == "fixed")
-    {
-        auto fixed_value = stof(tokens[1]);
-        LOG(INFO) << "Root distribution fixed at " << fixed_value;
-        p_dist = new root_distribution_fixed(fixed_value);
-    }
-    else if (tokens[0] == "gamma")
-    {
-        auto k = stof(tokens[1]), theta = stof(tokens[2]);
-        LOG(INFO) << "Using gamma root distribution with k=" << k << ", theta=" << theta << ")";
-        p_dist = new root_distribution_gamma(k, theta);
-    }
-    else if (tokens[0] == "file")
-    {
-        p_dist = new root_distribution_specific(rootdist);
-    }
-    else
-    {
-        throw std::runtime_error("Couldn't parse root distribution");
-    }
-
-    return p_dist;
 }
 
 TEST_CASE("create_trial")
@@ -406,7 +412,7 @@ TEST_CASE("print_header")
     input_parameters p;
     p.fixed_lambda = 2.5;
     p.rootdist_params = "Fixed:6.0";
-    print_header(ost, p, 100, nullptr, cladevector());
+    print_header(ost, p, 100, nullptr);
     CHECK_STREAM_CONTAINS(ost, "# Simulated data set created ");
     CHECK_STREAM_CONTAINS(ost, "(100 transcripts)");
     CHECK_STREAM_CONTAINS(ost, "# Root distribution: Fixed:6.0");
@@ -419,7 +425,7 @@ TEST_CASE("print_header displays tree")
     input_parameters p;
     unique_ptr<clade> p_tree(parse_newick("((A:1,B:3):7,(C:11,D:17):23);"));
 
-    print_header(ost, p, 100, p_tree.get(), get_ape_order(p_tree.get()));
+    print_header(ost, p, 100, p_tree.get());
     CHECK_STREAM_CONTAINS(ost, "# Tree: ((A<1>,B<2>)<6>,(C<3>,D<4>)<7>)<5>");
 }
 
@@ -428,7 +434,7 @@ TEST_CASE("print_header default rootdist")
     std::ostringstream ost;
     input_parameters p;
     p.fixed_lambda = 2.5;
-    print_header(ost, p, 100, nullptr, cladevector());
+    print_header(ost, p, 100, nullptr);
     CHECK_STREAM_CONTAINS(ost, "# Root distribution: gamma:0.375:1600.0");
 }
 
@@ -437,7 +443,7 @@ TEST_CASE("print_header multiple sigmas")
     std::ostringstream ost;
     input_parameters p;
     p.fixed_multiple_lambdas = "1,2,3";
-    print_header(ost, p, 100, nullptr, cladevector());
+    print_header(ost, p, 100, nullptr);
     CHECK_STREAM_CONTAINS(ost, "# Sigma2: 1,2,3");
 }
 

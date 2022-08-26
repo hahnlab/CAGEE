@@ -7,12 +7,14 @@
 
 #include "clade.h"
 #include "gene_transcript.h"
+#include "newick_ape_loader.h"
 
 using namespace std;
 
 clade::clade(const clade& c, clade* parent, std::function<double(const clade& c)> branchlength_setter) {
     _p_parent = parent;
     _taxon_name = c._taxon_name;
+    _ape_index = 0;
     if (branchlength_setter)
         _branch_length = branchlength_setter(c);
     else
@@ -243,15 +245,9 @@ double clade::distance_from_root_to_tip() const
     return *max_element(candidates.begin(), candidates.end());
 }
 
-string clade_index_or_name(const clade* node, const cladevector& order)
+string clade_index_or_name(const clade* node)
 {
-    auto id = distance(order.begin(), find(order.begin(), order.end(), node));
-    if (node->is_leaf())
-        return node->get_taxon_name() + "<" + to_string(id) + ">";
-    else
-    {
-        return "<" + to_string(id) + ">";
-    }
+    return (node->is_leaf() ? node->get_taxon_name() : string()) + "<" + to_string(node->get_ape_index()) + ">";
 }
 
 std::set<double> clade::get_branch_lengths() const
@@ -436,6 +432,15 @@ clade* parse_newick(std::string newick_string, bool parse_to_sigmas) {
     }
     for_each(p_root_clade->reverse_level_begin(), p_root_clade->reverse_level_end(), validator);
 
+    auto order = get_ape_order(p_root_clade);
+    std::function<void(clade*)> assign_id;
+    
+    assign_id = [&order, &assign_id](clade* c) {
+        c->_ape_index = distance(order.begin(), find(order.begin(), order.end(), c));
+        for_each(c->_descendants.begin(), c->_descendants.end(), assign_id);
+    };
+
+    assign_id(p_root_clade);
     return p_root_clade;
 }
 
