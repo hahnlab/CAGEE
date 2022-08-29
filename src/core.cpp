@@ -89,6 +89,13 @@ void model::write_vital_statistics(std::ostream& ost, const clade *p_tree, doubl
 {
     ost << "Model " << name() << " Final Likelihood (-lnL): " << final_likelihood << endl;
     ost << "Sigma2: " << *get_sigma() << endl;
+    
+    ost << "IDs of Nodes: ";
+    p_tree->write_newick(ost, [](const clade*c) {
+        return "<" + to_string(c->get_ape_index()) + ">";
+        });
+    ost << endl;
+
     if (_p_error_model)
         ost << "Epsilon: " << _p_error_model->get_epsilons()[0] << endl;
 
@@ -252,6 +259,18 @@ TEST_CASE("Inference: model_vitals")
     CHECK_STREAM_CONTAINS(ost, "Model mockmodel Final Likelihood (-lnL): 0.01");
     CHECK_STREAM_CONTAINS(ost, "Sigma2: 75.5");
     CHECK_STREAM_CONTAINS(ost, "No attempts made");
+}
+
+TEST_CASE("write_vital_statistics writes node IDs")
+{
+    string s = "((((cat:1,horse:1):1,cow:1):1,(((((chimp:2,human:2):2,orang:1):1,gibbon:1):1,(macaque:1,baboon:1):1):1,marmoset:1):1):1,(rat:1,mouse:1):1);";
+    unique_ptr<clade> p_tree(parse_newick(s, false));
+
+    sigma_squared ss(75.5);
+    mock_model model(&ss);
+    std::ostringstream ost;
+    model.write_vital_statistics(ost, p_tree.get(), 0.01);
+    CHECK_STREAM_CONTAINS(ost, "IDs of Nodes: ((((<1>,<2>)<16>,<3>)<15>,(((((<4>,<5>)<21>,<6>)<20>,<7>)<19>,(<8>,<9>)<22>)<18>,<10>)<17>)<14>,(<11>,<12>)<23>)<13>\n");
 }
 
 /// Bounds are next largest integer if in log space.
