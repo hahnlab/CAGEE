@@ -1,3 +1,4 @@
+#if 0
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -7,6 +8,7 @@
 #include <cmath>
 #include <memory>
 #include <iterator>
+#endif
 
 #include "doctest.h"
 #include "easylogging++.h"
@@ -15,8 +17,9 @@
 #include "mkl.h"
 #endif
 
+#include "inference_pruner.h"
+
 #include "clade.h"
-#include "probability.h"
 #include "matrix_cache.h"
 #include "gene_transcript.h"
 #include "error_model.h"
@@ -30,74 +33,6 @@ using namespace Eigen;
 
 extern std::mt19937 randomizer_engine;
 
-/* Useful links
-1) http://www.rskey.org/gamma.htm # explanation for lgamma
-2) http://www.physics.unlv.edu/~pang/cp_c.html # c code
-*/
-
-/* Necessary for old C implementation of what now is lgamma
-#define M_SQRT_2PI		2.5066282746310002416123552393401042  // sqrt(2pi)
-*/
-
-/* Necessary for old C implementation of what now is lgamma 
-double __Qs[] = { 1.000000000190015, 76.18009172947146, -86.50532032941677,
- 24.01409824083091, -1.231739572450155, 1.208650973866179e-3,
- -5.395239384953e-6 };
-*/
-
-/* Old C implementation of what now is lgamma */
-/*
-double gammaln(double a)
-{
-    int n;
-    double p = __Qs[0];
-    double a_add_5p5 = a + 5.5;
-    for (n = 1; n <= 6; n++) p += __Qs[n] / (a + n);
-    return (a + 0.5)*log(a_add_5p5) - (a_add_5p5)+log(M_SQRT_2PI*p / a);
-}
-*/
-
-
-#define GAMMA_CACHE_SIZE 1024
-
-vector<double> lgamma_cache;
-
-Eigen::MatrixXd chooseln_cache(100,100);
-
-inline double lgamma2(double n)
-{
-    if (n >= 0 && n < GAMMA_CACHE_SIZE && (n - int(n) < 0.00000000001))
-        return lgamma_cache.at(int(n));
-
-    return lgamma(n);
-}
-
-void init_lgamma_cache()
-{
-    lgamma_cache.resize(GAMMA_CACHE_SIZE);
-    for (int i = 0; i < GAMMA_CACHE_SIZE; ++i)
-    {
-        lgamma_cache[i] = lgamma(i);
-    }
-
-    for (int i = 0; i < chooseln_cache.rows(); ++i)
-        for (int j = 0; j < chooseln_cache.cols(); ++j)
-            chooseln_cache(i, j) = lgamma2(i + 1) - lgamma2(j + 1) - lgamma2(i - j + 1);
-}
-
-double chooseln(double n, double r)
-{
-  if (r == 0 || (n == 0 && r == 0)) return 0;
-  else if (n <= 0 || r <= 0) return log(0);
-
-  if (n >= 0 && r >= 0 && n < chooseln_cache.size() && r < chooseln_cache.size() && (n - int(n) < 0.00000000001) && (r - int(r) < 0.00000000001))
-      return chooseln_cache(int(n), int(r));
-
-  return lgamma2(n + 1) - lgamma2(r + 1) - lgamma2(n - r + 1);
-}
-
-
-/* END: Math tools ----------------------- */
 void print_probabilities(const std::map<const clade*, VectorXd>& probabilities, const clade *node)
 {
     auto& probs = probabilities.at(node);
@@ -151,25 +86,6 @@ void compute_node_probability(const clade* node,
             }
         }
     }
-}
-
-
-/* END: Likelihood computation ---------------------- */
-
-std::vector<int> uniform_dist(int n_draws, int min, int max) {
-    
-    std::random_device rd; // seed
-    std::default_random_engine generator(rd()); // seeding generator
-    std::uniform_int_distribution<int> distribution(min, max); // initializing uniform generator
-    std::vector<int> uniform_vec(n_draws); // for storing results
-    
-    for (int i = 0; i < n_draws; ++i) {
-        int number = distribution(generator); // drawing from uniform generator by plugging in random number
-        //cout << "Number is: " << number << endl;
-        uniform_vec[i] = number;
-    }
-        
-    return uniform_vec;
 }
 
 size_t adjust_for_error_model(size_t c, const error_model *p_error_model)

@@ -21,6 +21,7 @@
 #include "DiffMat.h"
 #include "transcript_reconstructor.h"
 #include "proportional_variance.h"
+#include "inference_pruner.h"
 
 using namespace std;
 namespace pv = proportional_variance;

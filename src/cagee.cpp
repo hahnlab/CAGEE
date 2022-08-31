@@ -17,8 +17,6 @@
 
 using namespace std;
 
-void init_lgamma_cache();
-
 action* get_executor(input_parameters& user_input, user_data& data)
 {
     if (user_input.is_simulating) {
@@ -35,8 +33,6 @@ action* get_executor(input_parameters& user_input, user_data& data)
 /// The main function. Evaluates arguments, calls processes
 /// \callgraph
 int cagee(int argc, char *const argv[]) {
-    init_lgamma_cache();
-
     try {
         input_parameters user_input = read_arguments(argc, argv);
 

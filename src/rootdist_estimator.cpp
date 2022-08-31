@@ -11,7 +11,6 @@
 #include "rootdist_estimator.h"
 #include "clade.h"
 #include "optimizer.h"
-#include "probability.h"
 #include "gene_transcript.h"
 #include "optimizer_scorer.h"
 

@@ -11,6 +11,7 @@
 #include "optimizer.h"
 #include "sigma.h"
 #include "DiffMat.h"
+#include "inference_pruner.h"
 
 namespace LikelihoodRatioTest
 {

@@ -16,7 +16,7 @@
 #include "DiffMat.h"
 #include "newick_ape_loader.h"
 #include "proportional_variance.h"
-#include "probability.h"
+#include "inference_pruner.h"
 
 using namespace std;
 using namespace Eigen;

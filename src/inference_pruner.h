@@ -11,10 +11,6 @@ class clade;
 class error_model;
 class matrix_cache;
 
-double chooseln(double n, double k);
-
-std::vector<int> uniform_dist(int n_draws, int min, int max);
-
 size_t adjust_for_error_model(size_t c, const error_model *p_error_model);
 
 template<typename T>

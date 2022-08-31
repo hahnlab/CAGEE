@@ -7,7 +7,6 @@
 #include "easylogging++.h"
 
 #include "clade.h"
-#include "probability.h"
 
 class simulation_data;
 class inference_process;
@@ -18,6 +17,8 @@ class gene_transcript;
 class matrix_cache;
 class root_distribution_gamma;
 class sigma_optimizer_scorer;
+class sigma_squared;
+class error_model;
 
 struct input_parameters;
 

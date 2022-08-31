@@ -24,7 +24,7 @@ INITIALIZE_EASYLOGGINGPP
 #include "src/base_model.h"
 #include "src/transcript_reconstructor.h"
 #include "src/matrix_cache.h"
-#include "src/probability.h"
+#include "src/inference_pruner.h"
 #include "src/execute.h"
 #include "src/user_data.h"
 #include "src/optimizer_scorer.h"
@@ -1182,12 +1182,8 @@ TEST_CASE("LikelihoodRatioTest, compute_for_diff_lambdas" * doctest::skip(true))
     CHECK(isinf(pvalues[0]));
 }
 
-void init_lgamma_cache();
-
 int main(int argc, char** argv)
 {
-    init_lgamma_cache();
-
     el::Configurations defaultConf;
     defaultConf.setToDefault();
     defaultConf.set(el::Level::Global, el::ConfigurationType::Enabled, "false");

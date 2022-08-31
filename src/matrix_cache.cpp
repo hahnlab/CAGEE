@@ -8,7 +8,6 @@
 #include <Eigen/Dense>
 
 #include "matrix_cache.h"
-#include "probability.h"
 #include "doctest.h"
 #include "easylogging++.h"
 #include "DiffMat.h"

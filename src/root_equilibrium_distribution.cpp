@@ -13,7 +13,6 @@
 #include "optimizer.h"
 #include "gene_transcript.h"
 #include "DiffMat.h"
-#include "probability.h"
 #include "proportional_variance.h"
 
 extern std::mt19937 randomizer_engine; // seeding random number engine

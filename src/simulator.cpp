@@ -13,7 +13,6 @@
 #include "core.h"
 #include "matrix_cache.h"
 #include "root_equilibrium_distribution.h"
-#include "probability.h"
 #include "sigma.h"
 #include "DiffMat.h"
 #include "arguments.h"
