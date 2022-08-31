@@ -1,4 +1,5 @@
 #include "core.h"
+#include "transcript_reconstructor.h"
 
 //! \defgroup gamma Gamma Model
 //! @brief Extends the Base model by assuming lambda values belong to a gamma distribution

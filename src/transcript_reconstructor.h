@@ -1,26 +1,40 @@
 #ifndef TRANSCRIPT_RECONSTRUCTOR_H
 #define TRANSCRIPT_RECONSTRUCTOR_H
 
-#include "core.h"
-#include <map>
+#include "gene_transcript.h"
 
-#include <Eigen/Core>
-
-class matrix_cache;
-class sigma_squared;
-
-/// Given a gene gamily and a tree, reconstructs the most likely values at each node on tree. Used in the base model to calculate values for each
-/// gene family. Also used in a gamma bundle, one for each gamma category. Differences are represented by the lambda multiplier.
-class transcript_reconstructor
-{
-    clademap<Eigen::VectorXd> all_node_Ls;
-    const sigma_squared* _p_sigma;
-    const clade* _p_tree;
-    const matrix_cache* _p_cache;
+//! The result of a model reconstruction. Should be able to (a) print reconstructed states with all available information;
+/// (b) print increases and decreases by family; and (c) print increases and decreases by clade.
+class reconstruction {
 public:
-    transcript_reconstructor(const sigma_squared* lambda, const clade* p_tree, const matrix_cache* p_cache);
+    typedef const std::vector<gene_transcript> transcript_vector;
 
-    clademap<double> reconstruct_gene_transcript(const gene_transcript& gf, int upper_bound);
+    void print_node_change(std::ostream& ost, const cladevector& order, transcript_vector& transcripts, const clade* p_tree);
+
+    void print_node_values(std::ostream& ost, const cladevector& order, transcript_vector& transcripts, const clade* p_tree);
+
+    void print_reconstructed_states(std::ostream& ost, transcript_vector& transcripts, const clade* p_tree, double test_pvalue);
+
+    void print_increases_decreases_by_clade(std::ostream& ost, const clade* p_tree, transcript_vector& transcripts);
+
+    void print_family_clade_table(std::ostream& ost, const cladevector& order, transcript_vector& transcripts, const clade* p_tree,
+        std::function<std::string(int family_index, const clade* c)> get_family_clade_value);
+
+    void write_results(std::string model_identifier, std::string output_prefix, const clade* p_tree, transcript_vector& families, double test_pvalue);
+
+    virtual ~reconstruction()
+    {
+    }
+
+    virtual double get_node_value(const gene_transcript& gf, const clade* c) const = 0;
+
+    double get_difference_from_parent(const gene_transcript& gf, const clade* c);
+private:
+    virtual void print_additional_data(transcript_vector& transcripts, std::string output_prefix) {};
+
+    virtual void write_nexus_extensions(std::ostream& ost) {};
+
 };
+
 
 #endif

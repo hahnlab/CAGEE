@@ -18,6 +18,7 @@
 #include "error_model.h"
 #include "sigma.h"
 #include "arguments.h"
+#include "transcript_reconstructor.h"
 
 using namespace std;
 

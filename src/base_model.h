@@ -2,6 +2,7 @@
 #define BASE_MODEL_H
 
 #include "core.h"
+#include "transcript_reconstructor.h"
 
 class gene_family_reconstructor;
 class matrix_cache;

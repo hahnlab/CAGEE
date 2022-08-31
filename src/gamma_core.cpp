@@ -298,11 +298,11 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
         VLOG(1) << "Reconstructing for multiplier " << _lambda_multipliers[k];
         unique_ptr<sigma_squared> ml(_p_sigma->multiply(_lambda_multipliers[k]));
 
-        transcript_reconstructor tr(ml.get(), ud.p_tree, calc);
+        inference_pruner tr(ml.get(), ud.p_tree, calc);
 
         for (size_t i = 0; i < ud.gene_families.size(); ++i)
         {
-            recs[i]->category_reconstruction[k] = tr.reconstruct_gene_transcript(ud.gene_families[i], upper_bound);
+            recs[i]->category_reconstruction[k] = tr.reconstruct(ud.gene_families[i], upper_bound);
         }
     }
 

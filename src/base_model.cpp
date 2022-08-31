@@ -182,11 +182,11 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
             });
     }
 
-    transcript_reconstructor tr(_p_sigma, ud.p_tree, p_calc);
+    inference_pruner tr(_p_sigma, ud.p_tree, p_calc);
 
     for (size_t i = 0; i< ud.gene_families.size(); ++i)
     {
-        result->_reconstructions[ud.gene_families[i].id()] = tr.reconstruct_gene_transcript(ud.gene_families[i], upper_bound);
+        result->_reconstructions[ud.gene_families[i].id()] = tr.reconstruct(ud.gene_families[i], upper_bound);
     }
 
     LOG(INFO) << "Done!\n";

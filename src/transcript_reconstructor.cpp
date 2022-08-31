@@ -7,6 +7,7 @@
 #include "doctest.h"
 #include "easylogging++.h"
 
+#include "core.h"
 #include "transcript_reconstructor.h"
 #include "sigma.h"
 #include "matrix_cache.h"
@@ -21,23 +22,6 @@
 using namespace std;
 using namespace Eigen;
 namespace pv = proportional_variance;
-
-transcript_reconstructor::transcript_reconstructor(const sigma_squared* p_sigma, const clade* p_tree, const matrix_cache* p_cache)
-    : _p_sigma(p_sigma),
-    _p_tree(p_tree),
-    _p_cache(p_cache)
-{
-    for (auto it = _p_tree->reverse_level_begin(); it != _p_tree->reverse_level_end(); ++it)
-    {
-        all_node_Ls[*it] = VectorXd::Zero(200);
-    }
-}
-
-clademap<double> transcript_reconstructor::reconstruct_gene_transcript(const gene_transcript& t, int upper_bound)
-{
-    inference_pruner pruner(*_p_cache, _p_sigma, nullptr, _p_tree, 1.0);
-    return pruner.reconstruct(t, upper_bound);
-}
 
 string newick_node(const clade *node, bool significant, std::function<std::string(const clade *c)> textwriter)
 {
@@ -214,9 +198,9 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript assigns actual va
     matrix_cache calc;
     calc.precalculate_matrices(sig.get_values(), p_tree->get_branch_lengths(), 20);
 
-    transcript_reconstructor tr(&sig, p_tree.get(), &calc);
+    inference_pruner tr(&sig, p_tree.get(), &calc);
 
-    auto actual = tr.reconstruct_gene_transcript(fam, 20);
+    auto actual = tr.reconstruct(fam, 20);
 
     CHECK_EQ(3.7, actual[p_tree->find_descendant("A")]);
     CHECK_EQ(9.4, actual[p_tree->find_descendant("D")]);
@@ -233,9 +217,9 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript calculates parent
     {
         calc.set_matrix(len, 10.1, 200, doubler);
     }
-    transcript_reconstructor tr(&sig, p_tree.get(), &calc);
+    inference_pruner tr(&sig, p_tree.get(), &calc);
 
-    auto actual = tr.reconstruct_gene_transcript(fam, 200);
+    auto actual = tr.reconstruct(fam, 200);
 
     CHECK_EQ(2.5, actual[p_tree->find_descendant("AB")]);
 
@@ -250,8 +234,8 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns parent ab
     matrix_cache calc;
     calc.precalculate_matrices(sig.get_values(), p_tree->get_branch_lengths(), 20);
 
-    transcript_reconstructor tr(&sig, p_tree.get(), &calc);
-    auto actual = tr.reconstruct_gene_transcript(fam, 20);
+    inference_pruner tr(&sig, p_tree.get(), &calc);
+    auto actual = tr.reconstruct(fam, 20);
     CHECK_EQ(0.05, actual[p_tree->find_descendant("AB")]);
 }
 
@@ -265,8 +249,8 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns correct v
     matrix_cache calc;
     calc.precalculate_matrices(sig.get_values(), p_tree->get_branch_lengths(), 20);
 
-    transcript_reconstructor tr(&sig, p_tree.get(), &calc);
-    auto actual = tr.reconstruct_gene_transcript(fam, 20);
+    inference_pruner tr(&sig, p_tree.get(), &calc);
+    auto actual = tr.reconstruct(fam, 20);
     CHECK_EQ(50, actual[p_tree.get()]);
 }
 

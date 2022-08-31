@@ -33,6 +33,11 @@ public:
         const error_model* p_error_model,
         const clade* _p_tree,
         double _sigma_multiplier);
+    inference_pruner(const sigma_squared* sigma, const clade* p_tree, const matrix_cache* p_cache) :
+        inference_pruner(*p_cache, sigma, nullptr, p_tree, 1.0)
+    {
+
+    }
 
     std::vector<double> prune(const gene_transcript& gf, int upper_bound);
     clademap<double> reconstruct(const gene_transcript& gf, int upper_bound);
