@@ -8,7 +8,7 @@
 #include "easylogging++.h"
 
 #include "core.h"
-#include "transcript_reconstructor.h"
+#include "reconstruction.h"
 #include "sigma.h"
 #include "matrix_cache.h"
 #include "root_equilibrium_distribution.h"

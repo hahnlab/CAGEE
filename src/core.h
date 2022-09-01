@@ -6,17 +6,12 @@
 
 #include "easylogging++.h"
 
-#include "clade.h"
-
-class simulation_data;
-class inference_process;
-class gene_transcript_reconstructor;
 class reconstruction;
 class user_data;
 class gene_transcript;
 class matrix_cache;
-class root_distribution_gamma;
 class sigma_optimizer_scorer;
+class clade;
 class sigma_squared;
 class error_model;
 

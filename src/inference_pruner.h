@@ -4,7 +4,7 @@
 #include <vector>
 #include <Eigen/Dense>
 
-#include "transcript_reconstructor.h"
+#include "reconstruction.h"
 
 class DiffMat;
 class gene_transcript;

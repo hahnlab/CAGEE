@@ -14,7 +14,7 @@
 #include "gamma_core.h"
 #include "gamma.h"
 #include "rootdist_estimator.h"
-#include "transcript_reconstructor.h"
+#include "reconstruction.h"
 #include "matrix_cache.h"
 #include "gene_transcript.h"
 #include "user_data.h"
@@ -29,6 +29,34 @@ using namespace std;
 namespace pv = proportional_variance;
 
 extern mt19937 randomizer_engine;
+
+//! @brief Holds data for reconstructing a tree based on the Gamma model
+//! \ingroup gamma
+class gamma_model_reconstruction : public reconstruction
+{
+    const std::vector<double> _lambda_multipliers;
+    virtual void write_nexus_extensions(std::ostream& ost) override;
+
+public:
+    gamma_model_reconstruction(const std::vector<double>& lambda_multipliers) :
+        _lambda_multipliers(lambda_multipliers)
+    {
+    }
+
+    void print_additional_data(transcript_vector& gene_families, std::string output_prefix) override;
+
+    void print_category_likelihoods(std::ostream& ost, transcript_vector& gene_families);
+
+    double get_node_value(const gene_transcript& gf, const clade* c) const override;
+
+    struct gamma_reconstruction {
+        std::vector<clademap<node_reconstruction>> category_reconstruction;
+        clademap<double> reconstruction;
+        std::vector<double> _category_likelihoods;
+    };
+
+    std::map<std::string, gamma_reconstruction> _reconstructions;
+};
 
 gamma_model::gamma_model(sigma_squared* p_lambda, std::vector<gene_transcript>* p_gene_families, int n_gamma_cats, double fixed_alpha, error_model* p_error_model) :
     model(p_lambda, p_gene_families, p_error_model) {
@@ -548,7 +576,6 @@ TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade")
     ostringstream empty;
 
     vector<double> multipliers({ .2, .75 });
-    vector<gamma_bundle*> bundles; //  ({ &bundle });
     vector<double> em;
     gamma_model_reconstruction gmr(em);
 

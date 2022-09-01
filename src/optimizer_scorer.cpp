@@ -19,7 +19,7 @@
 #include "gene_transcript.h"
 #include "user_data.h"
 #include "proportional_variance.h"
-#include "transcript_reconstructor.h"
+#include "reconstruction.h"
 
 #define GAMMA_INITIAL_GUESS_EXPONENTIAL_DISTRIBUTION_LAMBDA 1.75
 

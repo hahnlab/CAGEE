@@ -2,15 +2,6 @@
 #define BASE_MODEL_H
 
 #include "core.h"
-#include "transcript_reconstructor.h"
-
-class gene_family_reconstructor;
-class matrix_cache;
-class gene_transcript;
-class sigma_squared;
-class error_model;
-class root_equilibrium_distribution;
-class reconstruction;
 
 /*! @brief A Base model can simulate families or estimate lambdas and error models.
 
@@ -43,20 +34,6 @@ public:
 
 };
 
-//! \ingroup base Base Model
-class base_model_reconstruction : public reconstruction
-{
-public:
 
-    base_model_reconstruction()
-    {
-
-    }
-
-    std::map<std::string, clademap<node_reconstruction>> _reconstructions;
-
-    double get_node_value(const gene_transcript& gf, const clade* c) const override;
-
-};
 
 #endif

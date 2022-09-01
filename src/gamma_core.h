@@ -1,41 +1,4 @@
 #include "core.h"
-#include "transcript_reconstructor.h"
-#include "inference_pruner.h"
-
-//! \defgroup gamma Gamma Model
-//! @brief Extends the Base model by assuming lambda values belong to a gamma distribution
-class inference_process_factory;
-class gamma_bundle;
-class DiffMat;
-class root_equilibrium_distribution;
-
-//! @brief Holds data for reconstructing a tree based on the Gamma model
-//! \ingroup gamma
-class gamma_model_reconstruction : public reconstruction
-{
-    const std::vector<double> _lambda_multipliers;
-    virtual void write_nexus_extensions(std::ostream& ost) override;
-
-public:
-    gamma_model_reconstruction(const std::vector<double>& lambda_multipliers) :
-        _lambda_multipliers(lambda_multipliers)
-    {
-    }
-
-    void print_additional_data(transcript_vector& gene_families, std::string output_prefix) override;
-
-    void print_category_likelihoods(std::ostream& ost, transcript_vector& gene_families);
-
-    double get_node_value(const gene_transcript& gf, const clade* c) const override;
-
-    struct gamma_reconstruction {
-        std::vector<clademap<node_reconstruction>> category_reconstruction;
-        clademap<double> reconstruction;
-        std::vector<double> _category_likelihoods;
-    };
-
-    std::map<std::string, gamma_reconstruction> _reconstructions;
-};
 
 //! @brief Represents a model of species change in which lambda values are expected to belong to a gamma distribution
 //! \ingroup gamma

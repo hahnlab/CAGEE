@@ -14,7 +14,7 @@
 #include "optimizer_scorer.h"
 #include "matrix_cache.h"
 #include "optimizer.h"
-#include "transcript_reconstructor.h"
+#include "reconstruction.h"
 #include "error_model.h"
 #include "likelihood_ratio.h"
 #include "arguments.h"

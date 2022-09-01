@@ -22,7 +22,7 @@ INITIALIZE_EASYLOGGINGPP
 #include "src/gamma_core.h"
 #include "src/root_equilibrium_distribution.h"
 #include "src/base_model.h"
-#include "src/transcript_reconstructor.h"
+#include "src/reconstruction.h"
 #include "src/matrix_cache.h"
 #include "src/inference_pruner.h"
 #include "src/execute.h"
@@ -244,24 +244,6 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_creates__gamma_lambda_optimizer_if_not
     delete model.get_sigma();
 }
 
-TEST_CASE_FIXTURE(Inference, "base_model_reconstruction")
-{
-    sigma_squared sl(0.05);
-
-    std::vector<gene_transcript> families(1);
-    families[0].set_expression_value("A", 3);
-    families[0].set_expression_value("B", 4);
-    boundaries b(0, 20);
-    base_model model(&sl, &families, NULL);
-
-    matrix_cache calc;
-    root_distribution_uniform dist(size_t(10));
-
-    std::unique_ptr<base_model_reconstruction> rec(dynamic_cast<base_model_reconstruction*>(model.reconstruct_ancestral_states(_user_data, &calc)));
-
-    CHECK_EQ(1, rec->_reconstructions.size());
-
-}
 
 TEST_CASE("Inference: branch_length_finder")
 {

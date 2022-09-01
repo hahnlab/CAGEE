@@ -19,7 +19,7 @@
 #include "sigma.h"
 #include "io.h"
 #include "DiffMat.h"
-#include "transcript_reconstructor.h"
+#include "reconstruction.h"
 #include "proportional_variance.h"
 #include "inference_pruner.h"
 
@@ -27,6 +27,22 @@ using namespace std;
 namespace pv = proportional_variance;
 
 extern mt19937 randomizer_engine;
+
+//! \ingroup base Base Model
+class base_model_reconstruction : public reconstruction
+{
+public:
+
+    base_model_reconstruction()
+    {
+
+    }
+
+    std::map<std::string, clademap<node_reconstruction>> _reconstructions;
+
+    double get_node_value(const gene_transcript& gf, const clade* c) const override;
+
+};
 
 base_model::base_model(sigma_squared* p_lambda, const vector<gene_transcript>* p_gene_families,
     error_model *p_error_model) :
@@ -361,3 +377,29 @@ TEST_CASE("increase_decrease")
     CHECK_EQ(0, bmr.get_difference_from_parent(gf, ab));
 }
 
+
+TEST_CASE("base_model_reconstruction")
+{
+    user_data ud;
+    ud.p_tree = parse_newick("(A:1,B:1);");
+    ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.gene_families[0].set_expression_value("A", 1);
+    ud.gene_families[0].set_expression_value("B", 2);
+
+    sigma_squared sl(0.05);
+    ud.p_lambda = &sl;
+
+    std::vector<gene_transcript> families(1);
+    families[0].set_expression_value("A", 3);
+    families[0].set_expression_value("B", 4);
+    boundaries b(0, 20);
+    base_model model(&sl, &families, NULL);
+
+    matrix_cache calc;
+    root_distribution_uniform dist(size_t(10));
+
+    std::unique_ptr<base_model_reconstruction> rec(dynamic_cast<base_model_reconstruction*>(model.reconstruct_ancestral_states(ud, &calc)));
+
+    CHECK_EQ(1, rec->_reconstructions.size());
+
+}
