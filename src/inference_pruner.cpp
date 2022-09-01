@@ -1,14 +1,4 @@
-#if 0
 #include <algorithm>
-#include <cmath>
-#include <iostream>
-#include <random>
-#include <cassert>
-#include <numeric>
-#include <cmath>
-#include <memory>
-#include <iterator>
-#endif
 
 #include "doctest.h"
 #include "easylogging++.h"
@@ -113,13 +103,27 @@ size_t adjust_for_error_model(size_t c, const error_model *p_error_model)
     return c;
 }
 
-double get_value(const gene_transcript& t, const VectorXd& likelihood, int upper_bound)
+node_reconstruction get_value(const VectorXd& likelihood, int upper_bound)
 {
+    auto midpoint = [&likelihood, upper_bound](int idx) {
+        double bin_start = (double(idx) / likelihood.size()) * upper_bound;
+        double bin_width = double(upper_bound) / double(likelihood.size());
+        return bin_start + bin_width / 2.0;
+    };
     Index max_likelihood_index;
     likelihood.maxCoeff(&max_likelihood_index);
-    double bin_start = (double(max_likelihood_index) / likelihood.size()) * upper_bound;
-    double bin_width = double(upper_bound) / double(likelihood.size());
-    return bin_start + bin_width / 2.0;
+    VectorXd cumsum(likelihood.size());
+    partial_sum(likelihood.begin(), likelihood.end(), cumsum.begin());
+
+    VectorXd nml = cumsum / cumsum.tail(1)(0);
+    auto low_bound = std::upper_bound(nml.begin(), nml.end(), 0.025);
+    auto high_bound = std::upper_bound(nml.begin(), nml.end(), 0.975);
+
+    node_reconstruction nr;
+    nr.most_likely_value = midpoint(max_likelihood_index);
+    nr.credible_interval.first = midpoint(low_bound - nml.begin());
+    nr.credible_interval.second = midpoint(high_bound - nml.begin());
+    return nr;
 }
 
 inference_pruner::inference_pruner(const matrix_cache& cache,
@@ -154,14 +158,23 @@ std::vector<double> inference_pruner::prune(const gene_transcript& gf, int upper
     return vector<double>(_probabilities[_p_tree].begin(), _probabilities[_p_tree].end());
 }
 
-clademap<double> inference_pruner::reconstruct(const gene_transcript& gf, int upper_bound)
+clademap<node_reconstruction> inference_pruner::reconstruct(const gene_transcript& gf, int upper_bound)
 {
     compute_all_probabilities(gf, upper_bound);
 
-    clademap<double> reconstruction;
+    clademap<node_reconstruction> reconstruction;
     for (auto it = _p_tree->reverse_level_begin(); it != _p_tree->reverse_level_end(); ++it)
     {
-        reconstruction[*it] = (*it)->is_leaf() ? gf.get_expression_value((*it)->get_taxon_name()) : get_value(gf, _probabilities[*it], upper_bound);
+        if ((*it)->is_leaf())
+        {
+            node_reconstruction nr;
+            nr.most_likely_value = gf.get_expression_value((*it)->get_taxon_name());
+            reconstruction[*it] = nr;
+        }
+        else
+        {
+            reconstruction[*it] = get_value(_probabilities[*it], upper_bound);
+        }
     }
     return reconstruction;
 }
@@ -345,18 +358,25 @@ TEST_CASE("inference_pruner: check stats of returned probabilities")
 
 }
 
-TEST_CASE("get_value")
+TEST_CASE("get_value most likely value")
 {
-    gene_transcript gt;
-    gt.set_expression_value("A", 0.254007);
-    gt.set_expression_value("B", 0.1);
-
     VectorXd v = VectorXd::Zero(200);
     v(4) = 8;
     v(6) = 12;
     v(112) = 22;
     v(158) = 9;
 
-    CHECK_EQ(doctest::Approx(56.25), get_value(gt, v, 100));
+    CHECK_EQ(doctest::Approx(56.25), get_value(v, 100).most_likely_value);
 }
 
+TEST_CASE("get_value credible interval")
+{
+    std::normal_distribution<float> dist(10, 3);
+
+    VectorXd v(20);
+    generate(v.begin(), v.end(), [&dist]() { return dist(randomizer_engine);  });
+    auto i = get_value(v, 20);
+    CHECK_EQ(doctest::Approx(0.5), i.credible_interval.first);
+    CHECK_EQ(doctest::Approx(19.5), i.credible_interval.second);
+
+}

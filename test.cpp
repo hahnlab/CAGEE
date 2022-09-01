@@ -349,39 +349,6 @@ TEST_CASE("Inference: create_gamma_model_if__n_gamma_cats__provided")
         delete m;
 }
 
-TEST_CASE("Inference: build_models__uses_error_model_if_provided")
-{
-    input_parameters params;
-    params.use_error_model = true;
-    error_model em;
-    em.set_probabilities(0, { 0, 0.99, 0.01 });
-    user_data data;
-    data.p_error_model = &em;
-    data.p_tree = new clade("A", 5);
-    sigma_squared lambda(0.05);
-    data.p_lambda = &lambda;
-    auto model = build_models(params, data)[0];
-    std::ostringstream ost;
-    model->write_vital_statistics(ost, data.p_tree, 0.07);
-    STRCMP_CONTAINS("Epsilon: 0.01\n", ost.str().c_str());
-    delete model;
-}
-
-TEST_CASE("Inference: build_models__creates_default_error_model_if_needed")
-{
-    input_parameters params;
-    params.use_error_model = true;
-    user_data data;
-    data.p_tree = new clade("A", 5);
-    sigma_squared lambda(0.05);
-    data.p_lambda = &lambda;
-    auto model = build_models(params, data)[0];
-    std::ostringstream ost;
-    model->write_vital_statistics(ost, data.p_tree, 0.01);
-    STRCMP_CONTAINS("Epsilon: 0.05\n", ost.str().c_str());
-    delete model;
-}
-
 #if 0
 void build_matrix(Matrix3d& m)
 {

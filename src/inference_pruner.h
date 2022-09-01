@@ -4,6 +4,8 @@
 #include <vector>
 #include <Eigen/Dense>
 
+#include "transcript_reconstructor.h"
+
 class DiffMat;
 class gene_transcript;
 class sigma_squared;
@@ -40,7 +42,8 @@ public:
     }
 
     std::vector<double> prune(const gene_transcript& gf, int upper_bound);
-    clademap<double> reconstruct(const gene_transcript& gf, int upper_bound);
+
+    clademap<node_reconstruction> reconstruct(const gene_transcript& gf, int upper_bound);
 };
 
 #endif

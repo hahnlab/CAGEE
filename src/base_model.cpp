@@ -178,7 +178,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
     {
         auto &rc = result->_reconstructions[ud.gene_families[i].id()];
         ud.p_tree->apply_prefix_order([&rc](const clade* c) {
-            rc[c] = 0;
+            rc[c].most_likely_value = 0;
             });
     }
 
@@ -207,7 +207,7 @@ double base_model_reconstruction::get_node_value(const gene_transcript& family, 
     if (_reconstructions.find(family.id()) == _reconstructions.end())
         throw runtime_error("Family " + family.id() + " not found in reconstruction");
 
-    return _reconstructions.at(family.id()).at(c);
+    return _reconstructions.at(family.id()).at(c).most_likely_value;
 }
 
 TEST_CASE("compute_prior_likelihood combines prior and inference correctly")
@@ -325,9 +325,9 @@ TEST_CASE_FIXTURE(Reconstruction, "base_model_reconstruction__print_reconstructe
     base_model_reconstruction bmr;
     auto& values = bmr._reconstructions["Family5"];
 
-    values[p_tree.get()] = pv::to_computational_space(7);
-    values[p_tree->find_descendant("AB")] = pv::to_computational_space(8);
-    values[p_tree->find_descendant("CD")] = pv::to_computational_space(6);
+    values[p_tree.get()].most_likely_value = pv::to_computational_space(7);
+    values[p_tree->find_descendant("AB")].most_likely_value = pv::to_computational_space(8);
+    values[p_tree->find_descendant("CD")].most_likely_value = pv::to_computational_space(6);
 
     ostringstream ost;
 
@@ -353,8 +353,8 @@ TEST_CASE("increase_decrease")
 
     gf.set_expression_value("A", pv::to_computational_space(4));
     gf.set_expression_value("B", pv::to_computational_space(2));
-    bmr._reconstructions["myid"][ab] = pv::to_computational_space(3);
-    bmr._reconstructions["myid"][abcd] = pv::to_computational_space(3);
+    bmr._reconstructions["myid"][ab].most_likely_value = pv::to_computational_space(3);
+    bmr._reconstructions["myid"][abcd].most_likely_value = pv::to_computational_space(3);
 
     CHECK_EQ(doctest::Approx(1.0), bmr.get_difference_from_parent(gf, a));
     CHECK_EQ(doctest::Approx(-1.0), bmr.get_difference_from_parent(gf, b));

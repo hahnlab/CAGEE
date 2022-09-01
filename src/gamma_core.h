@@ -1,5 +1,6 @@
 #include "core.h"
 #include "transcript_reconstructor.h"
+#include "inference_pruner.h"
 
 //! \defgroup gamma Gamma Model
 //! @brief Extends the Base model by assuming lambda values belong to a gamma distribution
@@ -28,7 +29,7 @@ public:
     double get_node_value(const gene_transcript& gf, const clade* c) const override;
 
     struct gamma_reconstruction {
-        std::vector<clademap<double>> category_reconstruction;
+        std::vector<clademap<node_reconstruction>> category_reconstruction;
         clademap<double> reconstruction;
         std::vector<double> _category_likelihoods;
     };

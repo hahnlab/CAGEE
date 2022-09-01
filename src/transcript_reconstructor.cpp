@@ -202,8 +202,8 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript assigns actual va
 
     auto actual = tr.reconstruct(fam, 20);
 
-    CHECK_EQ(3.7, actual[p_tree->find_descendant("A")]);
-    CHECK_EQ(9.4, actual[p_tree->find_descendant("D")]);
+    CHECK_EQ(3.7, actual[p_tree->find_descendant("A")].most_likely_value);
+    CHECK_EQ(9.4, actual[p_tree->find_descendant("D")].most_likely_value);
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript calculates parent node values correctly")
@@ -221,7 +221,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript calculates parent
 
     auto actual = tr.reconstruct(fam, 200);
 
-    CHECK_EQ(2.5, actual[p_tree->find_descendant("AB")]);
+    CHECK_EQ(2.5, actual[p_tree->find_descendant("AB")].most_likely_value);
 
 }
 
@@ -236,7 +236,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns parent ab
 
     inference_pruner tr(&sig, p_tree.get(), &calc);
     auto actual = tr.reconstruct(fam, 20);
-    CHECK_EQ(0.05, actual[p_tree->find_descendant("AB")]);
+    CHECK_EQ(0.05, actual[p_tree->find_descendant("AB")].most_likely_value);
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns correct value at root" * doctest::skip(true))
@@ -251,7 +251,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns correct v
 
     inference_pruner tr(&sig, p_tree.get(), &calc);
     auto actual = tr.reconstruct(fam, 20);
-    CHECK_EQ(50, actual[p_tree.get()]);
+    CHECK_EQ(50, actual[p_tree.get()].most_likely_value);
 }
 
 class mock_reconstruction : public reconstruction

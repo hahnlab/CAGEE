@@ -247,10 +247,10 @@ sigma_optimizer_scorer* gamma_model::get_sigma_optimizer(const user_data& data, 
     }
 }
 
-clademap<double> get_weighted_averages(const std::vector<clademap<double>>& m, const vector<double>& probabilities)
+clademap<double> get_weighted_averages(const std::vector<clademap<node_reconstruction>>& m, const vector<double>& probabilities)
 {
     cladevector nodes(m[0].size());
-    std::transform(m[0].begin(), m[0].end(), nodes.begin(), [](std::pair<const clade *, int> v) { return v.first;  });
+    std::transform(m[0].begin(), m[0].end(), nodes.begin(), [](std::pair<const clade *, node_reconstruction> v) { return v.first;  });
 
     clademap<double> result;
     for (auto node : nodes)
@@ -258,7 +258,7 @@ clademap<double> get_weighted_averages(const std::vector<clademap<double>>& m, c
         double val = 0.0;
         for (size_t i = 0; i<probabilities.size(); ++i)
         {
-            val += probabilities[i] * double(m[i].at(node));
+            val += probabilities[i] * double(m[i].at(node).most_likely_value);
         }
         result[node] = val;
     }
@@ -413,13 +413,19 @@ TEST_CASE("get_weighted_averages")
     clade c1;
     clade c2;
 
-    clademap<double> rc1;
-    rc1[&c1] = 10;
-    rc1[&c2] = 2;
+    clademap<node_reconstruction> rc1;
+    node_reconstruction nr;
+    nr.most_likely_value = 10;
+    rc1[&c1] = nr;
 
-    clademap<double> rc2;
-    rc2[&c1] = 20;
-    rc2[&c2] = 8;
+    nr.most_likely_value = 2;
+    rc1[&c2] = nr;
+
+    clademap<node_reconstruction> rc2;
+    nr.most_likely_value = 20;
+    rc2[&c1] = nr;
+    nr.most_likely_value = 8;
+    rc2[&c2] = nr;
 
     auto avg = get_weighted_averages({ rc1, rc2 }, { .25, .75 });
     CHECK_EQ(17.5, avg[&c1]);
@@ -458,9 +464,9 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__print_reconstruct
 
     auto& rec = gmr._reconstructions["Family5"];
     rec.category_reconstruction.resize(1);
-    rec.category_reconstruction[0][p_tree.get()] = 7;
-    rec.category_reconstruction[0][p_tree->find_descendant("AB")] = 0;
-    rec.category_reconstruction[0][p_tree->find_descendant("CD")] = 0;
+    rec.category_reconstruction[0][p_tree.get()].most_likely_value = 7;
+    rec.category_reconstruction[0][p_tree->find_descendant("AB")].most_likely_value = 0;
+    rec.category_reconstruction[0][p_tree->find_descendant("CD")].most_likely_value = 0;
 
     rec.reconstruction[p_tree.get()] = pv::to_computational_space(7);
     rec.reconstruction[p_tree->find_descendant("AB")] = pv::to_computational_space(8);
@@ -488,9 +494,9 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__prints_lambda_mul
 
     auto& rec = gmr._reconstructions["Family5"];
     rec.category_reconstruction.resize(1);
-    rec.category_reconstruction[0][p_tree.get()] = 7;
-    rec.category_reconstruction[0][p_tree->find_descendant("AB")] = 8;
-    rec.category_reconstruction[0][p_tree->find_descendant("CD")] = 6;
+    rec.category_reconstruction[0][p_tree.get()].most_likely_value = 7;
+    rec.category_reconstruction[0][p_tree->find_descendant("AB")].most_likely_value = 8;
+    rec.category_reconstruction[0][p_tree->find_descendant("CD")].most_likely_value = 6;
 
     rec.reconstruction[p_tree.get()] = 7;
     rec.reconstruction[p_tree->find_descendant("AB")] = 8;

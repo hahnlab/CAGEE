@@ -36,5 +36,10 @@ private:
 
 };
 
+struct node_reconstruction {
+    double most_likely_value;
+    std::pair<double, double> credible_interval;
+};
+
 
 #endif

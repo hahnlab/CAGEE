@@ -212,7 +212,10 @@ set<int> get_connections(tree_data& td, int node_id)
 
 cladevector get_ape_order(const clade *p_tree)
 {
-	auto t = treeBuild(p_tree->get_source_newick());
+	auto nwk = p_tree->get_source_newick();
+	if (nwk.empty()) throw runtime_error("Cannot calculate node order");
+
+	auto t = treeBuild(nwk);
 	clademap<int> indices;
 	indices[p_tree] = t.tip_label.size() + 1;
 	for (size_t i = 0; i < t.tip_label.size(); ++i)

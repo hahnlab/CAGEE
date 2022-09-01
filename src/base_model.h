@@ -53,7 +53,7 @@ public:
 
     }
 
-    std::map<std::string, clademap<double>> _reconstructions;
+    std::map<std::string, clademap<node_reconstruction>> _reconstructions;
 
     double get_node_value(const gene_transcript& gf, const clade* c) const override;
 
