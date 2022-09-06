@@ -465,7 +465,6 @@ class Reconstruction
 public:
     gene_transcript fam;
     unique_ptr<clade> p_tree;
-    cladevector order;
 
     Reconstruction() : fam("Family5", "", "")
     {
@@ -475,12 +474,6 @@ public:
         fam.set_expression_value("B", pv::to_computational_space(2));
         fam.set_expression_value("C", pv::to_computational_space(5));
         fam.set_expression_value("D", pv::to_computational_space(6));
-
-        vector<string> nodes{ "A", "B", "C", "D", "AB", "CD", "ABCD" };
-        order.resize(nodes.size());
-        const clade* t = p_tree.get();
-        transform(nodes.begin(), nodes.end(), order.begin(), [t](string s) { return t->find_descendant(s); });
-
     }
 };
 
@@ -539,36 +532,24 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__prints_lambda_mul
     CHECK_STREAM_CONTAINS(ost, "END;");
 }
 
-TEST_CASE_FIXTURE(Reconstruction, "print_node_values")
+TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction get_node_value returns expression value for leaves")
 {
+    auto leaf = p_tree->find_descendant("D");
     gamma_model_reconstruction gmr({ .5 });
-    ostringstream ost;
 
-    auto initializer = [&gmr](const clade* c) { gmr._reconstructions["Family5"].reconstruction[c] = pv::to_computational_space(5);  };
-    p_tree->apply_prefix_order(initializer);
+    CHECK_EQ(doctest::Approx(1.94591), gmr.get_node_value(fam, leaf));
 
-    gmr.print_node_values(ost, order, { fam }, p_tree.get());
-    CHECK_STREAM_CONTAINS(ost, "TranscriptID\tA<1>\tB<2>\tC<3>\tD<4>\t<6>\t<7>\t<5>");
-    CHECK_STREAM_CONTAINS(ost, "Family5\t11.000000\t2.000000\t5.000000\t6.000000\t6.389056\t6.389056\t6.389056");
 }
 
-TEST_CASE_FIXTURE(Reconstruction, "print_node_change")
+TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction get_node_value returns reconstruction value for internal nodes")
 {
+    auto node = p_tree->find_descendant("CD");
     gamma_model_reconstruction gmr({ .5 });
-    ostringstream ost;
+    gmr._reconstructions["Family5"].reconstruction[node] = 7;
 
-    std::normal_distribution<float> dist(0, 10);
-    clademap<int> size_deltas;
-    p_tree->apply_prefix_order([&gmr, &dist](const clade* c) {
-        if (!c->is_leaf())
-            gmr._reconstructions["Family5"].reconstruction[c] = pv::to_computational_space(dist(randomizer_engine));
-        });
+    CHECK_EQ(7, gmr.get_node_value(fam, node));
 
-    gmr.print_node_change(ost, order, { fam }, p_tree.get());
-    CHECK_STREAM_CONTAINS(ost, "TranscriptID\tA<1>\tB<2>\tC<3>\tD<4>\t<6>\t<7>\t<5>");
-    CHECK_STREAM_CONTAINS(ost, "Family5\t+4.61094\t-4.38906\t+5\t+6\t+7.38906\t+1\t+0");
 }
-
 TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade")
 {
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));

@@ -86,4 +86,7 @@ public:
 
     static void remove_ungrouped_transcripts(const std::vector<std::string>& sample_groups, std::vector<gene_transcript>& transcripts);
 };
+
+typedef const std::vector<gene_transcript> transcript_vector;
+
 #endif
