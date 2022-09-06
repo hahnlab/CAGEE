@@ -40,7 +40,13 @@ public:
 
     std::map<std::string, clademap<node_reconstruction>> _reconstructions;
 
-    double get_node_value(const gene_transcript& gf, const clade* c) const override;
+    node_reconstruction get_internal_node_value(const gene_transcript& transcript, const clade* c) const
+    {
+        if (_reconstructions.find(transcript.id()) == _reconstructions.end())
+            throw runtime_error("Transcript " + transcript.id() + " not found in reconstruction");
+
+        return _reconstructions.at(transcript.id()).at(c);
+    }
 
 };
 
@@ -213,17 +219,6 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 sigma_squared* base_model::get_simulation_lambda()
 {
     return _p_sigma->multiply(simulation_lambda_multiplier);
-}
-
-double base_model_reconstruction::get_node_value(const gene_transcript& family, const clade *c) const
-{
-    if (c->is_leaf())
-        return family.get_expression_value(c->get_taxon_name());
-
-    if (_reconstructions.find(family.id()) == _reconstructions.end())
-        throw runtime_error("Family " + family.id() + " not found in reconstruction");
-
-    return _reconstructions.at(family.id()).at(c).most_likely_value;
 }
 
 TEST_CASE("compute_prior_likelihood combines prior and inference correctly")

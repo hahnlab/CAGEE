@@ -47,7 +47,7 @@ public:
 
     void print_category_likelihoods(std::ostream& ost, transcript_vector& gene_families);
 
-    double get_node_value(const gene_transcript& gf, const clade* c) const override;
+    node_reconstruction get_internal_node_value(const gene_transcript& transcript, const clade* c) const;
 
     struct gamma_reconstruction {
         std::vector<clademap<node_reconstruction>> category_reconstruction;
@@ -355,12 +355,14 @@ void gamma_model_reconstruction::write_nexus_extensions(std::ostream& ost)
     ost << "END;\n\n";
 }
 
-double gamma_model_reconstruction::get_node_value(const gene_transcript& family, const clade* c) const
+node_reconstruction gamma_model_reconstruction::get_internal_node_value(const gene_transcript& transcript, const clade* c) const
 {
-    if (c->is_leaf())
-        return family.get_expression_value(c->get_taxon_name());
+    node_reconstruction nr;
+    nr.most_likely_value = _reconstructions.at(transcript.id()).reconstruction.at(c);
+    nr.credible_interval.first = nr.most_likely_value;
+    nr.credible_interval.second = nr.most_likely_value;
+    return nr;
 
-    return int(std::round(_reconstructions.at(family.id()).reconstruction.at(c)));
 }
 
 void gamma_model_reconstruction::print_category_likelihoods(std::ostream& ost, transcript_vector& transcripts)
@@ -479,7 +481,7 @@ public:
 
 #define CHECK_STREAM_CONTAINS(x,y) CHECK_MESSAGE(x.str().find(y) != std::string::npos, x.str())
 
-TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__print_reconstructed_states__prints_value_for_each_category_and_a_summation")
+TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction print_reconstructed_states")
 {
     gamma_model_reconstruction gmr(vector<double>({ 1.0 }));
 
@@ -495,7 +497,7 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__print_reconstruct
 
     ostringstream ost;
     gmr.print_reconstructed_states(ost, { fam }, p_tree.get(), 0.05);
-    CHECK_STREAM_CONTAINS(ost, "  TREE Family5 = ((A<1>_11.000000:1,B<2>_2.000000:3)<6>_6.389056:7,(C<3>_5.000000:11,D<4>_6.000000:17)<7>_6.389056:23)<5>_6.389056;");
+    CHECK_STREAM_CONTAINS(ost, "  TREE Family5 = ((A<1>_11.000000:1,B<2>_2.000000:3)<6>_8.000000:7,(C<3>_5.000000:11,D<4>_6.000000:17)<7>_6.000000:23)<5>_7.000000;");
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__print_additional_data__prints_likelihoods")
@@ -532,22 +534,13 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__prints_lambda_mul
     CHECK_STREAM_CONTAINS(ost, "END;");
 }
 
-TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction get_node_value returns expression value for leaves")
-{
-    auto leaf = p_tree->find_descendant("D");
-    gamma_model_reconstruction gmr({ .5 });
-
-    CHECK_EQ(doctest::Approx(1.94591), gmr.get_node_value(fam, leaf));
-
-}
-
-TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction get_node_value returns reconstruction value for internal nodes")
+TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction get_internal_node_value returns reconstruction value for internal nodes")
 {
     auto node = p_tree->find_descendant("CD");
     gamma_model_reconstruction gmr({ .5 });
     gmr._reconstructions["Family5"].reconstruction[node] = 7;
 
-    CHECK_EQ(7, gmr.get_node_value(fam, node));
+    CHECK_EQ(7, gmr.get_internal_node_value(fam, node).most_likely_value);
 
 }
 TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade")

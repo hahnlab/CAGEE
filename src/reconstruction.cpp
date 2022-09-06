@@ -80,6 +80,14 @@ void reconstruction::print_family_clade_table(std::ostream& ost, const cladevect
     }
 }
 
+string node_value(const clade* node, const gene_transcript& transcript, const reconstruction* r)
+{
+    double val = node->is_leaf() ? transcript.get_expression_value(node->get_taxon_name()) : r->get_internal_node_value(transcript, node).most_likely_value;
+
+    return to_string(pv::to_user_space(val));
+}
+
+
 void reconstruction::print_reconstructed_states(std::ostream& ost, transcript_vector& transcripts, const clade* p_tree, double test_pvalue)
 {
     ost << "#nexus\nBEGIN TREES;\n";
@@ -87,7 +95,7 @@ void reconstruction::print_reconstructed_states(std::ostream& ost, transcript_ve
     {
         auto& gene_transcript = transcripts[i];
         auto g = [gene_transcript, this](const clade* node) {
-            return std::to_string(pv::to_user_space(get_node_value(gene_transcript, node)));
+            return node_value(node, gene_transcript, this);
         };
 
         function<string(const clade*)> text_func;
@@ -105,22 +113,36 @@ void reconstruction::print_reconstructed_states(std::ostream& ost, transcript_ve
     
 }
 
-string node_value(const clade* node, const gene_transcript& transcript, const reconstruction* r)
-{
-    if (node->is_leaf())
-        return to_string(pv::to_user_space(transcript.get_expression_value(node->get_taxon_name())));
-    else
-        return to_string(pv::to_user_space(r->get_node_value(transcript, node)));
-}
-
-string node_change(const clade *node, const gene_transcript& transcript, const reconstruction* r)
+string node_change(const clade* node, const gene_transcript& transcript, const reconstruction* r)
 {
     ostringstream ost;
     ost << showpos << r->get_difference_from_parent(transcript, node);
     return ost.str();
 }
 
-void reconstruction::write_results(std::string model_identifier, 
+string node_credible_interval(const clade* node, const gene_transcript& transcript, const reconstruction* r)
+{
+    double lower, upper;
+    if (node->is_leaf())
+    {
+        auto val = pv::to_user_space(transcript.get_expression_value(node->get_taxon_name()));
+        lower = val;
+        upper = val;
+    }
+    else
+    {
+        auto val = r->get_internal_node_value(transcript, node);
+        lower = pv::to_user_space(val.credible_interval.first);
+        upper = pv::to_user_space(val.credible_interval.second);
+    }
+
+    ostringstream ost;
+    ost << '[' << lower << "-" << upper << ']';
+    return ost.str();
+
+}
+
+void reconstruction::write_results(std::string model_identifier,
     std::string output_prefix, 
     const clade *p_tree, 
     transcript_vector& transcripts, 
@@ -149,6 +171,12 @@ void reconstruction::write_results(std::string model_identifier,
         return node_change(c, transcript, this);
         });
 
+    VLOG(TRANSCRIPT_RECONSTRUCTION) << "writing node credible intervals";
+    std::ofstream ci(filename(model_identifier + "_credible_intervals", output_prefix, "tab"));
+    print_family_clade_table(ci, order, transcripts, p_tree, [this, &transcripts](const gene_transcript& transcript, const clade* c) {
+        return node_credible_interval(c, transcript, this);
+        });
+
     VLOG(TRANSCRIPT_RECONSTRUCTION) << "writing clade results";
     std::ofstream clade_results(filename(model_identifier + "_clade_results", output_prefix));
     print_increases_decreases_by_clade(clade_results, p_tree, transcripts);
@@ -156,12 +184,16 @@ void reconstruction::write_results(std::string model_identifier,
     print_additional_data(transcripts, output_prefix);
 }
 
-double reconstruction::get_difference_from_parent(const gene_transcript& gf, const clade* c) const
+double reconstruction::get_difference_from_parent(const gene_transcript & transcript, const clade * node) const
 {
-    if (c->is_root())
-        return 0;
+    if (node->is_root())
+        return 0.0;
 
-    return pv::to_user_space(get_node_value(gf, c)) - pv::to_user_space(get_node_value(gf, c->get_parent()));
+    double childval = node->is_leaf() ? transcript.get_expression_value(node->get_taxon_name()) : get_internal_node_value(transcript, node).most_likely_value;
+
+    double parentval = get_internal_node_value(transcript, node->get_parent()).most_likely_value;
+
+    return pv::to_user_space(childval) - pv::to_user_space(parentval);
 }
 
 class Reconstruction
@@ -255,12 +287,15 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns correct v
 
 class mock_reconstruction : public reconstruction
 {
-    double get_node_value(const gene_transcript& gf, const clade* c) const override
+    node_reconstruction get_internal_node_value(const gene_transcript& gf, const clade* c) const override
     { 
+        node_reconstruction nr;
         if (_reconstructions.find(gf.id()) == _reconstructions.end())
-            return 3;
+            nr.most_likely_value = 3;
 
-        return _reconstructions.at(gf.id()).at(c);
+        nr.most_likely_value = _reconstructions.at(gf.id()).at(c);
+
+        return nr;
     }
 public:
     std::map<std::string, clademap<double>> _reconstructions;
@@ -299,11 +334,11 @@ TEST_CASE("Reconstruction: print_increases_decreases_by_clade")
     bmr.print_increases_decreases_by_clade(empty, p_tree.get(), {});
     CHECK_EQ(string("#Taxon_ID\tIncrease\tDecrease\n"), empty.str());
 
-    bmr._reconstructions["myid"][p_tree->find_descendant("A")] = 22.11;
-    bmr._reconstructions["myid"][p_tree->find_descendant("B")] = 9.3;
     bmr._reconstructions["myid"][p_tree->find_descendant("AB")] = 17.6;
 
     gene_transcript gf("myid", "", "");
+    gf.set_expression_value("A", 22.11);
+    gf.set_expression_value("B", 9.3);
 
     ostringstream ost;
     bmr.print_increases_decreases_by_clade(ost, p_tree.get(), {gf});
@@ -315,9 +350,9 @@ TEST_CASE("Reconstruction: print_increases_decreases_by_clade")
 TEST_CASE_FIXTURE(Reconstruction, "get_difference_from_parent")
 {
     mock_reconstruction r;
-    r._reconstructions["Family5"][p_tree->find_descendant("A")] = pv::to_computational_space(22.11);
     r._reconstructions["Family5"][p_tree->find_descendant("AB")] = pv::to_computational_space(17.6);
 
+    fam.set_expression_value("A", pv::to_computational_space(22.11));
     CHECK_EQ(doctest::Approx(4.51), r.get_difference_from_parent(fam, p_tree->find_descendant("A")));
 }
 

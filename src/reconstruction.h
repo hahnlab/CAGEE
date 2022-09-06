@@ -3,8 +3,11 @@
 
 #include "gene_transcript.h"
 
-//! The result of a model reconstruction. Should be able to (a) print reconstructed states with all available information;
-/// (b) print increases and decreases by family; and (c) print increases and decreases by clade.
+struct node_reconstruction {
+    double most_likely_value;
+    std::pair<double, double> credible_interval;
+};
+
 class reconstruction {
 public:
 
@@ -21,7 +24,7 @@ public:
     {
     }
 
-    virtual double get_node_value(const gene_transcript& gf, const clade* c) const = 0;
+    virtual node_reconstruction get_internal_node_value(const gene_transcript& gf, const clade* c) const = 0;
 
     double get_difference_from_parent(const gene_transcript& gf, const clade* c) const;
 private:
@@ -31,10 +34,6 @@ private:
 
 };
 
-struct node_reconstruction {
-    double most_likely_value;
-    std::pair<double, double> credible_interval;
-};
 
 
 #endif

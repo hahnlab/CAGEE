@@ -1,6 +1,6 @@
-# 9. Calculate a prior of root distributions based on user input
+# 14. Precalculate a diffusion matrix to speed up processing time
 
-Date: 2021-08-31
+Date: 2022-07-06
 
 ## Status
 
@@ -8,37 +8,26 @@ Accepted
 
 ## Context
 
-An expected root distribution is required in order to accurately calculate prior probabilities
-and, in simulations, to select a root value for the simulated tree. The user may specify the
-root distribution in one of several ways. Hopefully this decision reflects the least surprising
-results for the user.
+Each time CAGEE starts, it calculates a diffusion matrix to work with, that is only dependent on the
+discretization size specified by the user. If we precalculated this matrix it might save the user 
+quite a bit of time.
+
+Although the discretization size defaults to 200, we allow the user to set it to an arbitrary size so
+we could not precalculate every size they might use. We could have CAGEE write out each matrix that
+it calculates, but there is no guarantee that the application will be installed into a directory where
+the user has write access. We could write it to an application-specific directory such as $HOME/.cagee
+or similar, but since we don't require much in the way of configuration files, this seems like overkill.
 
 ## Decision
 
-For simulations, a rootdist argument will be made available. The possible formats will be as follows:
-
-- rootdist=gamma:k:theta
-- rootdist=fixed:value
-- rootdist=file:filename
-
-If the user does not provide a rootdist argument, the gamma distribution <del>(k=0.75, theta=30)</del>(k=0.375, theta=1600) will be used.
-The root distribution will be calculated from the sub-argument:
-
-- gamma: a gamma probability will be used with the specified k and theta
-- fixed: all root values will be identical. The correct prior probability is unclear.
-- file: The user has specified a root distribution. Use that.
-
-For estimations, a prior argument will be made available. 
-- prior=gamma:k:theta
-
-If the user does not provide a prior argument, the gamma distribution <del>(k=0.75, theta=30)</del>(k=0.375, theta=1600) will be used.
-
-Specifying a --rootdist argument without the --simulate argument will result in an error.
-Specifying a --prior argument with the --simulate argument will result in an error.
-Specifying an --infile argument with the --simulate argument will result in an error.
+We will provide a separate application, diffmat_calc, which will calculate the diffusion matrix for a
+given size and write it to a pair of files named "eigenvaluesx.bin" and "eigenvectorsx.bin" where the x
+will be replaced by the discretization size. CAGEE will search for the file in the current directory and 
+load it if available.
 
 ## Consequences
 
-Some users may be confused by the ordering. There may be some unforeseen circumstance where the combination of input flags is still surprising.
+A user who does not read the directions may not take advantage of this optimization. It might be a good
+idea to provide a precalculated matrix for the default size as many users probably will never change it.
 
 
