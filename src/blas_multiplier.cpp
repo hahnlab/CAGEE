@@ -1,10 +1,10 @@
-#include "mkl_multiplier.h"
+#include "blas_multiplier.h"
 
 #ifdef BLAS_FOUND
 using namespace std;
 using namespace Eigen;
 
-vector<MatrixXd> mkl_multiplier::doit(const vector<MatrixXcd>& matrices, const MatrixXcd& transpose)
+vector<MatrixXd> blas_multiplier::doit(const vector<MatrixXcd>& matrices, const MatrixXcd& transpose)
 {
     int Npts = transpose.rows();
     const complex<double> alpha = 1.0;

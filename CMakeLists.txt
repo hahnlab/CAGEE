@@ -45,6 +45,10 @@ endif()
 add_definitions(-DOPTIMIZER_STRATEGY=${OPTIMIZER_STRATEGY})
 add_definitions(-DDISCRETIZATION_RANGE=${DISCRETIZATION_RANGE})
 
+if(DEFINED ENV{MKLROOT})
+  add_definitions(-DMKL_FOUND)
+endif()
+
 # Define the two required variables before including
 # the source code for watching a git repository.
 set(PRE_CONFIGURE_FILE "git_version.cpp.in")

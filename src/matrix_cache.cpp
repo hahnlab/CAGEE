@@ -13,14 +13,6 @@
 #include "DiffMat.h"
 #include "sigma.h"
 
-#ifdef BLAS_FOUND
-#ifdef HAVE_OPENBLAS
-#include "cblas.h"
-#else
-#include "mkl.h"
-#endif
-#endif
-
 extern std::mt19937 randomizer_engine;
 using namespace Eigen;
 using namespace std;

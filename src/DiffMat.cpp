@@ -10,7 +10,7 @@
 #endif
 
 #ifdef BLAS_FOUND
-#include "mkl_multiplier.h"
+#include "blas_multiplier.h"
 #endif
 
 using namespace Eigen;
@@ -56,7 +56,7 @@ DiffMat::DiffMat(int Npts) {
     Diff = A;
     
 #ifdef BLAS_FOUND
-    multiplier = new mkl_multiplier();
+    multiplier = new blas_multiplier();
 #elif defined HAVE_CUDA    
     multiplier = new gpu_multiplier(Npts);
 #else
