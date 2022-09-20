@@ -34,10 +34,6 @@ public:
 
     virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const std::vector<std::string>& sample_groups, const std::gamma_distribution<double>& prior) override;
 
-    virtual std::string name() const override {
-        return "Gamma";
-    }
-
     virtual void write_vital_statistics(std::ostream& ost, const clade *p_tree, double final_likelihood) override;
 
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache *) override;

@@ -47,10 +47,6 @@ std::mt19937 randomizer_engine(10); // seeding random number engine
 
 class mock_model : public model {
     // Inherited via model
-    virtual std::string name() const override
-    {
-        return "mockmodel";
-    }
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache* p_calc) override
     {
         return nullptr;

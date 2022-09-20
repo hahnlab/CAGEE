@@ -88,7 +88,7 @@ model::model(sigma_squared* p_lambda,
 
 void model::write_vital_statistics(std::ostream& ost, const clade *p_tree, double final_likelihood)
 {
-    ost << "Model " << name() << " Final Likelihood (-lnL): " << final_likelihood << endl;
+    ost << "Final Likelihood (-lnL): " << final_likelihood << endl;
     ost << "Sigma2: " << *get_sigma() << endl;
     
     ost << "IDs of Nodes: ";
@@ -242,7 +242,6 @@ TEST_CASE("get_sigma_index_map creates map")
 
 class mock_model : public model {
     // Inherited via model
-    virtual std::string name() const override { return "mockmodel"; }
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache* p_calc) override { return nullptr; }
     virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const std::vector<string>& sample_groups, const std::gamma_distribution<double>& prior) override { return nullptr; }
     bool _invalid_likelihood = false;
@@ -257,7 +256,7 @@ TEST_CASE("Inference: model_vitals")
     mock_model model(&s);
     std::ostringstream ost;
     model.write_vital_statistics(ost, new clade("A", 5), 0.01);
-    CHECK_STREAM_CONTAINS(ost, "Model mockmodel Final Likelihood (-lnL): 0.01");
+    CHECK_STREAM_CONTAINS(ost, "Final Likelihood (-lnL): 0.01");
     CHECK_STREAM_CONTAINS(ost, "Sigma2: 75.5");
     CHECK_STREAM_CONTAINS(ost, "No attempts made");
 }

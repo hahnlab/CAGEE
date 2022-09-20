@@ -80,7 +80,6 @@ public:
 
     virtual double infer_family_likelihoods(const user_data& ud, const sigma_squared*p_lambda, const std::gamma_distribution<double>& prior) = 0;  // return vector of likelihoods
     
-    virtual std::string name() const = 0;
     virtual void write_vital_statistics(std::ostream& ost, const clade *p_tree, double final_likelihood);
     void write_error_model(int max_family_size, std::ostream& ost) const;
 

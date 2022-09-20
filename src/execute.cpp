@@ -78,7 +78,7 @@ void estimator::compute(std::vector<model *>& models, const input_parameters &my
 {
     std::vector<double> model_likelihoods(models.size());
     for (size_t i = 0; i < models.size(); ++i) {
-        LOG(INFO) << "Inferring processes for " << models[i]->name() << " model";
+        LOG(INFO) << "Inferring processes";
 
         double result = models[i]->infer_family_likelihoods(data, models[i]->get_sigma(), _prior);
         std::ofstream results_file(filename("results", my_input_parameters.output_prefix));

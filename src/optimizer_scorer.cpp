@@ -254,7 +254,6 @@ TEST_CASE("sigma_optimizer_scorer constructor averages variances across all tran
 
 class mock_model : public model {
     // Inherited via model
-    virtual std::string name() const override { return "mockmodel"; }
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache* p_calc) override { return nullptr; }
     virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const std::vector<string>& sample_groups, const std::gamma_distribution<double>& prior) override { return nullptr; }
     bool _invalid_likelihood = false;

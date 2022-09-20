@@ -157,7 +157,7 @@ std::vector<simulated_family> simulator::simulate_processes(model *p_model) {
 
     std::vector<simulated_family> results(num_sims);
 
-    LOG(INFO) << "Simulating " << results.size() << " families for model " << p_model->name();
+    LOG(INFO) << "Simulating " << results.size() << " families";
 
     vector<double> root_sizes(results.size());
     int n = 0;
@@ -480,7 +480,6 @@ TEST_CASE("create_rootdist creates fixed root if requested")
 
 class mock_model : public model {
     // Inherited via model
-    virtual std::string name() const override { return "mockmodel"; }
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache* p_calc) override { return nullptr; }
     virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const std::vector<string>& sample_groups, const std::gamma_distribution<double>& prior) override { return nullptr; }
     bool _invalid_likelihood = false;
