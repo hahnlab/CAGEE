@@ -384,7 +384,7 @@ void gamma_model_reconstruction::print_category_likelihoods(std::ostream& ost, t
 
 void gamma_model_reconstruction::print_additional_data(transcript_vector& gene_families, std::string output_prefix)
 {
-    std::ofstream cat_likelihoods(filename("Gamma_category_likelihoods", output_prefix));
+    std::ofstream cat_likelihoods(filename("category_likelihoods", output_prefix));
     print_category_likelihoods(cat_likelihoods, gene_families);
 
 }

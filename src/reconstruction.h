@@ -18,7 +18,7 @@ public:
     void print_family_clade_table(std::ostream& ost, const cladevector& order, transcript_vector& transcripts, const clade* p_tree,
         std::function<std::string(const gene_transcript& transcript, const clade* c)> get_family_clade_value);
 
-    void write_results(std::string model_identifier, std::string output_prefix, const clade* p_tree, transcript_vector& families, double test_pvalue);
+    void write_results(std::string output_prefix, const clade* p_tree, transcript_vector& families, double test_pvalue);
 
     virtual ~reconstruction()
     {

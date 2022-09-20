@@ -142,8 +142,7 @@ string node_credible_interval(const clade* node, const gene_transcript& transcri
 
 }
 
-void reconstruction::write_results(std::string model_identifier,
-    std::string output_prefix, 
+void reconstruction::write_results(std::string output_prefix, 
     const clade *p_tree, 
     transcript_vector& transcripts, 
     double test_pvalue)
@@ -156,29 +155,29 @@ void reconstruction::write_results(std::string model_identifier,
     sort(order.begin(), order.end(), [](const clade* a, const clade* b) { return a->get_ape_index() < b->get_ape_index(); });
 
     VLOG(TRANSCRIPT_RECONSTRUCTION) << "writing reconstructed states";
-    std::ofstream ofst(filename(model_identifier + "_asr", output_prefix, "tre"));
+    std::ofstream ofst(filename("asr", output_prefix, "tre"));
     print_reconstructed_states(ofst, transcripts, p_tree, test_pvalue);
 
     VLOG(TRANSCRIPT_RECONSTRUCTION) << "writing node transcript values";
-    std::ofstream counts(filename(model_identifier + "_levels", output_prefix, "tab"));
+    std::ofstream counts(filename("levels", output_prefix, "tab"));
     print_family_clade_table(counts, order, transcripts, p_tree, [this, transcripts](const gene_transcript& transcript, const clade* c) {
         return node_value(c, transcript, this);
         });
 
     VLOG(TRANSCRIPT_RECONSTRUCTION) << "writing node changes";
-    std::ofstream change(filename(model_identifier + "_change", output_prefix, "tab"));
+    std::ofstream change(filename("change", output_prefix, "tab"));
     print_family_clade_table(change, order, transcripts, p_tree, [this, &transcripts](const gene_transcript& transcript, const clade* c) {
         return node_change(c, transcript, this);
         });
 
     VLOG(TRANSCRIPT_RECONSTRUCTION) << "writing node credible intervals";
-    std::ofstream ci(filename(model_identifier + "_credible_intervals", output_prefix, "tab"));
+    std::ofstream ci(filename("credible_intervals", output_prefix, "tab"));
     print_family_clade_table(ci, order, transcripts, p_tree, [this, &transcripts](const gene_transcript& transcript, const clade* c) {
         return node_credible_interval(c, transcript, this);
         });
 
     VLOG(TRANSCRIPT_RECONSTRUCTION) << "writing clade results";
-    std::ofstream clade_results(filename(model_identifier + "_clade_results", output_prefix));
+    std::ofstream clade_results(filename("clade_results", output_prefix, "tab"));
     print_increases_decreases_by_clade(clade_results, p_tree, transcripts);
 
     print_additional_data(transcripts, output_prefix);

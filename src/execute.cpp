@@ -50,7 +50,7 @@ void estimator::write_error_model_if_specified(const input_parameters& my_input_
 {
     if (my_input_parameters.use_error_model)
     {
-        ofstream errmodel(filename(p_model->name() + "_error_model", _user_input.output_prefix));
+        ofstream errmodel(filename("error_model", _user_input.output_prefix));
         if (data.p_error_model)
         {
             /// user specified an error model, write that out to the results directory
@@ -81,7 +81,7 @@ void estimator::compute(std::vector<model *>& models, const input_parameters &my
         LOG(INFO) << "Inferring processes for " << models[i]->name() << " model";
 
         double result = models[i]->infer_family_likelihoods(data, models[i]->get_sigma(), _prior);
-        std::ofstream results_file(filename(models[i]->name() + "_results", my_input_parameters.output_prefix));
+        std::ofstream results_file(filename("results", my_input_parameters.output_prefix));
         models[i]->write_vital_statistics(results_file, data.p_tree, result);
 
         write_error_model_if_specified(my_input_parameters, models[i]);
@@ -164,7 +164,7 @@ void estimator::execute(std::vector<model *>& models)
     if (_user_input.lambda_per_family)
     {
         auto p_model = models[0];   // no support for multiple models
-        std::ofstream results_file(filename(p_model->name() + "_lambda_per_family", _user_input.output_prefix));
+        std::ofstream results_file(filename("lambda_per_family", _user_input.output_prefix));
         estimate_lambda_per_family(p_model, results_file);
     }
     else
@@ -187,7 +187,7 @@ void estimator::execute(std::vector<model *>& models)
 #ifdef RUN_LHRTEST
                 LikelihoodRatioTest::lhr_for_diff_lambdas(data, p_model);
 #endif
-                rec->write_results(p_model->name(), _user_input.output_prefix, data.p_tree, data.gene_families, _user_input.pvalue);
+                rec->write_results(_user_input.output_prefix, data.p_tree, data.gene_families, _user_input.pvalue);
             }
         }
         catch (const OptimizerInitializationFailure& e )
