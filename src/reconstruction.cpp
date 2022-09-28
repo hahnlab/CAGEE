@@ -113,11 +113,35 @@ void reconstruction::print_reconstructed_states(std::ostream& ost, transcript_ve
     
 }
 
+bool credible_interval_intersects_parent(const clade* node, const gene_transcript& transcript, const reconstruction* r)
+{
+    if (node->is_root())
+        return true;
+
+    auto pci = r->get_internal_node_value(transcript, node->get_parent()).credible_interval;
+    if (node->is_leaf())
+    {
+        auto val = transcript.get_expression_value(node->get_taxon_name());
+        return val >= pci.first && val <= pci.second;
+    }
+    else
+    {
+        auto ci = r->get_internal_node_value(transcript, node).credible_interval;
+        return !(ci.first >= pci.second || pci.first >= ci.second);
+    }
+}
+
 string node_change(const clade* node, const gene_transcript& transcript, const reconstruction* r)
 {
     ostringstream ost;
     ost << showpos << r->get_difference_from_parent(transcript, node);
+    if (!credible_interval_intersects_parent(node, transcript, r))
+    {
+        ost << "*";
+    }
+
     return ost.str();
+
 }
 
 string node_credible_interval(const clade* node, const gene_transcript& transcript, const reconstruction* r)
@@ -200,7 +224,6 @@ class Reconstruction
 public:
     gene_transcript fam;
     unique_ptr<clade> p_tree;
-    cladevector order;
 
     Reconstruction() : fam("Family5", "", "")
     {
@@ -210,12 +233,6 @@ public:
         fam.set_expression_value("B", 2);
         fam.set_expression_value("C", 5);
         fam.set_expression_value("D", 6);
-
-        vector<string> nodes{ "A", "B", "C", "D", "AB", "CD", "ABCD" };
-        order.resize(nodes.size());
-        const clade* t = p_tree.get();
-        transform(nodes.begin(), nodes.end(), order.begin(), [t](string s) { return t->find_descendant(s); });
-
     }
 };
 
@@ -291,13 +308,13 @@ class mock_reconstruction : public reconstruction
         node_reconstruction nr;
         if (_reconstructions.find(gf.id()) == _reconstructions.end())
             nr.most_likely_value = 3;
-
-        nr.most_likely_value = _reconstructions.at(gf.id()).at(c);
+        else
+            nr = _reconstructions.at(gf.id()).at(c);
 
         return nr;
     }
 public:
-    std::map<std::string, clademap<double>> _reconstructions;
+    std::map<std::string, clademap<node_reconstruction>> _reconstructions;
 
 };
 
@@ -316,7 +333,7 @@ TEST_CASE_FIXTURE(Reconstruction, "node_value returns reconstruction value for i
 {
     auto node = p_tree->find_descendant("CD");
     mock_reconstruction r;
-    r._reconstructions["Family5"][node] = pv::to_computational_space(7);
+    r._reconstructions["Family5"][node].most_likely_value = pv::to_computational_space(7);
 
     CHECK_EQ("7.000000", node_value(node, fam, &r));
 
@@ -333,7 +350,7 @@ TEST_CASE("Reconstruction: print_increases_decreases_by_clade")
     bmr.print_increases_decreases_by_clade(empty, p_tree.get(), {});
     CHECK_EQ(string("#Taxon_ID\tIncrease\tDecrease\n"), empty.str());
 
-    bmr._reconstructions["myid"][p_tree->find_descendant("AB")] = 17.6;
+    bmr._reconstructions["myid"][p_tree->find_descendant("AB")].most_likely_value = 17.6;
 
     gene_transcript gf("myid", "", "");
     gf.set_expression_value("A", 22.11);
@@ -349,7 +366,7 @@ TEST_CASE("Reconstruction: print_increases_decreases_by_clade")
 TEST_CASE_FIXTURE(Reconstruction, "get_difference_from_parent")
 {
     mock_reconstruction r;
-    r._reconstructions["Family5"][p_tree->find_descendant("AB")] = pv::to_computational_space(17.6);
+    r._reconstructions["Family5"][p_tree->find_descendant("AB")].most_likely_value = pv::to_computational_space(17.6);
 
     fam.set_expression_value("A", pv::to_computational_space(22.11));
     CHECK_EQ(doctest::Approx(4.51), r.get_difference_from_parent(fam, p_tree->find_descendant("A")));
@@ -366,29 +383,29 @@ TEST_CASE_FIXTURE(Reconstruction, "clade_index_or_name__returns_node_name_plus_i
     CHECK_EQ(string("A<1>"), clade_index_or_name(a));
 }
 
-#if 0
-TEST_CASE_FIXTURE(Reconstruction, "print_branch_probabilities__shows_NA_for_invalids")
+TEST_CASE_FIXTURE(Reconstruction, "credible_interval_intersects_parent is correct for leaf nodes")
 {
-    gene_transcript gf("Family5", "", "");
-    std::ostringstream ost;
-    branch_probabilities probs;
-    for (auto c : order)
-        probs.set(gf, c, 0.05);
-    probs.set(gf, p_tree->find_descendant("B"), branch_probabilities::invalid());
-    probs.set(gf, p_tree.get(), branch_probabilities::invalid());
+    mock_reconstruction r;
 
-    print_branch_probabilities(ost, order, { fam }, probs);
-    CHECK_STREAM_CONTAINS(ost, "FamilyID\tA<0>\tB<1>\tC<2>\tD<3>\t<4>\t<5>\t<6>");
-    CHECK_STREAM_CONTAINS(ost, "Family5\t0.05\tN/A\t0.05\t0.05\t0.05\t0.05\tN/A\n");
+    r._reconstructions["Family5"][p_tree->find_descendant("AB")].credible_interval = pair<double, double>(pv::to_computational_space(10), pv::to_computational_space(12));
+    CHECK(credible_interval_intersects_parent(p_tree->find_descendant("A"), fam, &r));
+    CHECK(!credible_interval_intersects_parent(p_tree->find_descendant("B"), fam, &r));
 }
 
-TEST_CASE_FIXTURE(Reconstruction, "print_branch_probabilities__skips_families_without_reconstructions")
+TEST_CASE_FIXTURE(Reconstruction, "credible_interval_intersects_parent is correct for internal nodes")
 {
-    std::ostringstream ost;
-    branch_probabilities probs;
+    mock_reconstruction r;
 
-    print_branch_probabilities(ost, order, { fam }, probs);
-    CHECK(ost.str().find("Family5") == string::npos);
+    r._reconstructions["Family5"][p_tree->find_descendant("AB")].credible_interval = pair<double, double>(pv::to_computational_space(10), pv::to_computational_space(12));
+    r._reconstructions["Family5"][p_tree->find_descendant("CD")].credible_interval = pair<double, double>(pv::to_computational_space(3), pv::to_computational_space(7));
+    r._reconstructions["Family5"][p_tree.get()].credible_interval = pair<double, double>(pv::to_computational_space(5), pv::to_computational_space(9));
+    CHECK(!credible_interval_intersects_parent(p_tree->find_descendant("AB"), fam, &r));
+    CHECK(credible_interval_intersects_parent(p_tree->find_descendant("CD"), fam, &r));
 }
 
-#endif
+TEST_CASE_FIXTURE(Reconstruction, "credible_interval_intersects_parent returns false at root")
+{
+    mock_reconstruction r;
+
+    CHECK(credible_interval_intersects_parent(p_tree.get(), fam, &r));
+}
