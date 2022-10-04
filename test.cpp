@@ -120,8 +120,6 @@ public:
 
 };
 
-
-
 #define STRCMP_EQUAL(x, y) CHECK(strcmp(x,y) == 0)
 #define STRCMP_CONTAINS(x, y) CHECK(strstr(y,x) != nullptr)
 
@@ -670,40 +668,6 @@ public:
     bool force_scoring_error = false;
 };
 
-TEST_CASE("Inference, optimizer_gets_initial_guesses_from_scorer")
-{
-    mock_scorer scorer;
-    optimizer opt(&scorer);
-    auto guesses = opt.get_initial_guesses();
-    CHECK_EQ(1, guesses.size());
-    CHECK_EQ(0.2, guesses[0]);
-}
-
-TEST_CASE("Inference, optimizer_disallows_bad_initializations")
-{
-    mock_scorer scorer;
-    scorer.force_scoring_error = true;
-    optimizer opt(&scorer);
-
-    CHECK_THROWS_WITH_AS(opt.get_initial_guesses(), "Failed to initialize any reasonable values", runtime_error);
-}
-
-TEST_CASE("Inference, optimizer_result_stream")
-{
-    optimizer::result r;
-    r.num_iterations = 10;
-    r.score = 5;
-    r.values = vector<double>{ .05, .03 };
-    r.duration = chrono::seconds(5000);
-
-    ostringstream ost;
-    ost << r;
-    STRCMP_CONTAINS("Completed 10 iterations", ost.str().c_str());
-    STRCMP_CONTAINS("Time: 1H 23M 20S", ost.str().c_str());
-    STRCMP_CONTAINS("Best matches are: 0.05,0.03", ost.str().c_str());
-    STRCMP_CONTAINS("Final -lnL: 5", ost.str().c_str());
-}
-
 TEST_CASE("Inference, event_monitor_shows_no_attempts")
 {
     event_monitor evm;
@@ -1127,11 +1091,44 @@ TEST_CASE("LikelihoodRatioTest, compute_for_diff_lambdas" * doctest::skip(true))
     CHECK(isinf(pvalues[0]));
 }
 
+class MyLogBuilder : public el::LogBuilder {
+public:
+    std::string build(const el::LogMessage* logMessage, bool appendNewLine) const {
+        messages.push_back(*logMessage);
+        return logMessage->message() + (appendNewLine ? "\n" : "");
+    }
+    mutable vector<el::LogMessage> messages;
+};
+
+
+void clear_test_log()
+{
+    dynamic_cast<MyLogBuilder*>(el::Loggers::getLogger("default")->logBuilder())->messages.clear();
+}
+
+vector<string> get_test_log()
+{
+    auto msgs = dynamic_cast<MyLogBuilder*>(el::Loggers::getLogger("default")->logBuilder())->messages;
+    vector<string> text(msgs.size());
+    transform(msgs.begin(), msgs.end(), text.begin(), [](const el::LogMessage & t) { return t.message(); });
+    return text;
+}
+
+TEST_CASE("Log messages can be tested")
+{
+    clear_test_log();
+    LOG(INFO) << "test log string";
+    CHECK_EQ("test log string", get_test_log()[0]);
+}
+
 int main(int argc, char** argv)
 {
+    el::LogBuilderPtr myLogBuilder = el::LogBuilderPtr(new MyLogBuilder());
+    el::Loggers::getLogger("default")->setLogBuilder(myLogBuilder);
+
     el::Configurations defaultConf;
     defaultConf.setToDefault();
-    defaultConf.set(el::Level::Global, el::ConfigurationType::Enabled, "false");
+    defaultConf.set(el::Level::Global, el::ConfigurationType::ToStandardOutput, "false");
     el::Loggers::reconfigureLogger("default", defaultConf);
 
     doctest::Context context;

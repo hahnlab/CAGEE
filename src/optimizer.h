@@ -44,12 +44,12 @@ struct candidate {
 struct FMinSearch
 {
   int maxiters;
-  int bymax;
+  bool max_iterations_reached = false;
   double rho, chi, psi, sigma;
   double tolx, tolf;
   double delta, zero_delta;
 
-  int 	variable_count, variable_count_plus_one;
+  int 	variable_count = 0, variable_count_plus_one = 1;
   int 	iters;
   std::vector<candidate *> candidates;
   double* x_mean;
@@ -79,7 +79,7 @@ double __fminsearch_x_contract_inside(FMinSearch* pfm);
 void __fminsearch_x_shrink(FMinSearch* pfm);
 void __fminsearch_set_last_element(FMinSearch* pfm, double* x, double f);
 bool threshold_achieved(FMinSearch* pfm);
-int fminsearch_min(FMinSearch* pfm, double* X0, std::function<bool(FMinSearch*)> threshold_func = threshold_achieved);
+void fminsearch_min(FMinSearch* pfm, double* X0, std::function<bool(FMinSearch*)> threshold_func = threshold_achieved);
 
 class OptimizerStrategy;
 

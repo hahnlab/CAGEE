@@ -9,6 +9,7 @@
 #include <chrono>
 #include <memory>
 
+#include "doctest.h"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 #include "easylogging++.h"
@@ -270,7 +271,7 @@ void __fminsearch_set_last_element(FMinSearch* pfm, double* x, double f)
 	__fminsearch_sort(pfm);
 }
 
-int fminsearch_min(FMinSearch* pfm, double* X0, std::function<bool(FMinSearch *)> threshold_func)
+void fminsearch_min(FMinSearch* pfm, double* X0, std::function<bool(FMinSearch *)> threshold_func)
 {
 	int i;
 	__fminsearch_min_init(pfm, X0);
@@ -313,9 +314,8 @@ int fminsearch_min(FMinSearch* pfm, double* X0, std::function<bool(FMinSearch *)
 			__fminsearch_set_last_element(pfm,pfm->x_r, reflection_score);
 		}
 	}
-	pfm->bymax = i == pfm->maxiters;
+	pfm->max_iterations_reached = i == pfm->maxiters;
 	pfm->iters = i;
-	return pfm->bymax;
 }
 
 candidate *get_best_result(FMinSearch* pfm)
@@ -378,6 +378,10 @@ public:
             pfm->delta = 0.4;
         }
         fminsearch_min(pfm, &initial[0]);
+        if (pfm->max_iterations_reached)
+        {
+            LOG(WARNING) << "Optimizer halted after " << pfm->maxiters << " iterations";
+        }
         auto result = get_best_result(pfm);
 
         r.score = result->score;
@@ -680,4 +684,74 @@ OptimizerStrategy *optimizer::get_strategy(const optimizer_parameters& params)
     default:
         return new LBFGS_strategy();
     }
+}
+
+class mock_scorer : public optimizer_scorer
+{
+    // Inherited via optimizer_scorer
+    virtual std::vector<double> initial_guesses() override
+    {
+        return std::vector<double>{0.2};
+    }
+    virtual double calculate_score(const double* values) override
+    {
+        if (force_scoring_error)
+            return std::numeric_limits<double>::infinity();
+
+        return 1000;
+    }
+public:
+    bool force_scoring_error = false;
+};
+
+TEST_CASE("Inference, optimizer_gets_initial_guesses_from_scorer")
+{
+    mock_scorer scorer;
+    optimizer opt(&scorer);
+    auto guesses = opt.get_initial_guesses();
+    CHECK_EQ(1, guesses.size());
+    CHECK_EQ(0.2, guesses[0]);
+}
+
+TEST_CASE("Inference, optimizer_disallows_bad_initializations")
+{
+    mock_scorer scorer;
+    scorer.force_scoring_error = true;
+    optimizer opt(&scorer);
+
+    CHECK_THROWS_WITH_AS(opt.get_initial_guesses(), "Failed to initialize any reasonable values", runtime_error);
+}
+
+#define CHECK_STREAM_CONTAINS(x,y) CHECK_MESSAGE(x.str().find(y) != std::string::npos, x.str())
+
+TEST_CASE("Inference, optimizer_result_stream")
+{
+    optimizer::result r;
+    r.num_iterations = 10;
+    r.score = 5;
+    r.values = vector<double>{ .05, .03 };
+    r.duration = chrono::seconds(5000);
+
+    ostringstream ost;
+    ost << r;
+    CHECK_STREAM_CONTAINS(ost, "Completed 10 iterations");
+    CHECK_STREAM_CONTAINS(ost, "Time: 1H 23M 20S");
+    CHECK_STREAM_CONTAINS(ost, "Best matches are: 0.05,0.03");
+    CHECK_STREAM_CONTAINS(ost, "Final -lnL: 5");
+}
+
+void clear_test_log();
+vector<string> get_test_log();
+
+TEST_CASE("Warning logged if iteration max is hit")
+{
+    clear_test_log();
+    mock_scorer scorer;
+    optimizer opt(&scorer);
+    optimizer_parameters p;
+    p.neldermead_iterations = 2;
+    opt.optimize(p);
+    auto log = get_test_log();
+    REQUIRE_EQ(3, log.size());
+    CHECK_EQ("Optimizer halted after 2 iterations", log[2]);
 }
