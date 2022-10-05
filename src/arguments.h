@@ -12,6 +12,7 @@ public:
     std::string lambda_tree_file_path;
     std::string fixed_multiple_lambdas;
     std::string log_config_file;
+    std::string command_line;
     double fixed_lambda = 0.0;
     double fixed_alpha = -1.0;
     double pvalue = 0.05;

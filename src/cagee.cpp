@@ -47,8 +47,7 @@ int cagee(int argc, char *const argv[]) {
         user_data data;
         data.read_datafiles(user_input);
 
-        auto cmd = std::accumulate(argv, argv + argc, std::string(), [](std::string x, std::string y) { return x + y + " "; });
-        LOG(INFO) << "Command line: " << cmd;
+        LOG(INFO) << "Command line: " << user_input.command_line;
 
         if (user_input.exclude_zero_root_families)
         {

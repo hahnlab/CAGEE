@@ -86,8 +86,10 @@ model::model(sigma_squared* p_lambda,
         references = build_reference_list(*p_gene_families);
 }
 
-void model::write_vital_statistics(std::ostream& ost, const clade *p_tree, double final_likelihood)
+void model::write_vital_statistics(std::ostream& ost, const clade *p_tree, double final_likelihood, const input_parameters& p)
 {
+    ost << PROJECT_NAME " " PROJECT_VER << endl;
+    ost << "Command line: " << p.command_line << endl;
     ost << "Final Likelihood (-lnL): " << final_likelihood << endl;
     ost << "Sigma2: " << *get_sigma() << endl;
     
@@ -102,6 +104,7 @@ void model::write_vital_statistics(std::ostream& ost, const clade *p_tree, doubl
 
     get_monitor().log(ost);
 
+    write_extra_vital_statistics(ost);
 }
 
 sigma_squared* model::get_simulation_lambda()
@@ -250,15 +253,19 @@ public:
     virtual double infer_family_likelihoods(const user_data& ud, const sigma_squared* p_lambda, const std::gamma_distribution<double>& prior) override { return 0;  }
 };
 
-TEST_CASE("Inference: model_vitals")
+TEST_CASE("Model: write_vital_statistics")
 {
     sigma_squared s(75.5);
     mock_model model(&s);
     std::ostringstream ost;
-    model.write_vital_statistics(ost, new clade("A", 5), 0.01);
+    input_parameters p;
+    p.command_line = "cagee -t tree.txt -i transcript.txt";
+    model.write_vital_statistics(ost, new clade("A", 5), 0.01, p);
+    CHECK_STREAM_CONTAINS(ost, PROJECT_NAME " " PROJECT_VER);
     CHECK_STREAM_CONTAINS(ost, "Final Likelihood (-lnL): 0.01");
     CHECK_STREAM_CONTAINS(ost, "Sigma2: 75.5");
     CHECK_STREAM_CONTAINS(ost, "No attempts made");
+    CHECK_STREAM_CONTAINS(ost, "Command line: cagee -t tree.txt -i transcript.txt");
 }
 
 TEST_CASE("write_vital_statistics writes node IDs")
@@ -269,7 +276,8 @@ TEST_CASE("write_vital_statistics writes node IDs")
     sigma_squared ss(75.5);
     mock_model model(&ss);
     std::ostringstream ost;
-    model.write_vital_statistics(ost, p_tree.get(), 0.01);
+    input_parameters p;
+    model.write_vital_statistics(ost, p_tree.get(), 0.01, p);
     CHECK_STREAM_CONTAINS(ost, "IDs of Nodes: ((((<1>,<2>)<16>,<3>)<15>,(((((<4>,<5>)<21>,<6>)<20>,<7>)<19>,(<8>,<9>)<22>)<18>,<10>)<17>)<14>,(<11>,<12>)<23>)<13>\n");
 }
 

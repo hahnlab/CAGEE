@@ -82,7 +82,7 @@ void estimator::compute(std::vector<model *>& models, const input_parameters &my
 
         double result = models[i]->infer_family_likelihoods(data, models[i]->get_sigma(), _prior);
         std::ofstream results_file(filename("results", my_input_parameters.output_prefix));
-        models[i]->write_vital_statistics(results_file, data.p_tree, result);
+        models[i]->write_vital_statistics(results_file, data.p_tree, result, my_input_parameters);
 
         write_error_model_if_specified(my_input_parameters, models[i]);
 

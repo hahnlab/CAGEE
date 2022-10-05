@@ -80,13 +80,15 @@ public:
 
     virtual double infer_family_likelihoods(const user_data& ud, const sigma_squared*p_lambda, const std::gamma_distribution<double>& prior) = 0;  // return vector of likelihoods
     
-    virtual void write_vital_statistics(std::ostream& ost, const clade *p_tree, double final_likelihood);
+    void write_vital_statistics(std::ostream& ost, const clade *p_tree, double final_likelihood, const input_parameters& p);
     void write_error_model(int max_family_size, std::ostream& ost) const;
 
     //! Based on the model parameters, attempts to reconstruct the most likely counts of each family at each node
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache *p_calc) = 0;
 
     virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const std::vector<std::string>& sample_groups, const std::gamma_distribution<double>& prior) = 0;
+
+    virtual void write_extra_vital_statistics(std::ostream& ost) {}
 
     const event_monitor& get_monitor() { return _monitor;  }
 };

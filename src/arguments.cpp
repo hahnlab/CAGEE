@@ -58,8 +58,11 @@ void show_help(const po::options_description& gen, const po::options_description
 input_parameters read_arguments(int argc, char* const argv[])
 {
     input_parameters my_input_parameters;
+    my_input_parameters.command_line = std::accumulate(argv, argv + argc, std::string(), [](std::string x, std::string y) { return x + y + " "; });
+
     if (argc == 1)
     {
+        show_version();
         my_input_parameters.help = true;
         return my_input_parameters;
     }
@@ -282,6 +285,13 @@ struct option_test
         }
     }
 };
+
+TEST_CASE("read_arguments stores the command line") {
+    option_test c({ "cafe5", "--infile", "foo.txt", "-R", "7"});
+
+    auto actual = read_arguments(c.argc, c.values);
+    CHECK_EQ("cafe5 --infile foo.txt -R 7 ", actual.command_line);
+}
 
 TEST_CASE("read_arguments translates short values ") {
     option_test c({ "cafe5", "-ifile" });

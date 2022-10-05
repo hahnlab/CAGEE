@@ -77,9 +77,8 @@ gamma_model::gamma_model(sigma_squared* p_lambda, std::vector<gene_transcript>* 
         _category_likelihoods.resize(p_gene_families->size());
 }
 
-void gamma_model::write_vital_statistics(std::ostream& ost, const clade *p_tree, double final_likelihood)
+void gamma_model::write_extra_vital_statistics(std::ostream& ost)
 {
-    model::write_vital_statistics(ost, p_tree, final_likelihood);
     ost << "Alpha: " << _alpha << endl;
 }
 
