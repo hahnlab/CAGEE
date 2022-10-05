@@ -34,20 +34,45 @@ string newick_node(const clade *node, bool significant, std::function<std::strin
     return ost.str();
 }
 
+bool credible_interval_intersects_parent(const clade* node, const gene_transcript& transcript, const reconstruction* r)
+{
+    if (node->is_root())
+        return true;
+
+    auto pci = r->get_internal_node_value(transcript, node->get_parent()).credible_interval;
+    if (node->is_leaf())
+    {
+        auto val = transcript.get_expression_value(node->get_taxon_name());
+        return val >= pci.first && val <= pci.second;
+    }
+    else
+    {
+        auto ci = r->get_internal_node_value(transcript, node).credible_interval;
+        return !(ci.first >= pci.second || pci.first >= ci.second);
+    }
+}
+
+
 void reconstruction::print_increases_decreases_by_clade(std::ostream& ost, const clade *p_tree, transcript_vector& gene_transcripts) 
 {
     clademap<pair<int, int>> increase_decrease_map;
 
     for (auto& transcript : gene_transcripts)
     {
-        for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), [this, &increase_decrease_map, &transcript](const clade* node)
-            {
-                double val = get_difference_from_parent(transcript, node);
-                if (val > 0)
-                    increase_decrease_map[node].first++;
-                if (val < 0)
-                    increase_decrease_map[node].second++;
-            });
+        cladevector nodes;
+        copy_if(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), back_inserter(nodes), [this, transcript](const clade* node)
+        {
+            return credible_interval_intersects_parent(node, transcript, this);
+        });
+
+        for(auto node : nodes)
+        {
+            double diff = get_difference_from_parent(transcript, node);
+            if (diff > 0)
+                increase_decrease_map[node].first++;
+            if (diff < 0)
+                increase_decrease_map[node].second++;
+        }
     }
 
     ost << "#Taxon_ID\tIncrease\tDecrease\n";
@@ -113,24 +138,6 @@ void reconstruction::print_reconstructed_states(std::ostream& ost, transcript_ve
     
 }
 
-bool credible_interval_intersects_parent(const clade* node, const gene_transcript& transcript, const reconstruction* r)
-{
-    if (node->is_root())
-        return true;
-
-    auto pci = r->get_internal_node_value(transcript, node->get_parent()).credible_interval;
-    if (node->is_leaf())
-    {
-        auto val = transcript.get_expression_value(node->get_taxon_name());
-        return val >= pci.first && val <= pci.second;
-    }
-    else
-    {
-        auto ci = r->get_internal_node_value(transcript, node).credible_interval;
-        return !(ci.first >= pci.second || pci.first >= ci.second);
-    }
-}
-
 string node_change(const clade* node, const gene_transcript& transcript, const reconstruction* r)
 {
     ostringstream ost;
@@ -179,11 +186,11 @@ void reconstruction::write_results(std::string output_prefix,
     sort(order.begin(), order.end(), [](const clade* a, const clade* b) { return a->get_ape_index() < b->get_ape_index(); });
 
     VLOG(TRANSCRIPT_RECONSTRUCTION) << "writing reconstructed states";
-    std::ofstream ofst(filename("asr", output_prefix, "tre"));
+    std::ofstream ofst(filename("ancestral_states", output_prefix, "tre"));
     print_reconstructed_states(ofst, transcripts, p_tree, test_pvalue);
 
     VLOG(TRANSCRIPT_RECONSTRUCTION) << "writing node transcript values";
-    std::ofstream counts(filename("levels", output_prefix, "tab"));
+    std::ofstream counts(filename("ancestral_states", output_prefix, "tab"));
     print_family_clade_table(counts, order, transcripts, p_tree, [this, transcripts](const gene_transcript& transcript, const clade* c) {
         return node_value(c, transcript, this);
         });
@@ -351,6 +358,8 @@ TEST_CASE("Reconstruction: print_increases_decreases_by_clade")
     CHECK_EQ(string("#Taxon_ID\tIncrease\tDecrease\n"), empty.str());
 
     bmr._reconstructions["myid"][p_tree->find_descendant("AB")].most_likely_value = 17.6;
+    bmr._reconstructions["myid"][p_tree->find_descendant("AB")].credible_interval.first = 5;
+    bmr._reconstructions["myid"][p_tree->find_descendant("AB")].credible_interval.second = 25;
 
     gene_transcript gf("myid", "", "");
     gf.set_expression_value("A", 22.11);
@@ -361,6 +370,32 @@ TEST_CASE("Reconstruction: print_increases_decreases_by_clade")
     CHECK_STREAM_CONTAINS(ost, "#Taxon_ID\tIncrease\tDecrease");
     CHECK_STREAM_CONTAINS(ost, "A<1>\t1\t0");
     CHECK_STREAM_CONTAINS(ost, "B<2>\t0\t1");
+}
+
+TEST_CASE("Reconstruction: print_increases_decreases_by_clade skips clades outside the credible interval")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    ostringstream empty;
+
+    mock_reconstruction bmr;
+
+    bmr.print_increases_decreases_by_clade(empty, p_tree.get(), {});
+    CHECK_EQ(string("#Taxon_ID\tIncrease\tDecrease\n"), empty.str());
+
+    bmr._reconstructions["myid"][p_tree->find_descendant("AB")].most_likely_value = 17.6;
+    bmr._reconstructions["myid"][p_tree->find_descendant("AB")].credible_interval.first = 15;
+    bmr._reconstructions["myid"][p_tree->find_descendant("AB")].credible_interval.second = 25;
+
+    gene_transcript gf("myid", "", "");
+    gf.set_expression_value("A", 22.11);
+    gf.set_expression_value("B", 9.3);
+
+    ostringstream ost;
+    bmr.print_increases_decreases_by_clade(ost, p_tree.get(), { gf });
+    CHECK_STREAM_CONTAINS(ost, "#Taxon_ID\tIncrease\tDecrease");
+    CHECK_STREAM_CONTAINS(ost, "A<1>\t1\t0");
+    CHECK_MESSAGE(ost.str().find("B<2>\t0\t1") == std::string::npos, ost.str());
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "get_difference_from_parent")

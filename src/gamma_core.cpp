@@ -358,8 +358,8 @@ node_reconstruction gamma_model_reconstruction::get_internal_node_value(const ge
 {
     node_reconstruction nr;
     nr.most_likely_value = _reconstructions.at(transcript.id()).reconstruction.at(c);
-    nr.credible_interval.first = nr.most_likely_value;
-    nr.credible_interval.second = nr.most_likely_value;
+    nr.credible_interval.first = 0;
+    nr.credible_interval.second = std::numeric_limits<double>::max();
     return nr;
 
 }
