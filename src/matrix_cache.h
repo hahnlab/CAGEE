@@ -14,12 +14,15 @@ class matrix_cache_key {
     int _bound;
     long _branch_length;
     long _sigma;
+    const double SIGNIFICANT_DIGITS = double(1e9);
+
 public:
     matrix_cache_key(double bound, double sigma, double branch_length) :
-        _bound(bound),
-        _branch_length(long(branch_length * 1000)),
-        _sigma(long(sigma * 1000000000))    // keep 9 significant digits
-    {} // keep 3 significant digits
+        _bound(bound)
+    {
+        _branch_length = long(branch_length * SIGNIFICANT_DIGITS);
+        _sigma = long(sigma * SIGNIFICANT_DIGITS);
+    }
 
     bool operator<(const matrix_cache_key& o) const {
         return std::tie(_bound, _branch_length, _sigma) < std::tie(o._bound, o._branch_length, o._sigma);
@@ -28,11 +31,11 @@ public:
         return _bound;
     }
     double branch_length() const {
-        return double(_branch_length) / 1000.0;
+        return double(_branch_length) / SIGNIFICANT_DIGITS;
     }
 
     double sigma() const {
-        return double(_sigma) / 1000000000.0;
+        return double(_sigma) / SIGNIFICANT_DIGITS;
     }
 };
 
