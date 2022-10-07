@@ -1,10 +1,10 @@
 # 15. Calculate a credible interval for each reconstructed value
 
-Date: 2022-09-06
+Date: 2022-10-07
 
 ## Status
 
-Candidate
+Accepted
 
 ## Context
 
@@ -56,7 +56,7 @@ the known value repeated for the upper and lower bounds.
 We will modify two of the other output files as well: *change.tab* and 
 *clade_results.tab*. *Change.tab* will be modified to show an asterisk by
 changes for which the credible intervals do not overlap. *clade_results.tab*
-will no longer count results for which the credible intervals do overlap
+will only count results for which the credible intervals do not overlap
 (i.e. the predicted change is likely to represent a real change).
  
 ## Consequences
