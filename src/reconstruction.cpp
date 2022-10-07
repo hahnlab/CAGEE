@@ -60,9 +60,10 @@ void reconstruction::print_increases_decreases_by_clade(std::ostream& ost, const
     for (auto& transcript : gene_transcripts)
     {
         cladevector nodes;
+        // See 0015-credible_interval_calculation.md
         copy_if(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), back_inserter(nodes), [this, transcript](const clade* node)
         {
-            return credible_interval_intersects_parent(node, transcript, this);
+            return !credible_interval_intersects_parent(node, transcript, this);
         });
 
         for(auto node : nodes)
@@ -358,8 +359,8 @@ TEST_CASE("Reconstruction: print_increases_decreases_by_clade")
     CHECK_EQ(string("#Taxon_ID\tIncrease\tDecrease\n"), empty.str());
 
     bmr._reconstructions["myid"][p_tree->find_descendant("AB")].most_likely_value = 17.6;
-    bmr._reconstructions["myid"][p_tree->find_descendant("AB")].credible_interval.first = 5;
-    bmr._reconstructions["myid"][p_tree->find_descendant("AB")].credible_interval.second = 25;
+    bmr._reconstructions["myid"][p_tree->find_descendant("AB")].credible_interval.first = 15;
+    bmr._reconstructions["myid"][p_tree->find_descendant("AB")].credible_interval.second = 20;
 
     gene_transcript gf("myid", "", "");
     gf.set_expression_value("A", 22.11);
@@ -372,7 +373,7 @@ TEST_CASE("Reconstruction: print_increases_decreases_by_clade")
     CHECK_STREAM_CONTAINS(ost, "B<2>\t0\t1");
 }
 
-TEST_CASE("Reconstruction: print_increases_decreases_by_clade skips clades outside the credible interval")
+TEST_CASE("Reconstruction: print_increases_decreases_by_clade skips clades inside the credible interval")
 {
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
@@ -384,8 +385,8 @@ TEST_CASE("Reconstruction: print_increases_decreases_by_clade skips clades outsi
     CHECK_EQ(string("#Taxon_ID\tIncrease\tDecrease\n"), empty.str());
 
     bmr._reconstructions["myid"][p_tree->find_descendant("AB")].most_likely_value = 17.6;
-    bmr._reconstructions["myid"][p_tree->find_descendant("AB")].credible_interval.first = 15;
-    bmr._reconstructions["myid"][p_tree->find_descendant("AB")].credible_interval.second = 25;
+    bmr._reconstructions["myid"][p_tree->find_descendant("AB")].credible_interval.first = 8.4;
+    bmr._reconstructions["myid"][p_tree->find_descendant("AB")].credible_interval.second = 19.9;
 
     gene_transcript gf("myid", "", "");
     gf.set_expression_value("A", 22.11);
