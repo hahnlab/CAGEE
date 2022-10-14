@@ -289,21 +289,21 @@ struct option_test
 };
 
 TEST_CASE("read_arguments stores the command line") {
-    option_test c({ "cafe5", "--infile", "foo.txt", "-R", "7"});
+    option_test c({ "cagee", "--infile", "foo.txt", "-R", "7"});
 
     auto actual = read_arguments(c.argc, c.values);
-    CHECK_EQ("cafe5 --infile foo.txt -R 7 ", actual.command_line);
+    CHECK_EQ("cagee --infile foo.txt -R 7 ", actual.command_line);
 }
 
 TEST_CASE("read_arguments translates short values ") {
-    option_test c({ "cafe5", "-ifile" });
+    option_test c({ "cagee", "-ifile" });
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK(actual.input_file_path.compare("file") == 0);
 }
 
 TEST_CASE("read_arguments translates long values ") {
-    option_test c({ "cafe5", "--infile", "file" });
+    option_test c({ "cagee", "--infile", "file" });
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK(actual.input_file_path.compare("file") == 0);
@@ -311,14 +311,14 @@ TEST_CASE("read_arguments translates long values ") {
 
 TEST_CASE("Options, input_short_space_separated")
 {
-    option_test c({ "cafe5", "-i", "file" });
+    option_test c({ "cagee", "-i", "file" });
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK(actual.input_file_path.compare("file") == 0);
 }
 TEST_CASE("Options, simulate_long")
 {
-    option_test c({ "cafe5", "--simulate=1000", "-l", "0.05" });
+    option_test c({ "cagee", "--simulate=1000", "-l", "0.05" });
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK_EQ(1000, actual.nsims);
@@ -326,7 +326,7 @@ TEST_CASE("Options, simulate_long")
 
 TEST_CASE("Options, simulate_short")
 {
-    option_test c({ "cafe5", "-s1000", "-l", "0.05" });
+    option_test c({ "cagee", "-s1000", "-l", "0.05" });
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK_EQ(1000, actual.nsims);
@@ -334,7 +334,7 @@ TEST_CASE("Options, simulate_short")
 
 TEST_CASE("Options, pvalue_long")
 {
-    option_test c({ "cafe5", "--pvalue=0.01" });
+    option_test c({ "cagee", "--pvalue=0.01" });
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK_EQ(0.01, actual.pvalue);
@@ -342,7 +342,7 @@ TEST_CASE("Options, pvalue_long")
 
 TEST_CASE("Options, pvalue_short")
 {
-    option_test c({ "cafe5", "-P0.01" });
+    option_test c({ "cagee", "-P0.01" });
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK_EQ(0.01, actual.pvalue);
@@ -350,7 +350,7 @@ TEST_CASE("Options, pvalue_short")
 
 TEST_CASE("Options, optimizer_long")
 {
-    option_test c({ "cafe5", "--optimizer_expansion=0.05", "--optimizer_reflection=3.2", "--optimizer_iterations=5" });
+    option_test c({ "cagee", "--optimizer_expansion=0.05", "--optimizer_reflection=3.2", "--optimizer_iterations=5" });
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK_EQ(0.05, actual.optimizer_params.neldermead_expansion);
@@ -360,7 +360,7 @@ TEST_CASE("Options, optimizer_long")
 
 TEST_CASE("Options, optimizer_short")
 {
-    option_test c({ "cafe5", "-E", "0.05", "-R", "3.2", "-I", "5" });
+    option_test c({ "cagee", "-E", "0.05", "-R", "3.2", "-I", "5" });
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK_EQ(0.05, actual.optimizer_params.neldermead_expansion);
@@ -370,7 +370,7 @@ TEST_CASE("Options, optimizer_short")
 
 TEST_CASE("Options, cores_long")
 {
-    option_test c({ "cafe5", "--cores=6" });
+    option_test c({ "cagee", "--cores=6" });
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK_EQ(6, actual.cores);
@@ -378,7 +378,7 @@ TEST_CASE("Options, cores_long")
 
 TEST_CASE("Options, multiple_sigmas_long")
 {
-    option_test c({ "cafe5", "--fixed_multiple_sigmas=5,10,15", "--sigma_tree=foo.txt" });
+    option_test c({ "cagee", "--fixed_multiple_sigmas=5,10,15", "--sigma_tree=foo.txt" });
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK_EQ("5,10,15", actual.fixed_multiple_lambdas);
@@ -386,7 +386,7 @@ TEST_CASE("Options, multiple_sigmas_long")
 
 TEST_CASE("Options: errormodel_accepts_argument")
 {
-    option_test c({ "cafe5", "-eerror.txt" });
+    option_test c({ "cagee", "-eerror.txt" });
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK(actual.use_error_model);
@@ -395,7 +395,7 @@ TEST_CASE("Options: errormodel_accepts_argument")
 
 TEST_CASE("Options: fixed_root_value")
 {
-    option_test c({ "cafe5", "--rootdist=fixed:12.7", "--simulate=100", "--fixed_sigma=0.01"});
+    option_test c({ "cagee", "--rootdist=fixed:12.7", "--simulate=100", "--fixed_sigma=0.01"});
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK_EQ("fixed:12.7", actual.rootdist_params);
@@ -403,7 +403,7 @@ TEST_CASE("Options: fixed_root_value")
 
 TEST_CASE("Options: sample_group")
 {
-    option_test c({ "cafe5", "--sample_group=heart,lungs", "--sample_group=brain" });
+    option_test c({ "cagee", "--sample_group=heart,lungs", "--sample_group=brain" });
 
     auto actual = read_arguments(c.argc, c.values);
 
@@ -414,7 +414,7 @@ TEST_CASE("Options: sample_group")
 
 TEST_CASE("Options, errormodel_accepts_no_argument")
 {
-    option_test c({ "cafe5", "-e" });
+    option_test c({ "cagee", "-e" });
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK(actual.use_error_model);
@@ -426,7 +426,7 @@ TEST_CASE("Options: zero_root_familes")
     input_parameters by_default;
     CHECK_FALSE(by_default.exclude_zero_root_families);
 
-    option_test c({ "cafe5", "-z" });
+    option_test c({ "cagee", "-z" });
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK(actual.exclude_zero_root_families);
@@ -437,7 +437,7 @@ TEST_CASE("Options: count_all_changes")
     input_parameters by_default;
     CHECK_FALSE(by_default.exclude_zero_root_families);
 
-    option_test c({ "cafe5", "--count_all_changes" });
+    option_test c({ "cagee", "--count_all_changes" });
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK(actual.count_all_changes);

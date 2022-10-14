@@ -27,7 +27,7 @@ namespace pv = proportional_variance;
 /* START: Reading in tree data */
 //! Read tree from user-provided tree file
 /*!
-  This function is called by CAFExp's main function when "--tree"/"-t" is specified
+  This function is called by CAGEE's main function when "--tree"/"-t" is specified
 */
 clade* read_tree(string tree_file_path, bool lambda_tree) {
     ifstream tree_file(tree_file_path.c_str()); // the constructor for ifstream takes const char*, not string, so we need to use c_str()
@@ -55,7 +55,7 @@ clade* read_tree(string tree_file_path, bool lambda_tree) {
 
 //! Read gene family data from user-provided tab-delimited file
 /*!
-  This function is called by execute::read_gene_transcript_data, which is itself called by CAFExp's main function when "--infile"/"-i" is specified  
+  This function is called by execute::read_gene_transcript_data, which is itself called by CAGEE's main function when "--infile"/"-i" is specified  
 */
 void read_gene_families(std::istream& input_file, clade *p_tree, std::vector<gene_transcript> &gene_families) {
 
@@ -113,7 +113,7 @@ double to_double(string s)
 }
 //! Read user-provided error model
 /*!
-  This function is called by execute::read_error_model, which is itself called by CAFExp's main function when "--error_model"/"-e" is specified  
+  This function is called by execute::read_error_model, which is itself called by CAGEE's main function when "--error_model"/"-e" is specified  
 */
 void read_error_model_file(std::istream& error_model_file, error_model *p_error_model) {
     std::string line;

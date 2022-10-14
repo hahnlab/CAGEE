@@ -34,6 +34,4 @@ public:
 double poisspdf(double x, double lambda);
 double gammapdf(double value, const std::gamma_distribution<double>& dist);
 
-std::vector<double> get_prior_rfsize_poisson_lambda(int min_family_size, int max_family_size, double poisson_lambda);
-
 #endif

@@ -16,7 +16,7 @@ class simulation_data;
     
 /*! @brief All of the actions that the application can perform 
 
-    Based on user input, CAFExp creates an action which drives the rest of the program.
+    Based on user input, CAGEE creates an action which drives the rest of the program.
     Action is a base class that defines which task is being performed.
 
     All actions take the input parameters that the user entered, and the 

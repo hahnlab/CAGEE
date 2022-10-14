@@ -79,7 +79,7 @@ namespace LikelihoodRatioTest
     }
 
     void likelihood_ratio_report(std::ostream & ost, const std::vector<gene_transcript> & families,
-        const clade * pcafe,
+        const clade * c,
         const std::vector<double> & pvalues,
         const std::vector<int> & plambda,
         const std::vector<sigma_squared*> & lambda_cache)
@@ -87,7 +87,7 @@ namespace LikelihoodRatioTest
         for (size_t i = 0; i < families.size(); ++i)
         {
             ost << families[i].id() << "\t";
-            pcafe->write_newick(ost, [](const clade* c) { return c->get_taxon_name(); });
+            c->write_newick(ost, [](const clade* c) { return c->get_taxon_name(); });
             auto l = lambda_cache[plambda[i]];
             cout << "(" << plambda[i] << ", " << *l << ")\t" << pvalues[i] << "\t" << (pvalues[1] == 1 ? 1 : 1 - chi2cdf(pvalues[i], 1)) << endl;
         }
