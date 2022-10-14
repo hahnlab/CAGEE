@@ -123,36 +123,6 @@ void estimator::estimate_missing_variables(std::vector<model *>& models, user_da
 
 }
 
-void estimator::estimate_lambda_per_family(model *p_model, ostream& ost)
-{
-    auto families = data.gene_families;
-    vector<sigma_squared*> result(data.gene_families.size());
-    std::transform(data.gene_families.begin(), data.gene_families.end(), result.begin(),
-        [this, p_model](gene_transcript& fam)
-    {
-#ifndef SILENT
-            LOG(INFO) << "Estimating for " << fam.id() << endl;
-#endif
-        vector<gene_transcript> v({ fam });
-        vector<model *> models{ p_model };
-        throw std::runtime_error("Not implemented yet");
-        //p_model->set_families(&v);
-        data.p_lambda = nullptr;
-        estimate_missing_variables(models, data);
-        return p_model->get_sigma();
-    });
-    std::transform(data.gene_families.begin(), data.gene_families.end(), result.begin(),
-        ostream_iterator<string>(ost, "\n"),
-        [](const gene_transcript& fam, sigma_squared* lambda)
-    {
-        return fam.id() + '\t' + lambda->to_string();
-    });
-    for (auto r : result) delete r; // TODO: use unique_ptrs in result for exception safety
-
-}
-
-/*! Calls estimate_lambda_per_family if the user has set that parameter, otherwise
-    calls \ref estimate_missing_variables; \ref compute; \ref compute_pvalues, and \ref model::reconstruct_ancestral_states */
 void estimator::execute(std::vector<model *>& models)
 {
     check_tree(data.p_tree, data.gene_families[0]);
@@ -161,40 +131,31 @@ void estimator::execute(std::vector<model *>& models)
     if (dir.empty()) dir = "results";
     create_directory(dir);
     
-    if (_user_input.lambda_per_family)
+    try
     {
-        auto p_model = models[0];   // no support for multiple models
-        std::ofstream results_file(filename("lambda_per_family", _user_input.output_prefix));
-        estimate_lambda_per_family(p_model, results_file);
-    }
-    else
-    {
-        try
-        {
-            estimate_missing_variables(models, data);
+        estimate_missing_variables(models, data);
 
-            compute(models, _user_input);
+        compute(models, _user_input);
 
-            for (model* p_model : models) {
+        for (model* p_model : models) {
 
-                /// For Gamma models, we tried using the most rapidly changing lambda multiplier here, but that
-                /// caused issues in the pvalue calculation. It should be best to use the original lambda
-                /// instead
-                matrix_cache cache;
+            /// For Gamma models, we tried using the most rapidly changing lambda multiplier here, but that
+            /// caused issues in the pvalue calculation. It should be best to use the original lambda
+            /// instead
+            matrix_cache cache;
 
-                std::unique_ptr<reconstruction> rec(p_model->reconstruct_ancestral_states(data, &cache));
+            std::unique_ptr<reconstruction> rec(p_model->reconstruct_ancestral_states(data, &cache));
 
 #ifdef RUN_LHRTEST
-                LikelihoodRatioTest::lhr_for_diff_lambdas(data, p_model);
+            LikelihoodRatioTest::lhr_for_diff_lambdas(data, p_model);
 #endif
-                rec->write_results(_user_input.output_prefix, data.p_tree, data.gene_families, _user_input.pvalue, _user_input.count_all_changes);
-            }
+            rec->write_results(_user_input.output_prefix, data.p_tree, data.gene_families, _user_input.pvalue, _user_input.count_all_changes);
         }
-        catch (const OptimizerInitializationFailure& e )
-        {
-            initialization_failure_advice(cerr, data.gene_families);
-            throw;
-        }
+    }
+    catch (const OptimizerInitializationFailure& e )
+    {
+        initialization_failure_advice(cerr, data.gene_families);
+        throw;
     }
 }
 

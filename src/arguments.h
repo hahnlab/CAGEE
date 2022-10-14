@@ -20,7 +20,6 @@ public:
     int nsims = 0;
     int n_gamma_cats = 1;
     bool exclude_zero_root_families = false;
-    bool lambda_per_family = false;
     bool use_error_model = false;
     bool count_all_changes = false;
     int verbose_logging_level = 0;

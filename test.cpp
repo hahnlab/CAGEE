@@ -612,30 +612,6 @@ TEST_CASE("Simulation: gamma_model_get_simulation_lambda_uses_multiplier_based_o
 
 }
 
-TEST_CASE("Inference: lambda_per_family" * doctest::skip(true))
-{
-    randomizer_engine.seed(10);
-    user_data ud;
-
-    ud.gene_families.resize(1);
-   // ud.p_prior = new root_distribution_uniform(size_t(ud.max_root_family_size));
-
-    gene_transcript& family = ud.gene_families[0];
-    family.set_expression_value("A", 3);
-    family.set_expression_value("B", 6);
-    input_parameters params;
-    params.lambda_per_family = true;
-
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-    ud.p_tree = p_tree.get();
-    estimator v(ud, params);
-
-    mock_model m;
-    ostringstream ost;
-    v.estimate_lambda_per_family(&m, ost);
-    CHECK_EQ(std::string("test\t0.30597463754818\n"), ost.str());
-}
-
 class mock_scorer : public optimizer_scorer
 {
     // Inherited via optimizer_scorer

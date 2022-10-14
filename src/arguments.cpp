@@ -236,14 +236,6 @@ void input_parameters::check_input() {
             errors.push_back("A root distribution was provided while estimating");
         }
 
-        if (lambda_per_family)
-        {
-            if (input_file_path.empty())
-                errors.push_back("No family file provided");
-            if (tree_file_path.empty())
-                errors.push_back("No tree file provided");
-        }
-
         if (n_gamma_cats > 1 && use_error_model && error_model_file_path.empty())
         {
             errors.push_back("Estimating an error model with a gamma distribution is not supported at this time");
@@ -491,21 +483,6 @@ TEST_CASE("Options: check_input_does_not_throw_when_simulating_with_multiple_sig
     params.lambda_tree_file_path = "./tree";
     params.check_input();
     CHECK(true);
-}
-
-TEST_CASE("Options: per_family_must_provide_families")
-{
-    input_parameters params;
-    params.lambda_per_family = true;
-    CHECK_THROWS_WITH_AS(params.check_input(), "No family file provided\nNo tree file provided\n", runtime_error);
-}
-
-TEST_CASE("Options: per_family_must_provide_tree")
-{
-    input_parameters params;
-    params.lambda_per_family = true;
-    params.input_file_path = "/tmp/test";
-    CHECK_THROWS_WITH_AS(params.check_input(), "No tree file provided", runtime_error);
 }
 
 TEST_CASE("Options: cannot_estimate_error_and_gamma_together")

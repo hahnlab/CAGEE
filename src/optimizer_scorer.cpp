@@ -252,13 +252,13 @@ TEST_CASE("sigma_optimizer_scorer constructor averages variances across all tran
 }
 
 
-class mock_model : public model {
+class mock_scorer_model : public model {
     // Inherited via model
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache* p_calc) override { return nullptr; }
     virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const std::vector<string>& sample_groups, const std::gamma_distribution<double>& prior) override { return nullptr; }
     bool _invalid_likelihood = false;
 public:
-    mock_model() : model(NULL, NULL, NULL) {}
+    mock_scorer_model() : model(NULL, NULL, NULL) {}
     virtual double infer_family_likelihoods(const user_data& ud, const sigma_squared* p_lambda, const std::gamma_distribution<double>& prior) override
     { 
         return _invalid_likelihood ? nan("") : 0.0;
@@ -274,7 +274,7 @@ TEST_CASE("lambda_epsilon_optimizer guesses lambda and unique epsilons")
 
     sigma_squared s(10);
     user_data ud;
-    mock_model model;
+    mock_scorer_model model;
     sigma_optimizer_scorer leo(&model, ud, std::gamma_distribution<double>(1, 2), &s, &err);
     leo.force_distribution_mean(10, 1);
     auto guesses = leo.initial_guesses();
@@ -320,7 +320,7 @@ TEST_CASE("lambda_epsilon_optimizer")
     err.set_probabilities(0, { .0, .99, initial_epsilon });
     err.set_probabilities(1, { initial_epsilon, .98, initial_epsilon });
 
-    mock_model model;
+    mock_scorer_model model;
 
     sigma_squared lambda(0.05);
     user_data ud;
@@ -345,7 +345,7 @@ TEST_CASE("prepare_calculation sets sigma correctly")
     user_data ud;
     ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
     ud.p_tree = parse_newick("(A:1,B:1);");
-    mock_model model;
+    mock_scorer_model model;
     sigma_squared sig(1);
     sigma_optimizer_scorer optimizer(&model, ud, std::gamma_distribution<double>(), &sig);
     vector<double> values{ 0.01 };
@@ -358,7 +358,7 @@ TEST_CASE("prepare_calculation sets sigma and epsilon correctly ")
     user_data ud;
     ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
     ud.p_tree = parse_newick("(A:1,B:1);");
-    mock_model model;
+    mock_scorer_model model;
     sigma_squared sig(1);
     error_model err;
     err.set_probabilities(0, { .0, .7, .3 });
@@ -419,7 +419,7 @@ TEST_CASE("sigma_optimizer_scorer updates model alpha and lambda")
 TEST_CASE("calculate_score translates nan to inf")
 {
     sigma_squared lam(0.05);
-    mock_model m;
+    mock_scorer_model m;
     m.set_invalid_likelihood();
     double val;
     user_data ud;
