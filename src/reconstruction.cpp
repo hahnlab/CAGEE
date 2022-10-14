@@ -53,7 +53,7 @@ bool credible_interval_intersects_parent(const clade* node, const gene_transcrip
 }
 
 
-void reconstruction::print_increases_decreases_by_clade(std::ostream& ost, const clade *p_tree, transcript_vector& gene_transcripts) 
+void reconstruction::print_increases_decreases_by_clade(std::ostream& ost, const clade *p_tree, transcript_vector& gene_transcripts, bool count_all_changes)
 {
     clademap<pair<int, int>> increase_decrease_map;
 
@@ -61,10 +61,10 @@ void reconstruction::print_increases_decreases_by_clade(std::ostream& ost, const
     {
         cladevector nodes;
         // See 0015-credible_interval_calculation.md
-        copy_if(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), back_inserter(nodes), [this, transcript](const clade* node)
-        {
-            return !credible_interval_intersects_parent(node, transcript, this);
-        });
+        copy_if(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), back_inserter(nodes), [this, transcript, count_all_changes](const clade* node)
+            {
+                return count_all_changes || !credible_interval_intersects_parent(node, transcript, this);
+            });
 
         for(auto node : nodes)
         {
@@ -177,7 +177,8 @@ string node_credible_interval(const clade* node, const gene_transcript& transcri
 void reconstruction::write_results(std::string output_prefix, 
     const clade *p_tree, 
     transcript_vector& transcripts, 
-    double test_pvalue)
+    double test_pvalue,
+    bool count_all_changes)
 {
     cladevector order;
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), [&order](const clade* c)
@@ -210,7 +211,7 @@ void reconstruction::write_results(std::string output_prefix,
 
     VLOG(TRANSCRIPT_RECONSTRUCTION) << "writing clade results";
     std::ofstream clade_results(filename("clade_results", output_prefix, "tab"));
-    print_increases_decreases_by_clade(clade_results, p_tree, transcripts);
+    print_increases_decreases_by_clade(clade_results, p_tree, transcripts, count_all_changes);
 
     print_additional_data(transcripts, output_prefix);
 }
@@ -355,7 +356,7 @@ TEST_CASE("Reconstruction: print_increases_decreases_by_clade")
 
     mock_reconstruction bmr;
 
-    bmr.print_increases_decreases_by_clade(empty, p_tree.get(), {});
+    bmr.print_increases_decreases_by_clade(empty, p_tree.get(), {}, true);
     CHECK_EQ(string("#Taxon_ID\tIncrease\tDecrease\n"), empty.str());
 
     bmr._reconstructions["myid"][p_tree->find_descendant("AB")].most_likely_value = 17.6;
@@ -367,13 +368,13 @@ TEST_CASE("Reconstruction: print_increases_decreases_by_clade")
     gf.set_expression_value("B", 9.3);
 
     ostringstream ost;
-    bmr.print_increases_decreases_by_clade(ost, p_tree.get(), {gf});
+    bmr.print_increases_decreases_by_clade(ost, p_tree.get(), {gf}, true);
     CHECK_STREAM_CONTAINS(ost, "#Taxon_ID\tIncrease\tDecrease");
     CHECK_STREAM_CONTAINS(ost, "A<1>\t1\t0");
     CHECK_STREAM_CONTAINS(ost, "B<2>\t0\t1");
 }
 
-TEST_CASE("Reconstruction: print_increases_decreases_by_clade skips clades inside the credible interval")
+TEST_CASE("Reconstruction: print_increases_decreases_by_clade skips clades inside the credible interval if count_all_changes is false")
 {
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
@@ -381,7 +382,7 @@ TEST_CASE("Reconstruction: print_increases_decreases_by_clade skips clades insid
 
     mock_reconstruction bmr;
 
-    bmr.print_increases_decreases_by_clade(empty, p_tree.get(), {});
+    bmr.print_increases_decreases_by_clade(empty, p_tree.get(), {}, false);
     CHECK_EQ(string("#Taxon_ID\tIncrease\tDecrease\n"), empty.str());
 
     bmr._reconstructions["myid"][p_tree->find_descendant("AB")].most_likely_value = 17.6;
@@ -393,10 +394,31 @@ TEST_CASE("Reconstruction: print_increases_decreases_by_clade skips clades insid
     gf.set_expression_value("B", 9.3);
 
     ostringstream ost;
-    bmr.print_increases_decreases_by_clade(ost, p_tree.get(), { gf });
+    bmr.print_increases_decreases_by_clade(ost, p_tree.get(), { gf }, false);
     CHECK_STREAM_CONTAINS(ost, "#Taxon_ID\tIncrease\tDecrease");
     CHECK_STREAM_CONTAINS(ost, "A<1>\t1\t0");
     CHECK_MESSAGE(ost.str().find("B<2>\t0\t1") == std::string::npos, ost.str());
+}
+
+TEST_CASE("Reconstruction: print_increases_decreases_by_clade includes clades inside the credible interval if count_all_changes is true")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    mock_reconstruction bmr;
+
+    bmr._reconstructions["myid"][p_tree->find_descendant("AB")].most_likely_value = 17.6;
+    bmr._reconstructions["myid"][p_tree->find_descendant("AB")].credible_interval.first = 8.4;
+    bmr._reconstructions["myid"][p_tree->find_descendant("AB")].credible_interval.second = 19.9;
+
+    gene_transcript gf("myid", "", "");
+    gf.set_expression_value("A", 22.11);
+    gf.set_expression_value("B", 9.3);
+
+    ostringstream ost;
+    bmr.print_increases_decreases_by_clade(ost, p_tree.get(), { gf }, true);
+    CHECK_STREAM_CONTAINS(ost, "#Taxon_ID\tIncrease\tDecrease");
+    CHECK_STREAM_CONTAINS(ost, "A<1>\t1\t0");
+    CHECK_STREAM_CONTAINS(ost, "B<2>\t0\t1");
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "get_difference_from_parent")

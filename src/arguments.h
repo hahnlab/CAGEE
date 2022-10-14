@@ -22,6 +22,7 @@ public:
     bool exclude_zero_root_families = false;
     bool lambda_per_family = false;
     bool use_error_model = false;
+    bool count_all_changes = false;
     int verbose_logging_level = 0;
     int cores = 0;
     optimizer_parameters optimizer_params;

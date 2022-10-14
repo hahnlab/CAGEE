@@ -552,7 +552,7 @@ TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade")
     vector<double> em;
     gamma_model_reconstruction gmr(em);
 
-    gmr.print_increases_decreases_by_clade(empty, p_tree.get(), {});
+    gmr.print_increases_decreases_by_clade(empty, p_tree.get(), {}, true);
     CHECK_EQ(empty.str(), "#Taxon_ID\tIncrease\tDecrease\n");
 
     gmr._reconstructions["myid"].reconstruction[p_tree->find_descendant("AB")] = 5;
@@ -562,7 +562,7 @@ TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade")
     gf.set_expression_value("B", 2);
 
     ostringstream ost;
-    gmr.print_increases_decreases_by_clade(ost, p_tree.get(), {gf});
+    gmr.print_increases_decreases_by_clade(ost, p_tree.get(), {gf}, true);
     CHECK_STREAM_CONTAINS(ost, "#Taxon_ID\tIncrease\tDecrease");
     CHECK_STREAM_CONTAINS(ost, "A<1>\t1\t0");
     CHECK_STREAM_CONTAINS(ost, "B<2>\t0\t1");

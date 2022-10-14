@@ -94,6 +94,7 @@ input_parameters read_arguments(int argc, char* const argv[])
         ("sigma_tree,y", po::value<string>(), "Path to sigma tree, for use with multiple sigmas")
         ("simulate,s", po::value<string>()->default_value("false"), "Simulate families. Optionally provide the number of simulations to generate")
         ("fixed_sigma,l", po::value<double>(), "Value for a single user provided sigma value, otherwise sigma is estimated.")
+        ("count_all_changes", po::value<bool>()->implicit_value(true), "Reconstruction will count all changes rather than only credible changes")
         ;
     
     po::options_description rare("Less Common Options");
@@ -167,6 +168,7 @@ input_parameters read_arguments(int argc, char* const argv[])
     maybe_set(vm, "sample_group", my_input_parameters.sample_groups);
     maybe_set(vm, "prior", my_input_parameters.prior);
     maybe_set(vm, "discretization_size", my_input_parameters.discretization_size);
+    maybe_set(vm, "count_all_changes", my_input_parameters.count_all_changes);
 
     string simulate_string = vm["simulate"].as<string>();
     my_input_parameters.is_simulating = simulate_string != "false";
@@ -428,6 +430,17 @@ TEST_CASE("Options: zero_root_familes")
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK(actual.exclude_zero_root_families);
+}
+
+TEST_CASE("Options: count_all_changes")
+{
+    input_parameters by_default;
+    CHECK_FALSE(by_default.exclude_zero_root_families);
+
+    option_test c({ "cafe5", "--count_all_changes" });
+
+    auto actual = read_arguments(c.argc, c.values);
+    CHECK(actual.count_all_changes);
 }
 
 TEST_CASE("Options: must_specify_sigma_for_simulation")
