@@ -135,7 +135,6 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
         LOG(WARNING) << "Prior not valid for this sigma and data set";
         return -log(0);
     }
-    results.resize(ud.gene_families.size());
     std::vector<double> all_families_likelihood(ud.gene_families.size());
 
     calc.precalculate_matrices(p_sigma->get_values(),  ud.p_tree->get_branch_lengths(), upper_bound);
@@ -158,7 +157,6 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
 
         all_families_likelihood[i] = compute_prior_likelihood(partial_likelihoods[references[i]], priors);
         
-        results[i] = family_info_stash(ud.gene_families.at(i).id(), 0.0, 0.0, 0.0, all_families_likelihood[i], false);
     }
     double final_likelihood = -std::accumulate(all_families_likelihood.begin(), all_families_likelihood.end(), 0.0); // sum over all families
 

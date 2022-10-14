@@ -58,13 +58,6 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
     return std::vector<model *>{p_model};
 }
 
-std::ostream& operator<<(std::ostream& ost, const family_info_stash& r)
-{
-    ost << r.family_id << "\t" << r.lambda_multiplier << "\t" << r.category_likelihood << "\t" << r.family_likelihood;
-    ost << "\t" << r.posterior_probability << "\t" << (r.significant ? "*" : "N/S");
-    return ost;
-}
-
 int upper_bound_from_transcript_values(const vector<gene_transcript>& transcripts)
 {
     vector<int> bounds(transcripts.size());

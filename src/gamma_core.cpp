@@ -174,8 +174,6 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma_sq
 
     int upper_bound = upper_bound_from_transcript_values(ud.gene_families);
 
-    results.clear();
-
     if (!can_infer())
     {
         _monitor.Event_InferenceAttempt_InvalidValues();
@@ -188,7 +186,6 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma_sq
 
     vector<bool> failure(ud.gene_families.size());
 
-    vector<vector<family_info_stash>> pruning_results(ud.gene_families.size());
     matrix_cache cache;
     vector<double> multipliers;
     for (auto multiplier : _lambda_multipliers)
@@ -209,13 +206,6 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma_sq
 
             vector<double> posterior_probabilities = get_posterior_probabilities(cat_likelihoods);
 
-            pruning_results[i].resize(cat_likelihoods.size());
-            for (size_t k = 0; k < cat_likelihoods.size(); ++k)
-            {
-                pruning_results[i][k] = family_info_stash(ud.gene_families.at(i).id(),_lambda_multipliers[k], cat_likelihoods[k],
-                    family_likelihood, posterior_probabilities[k], posterior_probabilities[k] > 0.95);
-                //            cout << "Bundle " << i << " Process " << k << " family likelihood = " << family_likelihood << endl;
-            }
             all_bundles_likelihood[i] = std::log(family_likelihood);
         }
         else
@@ -235,13 +225,7 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma_sq
         }
         return -log(0);
     }
-    for (auto& stashes : pruning_results)
-    {
-        for (auto& stash : stashes)
-        {
-            results.push_back(stash);
-        }
-    }
+
     double final_likelihood = -accumulate(all_bundles_likelihood.begin(), all_bundles_likelihood.end(), 0.0);
 
     LOG(INFO) << "Score (-lnL): " << std::setw(15) << std::setprecision(14) << final_likelihood;

@@ -179,20 +179,6 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_infers_processes_without_crashing")
 
 }
 
-TEST_CASE("Inference: stash_stream")
-{
-    family_info_stash stash;
-    stash.family_id = "F01";
-    stash.lambda_multiplier = 2.5;
-    stash.family_likelihood = 3.7;
-    stash.posterior_probability = 4.9;
-
-    std::ostringstream ost;
-    ost << stash;
-    STRCMP_EQUAL("F01\t2.5\t0\t3.7\t4.9\tN/S", ost.str().c_str());
-
-}
-
 bool operator==(const MatrixXd& m1, const MatrixXd& m2)
 {
     if (m1.size() != m2.size())

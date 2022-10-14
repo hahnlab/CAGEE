@@ -17,22 +17,6 @@ class error_model;
 
 struct input_parameters;
 
-struct family_info_stash {
-    family_info_stash() : lambda_multiplier(0.0), category_likelihood(0.0), family_likelihood(0.0), 
-        posterior_probability(0.0), significant(false) {}
-    family_info_stash(std::string fam, double lam, double cat_lh, double fam_lh, double pp, bool signif) : 
-        family_id(fam), lambda_multiplier(lam), category_likelihood(cat_lh), family_likelihood(fam_lh),
-        posterior_probability(pp), significant(signif) {}
-    std::string family_id;
-    double lambda_multiplier;
-    double category_likelihood;
-    double family_likelihood;
-    double posterior_probability;
-    bool significant;
-};
-
-std::ostream& operator<<(std::ostream& ost, const family_info_stash& r);
-
 class event_monitor : public el::Loggable
 {
     std::map<std::string, int> failure_count;
@@ -59,8 +43,6 @@ protected:
 
     /// Used to track gene families with identical species counts
     std::vector<size_t> references;
-
-    std::vector<family_info_stash> results;
 
     event_monitor _monitor;
 
