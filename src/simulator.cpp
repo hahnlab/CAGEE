@@ -496,7 +496,7 @@ TEST_CASE("Simulation, simulate_processes")
 
     user_data ud;
     ud.p_tree = p_tree.get();
-    ud.p_lambda = &lam;
+    ud.p_sigma = &lam;
     //    ud.p_prior = new root_distribution_uniform(size_t(100));
 
     input_parameters ip;

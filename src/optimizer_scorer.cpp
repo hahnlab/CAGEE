@@ -30,12 +30,12 @@ namespace pv = proportional_variance;
 
 double compute_distribution_mean(const user_data& user_data)
 {
-    if (user_data.gene_families.empty()) throw runtime_error("No gene transcripts provided");
+    if (user_data.gene_transcripts.empty()) throw runtime_error("No gene transcripts provided");
     if (!user_data.p_tree) throw runtime_error("No tree provided");
 
-    auto species = user_data.gene_families.at(0).get_species();
+    auto species = user_data.gene_transcripts.at(0).get_species();
     vector<double> variances;
-    for (auto& tt : user_data.gene_families)
+    for (auto& tt : user_data.gene_transcripts)
     {
         vector<double> v(species.size());
         transform(species.begin(), species.end(), v.begin(), [&tt](string s) {return tt.get_expression_value(s);  });
@@ -212,9 +212,9 @@ void sigma_optimizer_scorer::force_distribution_mean(double tree_length, double 
 TEST_CASE("sigma_optimizer_scorer constructor calculates tree length and variance")
 {
     user_data ud;
-    ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
-    ud.gene_families[0].set_expression_value("A", 1);
-    ud.gene_families[0].set_expression_value("B", 2);
+    ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.gene_transcripts[0].set_expression_value("A", 1);
+    ud.gene_transcripts[0].set_expression_value("B", 2);
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     ud.p_tree = p_tree.get();
@@ -225,23 +225,23 @@ TEST_CASE("sigma_optimizer_scorer constructor calculates tree length and varianc
     REQUIRE(guesses.size() == 1);
     CHECK_EQ(doctest::Approx(0.05), guesses[0]);
 
-    ud.gene_families.push_back(gene_transcript("TestFamily2", "", ""));
-    ud.gene_families[1].set_expression_value("A", 5);
-    ud.gene_families[1].set_expression_value("B", 8);
+    ud.gene_transcripts.push_back(gene_transcript("TestFamily2", "", ""));
+    ud.gene_transcripts[1].set_expression_value("A", 5);
+    ud.gene_transcripts[1].set_expression_value("B", 8);
 }
 
 TEST_CASE("sigma_optimizer_scorer constructor averages variances across all transcripts")
 {
     user_data ud;
-    ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
-    ud.gene_families.push_back(gene_transcript("TestFamily2", "", ""));
+    ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.gene_transcripts.push_back(gene_transcript("TestFamily2", "", ""));
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     ud.p_tree = p_tree.get();
-    ud.gene_families[0].set_expression_value("A", 1);
-    ud.gene_families[0].set_expression_value("B", 2);
-    ud.gene_families[1].set_expression_value("A", 5);
-    ud.gene_families[1].set_expression_value("B", 8);
+    ud.gene_transcripts[0].set_expression_value("A", 1);
+    ud.gene_transcripts[0].set_expression_value("B", 2);
+    ud.gene_transcripts[1].set_expression_value("A", 5);
+    ud.gene_transcripts[1].set_expression_value("B", 8);
 
     sigma_squared s(5);
     sigma_optimizer_scorer soc((model*)nullptr, ud, std::gamma_distribution<double>(1, 2), &s);
@@ -343,7 +343,7 @@ TEST_CASE("lambda_epsilon_optimizer")
 TEST_CASE("prepare_calculation sets sigma correctly")
 {
     user_data ud;
-    ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
     ud.p_tree = parse_newick("(A:1,B:1);");
     mock_scorer_model model;
     sigma_squared sig(1);
@@ -356,7 +356,7 @@ TEST_CASE("prepare_calculation sets sigma correctly")
 TEST_CASE("prepare_calculation sets sigma and epsilon correctly ")
 {
     user_data ud;
-    ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
     ud.p_tree = parse_newick("(A:1,B:1);");
     mock_scorer_model model;
     sigma_squared sig(1);
@@ -375,11 +375,11 @@ TEST_CASE("prepare_calculation sets sigma and epsilon correctly ")
 TEST_CASE("prepare_calculation sets sigma and gamma correctly ")
 {
     user_data ud;
-    ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
     ud.p_tree = parse_newick("(A:1,B:1);");
     vector<double> gamma_categories{ 0.3, 0.7 };
     vector<double> multipliers{ 0.5, 1.5 };
-    gamma_model model(ud.p_lambda, &ud.gene_families, gamma_categories, multipliers, NULL);
+    gamma_model model(ud.p_sigma, &ud.gene_transcripts, gamma_categories, multipliers, NULL);
     sigma_squared sig(1);
     sigma_optimizer_scorer optimizer(&model, ud, std::gamma_distribution<double>(), &sig);
     optimizer.initial_guesses();
@@ -397,16 +397,16 @@ TEST_CASE("sigma_optimizer_scorer updates model alpha and lambda")
 #endif
 {
     user_data ud;
-    ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
-    ud.gene_families[0].set_expression_value("A", 1);
-    ud.gene_families[0].set_expression_value("B", 2);
+    ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.gene_transcripts[0].set_expression_value("A", 1);
+    ud.gene_transcripts[0].set_expression_value("B", 2);
 
     ud.p_tree = parse_newick("(A:1,B:1);");
     sigma_squared sig(1);
 
     vector<double> gamma_categories{ 0.3, 0.7 };
     vector<double> multipliers{ 0.5, 1.5 };
-    gamma_model m(&sig, &ud.gene_families, gamma_categories, multipliers, NULL);
+    gamma_model m(&sig, &ud.gene_transcripts, gamma_categories, multipliers, NULL);
 
     sigma_optimizer_scorer optimizer(&m, ud, std::gamma_distribution<double>(1, 2), &sig);
     optimizer.force_distribution_mean(7, 1);
@@ -423,9 +423,9 @@ TEST_CASE("calculate_score translates nan to inf")
     m.set_invalid_likelihood();
     double val;
     user_data ud;
-    ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
-    ud.gene_families[0].set_expression_value("A", 1);
-    ud.gene_families[0].set_expression_value("B", 2);
+    ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.gene_transcripts[0].set_expression_value("A", 1);
+    ud.gene_transcripts[0].set_expression_value("B", 2);
 
     ud.p_tree = parse_newick("(A:1,B:1);");
     sigma_optimizer_scorer opt(&m, ud, std::gamma_distribution<double>(1, 2), &lam);

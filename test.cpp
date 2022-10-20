@@ -52,7 +52,7 @@ class mock_model : public model {
     }
     virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const vector<string>& sample_groups, const std::gamma_distribution<double>& prior) override
     {
-        _p_sigma = initialize_search_sigma(data.p_lambda_tree, sample_groups);
+        _p_sigma = initialize_search_sigma(data.p_sigma_tree, sample_groups);
         auto result = new sigma_optimizer_scorer(this, data, prior, _p_sigma);
         result->quiet = true;
         return result;
@@ -86,10 +86,10 @@ public:
     {
         _p_lambda = new sigma_squared(0.05);
         _user_data.p_tree = parse_newick("(A:1,B:1);");
-        _user_data.p_lambda = _p_lambda;
-        _user_data.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
-        _user_data.gene_families[0].set_expression_value("A", 1);
-        _user_data.gene_families[0].set_expression_value("B", 2);
+        _user_data.p_sigma = _p_lambda;
+        _user_data.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
+        _user_data.gene_transcripts[0].set_expression_value("A", 1);
+        _user_data.gene_transcripts[0].set_expression_value("B", 2);
         //_user_data.p_prior = new root_equilibrium_distribution(size_t(100));
         //_user_data.p_prior = new root_distribution_uniform(100);
         randomizer_engine.seed(10);
@@ -170,10 +170,10 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_infers_processes_without_crashing" * d
 TEST_CASE_FIXTURE(Inference, "gamma_model_infers_processes_without_crashing")
 #endif
 {
-    gamma_model core(_user_data.p_lambda, &_user_data.gene_families, 1, 0, NULL);
+    gamma_model core(_user_data.p_sigma, &_user_data.gene_transcripts, 1, 0, NULL);
 
     // TODO: make this return a non-infinite value and add a check for it
-    core.infer_family_likelihoods(_user_data, _user_data.p_lambda, std::gamma_distribution<double>(1,2));
+    core.infer_family_likelihoods(_user_data, _user_data.p_sigma, std::gamma_distribution<double>(1,2));
     CHECK(true);
 
 }
@@ -200,10 +200,10 @@ TEST_CASE_FIXTURE(Inference, "base_model creates lambda_epsilon_optimizer if req
     err.set_probabilities(0, { .0, .7, .3 });
     err.set_probabilities(1, { .4, .2, .4 });
 
-    base_model model(_user_data.p_lambda, &_user_data.gene_families, &err);
+    base_model model(_user_data.p_sigma, &_user_data.gene_transcripts, &err);
 
     _user_data.p_error_model = nullptr;
-    _user_data.p_lambda = nullptr;
+    _user_data.p_sigma = nullptr;
 
     auto opt = model.get_sigma_optimizer(_user_data, vector<string>(), std::gamma_distribution<double>(1,2));
 
@@ -214,7 +214,7 @@ TEST_CASE_FIXTURE(Inference, "base_model creates lambda_epsilon_optimizer if req
 TEST_CASE_FIXTURE(Inference, "gamma_model_creates__gamma_lambda_optimizer_if_nothing_provided")
 {
     gamma_model model(NULL, NULL,4, -1, NULL);
-    _user_data.p_lambda = nullptr;
+    _user_data.p_sigma = nullptr;
 
     auto opt = model.get_sigma_optimizer(_user_data, vector<string>(), std::gamma_distribution<double>(1, 2));
     REQUIRE(opt);
@@ -696,11 +696,11 @@ TEST_CASE("Inference, event_monitor_does_not_show_decent_performing_families")
 TEST_CASE_FIXTURE(Inference, "initialization_failure_advice_shows_20_families_with_largest_differentials")
 {
     std::ostringstream ost;
-    _user_data.gene_families.push_back(gene_transcript("TestFamily2", "", ""));
-    _user_data.gene_families[1].set_expression_value("A", 34);
-    _user_data.gene_families[1].set_expression_value("B", 86);
+    _user_data.gene_transcripts.push_back(gene_transcript("TestFamily2", "", ""));
+    _user_data.gene_transcripts[1].set_expression_value("A", 34);
+    _user_data.gene_transcripts[1].set_expression_value("B", 86);
 
-    initialization_failure_advice(ost, _user_data.gene_families);
+    initialization_failure_advice(ost, _user_data.gene_transcripts);
     STRCMP_CONTAINS("Families with largest size differentials:", ost.str().c_str());
     STRCMP_CONTAINS("\nYou may want to try removing the top few families with the largest difference\nbetween the max and min counts and then re-run the analysis.\n", ost.str().c_str());
     STRCMP_CONTAINS("TestFamily2: 52\nTestFamily1: 1", ost.str().c_str());

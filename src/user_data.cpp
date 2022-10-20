@@ -25,7 +25,7 @@ extern std::mt19937 randomizer_engine;
 /// @param[in] my_input_parameters Parsed parameters passed to the application
 /// @param[in] p_tree The tree to be used in calculations. Necessary for syncing tree data to gene family data
 /// @param[out] p_gene_families Parsed data in the gene family file specified by my_input_parameters
-void user_data::read_gene_family_data(const input_parameters &my_input_parameters, clade *p_tree, std::vector<gene_transcript> *p_gene_families) {
+void user_data::read_gene_transcript_data(const input_parameters &my_input_parameters, clade *p_tree, std::vector<gene_transcript> *p_gene_families) {
 
     try
     {
@@ -61,12 +61,12 @@ clade * user_data::read_input_tree(const input_parameters &my_input_parameters) 
 }
 
 //! Read user provided lambda tree (lambda structure)
-clade * user_data::read_lambda_tree(const input_parameters &my_input_parameters) {
+clade * user_data::read_sigma_tree(const input_parameters &my_input_parameters) {
     return read_tree(my_input_parameters.sigma_tree_file_path, true);
 }
 
 //! Read user provided single or multiple lambdas
-sigma_squared* user_data::read_lambda(const input_parameters &my_input_parameters, clade *p_lambda_tree) {
+sigma_squared* user_data::read_sigma(const input_parameters &my_input_parameters, clade *p_lambda_tree) {
 
     sigma_squared*p_sigma = NULL; // sigma is an abstract class, and so we can only instantiate it as single_sigma or multiple sigma -- therefore initializing it to NULL
 
@@ -125,7 +125,7 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
     /* -i */
     if (!my_input_parameters.input_file_path.empty()) {
         // Populates (pointer to) vector of gene family instances, max_family_size and max_root_family_size (last two passed by reference)
-        read_gene_family_data(my_input_parameters, p_tree, &gene_families);
+        read_gene_transcript_data(my_input_parameters, p_tree, &gene_transcripts);
     }
 
     /* -e */
@@ -136,12 +136,12 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
 
     /* -y */
     if (!my_input_parameters.sigma_tree_file_path.empty()) {
-        p_lambda_tree = read_lambda_tree(my_input_parameters);
-		p_tree->validate_sigma_tree(p_lambda_tree);
+        p_sigma_tree = read_sigma_tree(my_input_parameters);
+		p_tree->validate_sigma_tree(p_sigma_tree);
     }
 
     /* -l/-m (in the absence of -l, estimate) */
-    p_lambda = read_lambda(my_input_parameters, p_lambda_tree);
+    p_sigma = read_sigma(my_input_parameters, p_sigma_tree);
 
     if (!my_input_parameters.rootdist_params.empty())
     {

@@ -172,7 +172,7 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma_sq
 
     _monitor.Event_InferenceAttempt_Started();
 
-    int upper_bound = upper_bound_from_transcript_values(ud.gene_families);
+    int upper_bound = upper_bound_from_transcript_values(ud.gene_transcripts);
 
     if (!can_infer())
     {
@@ -182,9 +182,9 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma_sq
 
     using namespace std;
 
-    vector<double> all_bundles_likelihood(ud.gene_families.size());
+    vector<double> all_bundles_likelihood(ud.gene_transcripts.size());
 
-    vector<bool> failure(ud.gene_families.size());
+    vector<bool> failure(ud.gene_transcripts.size());
 
     matrix_cache cache;
     vector<double> multipliers;
@@ -197,10 +197,10 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma_sq
     cache.precalculate_matrices(multipliers, ud.p_tree->get_branch_lengths(), upper_bound);
 
 #pragma omp parallel for
-    for (size_t i = 0; i < ud.gene_families.size(); i++) {
+    for (size_t i = 0; i < ud.gene_transcripts.size(); i++) {
         auto& cat_likelihoods = _category_likelihoods[i];
 
-        if (prune(ud.gene_families.at(i), prior, cache, p_sigma, ud.p_tree, cat_likelihoods, upper_bound))
+        if (prune(ud.gene_transcripts.at(i), prior, cache, p_sigma, ud.p_tree, cat_likelihoods, upper_bound))
         {
             double family_likelihood = accumulate(cat_likelihoods.begin(), cat_likelihoods.end(), 0.0);
 
@@ -217,10 +217,10 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma_sq
 
     if (find(failure.begin(), failure.end(), true) != failure.end())
     {
-        for (size_t i = 0; i < ud.gene_families.size(); i++) {
+        for (size_t i = 0; i < ud.gene_transcripts.size(); i++) {
             if (failure[i])
             {
-                _monitor.Event_InferenceAttempt_Saturation(ud.gene_families.at(i).id());
+                _monitor.Event_InferenceAttempt_Saturation(ud.gene_transcripts.at(i).id());
             }
         }
         return -log(0);
@@ -234,22 +234,22 @@ double gamma_model::infer_family_likelihoods(const user_data& ud, const sigma_sq
 
 sigma_optimizer_scorer* gamma_model::get_sigma_optimizer(const user_data& data, const std::vector<string>& sample_groups, const std::gamma_distribution<double>& prior)
 {
-    bool estimate_sigma = data.p_lambda == NULL;
+    bool estimate_sigma = data.p_sigma == NULL;
     bool estimate_alpha = _alpha <= 0.0;
 
     if (estimate_sigma && estimate_alpha)
     {
-        _p_sigma = initialize_search_sigma(data.p_lambda_tree, sample_groups);
+        _p_sigma = initialize_search_sigma(data.p_sigma_tree, sample_groups);
         return new sigma_optimizer_scorer(this, data, prior, _p_sigma);
     }
     else if (estimate_sigma && !estimate_alpha)
     {
-        _p_sigma = initialize_search_sigma(data.p_lambda_tree, sample_groups);
+        _p_sigma = initialize_search_sigma(data.p_sigma_tree, sample_groups);
         return new sigma_optimizer_scorer(dynamic_cast<model *>(this), data, prior, _p_sigma);
     }
     else if (!estimate_sigma && estimate_alpha)
     {
-        _p_sigma = data.p_lambda->clone();
+        _p_sigma = data.p_sigma->clone();
         return new sigma_optimizer_scorer(this, data, prior);
     }
     else
@@ -281,7 +281,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
 {
     LOG(INFO) << "Starting reconstruction processes for Gamma model";
 
-    int upper_bound = upper_bound_from_transcript_values(ud.gene_families);
+    int upper_bound = upper_bound_from_transcript_values(ud.gene_transcripts);
 
     auto values = _p_sigma->get_values();
     vector<double> all;
@@ -296,12 +296,12 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
     calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), upper_bound);
 
     gamma_model_reconstruction* result = new gamma_model_reconstruction(_lambda_multipliers);
-    vector<gamma_model_reconstruction::gamma_reconstruction *> recs(ud.gene_families.size());
-    for (size_t i = 0; i < ud.gene_families.size(); ++i)
+    vector<gamma_model_reconstruction::gamma_reconstruction *> recs(ud.gene_transcripts.size());
+    for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
     {
-        recs[i] = &result->_reconstructions[ud.gene_families[i].id()];
-        result->_reconstructions[ud.gene_families[i].id()]._category_likelihoods = _category_likelihoods[i];
-        result->_reconstructions[ud.gene_families[i].id()].category_reconstruction.resize(_lambda_multipliers.size());
+        recs[i] = &result->_reconstructions[ud.gene_transcripts[i].id()];
+        result->_reconstructions[ud.gene_transcripts[i].id()]._category_likelihoods = _category_likelihoods[i];
+        result->_reconstructions[ud.gene_transcripts[i].id()].category_reconstruction.resize(_lambda_multipliers.size());
     }
 
     for (size_t k = 0; k < _gamma_cat_probs.size(); ++k)
@@ -311,9 +311,9 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
 
         inference_pruner tr(ml.get(), ud.p_tree, calc);
 
-        for (size_t i = 0; i < ud.gene_families.size(); ++i)
+        for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
         {
-            recs[i]->category_reconstruction[k] = tr.reconstruct(ud.gene_families[i], upper_bound);
+            recs[i]->category_reconstruction[k] = tr.reconstruct(ud.gene_transcripts[i], upper_bound);
         }
     }
 
@@ -379,9 +379,9 @@ TEST_CASE("Inference: gamma_model__creates__lambda_optimizer__if_alpha_provided"
     gamma_model model(NULL, NULL, 4, 0.25, NULL);
 
     user_data data;
-    data.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
-    data.gene_families[0].set_expression_value("A", 1);
-    data.gene_families[0].set_expression_value("B", 2);
+    data.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
+    data.gene_transcripts[0].set_expression_value("A", 1);
+    data.gene_transcripts[0].set_expression_value("B", 2);
     data.p_tree = p_tree.get();
 
     auto opt = model.get_sigma_optimizer(data, vector<string>(), std::gamma_distribution<double>(1, 2));
@@ -398,7 +398,7 @@ TEST_CASE("Inference: gamma_model__creates__gamma_optimizer__if_lambda_provided"
     user_data data;
 
     sigma_squared sl(0.05);
-    data.p_lambda = &sl;
+    data.p_sigma = &sl;
 
     auto opt = model.get_sigma_optimizer(data, vector<string>(), std::gamma_distribution<double>(1, 2));
 
@@ -415,7 +415,7 @@ TEST_CASE("Inference: gamma_model_creates_nothing_if_lambda_and_alpha_provided")
     user_data data;
 
     sigma_squared sl(0.05);
-    data.p_lambda = &sl;
+    data.p_sigma = &sl;
 
     CHECK(model.get_sigma_optimizer(data, vector<string>(), std::gamma_distribution<double>(1, 2)) == nullptr);
 }

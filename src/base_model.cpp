@@ -119,7 +119,7 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
         return -log(0);
     }
 
-    int upper_bound = upper_bound_from_transcript_values(ud.gene_families);
+    int upper_bound = upper_bound_from_transcript_values(ud.gene_transcripts);
     matrix_cache calc;
     auto v = calc.create_vector();
     vector<double> priors(v.size());
@@ -135,25 +135,25 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
         LOG(WARNING) << "Prior not valid for this sigma and data set";
         return -log(0);
     }
-    std::vector<double> all_families_likelihood(ud.gene_families.size());
+    std::vector<double> all_families_likelihood(ud.gene_transcripts.size());
 
     calc.precalculate_matrices(p_sigma->get_values(),  ud.p_tree->get_branch_lengths(), upper_bound);
 
-    vector<vector<double>> partial_likelihoods(ud.gene_families.size());
+    vector<vector<double>> partial_likelihoods(ud.gene_transcripts.size());
 
     vector<inference_pruner> pruners;
-    pruners.reserve(ud.gene_families.size());
-    std::generate_n(std::back_inserter(pruners), ud.gene_families.size(), [&]() {return inference_pruner(calc, p_sigma, _p_error_model, ud.p_tree, 1.0); });
+    pruners.reserve(ud.gene_transcripts.size());
+    std::generate_n(std::back_inserter(pruners), ud.gene_transcripts.size(), [&]() {return inference_pruner(calc, p_sigma, _p_error_model, ud.p_tree, 1.0); });
 #pragma omp parallel for
-    for (int i = 0; i < (int)ud.gene_families.size(); ++i) {
+    for (int i = 0; i < (int)ud.gene_transcripts.size(); ++i) {
         if ((int)references[i] == i)
-            partial_likelihoods[i] = pruners[i].prune(ud.gene_families.at(i), upper_bound);
+            partial_likelihoods[i] = pruners[i].prune(ud.gene_transcripts.at(i), upper_bound);
             // probabilities of various family sizes
     }
 
     // prune all the families with the same lambda
 #pragma omp parallel for
-    for (int i = 0; i < (int)ud.gene_families.size(); ++i) {
+    for (int i = 0; i < (int)ud.gene_transcripts.size(); ++i) {
 
         all_families_likelihood[i] = compute_prior_likelihood(partial_likelihoods[references[i]], priors);
         
@@ -167,10 +167,10 @@ double base_model::infer_family_likelihoods(const user_data& ud, const sigma_squ
 
 sigma_optimizer_scorer* base_model::get_sigma_optimizer(const user_data& data, const std::vector<string>& sample_groups, const std::gamma_distribution<double>& prior)
 {
-    if (data.p_lambda != NULL)  // already have a lambda, nothing we want to optimize
+    if (data.p_sigma != NULL)  // already have a lambda, nothing we want to optimize
         return nullptr;
 
-    _p_sigma = initialize_search_sigma(data.p_lambda_tree, sample_groups);
+    _p_sigma = initialize_search_sigma(data.p_sigma_tree, sample_groups);
 
     if (_p_error_model && !data.p_error_model)
     {
@@ -190,13 +190,13 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
     auto result = new base_model_reconstruction();
 
-    int upper_bound = upper_bound_from_transcript_values(ud.gene_families);
+    int upper_bound = upper_bound_from_transcript_values(ud.gene_transcripts);
 
     p_calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), upper_bound);
 
-    for (size_t i = 0; i < ud.gene_families.size(); ++i)
+    for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
     {
-        auto &rc = result->_reconstructions[ud.gene_families[i].id()];
+        auto &rc = result->_reconstructions[ud.gene_transcripts[i].id()];
         ud.p_tree->apply_prefix_order([&rc](const clade* c) {
             rc[c].most_likely_value = 0;
             });
@@ -204,9 +204,9 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
     inference_pruner tr(_p_sigma, ud.p_tree, p_calc);
 
-    for (size_t i = 0; i< ud.gene_families.size(); ++i)
+    for (size_t i = 0; i< ud.gene_transcripts.size(); ++i)
     {
-        result->_reconstructions[ud.gene_families[i].id()] = tr.reconstruct(ud.gene_families[i], upper_bound);
+        result->_reconstructions[ud.gene_transcripts[i].id()] = tr.reconstruct(ud.gene_transcripts[i], upper_bound);
     }
 
     LOG(INFO) << "Done!\n";
@@ -240,13 +240,13 @@ TEST_CASE("compute_prior_likelihood combines prior and inference correctly")
 TEST_CASE("base optimizer guesses sigma only")
 {
     user_data ud;
-    ud.p_lambda = NULL;
+    ud.p_sigma = NULL;
     ud.p_tree = parse_newick("(A:1,B:1);");
-    ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
-    ud.gene_families[0].set_expression_value("A", 1);
-    ud.gene_families[0].set_expression_value("B", 2);
+    ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.gene_transcripts[0].set_expression_value("A", 1);
+    ud.gene_transcripts[0].set_expression_value("B", 2);
 
-    base_model model(ud.p_lambda, NULL, NULL);
+    base_model model(ud.p_sigma, NULL, NULL);
 
     unique_ptr<sigma_optimizer_scorer> opt(model.get_sigma_optimizer(ud, vector<string>(), std::gamma_distribution<double>(1, 2)));
     auto guesses = opt->initial_guesses();
@@ -261,7 +261,7 @@ TEST_CASE("infer_family_likelihoods")
     unique_ptr<clade> tree(parse_newick("(A:1,B:1);"));
     ud.p_tree = tree.get();
 
-    auto& families = ud.gene_families;
+    auto& families = ud.gene_transcripts;
     gene_transcript fam;
     fam.set_expression_value("A", 1);
     fam.set_expression_value("B", 2);
@@ -293,13 +293,13 @@ TEST_CASE("infer_family_likelihoods returns invalid on invalid prior")
 {
     sigma_squared ss(5.0);
     user_data ud;
-    ud.p_lambda = NULL;
+    ud.p_sigma = NULL;
     ud.p_tree = parse_newick("(A:1,B:1);");
-    ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
-    ud.gene_families[0].set_expression_value("A", 1);
-    ud.gene_families[0].set_expression_value("B", 2);
+    ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.gene_transcripts[0].set_expression_value("A", 1);
+    ud.gene_transcripts[0].set_expression_value("B", 2);
 
-    base_model model(&ss, &ud.gene_families, NULL);
+    base_model model(&ss, &ud.gene_transcripts, NULL);
     CHECK_EQ(-log(0),  model.infer_family_likelihoods(ud, &ss, gamma_distribution<double>(0.0, 1600)));
 }
 
@@ -375,12 +375,12 @@ TEST_CASE("base_model_reconstruction")
 {
     user_data ud;
     ud.p_tree = parse_newick("(A:1,B:1);");
-    ud.gene_families.push_back(gene_transcript("TestFamily1", "", ""));
-    ud.gene_families[0].set_expression_value("A", 1);
-    ud.gene_families[0].set_expression_value("B", 2);
+    ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.gene_transcripts[0].set_expression_value("A", 1);
+    ud.gene_transcripts[0].set_expression_value("B", 2);
 
     sigma_squared sl(0.05);
-    ud.p_lambda = &sl;
+    ud.p_sigma = &sl;
 
     std::vector<gene_transcript> families(1);
     families[0].set_expression_value("A", 3);

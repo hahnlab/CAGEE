@@ -24,17 +24,17 @@ public:
 
     }
     clade *p_tree = NULL; // instead of new clade(), o.w. mem leak
-    sigma_squared*p_lambda = NULL;
-    clade *p_lambda_tree = NULL;
+    sigma_squared *p_sigma = NULL;
+    clade *p_sigma_tree = NULL;
     error_model *p_error_model = NULL;
 
-    std::vector<gene_transcript> gene_families;
+    std::vector<gene_transcript> gene_transcripts;
     std::vector<std::pair<float, int>> rootdist;    // first is value, second is count
 
     void read_datafiles(const input_parameters& my_input_parameters);
 
-    //! Read in gene family data
-    void read_gene_family_data(const input_parameters &my_input_parameters, clade *p_tree, std::vector<gene_transcript> *p_gene_families);
+    //! Read in gene transcript data
+    void read_gene_transcript_data(const input_parameters &my_input_parameters, clade *p_tree, std::vector<gene_transcript> *p_gene_transcripts);
 
     //! Read in error model file
     void read_error_model(const input_parameters &my_input_parameters, error_model *p_error_model);
@@ -42,11 +42,11 @@ public:
     //! Read in phylogenetic tree data
     clade * read_input_tree(const input_parameters &my_input_parameters);
 
-    //! Read in lambda tree
-    clade * read_lambda_tree(const input_parameters &my_input_parameters);
+    //! Read in sigma tree
+    clade * read_sigma_tree(const input_parameters &my_input_parameters);
 
-    //! Read in single or multiple lambda
-    sigma_squared* read_lambda(const input_parameters &my_input_parameters, clade *p_lambda_tree);
+    //! Read in single or multiple sigma
+    sigma_squared* read_sigma(const input_parameters &my_input_parameters, clade *p_sigma_tree);
 
     void read_rootdist(std::string rootdist_file_path);
 };

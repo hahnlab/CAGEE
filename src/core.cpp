@@ -26,7 +26,7 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
 
     model *p_model = NULL;
 
-    std::vector<gene_transcript> *p_gene_families = &user_data.gene_families;
+    std::vector<gene_transcript> *p_gene_families = &user_data.gene_transcripts;
 
     if (user_input.is_simulating) {
         p_gene_families = NULL;
@@ -34,7 +34,7 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
 
     if (user_input.fixed_alpha > 0 || user_input.n_gamma_cats > 1)
     {
-        auto gmodel = new gamma_model(user_data.p_lambda, &user_data.gene_families, 
+        auto gmodel = new gamma_model(user_data.p_sigma, &user_data.gene_transcripts, 
             user_input.n_gamma_cats, user_input.fixed_alpha, user_data.p_error_model);
 #ifndef SILENT
         if (user_input.fixed_alpha >= 0 && !user_input.is_simulating)
@@ -52,7 +52,7 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
             p_error_model->set_probabilities(200, { 0.05, .9, 0.05 });
         }
 
-        p_model = new base_model(user_data.p_lambda, p_gene_families, p_error_model);
+        p_model = new base_model(user_data.p_sigma, p_gene_families, p_error_model);
     }
 
     return std::vector<model *>{p_model};

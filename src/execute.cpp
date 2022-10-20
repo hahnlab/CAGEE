@@ -117,14 +117,14 @@ void estimator::estimate_missing_variables(std::vector<model *>& models, user_da
 
         LOG(INFO) << p_model->get_monitor();
     }
-    if (data.p_lambda == nullptr)
-        data.p_lambda = models[0]->get_sigma();
+    if (data.p_sigma == nullptr)
+        data.p_sigma = models[0]->get_sigma();
 
 }
 
 void estimator::execute(std::vector<model *>& models)
 {
-    check_tree(data.p_tree, data.gene_families[0]);
+    check_tree(data.p_tree, data.gene_transcripts[0]);
 
     string dir = _user_input.output_prefix;
     if (dir.empty()) dir = "results";
@@ -145,12 +145,12 @@ void estimator::execute(std::vector<model *>& models)
 
             std::unique_ptr<reconstruction> rec(p_model->reconstruct_ancestral_states(data, &cache));
 
-            rec->write_results(_user_input.output_prefix, data.p_tree, data.gene_families, _user_input.count_all_changes);
+            rec->write_results(_user_input.output_prefix, data.p_tree, data.gene_transcripts, _user_input.count_all_changes);
         }
     }
     catch (const OptimizerInitializationFailure& e )
     {
-        initialization_failure_advice(cerr, data.gene_families);
+        initialization_failure_advice(cerr, data.gene_transcripts);
         throw;
     }
 }
