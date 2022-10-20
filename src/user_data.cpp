@@ -62,7 +62,7 @@ clade * user_data::read_input_tree(const input_parameters &my_input_parameters) 
 
 //! Read user provided lambda tree (lambda structure)
 clade * user_data::read_lambda_tree(const input_parameters &my_input_parameters) {
-    return read_tree(my_input_parameters.lambda_tree_file_path, true);
+    return read_tree(my_input_parameters.sigma_tree_file_path, true);
 }
 
 //! Read user provided single or multiple lambdas
@@ -71,15 +71,15 @@ sigma_squared* user_data::read_lambda(const input_parameters &my_input_parameter
     sigma_squared*p_sigma = NULL; // sigma is an abstract class, and so we can only instantiate it as single_sigma or multiple sigma -- therefore initializing it to NULL
 
                              // -l
-    if (my_input_parameters.fixed_lambda > 0.0) {
-        p_sigma = new sigma_squared(my_input_parameters.fixed_lambda);
+    if (my_input_parameters.fixed_sigma > 0.0) {
+        p_sigma = new sigma_squared(my_input_parameters.fixed_sigma);
         // call_viterbi(max_family_size, max_root_family_size, 15, p_lambda, *p_gene_families, p_tree);
     }
 
     // -m
-    if (!my_input_parameters.fixed_multiple_lambdas.empty()) {
+    if (!my_input_parameters.fixed_multiple_sigmas.empty()) {
         map<std::string, int> node_name_to_sigma_index = p_lambda_tree->get_sigma_index_map(); // allows matching different sigma values to nodes in sigma tree
-        vector<string> sigmastrings = tokenize_str(my_input_parameters.fixed_multiple_lambdas, ',');
+        vector<string> sigmastrings = tokenize_str(my_input_parameters.fixed_multiple_sigmas, ',');
         vector<double> sigmas(sigmastrings.size());
 
         transform(sigmastrings.begin(), sigmastrings.end(), sigmas.begin(), [](string const& val) { return stod(val); });
@@ -135,7 +135,7 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
     }
 
     /* -y */
-    if (!my_input_parameters.lambda_tree_file_path.empty()) {
+    if (!my_input_parameters.sigma_tree_file_path.empty()) {
         p_lambda_tree = read_lambda_tree(my_input_parameters);
 		p_tree->validate_sigma_tree(p_lambda_tree);
     }

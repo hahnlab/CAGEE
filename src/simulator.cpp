@@ -200,10 +200,10 @@ void print_header(std::ostream& ost, const input_parameters& p, size_t c, const 
     }
 
     ost << "# Sigma2: ";
-    if (p.fixed_multiple_lambdas.empty())
-        ost << p.fixed_lambda << endl;
+    if (p.fixed_multiple_sigmas.empty())
+        ost << p.fixed_sigma << endl;
     else
-        ost << p.fixed_multiple_lambdas << endl;
+        ost << p.fixed_multiple_sigmas << endl;
 }
 
 /// Simulate
@@ -409,7 +409,7 @@ TEST_CASE("print_header")
 {
     std::ostringstream ost;
     input_parameters p;
-    p.fixed_lambda = 2.5;
+    p.fixed_sigma = 2.5;
     p.rootdist_params = "Fixed:6.0";
     print_header(ost, p, 100, nullptr);
     CHECK_STREAM_CONTAINS(ost, "# Simulated data set created ");
@@ -432,7 +432,7 @@ TEST_CASE("print_header default rootdist")
 {
     std::ostringstream ost;
     input_parameters p;
-    p.fixed_lambda = 2.5;
+    p.fixed_sigma = 2.5;
     print_header(ost, p, 100, nullptr);
     CHECK_STREAM_CONTAINS(ost, "# Root distribution: gamma:0.375:1600.0");
 }
@@ -441,7 +441,7 @@ TEST_CASE("print_header multiple sigmas")
 {
     std::ostringstream ost;
     input_parameters p;
-    p.fixed_multiple_lambdas = "1,2,3";
+    p.fixed_multiple_sigmas = "1,2,3";
     print_header(ost, p, 100, nullptr);
     CHECK_STREAM_CONTAINS(ost, "# Sigma2: 1,2,3");
 }

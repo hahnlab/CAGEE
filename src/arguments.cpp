@@ -102,10 +102,9 @@ input_parameters read_arguments(int argc, char* const argv[])
         ("discretization_size,D", po::value<int>()->default_value(200), "Size (length) of the discretization vector, Default=200. Can increase resolution at the cost of computation time.")
         ("zero_root,z", po::value<bool>()->implicit_value(true), "Exclude gene families that don't exist at the root, not recommended.")
         ("optimizer_expansion,E", po::value<double>(), "Expansion parameter for Nelder-Mead optimizer, Default=2.")
-        ("optimizer_reflection,R", po::value<double>(), "Maximum number of iterations that will be performed in "
-            "lambda search.Default = 300 (increase this number if likelihood is still improving when limit is hit).")
+        ("optimizer_reflection,R", po::value<double>(), "Reflection parameter for Nelder-Mead optimizer, Default=1.")
         ("optimizer_iterations,I", po::value<int>(), "Maximum number of iterations that will be performed in "
-            "lambda search.Default = 300 (increase this number if likelihood is still improving when limit is hit).");
+            "sigma search.Default = 300 (increase this number if likelihood is still improving when limit is hit).");
 
     po::options_description config_file_options;
     config_file_options.add(required).add(common).add(rare);
@@ -150,17 +149,17 @@ input_parameters read_arguments(int argc, char* const argv[])
     }
 
     //maybe_set(vm, "fixed_root_value", my_input_parameters.fixed_root_value);
-    maybe_set(vm, "fixed_sigma", my_input_parameters.fixed_lambda);
+    maybe_set(vm, "fixed_sigma", my_input_parameters.fixed_sigma);
     maybe_set(vm, "infile", my_input_parameters.input_file_path);
     maybe_set(vm, "output_prefix", my_input_parameters.output_prefix);
     maybe_set(vm, "tree", my_input_parameters.tree_file_path);
-    maybe_set(vm, "zero_root", my_input_parameters.exclude_zero_root_families);
+    maybe_set(vm, "zero_root", my_input_parameters.exclude_zero_root_transcripts);
     maybe_set(vm, "cores", my_input_parameters.cores);
     maybe_set(vm, "optimizer_expansion", my_input_parameters.optimizer_params.neldermead_expansion);
     maybe_set(vm, "optimizer_reflection", my_input_parameters.optimizer_params.neldermead_reflection);
     maybe_set(vm, "optimizer_iterations", my_input_parameters.optimizer_params.neldermead_iterations);
-    maybe_set(vm, "fixed_multiple_sigmas", my_input_parameters.fixed_multiple_lambdas);
-    maybe_set(vm, "sigma_tree", my_input_parameters.lambda_tree_file_path);
+    maybe_set(vm, "fixed_multiple_sigmas", my_input_parameters.fixed_multiple_sigmas);
+    maybe_set(vm, "sigma_tree", my_input_parameters.sigma_tree_file_path);
     maybe_set(vm, "verbose", my_input_parameters.verbose_logging_level);
     maybe_set(vm, "rootdist", my_input_parameters.rootdist_params);
     maybe_set(vm, "sample_group", my_input_parameters.sample_groups);
@@ -194,24 +193,24 @@ void input_parameters::check_input() {
     vector<string> errors;
 
     //! Options -l and -m cannot both specified.
-    if (fixed_lambda > 0.0 && !fixed_multiple_lambdas.empty()) {
+    if (fixed_sigma > 0.0 && !fixed_multiple_sigmas.empty()) {
         errors.push_back("Options -l and -m are mutually exclusive.");
     }
 
-    //! Option -m requires a lambda tree (-y)
-    if (!fixed_multiple_lambdas.empty() && lambda_tree_file_path.empty()) {
-        errors.push_back("Multiple lambda values (-m) specified with no lambda tree (-y)");
+    //! Option -m requires a sigma tree (-y)
+    if (!fixed_multiple_sigmas.empty() && sigma_tree_file_path.empty()) {
+        errors.push_back("Multiple sigma values (-m) specified with no sigma tree (-y)");
     }
 
     //! Options -l and -i have to be both specified (if estimating and not simulating).
-    if (fixed_lambda > 0.0 && input_file_path.empty() && !is_simulating) {
+    if (fixed_sigma > 0.0 && input_file_path.empty() && !is_simulating) {
         errors.push_back("Options -l and -i must both be provided an argument.");
     }
 
     if (is_simulating)
     {
-        // Must specify a lambda
-        if (fixed_lambda <= 0.0 && fixed_multiple_lambdas.empty()) {
+        // Must specify a sigma
+        if (fixed_sigma <= 0.0 && fixed_multiple_sigmas.empty()) {
             errors.push_back("Cannot simulate without initial sigma values");
         }
 
@@ -355,7 +354,7 @@ TEST_CASE("Options, multiple_sigmas_long")
     option_test c({ "cagee", "--fixed_multiple_sigmas=5,10,15", "--sigma_tree=foo.txt" });
 
     auto actual = read_arguments(c.argc, c.values);
-    CHECK_EQ("5,10,15", actual.fixed_multiple_lambdas);
+    CHECK_EQ("5,10,15", actual.fixed_multiple_sigmas);
 }
 
 TEST_CASE("Options: errormodel_accepts_argument")
@@ -398,18 +397,18 @@ TEST_CASE("Options, errormodel_accepts_no_argument")
 TEST_CASE("Options: zero_root_familes")
 {
     input_parameters by_default;
-    CHECK_FALSE(by_default.exclude_zero_root_families);
+    CHECK_FALSE(by_default.exclude_zero_root_transcripts);
 
     option_test c({ "cagee", "-z" });
 
     auto actual = read_arguments(c.argc, c.values);
-    CHECK(actual.exclude_zero_root_families);
+    CHECK(actual.exclude_zero_root_transcripts);
 }
 
 TEST_CASE("Options: count_all_changes")
 {
     input_parameters by_default;
-    CHECK_FALSE(by_default.exclude_zero_root_families);
+    CHECK_FALSE(by_default.exclude_zero_root_transcripts);
 
     option_test c({ "cagee", "--count_all_changes" });
 
@@ -424,10 +423,10 @@ TEST_CASE("Options: must_specify_sigma_for_simulation")
     CHECK_THROWS_WITH(params.check_input(), "Cannot simulate without initial sigma values");
 }
 
-TEST_CASE("Options: must_specify_lambda_and_input_file_for_estimator")
+TEST_CASE("Options: must_specify sigma and_input_file_for_estimator")
 {
     input_parameters params;
-    params.fixed_lambda = 0.05;
+    params.fixed_sigma = 0.05;
     CHECK_THROWS_WITH(params.check_input(), "Options -l and -i must both be provided an argument.");
 }
 
@@ -435,7 +434,7 @@ TEST_CASE("Options: must_specify_alpha_for_gamma_simulation")
 {
     input_parameters params;
     params.is_simulating = true;
-    params.fixed_lambda = 0.05;
+    params.fixed_sigma = 0.05;
     params.n_gamma_cats = 3;
     CHECK_THROWS_WITH(params.check_input(), "Cannot simulate gamma clusters without an alpha value");
 }
@@ -451,7 +450,7 @@ TEST_CASE("Options: can_specify_alpha_without_k_for_gamma_simulation")
 {
     input_parameters params;
     params.fixed_alpha = 0.7;
-    params.fixed_lambda = 0.01;
+    params.fixed_sigma = 0.01;
     params.is_simulating = true;
     params.check_input();
     CHECK(true);
@@ -461,8 +460,8 @@ TEST_CASE("Options: check_input_does_not_throw_when_simulating_with_multiple_sig
 {
     input_parameters params;
     params.is_simulating = true;
-    params.fixed_multiple_lambdas = "0.01,0.05";
-    params.lambda_tree_file_path = "./tree";
+    params.fixed_multiple_sigmas = "0.01,0.05";
+    params.sigma_tree_file_path = "./tree";
     params.check_input();
     CHECK(true);
 }
@@ -484,7 +483,7 @@ TEST_CASE("Options: cannot_estimate_error_and_gamma_together")
 TEST_CASE("Specifying a --rootdist argument without the --simulate argument will result in an error")
 {
     input_parameters params;
-    params.fixed_lambda = 10;
+    params.fixed_sigma = 10;
     params.rootdist_params = "file:rd.txt";
     params.is_simulating = true;
     params.check_input();
@@ -499,7 +498,7 @@ TEST_CASE("Specifying a --rootdist argument without the --simulate argument will
 TEST_CASE("Cannot specify an input file when simulating")
 {
     input_parameters params;
-    params.fixed_lambda = 10;
+    params.fixed_sigma = 10;
     params.is_simulating = true;
     params.check_input();
     CHECK(true);

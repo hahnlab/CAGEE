@@ -1,7 +1,6 @@
 #include <random>
 
 #include "optimizer.h"
-#include "root_equilibrium_distribution.h"
 
 struct input_parameters {
 public:
@@ -9,16 +8,16 @@ public:
     std::string error_model_file_path;
     std::string output_prefix;
     std::string tree_file_path;
-    std::string lambda_tree_file_path;
-    std::string fixed_multiple_lambdas;
+    std::string sigma_tree_file_path;
+    std::string fixed_multiple_sigmas;
     std::string log_config_file;
     std::string command_line;
-    double fixed_lambda = 0.0;
+    double fixed_sigma = 0.0;
     double fixed_alpha = -1.0;
     bool is_simulating = false;
     int nsims = 0;
     int n_gamma_cats = 1;
-    bool exclude_zero_root_families = false;
+    bool exclude_zero_root_transcripts = false;
     bool use_error_model = false;
     bool count_all_changes = false;
     int verbose_logging_level = 0;

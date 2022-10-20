@@ -49,7 +49,7 @@ int cagee(int argc, char *const argv[]) {
 
         LOG(INFO) << "Command line: " << user_input.command_line;
 
-        if (user_input.exclude_zero_root_families)
+        if (user_input.exclude_zero_root_transcripts)
         {
             auto rem = std::remove_if(data.gene_families.begin(), data.gene_families.end(), [&data](const gene_transcript& fam) {
                 return !fam.exists_at_root(data.p_tree);
