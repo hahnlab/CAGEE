@@ -149,7 +149,7 @@ void estimator::execute(std::vector<model *>& models)
 #ifdef RUN_LHRTEST
             LikelihoodRatioTest::lhr_for_diff_lambdas(data, p_model);
 #endif
-            rec->write_results(_user_input.output_prefix, data.p_tree, data.gene_families, _user_input.pvalue, _user_input.count_all_changes);
+            rec->write_results(_user_input.output_prefix, data.p_tree, data.gene_families, _user_input.count_all_changes);
         }
     }
     catch (const OptimizerInitializationFailure& e )

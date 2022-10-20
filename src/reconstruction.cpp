@@ -114,7 +114,7 @@ string node_value(const clade* node, const gene_transcript& transcript, const re
 }
 
 
-void reconstruction::print_reconstructed_states(std::ostream& ost, transcript_vector& transcripts, const clade* p_tree, double test_pvalue)
+void reconstruction::print_reconstructed_states(std::ostream& ost, transcript_vector& transcripts, const clade* p_tree)
 {
     ost << "#nexus\nBEGIN TREES;\n";
     for (size_t i = 0; i < transcripts.size(); ++i)
@@ -177,7 +177,6 @@ string node_credible_interval(const clade* node, const gene_transcript& transcri
 void reconstruction::write_results(std::string output_prefix, 
     const clade *p_tree, 
     transcript_vector& transcripts, 
-    double test_pvalue,
     bool count_all_changes)
 {
     cladevector order;
@@ -189,7 +188,7 @@ void reconstruction::write_results(std::string output_prefix,
 
     VLOG(TRANSCRIPT_RECONSTRUCTION) << "writing reconstructed states";
     std::ofstream ofst(filename("ancestral_states", output_prefix, "tre"));
-    print_reconstructed_states(ofst, transcripts, p_tree, test_pvalue);
+    print_reconstructed_states(ofst, transcripts, p_tree);
 
     VLOG(TRANSCRIPT_RECONSTRUCTION) << "writing node transcript values";
     std::ofstream counts(filename("ancestral_states", output_prefix, "tab"));

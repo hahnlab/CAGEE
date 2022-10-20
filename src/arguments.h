@@ -15,7 +15,6 @@ public:
     std::string command_line;
     double fixed_lambda = 0.0;
     double fixed_alpha = -1.0;
-    double pvalue = 0.05;
     bool is_simulating = false;
     int nsims = 0;
     int n_gamma_cats = 1;

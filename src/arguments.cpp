@@ -100,7 +100,6 @@ input_parameters read_arguments(int argc, char* const argv[])
     po::options_description rare("Less Common Options");
     rare.add_options()
         ("discretization_size,D", po::value<int>()->default_value(200), "Size (length) of the discretization vector, Default=200. Can increase resolution at the cost of computation time.")
-        ("pvalue,P", po::value<double>(), "P-value to use for determining significance of family size change, Default=0.05.")
         ("zero_root,z", po::value<bool>()->implicit_value(true), "Exclude gene families that don't exist at the root, not recommended.")
         ("optimizer_expansion,E", po::value<double>(), "Expansion parameter for Nelder-Mead optimizer, Default=2.")
         ("optimizer_reflection,R", po::value<double>(), "Maximum number of iterations that will be performed in "
@@ -152,7 +151,6 @@ input_parameters read_arguments(int argc, char* const argv[])
 
     //maybe_set(vm, "fixed_root_value", my_input_parameters.fixed_root_value);
     maybe_set(vm, "fixed_sigma", my_input_parameters.fixed_lambda);
-    maybe_set(vm, "pvalue", my_input_parameters.pvalue);
     maybe_set(vm, "infile", my_input_parameters.input_file_path);
     maybe_set(vm, "output_prefix", my_input_parameters.output_prefix);
     maybe_set(vm, "tree", my_input_parameters.tree_file_path);
@@ -322,22 +320,6 @@ TEST_CASE("Options, simulate_short")
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK_EQ(1000, actual.nsims);
-}
-
-TEST_CASE("Options, pvalue_long")
-{
-    option_test c({ "cagee", "--pvalue=0.01" });
-
-    auto actual = read_arguments(c.argc, c.values);
-    CHECK_EQ(0.01, actual.pvalue);
-}
-
-TEST_CASE("Options, pvalue_short")
-{
-    option_test c({ "cagee", "-P0.01" });
-
-    auto actual = read_arguments(c.argc, c.values);
-    CHECK_EQ(0.01, actual.pvalue);
 }
 
 TEST_CASE("Options, optimizer_long")

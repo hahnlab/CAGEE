@@ -479,7 +479,7 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction print_reconstructe
     rec.reconstruction[p_tree->find_descendant("CD")] = pv::to_computational_space(6);
 
     ostringstream ost;
-    gmr.print_reconstructed_states(ost, { fam }, p_tree.get(), 0.05);
+    gmr.print_reconstructed_states(ost, { fam }, p_tree.get());
     CHECK_STREAM_CONTAINS(ost, "  TREE Family5 = ((A<1>_11.000000:1,B<2>_2.000000:3)<6>_8.000000:7,(C<3>_5.000000:11,D<4>_6.000000:17)<7>_6.000000:23)<5>_7.000000;");
 }
 
@@ -509,7 +509,7 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__prints_lambda_mul
     rec.reconstruction[p_tree->find_descendant("CD")] = 6;
 
     std::ostringstream ost;
-    gmr.print_reconstructed_states(ost, { fam }, p_tree.get(), 0.05);
+    gmr.print_reconstructed_states(ost, { fam }, p_tree.get());
 
     CHECK_STREAM_CONTAINS(ost, "BEGIN LAMBDA_MULTIPLIERS;");
     CHECK_STREAM_CONTAINS(ost, "  0.13;");

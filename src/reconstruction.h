@@ -10,14 +10,14 @@ struct node_reconstruction {
 
 class reconstruction {
 public:
-    void print_reconstructed_states(std::ostream& ost, transcript_vector& transcripts, const clade* p_tree, double test_pvalue);
+    void print_reconstructed_states(std::ostream& ost, transcript_vector& transcripts, const clade* p_tree);
 
     void print_increases_decreases_by_clade(std::ostream& ost, const clade* p_tree, transcript_vector& transcripts, bool count_all_changes);
 
     void print_family_clade_table(std::ostream& ost, const cladevector& order, transcript_vector& transcripts, const clade* p_tree,
         std::function<std::string(const gene_transcript& transcript, const clade* c)> get_family_clade_value);
 
-    void write_results(std::string output_prefix, const clade* p_tree, transcript_vector& families, double test_pvalue, bool count_all_changes);
+    void write_results(std::string output_prefix, const clade* p_tree, transcript_vector& families, bool count_all_changes);
 
     virtual ~reconstruction()
     {

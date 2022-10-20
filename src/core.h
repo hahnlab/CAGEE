@@ -27,7 +27,7 @@ public:
 
     void Event_InferenceAttempt_Started();
     void Event_InferenceAttempt_InvalidValues() { rejects++; }
-    void Event_InferenceAttempt_Saturation(std::string family) { failure_count[family]++; }
+    void Event_InferenceAttempt_Saturation(std::string transcript) { failure_count[transcript]++; }
 };
 
 /*! @brief Describes the actions that are taken when estimating or simulating data
