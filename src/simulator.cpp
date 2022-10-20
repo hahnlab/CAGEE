@@ -165,7 +165,7 @@ std::vector<simulated_family> simulator::simulate_processes(model *p_model) {
         return _p_rootdist->select_root_value(n++);
         });
 
-    unique_ptr<sigma_squared> sim_sigsqd(p_model->get_simulation_lambda());
+    unique_ptr<sigma_squared> sim_sigsqd(p_model->get_simulation_sigma());
 
     int upper_bound = upper_bound_from_root_values(sim_sigsqd.get(), data.p_tree, root_sizes);
     LOG(DEBUG) << "Upper bound for discretization vector: " << upper_bound;
@@ -485,7 +485,7 @@ class mock_model : public model {
     bool _invalid_likelihood = false;
 public:
     mock_model(sigma_squared* s) : model(s, NULL, NULL) {}
-    virtual double infer_family_likelihoods(const user_data& ud, const sigma_squared* p_lambda, const std::gamma_distribution<double>& prior) override { return 0; }
+    virtual double infer_transcript_likelihoods(const user_data& ud, const sigma_squared* p_sigma, const std::gamma_distribution<double>& prior) override { return 0; }
 };
 
 TEST_CASE("Simulation, simulate_processes")

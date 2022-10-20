@@ -79,7 +79,7 @@ void estimator::compute(std::vector<model *>& models, const input_parameters &my
     for (size_t i = 0; i < models.size(); ++i) {
         LOG(INFO) << "Inferring processes";
 
-        double result = models[i]->infer_family_likelihoods(data, models[i]->get_sigma(), _prior);
+        double result = models[i]->infer_transcript_likelihoods(data, models[i]->get_sigma(), _prior);
         std::ofstream results_file(filename("results", my_input_parameters.output_prefix));
         models[i]->write_vital_statistics(results_file, data.p_tree, result, my_input_parameters);
 

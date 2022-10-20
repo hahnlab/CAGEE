@@ -70,7 +70,7 @@ public:
     void set_invalid_likelihood() { _invalid_likelihood = true;  }
 
     // Inherited via model
-    virtual double infer_family_likelihoods(const user_data& ud, const sigma_squared* p_lambda, const std::gamma_distribution<double>& prior) override
+    virtual double infer_transcript_likelihoods(const user_data& ud, const sigma_squared* p_sigma, const std::gamma_distribution<double>& prior) override
     {
         return _invalid_likelihood ? nan("") : 0.0;
     }
@@ -173,7 +173,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_infers_processes_without_crashing")
     gamma_model core(_user_data.p_sigma, &_user_data.gene_transcripts, 1, 0, NULL);
 
     // TODO: make this return a non-infinite value and add a check for it
-    core.infer_family_likelihoods(_user_data, _user_data.p_sigma, std::gamma_distribution<double>(1,2));
+    core.infer_transcript_likelihoods(_user_data, _user_data.p_sigma, std::gamma_distribution<double>(1,2));
     CHECK(true);
 
 }
@@ -603,7 +603,7 @@ TEST_CASE("Simulation: gamma_model_get_simulation_lambda_uses_multiplier_based_o
     gamma_model m(&lam, NULL, gamma_categories, multipliers, NULL);
     vector<double> results(100);
     generate(results.begin(), results.end(), [&m]() {
-        unique_ptr<sigma_squared> new_lam(dynamic_cast<sigma_squared*>(m.get_simulation_lambda()));
+        unique_ptr<sigma_squared> new_lam(dynamic_cast<sigma_squared*>(m.get_simulation_sigma()));
         return new_lam->get_values()[0];
         });
 
@@ -660,21 +660,6 @@ TEST_CASE("Inference, event_monitor_shows_rejected_attempts")
 
     evm.log(ost);
     STRCMP_EQUAL("2 values were attempted (50% rejected)\n", ost.str().c_str());
-}
-
-TEST_CASE("Inference, event_monitor_shows_poor_performing_families")
-{
-    event_monitor evm;
-
-    evm.Event_InferenceAttempt_Started();
-    evm.Event_InferenceAttempt_Started();
-    evm.Event_InferenceAttempt_Saturation("test");
-    ostringstream ost;
-
-    evm.log(ost);
-    STRCMP_CONTAINS("2 values were attempted (0% rejected)", ost.str().c_str());
-    STRCMP_CONTAINS("The following families had failure rates >20% of the time:", ost.str().c_str());
-    STRCMP_CONTAINS("test had 1 failures", ost.str().c_str());
 }
 
 TEST_CASE("Inference, event_monitor_does_not_show_decent_performing_families")

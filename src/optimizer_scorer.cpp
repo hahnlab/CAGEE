@@ -120,7 +120,7 @@ double sigma_optimizer_scorer::calculate_score(const double* values)
         report_precalculation();
     }
 
-    double score = _p_model->infer_family_likelihoods(_user_data, _p_sigma, _prior);
+    double score = _p_model->infer_transcript_likelihoods(_user_data, _p_sigma, _prior);
 
     if (std::isnan(score)) score = -log(0);
 
@@ -259,7 +259,7 @@ class mock_scorer_model : public model {
     bool _invalid_likelihood = false;
 public:
     mock_scorer_model() : model(NULL, NULL, NULL) {}
-    virtual double infer_family_likelihoods(const user_data& ud, const sigma_squared* p_lambda, const std::gamma_distribution<double>& prior) override
+    virtual double infer_transcript_likelihoods(const user_data& ud, const sigma_squared* p_lambda, const std::gamma_distribution<double>& prior) override
     { 
         return _invalid_likelihood ? nan("") : 0.0;
     }

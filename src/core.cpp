@@ -26,10 +26,10 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
 
     model *p_model = NULL;
 
-    std::vector<gene_transcript> *p_gene_families = &user_data.gene_transcripts;
+    std::vector<gene_transcript> *p_gene_transcripts = &user_data.gene_transcripts;
 
     if (user_input.is_simulating) {
-        p_gene_families = NULL;
+        p_gene_transcripts = NULL;
     }
 
     if (user_input.fixed_alpha > 0 || user_input.n_gamma_cats > 1)
@@ -52,7 +52,7 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
             p_error_model->set_probabilities(200, { 0.05, .9, 0.05 });
         }
 
-        p_model = new base_model(user_data.p_sigma, p_gene_families, p_error_model);
+        p_model = new base_model(user_data.p_sigma, p_gene_transcripts, p_error_model);
     }
 
     return std::vector<model *>{p_model};
@@ -70,13 +70,13 @@ int upper_bound_from_transcript_values(const vector<gene_transcript>& transcript
 }
 
 
-model::model(sigma_squared* p_lambda,
-    const vector<gene_transcript> *p_gene_families,
+model::model(sigma_squared* p_sigma,
+    const vector<gene_transcript> *p_gene_transcripts,
     error_model *p_error_model) :
-    _ost(cout), _p_sigma(p_lambda),  _p_error_model(p_error_model) 
+    _ost(cout), _p_sigma(p_sigma),  _p_error_model(p_error_model) 
 {
-    if (p_gene_families)
-        references = build_reference_list(*p_gene_families);
+    if (p_gene_transcripts)
+        references = build_reference_list(*p_gene_transcripts);
 }
 
 void model::write_vital_statistics(std::ostream& ost, const clade *p_tree, double final_likelihood, const input_parameters& p)
@@ -100,18 +100,18 @@ void model::write_vital_statistics(std::ostream& ost, const clade *p_tree, doubl
     write_extra_vital_statistics(ost);
 }
 
-sigma_squared* model::get_simulation_lambda()
+sigma_squared* model::get_simulation_sigma()
 {
     return _p_sigma->clone();
 }
 
-void model::write_error_model(int max_family_size, std::ostream& ost) const
+void model::write_error_model(int max_transcript_size, std::ostream& ost) const
 {
     auto em = _p_error_model;
     if (!em)
     {
         em = new error_model();
-        em->set_probabilities(max_family_size, { 0, 1, 0 });
+        em->set_probabilities(max_transcript_size, { 0, 1, 0 });
     }
     write_error_model_file(ost, *em);
 }
@@ -132,10 +132,10 @@ void event_monitor::log(el::base::type::ostream_t& ost) const
     if (!failure_count.empty())
     {
         auto failures = [](const pair<string, int>& a, const pair<string, int>& b) { return a.second < b.second; };
-        auto worst_performing_family = std::max_element(failure_count.begin(), failure_count.end(), failures);
-        if (worst_performing_family->second * 5 > (attempts - rejects))    // at least one family had 20% rejections
+        auto worst_performing_transcript = std::max_element(failure_count.begin(), failure_count.end(), failures);
+        if (worst_performing_transcript->second * 5 > (attempts - rejects))   
         {
-            ost << "The following families had failure rates >20% of the time:\n";
+            ost << "The following transcripts had failure rates >20% of the time:\n";
             for (auto& a : this->failure_count)
             {
                 if (a.second * 5 > (attempts - rejects))
@@ -243,7 +243,7 @@ class mock_model : public model {
     bool _invalid_likelihood = false;
 public:
     mock_model(sigma_squared*s) : model(s, NULL, NULL) {}
-    virtual double infer_family_likelihoods(const user_data& ud, const sigma_squared* p_lambda, const std::gamma_distribution<double>& prior) override { return 0;  }
+    virtual double infer_transcript_likelihoods(const user_data& ud, const sigma_squared* p_ss, const std::gamma_distribution<double>& prior) override { return 0;  }
 };
 
 TEST_CASE("Model: write_vital_statistics")
@@ -311,5 +311,20 @@ TEST_CASE("upper_bound_from_transcript_values returns MATRIX_SIZE_MULTIPLIER if 
     gt.set_expression_value("A", 0);
     gt.set_expression_value("B", 0);
     CHECK_EQ(MATRIX_SIZE_MULTIPLIER, upper_bound_from_transcript_values({ gt }));
+}
+
+TEST_CASE("Inference, event_monitor_shows_poor_performing_families")
+{
+    event_monitor evm;
+
+    evm.Event_InferenceAttempt_Started();
+    evm.Event_InferenceAttempt_Started();
+    evm.Event_InferenceAttempt_Saturation("test");
+    ostringstream ost;
+
+    evm.log(ost);
+    CHECK_STREAM_CONTAINS(ost, "2 values were attempted (0% rejected)");
+    CHECK_STREAM_CONTAINS(ost, "The following transcripts had failure rates >20% of the time:");
+    CHECK_STREAM_CONTAINS(ost, "test had 1 failures");
 }
 

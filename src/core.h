@@ -39,16 +39,16 @@ protected:
     std::ostream & _ost; 
     sigma_squared*_p_sigma;
     error_model* _p_error_model;
-    std::vector<std::vector<int> > _rootdist_bins; // holds the distribution for each lambda bin
+    std::vector<std::vector<int> > _rootdist_bins;
 
-    /// Used to track gene families with identical species counts
+    /// Used to track gene transcripts with identical sizes
     std::vector<size_t> references;
 
     event_monitor _monitor;
 
 public:
-    model(sigma_squared* p_lambda,
-        const std::vector<gene_transcript>* p_gene_families,
+    model(sigma_squared* p_sigma,
+        const std::vector<gene_transcript>* p_gene_transcripts,
         error_model *p_error_model);
     
     virtual ~model() {}
@@ -57,15 +57,13 @@ public:
         return _p_sigma;
     }
 
-    //! Returns a lambda suitable for creating a simulated family. Default case is simply to return the lambda provided by the user.
-    virtual sigma_squared* get_simulation_lambda();
+    virtual sigma_squared* get_simulation_sigma();
 
-    virtual double infer_family_likelihoods(const user_data& ud, const sigma_squared*p_lambda, const std::gamma_distribution<double>& prior) = 0;  // return vector of likelihoods
+    virtual double infer_transcript_likelihoods(const user_data& ud, const sigma_squared*p_sigma, const std::gamma_distribution<double>& prior) = 0;  // return vector of likelihoods
     
     void write_vital_statistics(std::ostream& ost, const clade *p_tree, double final_likelihood, const input_parameters& p);
-    void write_error_model(int max_family_size, std::ostream& ost) const;
+    void write_error_model(int max_transcript_size, std::ostream& ost) const;
 
-    //! Based on the model parameters, attempts to reconstruct the most likely counts of each family at each node
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache *p_calc) = 0;
 
     virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const std::vector<std::string>& sample_groups, const std::gamma_distribution<double>& prior) = 0;
@@ -75,11 +73,7 @@ public:
     const event_monitor& get_monitor() { return _monitor;  }
 };
 
-//! @brief Creates a list of families that are identical in all values
-//!
-//! With this information we can reduce the number of calculations required
-//! and speed up the overall performance
-std::vector<size_t> build_reference_list(const std::vector<gene_transcript>& families);
+std::vector<size_t> build_reference_list(const std::vector<gene_transcript>& transcripts);
 
 std::vector<model *> build_models(const input_parameters& my_input_parameters, user_data& user_data);
 
