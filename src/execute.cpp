@@ -16,7 +16,6 @@
 #include "optimizer.h"
 #include "reconstruction.h"
 #include "error_model.h"
-#include "likelihood_ratio.h"
 #include "arguments.h"
 #include "root_equilibrium_distribution.h"
 #include "sigma.h"
@@ -146,9 +145,6 @@ void estimator::execute(std::vector<model *>& models)
 
             std::unique_ptr<reconstruction> rec(p_model->reconstruct_ancestral_states(data, &cache));
 
-#ifdef RUN_LHRTEST
-            LikelihoodRatioTest::lhr_for_diff_lambdas(data, p_model);
-#endif
             rec->write_results(_user_input.output_prefix, data.p_tree, data.gene_families, _user_input.count_all_changes);
         }
     }
