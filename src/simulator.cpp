@@ -192,7 +192,7 @@ void print_header(std::ostream& ost, const input_parameters& p, size_t c, const 
     if (p_tree)
     {
         auto text_func = [](ostream& ost, const clade* c) {
-            ost << clade_index_or_name(c);
+            ost << *c;
         };
         ost << "# Tree: ";
         p_tree->write_newick(ost, text_func);
@@ -262,7 +262,7 @@ void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes
         {
             return c && (c->is_leaf() || include_internal_nodes);
         });
-    write_node_ordered<string>(ost, "DESC\tFID", nodes, [](const clade* c) { return clade_index_or_name(c); });
+    write_node_ordered<const clade *>(ost, "DESC\tFID", nodes);
 
     for (size_t j = 0; j < results.size(); ++j) {
         auto& transcript = results[j];
@@ -272,19 +272,6 @@ void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes
             { 
                 return pv::to_user_space(transcript.values.at(c));
             });
-#if 0
-        for (size_t i = 0; i < order.size(); ++i)
-        {
-            if (!order[i]) continue;
-
-            if (order[i]->is_leaf() || include_internal_nodes)
-            {
-                ost << '\t';
-                ost << pv::to_user_space(transcript.values.at(order[i]));
-            }
-        }
-        ost << endl;
-#endif
     }
 }
 

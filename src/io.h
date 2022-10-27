@@ -20,16 +20,21 @@ void create_directory(std::string& dir);
 
 std::ostream& operator<<(std::ostream& ost, const gene_transcript& family);
 
+std::ostream& operator<<(std::ostream& ost, const clade& c);
 
 template<typename T>
-void write_node_ordered(std::ostream& ost, std::string title, const std::vector<const clade*>& order, std::function<T(const clade* c)> f)
+void write_node_ordered(std::ostream& ost, std::string title, const std::vector<const clade*>& order, std::function<T(const clade* c)> f = nullptr)
 {
     ost << title;
     for (auto node : order)
     {
         if (node)
         {
-            ost << "\t" << f(node);
+            ost << "\t";
+            if (f) 
+                ost << f(node);
+            else
+                ost << *node;
         }
     }
     ost << std::endl;

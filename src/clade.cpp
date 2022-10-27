@@ -246,9 +246,11 @@ double clade::distance_from_root_to_tip() const
     return *max_element(candidates.begin(), candidates.end());
 }
 
-string clade_index_or_name(const clade* node)
-{
-    return (node->is_leaf() ? node->get_taxon_name() : string()) + "<" + to_string(node->get_ape_index()) + ">";
+std::ostream& operator<<(std::ostream& ost, const clade& c) {
+    if (c.is_leaf())
+        ost << c.get_taxon_name();
+    ost << "<" << c.get_ape_index() << ">";
+    return ost;
 }
 
 std::set<double> clade::get_branch_lengths() const

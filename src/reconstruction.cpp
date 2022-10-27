@@ -68,7 +68,7 @@ void reconstruction::print_increases_decreases_by_clade(std::ostream& ost, const
 
     ost << "#Taxon_ID\tIncrease\tDecrease\n";
     for (auto& it : increase_decrease_map) {
-        ost << clade_index_or_name(it.first) << "\t";
+        ost << *it.first << "\t";
         ost << it.second.first << "\t";
         ost << it.second.second << endl;
     }
@@ -77,7 +77,7 @@ void reconstruction::print_increases_decreases_by_clade(std::ostream& ost, const
 template<typename T>
 void print_family_clade_table(std::ostream& ost, const cladevector& order, transcript_vector& gene_transcripts, const clade* p_tree, std::function<T(const gene_transcript& transcript, const clade *c)> get_family_clade_value)
 {
-    write_node_ordered<string>(ost, "TranscriptID", order, [](const clade* c) { return clade_index_or_name(c); });
+    write_node_ordered<const clade*>(ost, "TranscriptID", order);
     for (auto& transcript : gene_transcripts)
     {
         write_node_ordered<T>(ost, transcript.id(), order, [&transcript, get_family_clade_value](const clade* c) { return get_family_clade_value(transcript, c); });
@@ -101,7 +101,7 @@ void reconstruction::print_reconstructed_states(std::ostream& ost, transcript_ve
 
         function<void(std::ostream& ost, const clade*)> text_func;
         text_func = [gene_transcript, this](std::ostream& ost, const clade* node) {
-            ost << clade_index_or_name(node) << "_" << node_value(node, gene_transcript, this);
+            ost << *node << "_" << node_value(node, gene_transcript, this);
 
             if (!node->is_root())
                 ost << ':' << node->get_branch_length();
@@ -407,15 +407,18 @@ TEST_CASE_FIXTURE(Reconstruction, "get_difference_from_parent")
     CHECK_EQ(doctest::Approx(4.51), r.get_difference_from_parent(fam, p_tree->find_descendant("A")));
 }
 
-TEST_CASE_FIXTURE(Reconstruction, "clade_index_or_name__returns_node_index_in_angle_brackets_for_non_leaf")
+TEST_CASE_FIXTURE(Reconstruction, "clade stream operator returns_node_index_in_angle_brackets_for_non_leaf")
 {
-    CHECK_EQ(string("<5>"), clade_index_or_name(p_tree.get()));
+    ostringstream ost;
+    ost << *p_tree;
+    CHECK_EQ(string("<5>"), ost.str());
 }
 
-TEST_CASE_FIXTURE(Reconstruction, "clade_index_or_name__returns_node_name_plus_index_in_angle_brackets_for_leaf")
+TEST_CASE_FIXTURE(Reconstruction, "clade stream operator returns_node_name_plus_index_in_angle_brackets_for_leaf")
 {
-    auto a = p_tree->find_descendant("A");
-    CHECK_EQ(string("A<1>"), clade_index_or_name(a));
+    ostringstream ost;
+    ost << *p_tree->find_descendant("A");
+    CHECK_EQ(string("A<1>"), ost.str());
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "credible_interval_intersects_parent is correct for leaf nodes")
