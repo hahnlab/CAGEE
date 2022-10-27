@@ -87,8 +87,8 @@ void model::write_vital_statistics(std::ostream& ost, const clade *p_tree, doubl
     ost << "Sigma2: " << *get_sigma() << endl;
     
     ost << "IDs of Nodes: ";
-    p_tree->write_newick(ost, [](const clade*c) {
-        return "<" + to_string(c->get_ape_index()) + ">";
+    p_tree->write_newick(ost, [](std::ostream& ost, const clade*c) {
+        ost << "<" << c->get_ape_index() << ">";
         });
     ost << endl;
 

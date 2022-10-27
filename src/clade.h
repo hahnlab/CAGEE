@@ -87,7 +87,7 @@ public:
 
     std::string get_taxon_name() const { return _taxon_name; }
 
-    void write_newick(std::ostream& ost, std::function<std::string(const clade *c)> textwriter) const;
+    void write_newick(std::ostream& ost, std::function<void(std::ostream& ost, const clade *c)> write_clade) const;
 
     std::map<std::string, int> get_sigma_index_map();
 

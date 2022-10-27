@@ -206,22 +206,23 @@ std::map<std::string, int> clade::get_sigma_index_map()
     return node_name_to_sigma_index;
 }
 
-void clade::write_newick(ostream& ost, std::function<std::string(const clade *c)> textwriter) const
+void clade::write_newick(ostream& ost, std::function<void(std::ostream& ost, const clade *c)> write_clade) const
 {
     if (is_leaf()) {
-        ost << textwriter(this);
+        write_clade(ost, this);
     }
     else {
         ost << '(';
 
         // some nonsense to supress trailing comma
         for (size_t i = 0; i< _descendants.size() - 1; i++) {
-            _descendants[i]->write_newick(ost, textwriter);
+            _descendants[i]->write_newick(ost, write_clade);
             ost << ',';
         }
 
-        _descendants[_descendants.size() - 1]->write_newick(ost, textwriter);
-        ost << ')' << textwriter(this);
+        _descendants[_descendants.size() - 1]->write_newick(ost, write_clade);
+        ost << ')';
+        write_clade(ost, this);
     }
 }
 
