@@ -20,6 +20,9 @@
 #include "error_model.h"
 #include "clade.h"
 #include "proportional_variance.h"
+#include "replicate_model.h"
+
+#include "user_data.h"  // for replicate_model
 
 using namespace std;
 namespace pv = proportional_variance;
@@ -195,6 +198,24 @@ void write_error_model_file(std::ostream& ost, error_model& errormodel)
     }
 }
 
+
+
+replicate_model* read_replicate_model_file(std::istream& replicate_model_file)
+{
+    std::string line;
+
+    auto model = new replicate_model();
+
+    while (!replicate_model_file.eof())
+    {
+        string species, replicate;
+        replicate_model_file >> species >> replicate;
+        if (!species.empty() && !replicate.empty())
+            model->_replicates[replicate] = species;
+    }
+    return model;
+}
+
 //! Split string into vector of strings given delimiter
 std::vector<std::string> tokenize_str(std::string some_string, char some_delim) {
     std::istringstream ist(some_string);
@@ -329,6 +350,18 @@ TEST_CASE("read_gene_transcripts reads Treatment Tissue header")
     CHECK(gt[1].tissue() == "lung");
     CHECK(gt[2].tissue() == "breast");
     CHECK(gt[3].tissue() == "brain");
+}
+
+TEST_CASE("read_replicate_model")
+{
+    std::string str = "cow\tcow-1\ncow\tcow-2\ncat\tcat-5\ncat\tcat-22\n";
+    std::istringstream ist(str);
+    auto model = *read_replicate_model_file(ist);
+    REQUIRE_EQ(4, model._replicates.size());
+    CHECK_EQ("cow", model._replicates["cow-1"]);
+    CHECK_EQ("cow", model._replicates["cow-2"]);
+    CHECK_EQ("cat", model._replicates["cat-5"]);
+    CHECK_EQ("cat", model._replicates["cat-22"]);
 }
 
 TEST_CASE("Line without sample type throws error")

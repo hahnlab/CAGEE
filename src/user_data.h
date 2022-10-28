@@ -8,13 +8,13 @@
 #include <memory>
 
 #include "gene_transcript.h"
-#include "root_equilibrium_distribution.h"
 
 class root_equilibrium_distribution;
 class clade;
 class sigma_squared;
 class error_model;
 struct input_parameters;
+class replicate_model;
 
 using boundaries = std::pair<double, double>;
 
@@ -29,6 +29,7 @@ public:
     sigma_squared *p_sigma = NULL;
     clade *p_sigma_tree = NULL;
     error_model *p_error_model = NULL;
+    replicate_model* p_replicate_model = NULL;
 
     std::vector<gene_transcript> gene_transcripts;
     std::vector<std::pair<float, int>> rootdist;    // first is value, second is count
@@ -42,6 +43,8 @@ public:
 
     //! Read in error model file
     void read_error_model(const input_parameters &my_input_parameters, error_model *p_error_model);
+
+    void read_replicate_model(const input_parameters& my_input_parameters);
 
     //! Read in phylogenetic tree data
     clade * read_input_tree(const input_parameters &my_input_parameters);

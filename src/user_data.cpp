@@ -53,7 +53,17 @@ void user_data::read_error_model(const input_parameters &my_input_parameters, er
 
     read_error_model_file(error_model_file, p_error_model);
 
-} // GOTTA WRITE THIS!
+} 
+
+void user_data::read_replicate_model(const input_parameters& my_input_parameters) {
+
+    ifstream replicate_model_file(my_input_parameters.replicate_model_file_path);
+    if (!replicate_model_file.is_open()) {
+        throw std::runtime_error("Failed to open " + my_input_parameters.replicate_model_file_path + ". Exiting...");
+    }
+
+    this->p_replicate_model = read_replicate_model_file(replicate_model_file);
+}
 
   //! Read user provided phylogenetic tree (whose path is stored in input_parameters instance)
 clade * user_data::read_input_tree(const input_parameters &my_input_parameters) {
@@ -129,6 +139,10 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
         read_error_model(my_input_parameters, p_error_model);
     }
 
+    if (!my_input_parameters.replicate_model_file_path.empty())
+    {
+        read_replicate_model(my_input_parameters);
+    }
     /* -y */
     if (!my_input_parameters.sigma_tree_file_path.empty()) {
         p_sigma_tree = read_sigma_tree(my_input_parameters);
