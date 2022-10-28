@@ -13,6 +13,7 @@
 #include "sigma.h"
 #include "DiffMat.h"
 #include "core.h"
+#include "replicate_model.h"
 
 using namespace std;
 using namespace Eigen;
@@ -32,6 +33,7 @@ void print_probabilities(const std::map<const clade*, VectorXd>& probabilities, 
 void compute_node_probability(const clade* node,
     const gene_transcript& gene_transcript,
     const error_model* p_error_model,
+    const replicate_model* p_replicate_model,
     std::map<const clade*, VectorXd>& probabilities,
     const sigma_squared* p_sigma,
     const matrix_cache& cache,
@@ -51,6 +53,12 @@ void compute_node_probability(const clade* node,
 
                 probabilities[node][offset + i] = error_model_probabilities[i];
             }
+        }
+        else if (p_replicate_model)
+        {
+            p_replicate_model->apply();
+            string taxon = node->get_taxon_name();
+
         }
         else
         {
@@ -138,7 +146,9 @@ void inference_pruner::compute_all_probabilities(const gene_transcript& gf, int 
 {
     unique_ptr<sigma_squared> multiplier(_p_sigsqd->multiply(_sigma_multiplier));
 
-    auto compute_func = [gf, this, upper_bound, &multiplier](const clade* c) { compute_node_probability(c, gf, _p_error_model, _probabilities, multiplier.get(), _cache, upper_bound); };
+    replicate_model* rm = nullptr;
+
+    auto compute_func = [gf, this, upper_bound, &multiplier, rm](const clade* c) { compute_node_probability(c, gf, _p_error_model, rm, _probabilities, multiplier.get(), _cache, upper_bound); };
     for_each(_p_tree->reverse_level_begin(), _p_tree->reverse_level_end(), compute_func);
 
 }
@@ -194,7 +204,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
 
     auto A = p_tree->find_descendant("A");
-    compute_node_probability(A, gt, NULL, probabilities, &ss, cache, 60);
+    compute_node_probability(A, gt, NULL, NULL, probabilities, &ss, cache, 60);
     auto& actual = probabilities[A];
 
     vector<double> expected(Npts);
@@ -218,7 +228,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     }
 
     auto B = p_tree->find_descendant("B");
-    compute_node_probability(B, gt, NULL, probabilities, &ss, cache, 60);
+    compute_node_probability(B, gt, NULL, NULL, probabilities, &ss, cache, 60);
     actual = probabilities[B];
 
     expected = vector<double>(Npts);
@@ -267,7 +277,7 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly")
     probabilities[p_tree->find_descendant("A")] = equal_probs;
     probabilities[p_tree->find_descendant("B")] = equal_probs;
 
-    compute_node_probability(AB, gt, NULL, probabilities, &ss, cache, 40);
+    compute_node_probability(AB, gt, NULL, NULL, probabilities, &ss, cache, 40);
 
     auto& actual = probabilities[AB];
     double expected = (2 * prob) * (2 * prob);
@@ -307,7 +317,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_from_error_model_if_pr
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
 
     auto A = p_tree->find_descendant("A");
-    compute_node_probability(A, gt, &model, probabilities, &ss, cache, 40);
+    compute_node_probability(A, gt, &model, NULL, probabilities, &ss, cache, 40);
     VectorXd& actual = probabilities[A];
 
     vector<double> expected(Npts);

@@ -95,6 +95,7 @@ input_parameters read_arguments(int argc, char* const argv[])
         ("rootdist", po::value<string>(), "Distribution of the root in Simulation Mode (mutually exclusive with --prior in Inference Mode). Can be gamma:[k]:[theta], fixed:[count], or a path/to/tab_sep_file.txt with two columns: trascripts names and their counts. Default=gamma:0.375:1600.0")
         ("prior", po::value<string>(), "Expected distribution of the root in Inference Mode (mutually exclusive with --rootdist in Simulation Mode). Must be gamma:[k]:[theta].  Default=gamma:0.375:1600.0")
         ("verbose", po::value<int>())
+        ("replicate_map", po::value<string>(), "Filename of a file containing a list of specie replicates to be combined into a single species")
         ("sample_group", po::value<vector<string>>(), "Specifies sample groups (if any) for which to infer sigma^2.  Each sample and sigma^2 estimate requires a --sample_group [your_sample_A] arg, or combine them with comma: --sample_group [your_sample_A,your_sample_B,...].  Optional, no default.")
         ("sigma_tree,y", po::value<string>(), "Path to sigma tree, for use with multiple sigmas")
         ("simulate,s", po::value<string>()->default_value("false"), "Simulate families. Optionally provide the number of simulations to generate")
@@ -171,6 +172,7 @@ input_parameters read_arguments(int argc, char* const argv[])
     maybe_set(vm, "prior", my_input_parameters.prior);
     maybe_set(vm, "discretization_size", my_input_parameters.discretization_size);
     maybe_set(vm, "count_all_changes", my_input_parameters.count_all_changes);
+    maybe_set(vm, "replicate_map", my_input_parameters.replicate_model_file_path);
 
     string simulate_string = vm["simulate"].as<string>();
     my_input_parameters.is_simulating = simulate_string != "false";
@@ -397,6 +399,14 @@ TEST_CASE("Options, errormodel_accepts_no_argument")
     auto actual = read_arguments(c.argc, c.values);
     CHECK(actual.use_error_model);
     CHECK(actual.error_model_file_path.empty());
+}
+
+TEST_CASE("Options, replicate_map needs argument")
+{
+    option_test c({ "cagee", "--replicate_map", "map.tsv"});
+
+    auto actual = read_arguments(c.argc, c.values);
+    CHECK(!actual.replicate_model_file_path.empty());
 }
 
 TEST_CASE("Options: zero_root_familes")
