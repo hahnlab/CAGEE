@@ -155,21 +155,20 @@ void estimator::execute(std::vector<model *>& models)
     }
 }
 
-//Calculate the difference between the Max and Min count for each family, report the 20 families with the largest difference.
-void initialization_failure_advice(std::ostream& ost, const std::vector<gene_transcript>& families)
+void initialization_failure_advice(std::ostream& ost, const std::vector<gene_transcript>& gt)
 {
     std::vector<std::pair<std::string, double>> m;
-    transform(families.begin(), families.end(), std::inserter(m, m.end()),
+    transform(gt.begin(), gt.end(), std::inserter(m, m.end()),
         [](const gene_transcript& gf) { return std::make_pair(gf.id(), gf.species_size_differential()); });
     auto compare = [](const std::pair<string, double>& a, const std::pair<string, double>& b) { return a.second > b.second; };
     sort(m.begin(), m.end(), compare);
     if (m.size() > 20)
         m.resize(20);
 
-    ost << "\nFamilies with largest size differentials:\n";
+    ost << "\nTranscripts with largest size differentials:\n";
     for (auto& t : m)
         ost << t.first << ": " << t.second << "\n";
-    ost << "\nYou may want to try removing the top few families with the largest difference\nbetween the max and min counts and then re-run the analysis.\n\n";
+    ost << "\nYou may want to try removing the top few transcripts with the largest difference\nbetween the max and min counts and then re-run the analysis.\n\n";
 }
 
 
@@ -200,5 +199,5 @@ TEST_CASE("check_tree throws error on unknown species")
 
     unique_ptr<clade> p_tree(parse_newick("(Dog:1,Rat:3):7"));
 
-    CHECK_THROWS_WITH(check_tree(p_tree.get(), gt), "Rat was not found in gene family ");
+    CHECK_THROWS_WITH(check_tree(p_tree.get(), gt), "Rat was not found in transcript ");
 }

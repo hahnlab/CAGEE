@@ -27,10 +27,10 @@ struct ci_less
 
 class gene_transcript {
 private:
-    std::string _id; //!< Gene family ID
-    std::string _desc; //!< Gene family description
+    std::string _id; 
+    std::string _desc; 
     std::string _tissue;
-    std::map<std::string, double, ci_less> _species_size_map; //!< Map that stores each species gene family count: {sp1_name:count1, ...}
+    std::map<std::string, double, ci_less> _species_size_map; 
 
 public:
     gene_transcript() { }
@@ -60,13 +60,11 @@ public:
 
     double get_expression_value(std::string species) const;
 
-    //! Returns true if every species size for both gene families are identical
     bool species_size_match(const gene_transcript& other) const
     {
         return _species_size_map == other._species_size_map;
     }
 
-    /// returns true if the family exists at the root of the given tree, according to their parsimony reconstruction.
     bool exists_at_root(const clade *p_tree) const;
 
     //! Returns largest species size minus smallest species size
@@ -82,7 +80,7 @@ public:
         return *this;
     }
 
-    friend std::ostream& operator<<(std::ostream& ost, const gene_transcript& family);
+    friend std::ostream& operator<<(std::ostream& ost, const gene_transcript& transcript);
 
     static void remove_ungrouped_transcripts(const std::vector<std::string>& sample_groups, std::vector<gene_transcript>& transcripts);
 };

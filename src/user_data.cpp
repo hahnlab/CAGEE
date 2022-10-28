@@ -21,11 +21,7 @@ using namespace std;
 
 extern std::mt19937 randomizer_engine;
 
-//! Read user provided gene family data (whose path is stored in input_parameters instance)
-/// @param[in] my_input_parameters Parsed parameters passed to the application
-/// @param[in] p_tree The tree to be used in calculations. Necessary for syncing tree data to gene family data
-/// @param[out] p_gene_families Parsed data in the gene family file specified by my_input_parameters
-void user_data::read_gene_transcript_data(const input_parameters &my_input_parameters, clade *p_tree, std::vector<gene_transcript> *p_gene_families) {
+void user_data::read_gene_transcript_data(const input_parameters &my_input_parameters, clade *p_tree, std::vector<gene_transcript> *p_transcripts) {
 
     try
     {
@@ -33,7 +29,7 @@ void user_data::read_gene_transcript_data(const input_parameters &my_input_param
         if (!input_file.is_open())
             throw std::runtime_error("Failed to open");
 
-        read_gene_families(input_file, p_tree, *p_gene_families); // in io.cpp/io.h
+        read_gene_transcripts(input_file, p_tree, *p_transcripts); // in io.cpp/io.h
     }
     catch (runtime_error& err)
     {
@@ -60,25 +56,22 @@ clade * user_data::read_input_tree(const input_parameters &my_input_parameters) 
     return read_tree(my_input_parameters.tree_file_path, false);
 }
 
-//! Read user provided lambda tree (lambda structure)
 clade * user_data::read_sigma_tree(const input_parameters &my_input_parameters) {
     return read_tree(my_input_parameters.sigma_tree_file_path, true);
 }
 
-//! Read user provided single or multiple lambdas
-sigma_squared* user_data::read_sigma(const input_parameters &my_input_parameters, clade *p_lambda_tree) {
+sigma_squared* user_data::read_sigma(const input_parameters &my_input_parameters, clade *p_sigma_tree) {
 
     sigma_squared*p_sigma = NULL; // sigma is an abstract class, and so we can only instantiate it as single_sigma or multiple sigma -- therefore initializing it to NULL
 
                              // -l
     if (my_input_parameters.fixed_sigma > 0.0) {
         p_sigma = new sigma_squared(my_input_parameters.fixed_sigma);
-        // call_viterbi(max_family_size, max_root_family_size, 15, p_lambda, *p_gene_families, p_tree);
     }
 
     // -m
     if (!my_input_parameters.fixed_multiple_sigmas.empty()) {
-        map<std::string, int> node_name_to_sigma_index = p_lambda_tree->get_sigma_index_map(); // allows matching different sigma values to nodes in sigma tree
+        map<std::string, int> node_name_to_sigma_index = p_sigma_tree->get_sigma_index_map(); // allows matching different sigma values to nodes in sigma tree
         vector<string> sigmastrings = tokenize_str(my_input_parameters.fixed_multiple_sigmas, ',');
         vector<double> sigmas(sigmastrings.size());
 
@@ -90,7 +83,6 @@ sigma_squared* user_data::read_sigma(const input_parameters &my_input_parameters
     return p_sigma;
 }
 
-//! Populate famdist_map with root family distribution read from famdist_file_path
 void user_data::read_rootdist(string rootdist_file_path) {
 
     ifstream rootdist_file(rootdist_file_path.c_str()); // the constructor for ifstream takes const char*, not string, so we need to use c_str()
@@ -124,7 +116,6 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
 
     /* -i */
     if (!my_input_parameters.input_file_path.empty()) {
-        // Populates (pointer to) vector of gene family instances, max_family_size and max_root_family_size (last two passed by reference)
         read_gene_transcript_data(my_input_parameters, p_tree, &gene_transcripts);
     }
 

@@ -85,7 +85,7 @@ size_t adjust_for_error_model(size_t c, const error_model *p_error_model)
 
     if (c >= p_error_model->get_max_family_size())
     {
-        throw runtime_error("Trying to simulate leaf family size that was not included in error model");
+        throw runtime_error("Trying to simulate leaf transcript value that was not included in error model");
     }
     auto probs = p_error_model->get_probs(c);
 
@@ -183,13 +183,13 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
 {
     int Npts = 200;
     ostringstream ost;
-    gene_transcript family;
-    family.set_expression_value("A", 18.7);
-    family.set_expression_value("B", 17.3);
+    gene_transcript gt;
+    gt.set_expression_value("A", 18.7);
+    gt.set_expression_value("B", 17.3);
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
-    sigma_squared lambda(0.03);
+    sigma_squared ss(0.03);
     matrix_cache cache;
 
     std::map<const clade*, VectorXd> probabilities;
@@ -198,7 +198,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
 
     auto A = p_tree->find_descendant("A");
-    compute_node_probability(A, family, NULL, probabilities, &lambda, cache, 60);
+    compute_node_probability(A, gt, NULL, probabilities, &ss, cache, 60);
     auto& actual = probabilities[A];
 
     vector<double> expected(Npts);
@@ -222,7 +222,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     }
 
     auto B = p_tree->find_descendant("B");
-    compute_node_probability(B, family, NULL, probabilities, &lambda, cache, 60);
+    compute_node_probability(B, gt, NULL, probabilities, &ss, cache, 60);
     actual = probabilities[B];
 
     expected = vector<double>(Npts);
@@ -250,16 +250,16 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly")
 {
     int Npts = 200;
     ostringstream ost;
-    gene_transcript family;
-    family.set_expression_value("A", 14.7);
-    family.set_expression_value("B", 22.3);
+    gene_transcript gt;
+    gt.set_expression_value("A", 14.7);
+    gt.set_expression_value("B", 22.3);
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
     double prob = 0.005;
     VectorXd equal_probs = VectorXd::Constant(Npts, prob);
     MatrixXd doubler = MatrixXd::Identity(Npts, Npts) * 2;
-    sigma_squared lambda(0.03);
+    sigma_squared ss(0.03);
     matrix_cache cache;
     cache.set_matrix(1, 0.03, 40, doubler);
     cache.set_matrix(3, 0.03, 40, doubler);
@@ -271,7 +271,7 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly")
     probabilities[p_tree->find_descendant("A")] = equal_probs;
     probabilities[p_tree->find_descendant("B")] = equal_probs;
 
-    compute_node_probability(AB, family, NULL, probabilities, &lambda, cache, 40);
+    compute_node_probability(AB, gt, NULL, probabilities, &ss, cache, 40);
 
     auto& actual = probabilities[AB];
     double expected = (2 * prob) * (2 * prob);
@@ -289,13 +289,13 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_from_error_model_if_pr
     int Npts = 200;
     ostringstream ost;
 
-    gene_transcript family;
-    family.set_expression_value("A", 17.4);
-    family.set_expression_value("B", 22.9);
+    gene_transcript gt;
+    gt.set_expression_value("A", 17.4);
+    gt.set_expression_value("B", 22.9);
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
-    sigma_squared lambda(0.03);
+    sigma_squared ss(0.03);
     matrix_cache cache;
 
     string input = "maxcnt: 20\ncntdiff: -1 0 1\n"
@@ -311,7 +311,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_from_error_model_if_pr
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
 
     auto A = p_tree->find_descendant("A");
-    compute_node_probability(A, family, &model, probabilities, &lambda, cache, 40);
+    compute_node_probability(A, gt, &model, probabilities, &ss, cache, 40);
     VectorXd& actual = probabilities[A];
 
     vector<double> expected(Npts);
@@ -332,9 +332,9 @@ TEST_CASE("inference_pruner: check stats of returned probabilities")
     int Npts = 200;
     ostringstream ost;
 
-    gene_transcript fam;
-    fam.set_expression_value("A", 3);
-    fam.set_expression_value("B", 6);
+    gene_transcript rt;
+    rt.set_expression_value("A", 3);
+    rt.set_expression_value("B", 6);
 
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     sigma_squared ss(10.0);
@@ -342,7 +342,7 @@ TEST_CASE("inference_pruner: check stats of returned probabilities")
     cache.precalculate_matrices(ss.get_values(), set<double>{1, 3, 7}, 20);
     inference_pruner pruner(cache, &ss, nullptr, p_tree.get(), 1.0);
 
-    auto actual = pruner.prune(fam, 20);
+    auto actual = pruner.prune(rt, 20);
 
     size_t sz = actual.size();
     CHECK_EQ(sz, Npts);
@@ -381,7 +381,7 @@ TEST_CASE("get_value credible interval")
 
 }
 
-TEST_CASE("sdfsdf")
+TEST_CASE("verify a complex credible interval")
 {
     VectorXd v(100);
     v << 3.354626279025118532e-04,

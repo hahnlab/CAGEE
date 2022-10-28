@@ -16,7 +16,7 @@ public:
     virtual std::vector<double> initial_guesses() override;
     virtual double calculate_score(const double * values) override;
 
-    double lnLPoisson(const double* plambda);
+    double lnLPoisson(const double* psigma);
 };
 
 class gamma_scorer : public optimizer_scorer
@@ -31,7 +31,7 @@ public:
 };
 
 
-double poisspdf(double x, double lambda);
+double poisspdf(double x, double sigma);
 double gammapdf(double value, const std::gamma_distribution<double>& dist);
 
 #endif

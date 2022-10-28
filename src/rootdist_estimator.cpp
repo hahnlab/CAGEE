@@ -92,12 +92,12 @@ TEST_CASE("poisson_scorer_optimizes_correct_value")
     // DOUBLES_EQUAL(0.5, result.values[0], 0.0001)
 }
 
-TEST_CASE("poisson_scorer returns invalid for negative lambda")
+TEST_CASE("poisson_scorer returns invalid for negative sigma")
 {
     vector<gene_transcript> _;
     poisson_scorer scorer(_);
-    double lambda = -1;
-    double actual = scorer.lnLPoisson(&lambda);
+    double sigma = -1;
+    double actual = scorer.lnLPoisson(&sigma);
     CHECK(std::isinf(actual));
 }
 

@@ -21,8 +21,6 @@
 #include "proportional_variance.h"
 #include "reconstruction.h"
 
-#define GAMMA_INITIAL_GUESS_EXPONENTIAL_DISTRIBUTION_LAMBDA 1.75
-
 extern std::mt19937 randomizer_engine;
 
 using namespace std;
@@ -53,23 +51,23 @@ double compute_distribution_mean(const user_data& user_data)
 }
 
 // sigma only
-sigma_optimizer_scorer::sigma_optimizer_scorer(model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma_squared* p_lambda) :
-    _p_model(p_model), _user_data(user_data), _prior(prior), _p_sigma(p_lambda),
+sigma_optimizer_scorer::sigma_optimizer_scorer(model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma_squared* p_sigma) :
+    _p_model(p_model), _user_data(user_data), _prior(prior), _p_sigma(p_sigma),
     optimize_sigma(true), optimize_epsilon(false), optimize_gamma(false)
 {
 }
 
 // sigma and epsilon
-sigma_optimizer_scorer::sigma_optimizer_scorer(model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma_squared* p_lambda, error_model* p_error_model) :
-    _p_model(p_model), _user_data(user_data), _prior(prior), _p_sigma(p_lambda),
+sigma_optimizer_scorer::sigma_optimizer_scorer(model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma_squared* p_sigma, error_model* p_error_model) :
+    _p_model(p_model), _user_data(user_data), _prior(prior), _p_sigma(p_sigma),
     _p_error_model(p_error_model),
     optimize_sigma(true), optimize_epsilon(true), optimize_gamma(false)
 {
 }
 
 // alpha and sigma
-sigma_optimizer_scorer::sigma_optimizer_scorer(gamma_model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma_squared* p_lambda) :
-    _p_model(p_model), _user_data(user_data), _prior(prior), _p_sigma(p_lambda),
+sigma_optimizer_scorer::sigma_optimizer_scorer(gamma_model* p_model, const user_data& user_data, const std::gamma_distribution<double>& prior, sigma_squared* p_sigma) :
+    _p_model(p_model), _user_data(user_data), _prior(prior), _p_sigma(p_sigma),
     optimize_sigma(true), optimize_epsilon(false), optimize_gamma(true)
 {
 }
@@ -259,14 +257,14 @@ class mock_scorer_model : public model {
     bool _invalid_likelihood = false;
 public:
     mock_scorer_model() : model(NULL, NULL, NULL) {}
-    virtual double infer_transcript_likelihoods(const user_data& ud, const sigma_squared* p_lambda, const std::gamma_distribution<double>& prior) override
+    virtual double infer_transcript_likelihoods(const user_data& ud, const sigma_squared* p_sigma, const std::gamma_distribution<double>& prior) override
     { 
         return _invalid_likelihood ? nan("") : 0.0;
     }
     void set_invalid_likelihood() { _invalid_likelihood = true; }
 };
 
-TEST_CASE("lambda_epsilon_optimizer guesses lambda and unique epsilons")
+TEST_CASE("sigma_epsilon_optimizer guesses sigma and unique epsilons")
 {
     error_model err;
     err.set_probabilities(0, { .0, .7, .3 });
@@ -284,7 +282,7 @@ TEST_CASE("lambda_epsilon_optimizer guesses lambda and unique epsilons")
     CHECK_EQ(0.4, guesses[2]);
 }
 
-TEST_CASE("gamma_lambda_optimizer provides two guesses")
+TEST_CASE("gamma_sigma_optimizer provides two guesses")
 {
     sigma_squared sl(0.05);
     gamma_model model(NULL, NULL, 4, .25, NULL);
@@ -294,9 +292,9 @@ TEST_CASE("gamma_lambda_optimizer provides two guesses")
     auto guesses = glo.initial_guesses();
     CHECK_EQ(2, guesses.size());
 
-    double lambda = guesses[0];
-    CHECK_GT(lambda, 0);
-    CHECK_LT(lambda, 1);
+    double sigma = guesses[0];
+    CHECK_GT(sigma, 0);
+    CHECK_LT(sigma, 1);
 
     double alpha = guesses[1];
     CHECK_GT(alpha, 0);
@@ -313,7 +311,7 @@ TEST_CASE("gamma_optimizer creates single initial guess")
 }
 
 
-TEST_CASE("lambda_epsilon_optimizer")
+TEST_CASE("sigma_epsilon_optimizer")
 {
     const double initial_epsilon = 0.01;
     error_model err;
@@ -322,9 +320,9 @@ TEST_CASE("lambda_epsilon_optimizer")
 
     mock_scorer_model model;
 
-    sigma_squared lambda(0.05);
+    sigma_squared sigma(0.05);
     user_data ud;
-    sigma_optimizer_scorer optimizer(&model, ud, std::gamma_distribution<double>(1, 2), &lambda, &err);
+    sigma_optimizer_scorer optimizer(&model, ud, std::gamma_distribution<double>(1, 2), &sigma, &err);
     optimizer.force_distribution_mean(10, 3);
     optimizer.initial_guesses();
     vector<double> values = { 0.05, 0.06 };
@@ -391,9 +389,9 @@ TEST_CASE("prepare_calculation sets sigma and gamma correctly ")
 }
 
 #ifdef MODEL_GENE_EXPRESSION_LOGS
-TEST_CASE("sigma_optimizer_scorer updates model alpha and lambda" * doctest::skip(true))
+TEST_CASE("sigma_optimizer_scorer updates model alpha and sigma" * doctest::skip(true))
 #else
-TEST_CASE("sigma_optimizer_scorer updates model alpha and lambda")
+TEST_CASE("sigma_optimizer_scorer updates model alpha and sigma")
 #endif
 {
     user_data ud;

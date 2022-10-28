@@ -40,7 +40,7 @@ double gene_transcript::get_expression_value(std::string species) const {
     // First checks if species data has been entered (i.e., is key in map?)
     auto it = _species_size_map.find(species);
     if (it == _species_size_map.end()) {
-        throw std::runtime_error(species + " was not found in gene family " + _id);
+        throw std::runtime_error(species + " was not found in transcript " + _id);
     }
     return it->second;
 }
@@ -131,10 +131,10 @@ TEST_CASE("exists_at_root returns false if not all children exist")
         "(null)\t1\t0\t0\t0\t1\t1\t0\t0\t0\t0\t0\t0\t0\n"
         "(null)\t2\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t1\t1\n");
 
-    vector<gene_transcript> families;
-    read_gene_families(ist, p_tree.get(), families);
-    CHECK_FALSE(families[0].exists_at_root(p_tree.get()));
-    CHECK_FALSE(families[1].exists_at_root(p_tree.get()));
+    vector<gene_transcript> gt;
+    read_gene_transcripts(ist, p_tree.get(), gt);
+    CHECK_FALSE(gt[0].exists_at_root(p_tree.get()));
+    CHECK_FALSE(gt[1].exists_at_root(p_tree.get()));
 }
 
 TEST_CASE("exists_at_root_returns_true_if_all_children_exist")
@@ -152,11 +152,11 @@ TEST_CASE("exists_at_root handles values close to 0")
 {
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
-    gene_transcript family;
-    family.set_expression_value("A", 0.2);
-    family.set_expression_value("B", 0.3);
+    gene_transcript gt;
+    gt.set_expression_value("A", 0.2);
+    gt.set_expression_value("B", 0.3);
 
-    CHECK(family.exists_at_root(p_tree.get()));
+    CHECK(gt.exists_at_root(p_tree.get()));
 }
 
 TEST_CASE("remove_ungrouped_transcripts removes nothing if no groups")
@@ -170,7 +170,7 @@ TEST_CASE("remove_ungrouped_transcripts removes nothing if no groups")
 
     vector<gene_transcript> transcripts;
 
-    read_gene_families(ist, p_tree.get(), transcripts);
+    read_gene_transcripts(ist, p_tree.get(), transcripts);
 
     CHECK_EQ(2, transcripts.size());
     gene_transcript::remove_ungrouped_transcripts(vector<string>(), transcripts);
@@ -189,7 +189,7 @@ TEST_CASE("remove_ungrouped_transcripts removes specified single group")
 
     vector<gene_transcript> transcripts;
 
-    read_gene_families(ist, p_tree.get(), transcripts);
+    read_gene_transcripts(ist, p_tree.get(), transcripts);
 
     CHECK_EQ(2, transcripts.size());
     gene_transcript::remove_ungrouped_transcripts(vector<string>({"lungs"}), transcripts);
@@ -208,7 +208,7 @@ TEST_CASE("remove_ungrouped_transcripts is aware of comma-specified groups")
 
     vector<gene_transcript> transcripts;
 
-    read_gene_families(ist, p_tree.get(), transcripts);
+    read_gene_transcripts(ist, p_tree.get(), transcripts);
 
     CHECK_EQ(2, transcripts.size());
     gene_transcript::remove_ungrouped_transcripts(vector<string>({ "heart,lungs" }), transcripts);

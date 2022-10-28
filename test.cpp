@@ -157,8 +157,8 @@ TEST_CASE( "Inference: gamma_adjust_family_gamma_membership")
 {
     std::string str = "Desc\tFamily ID\tA\tB\tC\tD\n\t (null)1\t5\t10\t2\t6\n\t (null)2\t5\t10\t2\t6\n\t (null)3\t5\t10\t2\t6\n\t (null)4\t5\t10\t2\t6";
     std::istringstream ist(str);
-    std::vector<gene_transcript> families;
-    read_gene_families(ist, NULL, families);
+    std::vector<gene_transcript> gt;
+    read_gene_transcripts(ist, NULL, gt);
 
     gamma_model model(NULL, NULL, 0, 0, NULL);
     CHECK(true);
@@ -523,23 +523,6 @@ TEST_CASE("Probability: write_error_model_skips_unnecessary_lines")
     STRCMP_EQUAL(expected, ost.str().c_str());
 }
 
-TEST_CASE("Inference: build_reference_list")
-{
-    std::string str = "Desc\tFamily ID\tA\tB\n"
-        "\t (null)1\t5\t10\n"
-        "\t (null)2\t5\t7\n"
-        "\t (null)3\t5\t10\n"
-        "\t (null)4\t5\t7\n";
-    std::istringstream ist(str);
-    std::vector<gene_transcript> families;
-    read_gene_families(ist, NULL, families);
-    auto actual = build_reference_list(families);
-    vector<int> expected({ 0, 1, 0, 1 });
-    CHECK_EQ(expected.size(), actual.size());
-
-}
-
-
 TEST_CASE("Clade: get_lambda_index_throws_from_branch_length_tree")
 {
     ostringstream ost;
@@ -686,8 +669,8 @@ TEST_CASE_FIXTURE(Inference, "initialization_failure_advice_shows_20_families_wi
     _user_data.gene_transcripts[1].set_expression_value("B", 86);
 
     initialization_failure_advice(ost, _user_data.gene_transcripts);
-    STRCMP_CONTAINS("Families with largest size differentials:", ost.str().c_str());
-    STRCMP_CONTAINS("\nYou may want to try removing the top few families with the largest difference\nbetween the max and min counts and then re-run the analysis.\n", ost.str().c_str());
+    STRCMP_CONTAINS("Transcripts with largest size differentials:", ost.str().c_str());
+    STRCMP_CONTAINS("\nYou may want to try removing the top few transcripts with the largest difference\nbetween the max and min counts and then re-run the analysis.\n", ost.str().c_str());
     STRCMP_CONTAINS("TestFamily2: 52\nTestFamily1: 1", ost.str().c_str());
 }
 

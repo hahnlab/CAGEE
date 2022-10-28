@@ -394,3 +394,19 @@ TEST_CASE("base_model_reconstruction")
     CHECK_EQ(1, rec->_reconstructions.size());
 
 }
+
+TEST_CASE("build_reference_list")
+{
+    std::string str = "Desc\tFamily ID\tA\tB\n"
+        "\t (null)1\t5\t10\n"
+        "\t (null)2\t5\t7\n"
+        "\t (null)3\t5\t10\n"
+        "\t (null)4\t5\t7\n";
+    std::istringstream ist(str);
+    std::vector<gene_transcript> gt;
+    read_gene_transcripts(ist, NULL, gt);
+    auto actual = build_reference_list(gt);
+    vector<int> expected({ 0, 1, 0, 1 });
+    CHECK_EQ(expected.size(), actual.size());
+
+}

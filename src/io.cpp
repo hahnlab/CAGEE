@@ -53,11 +53,7 @@ clade* read_tree(string tree_file_path, bool lambda_tree) {
 /* END: Reading in tree data */
 
 
-//! Read gene family data from user-provided tab-delimited file
-/*!
-  This function is called by execute::read_gene_transcript_data, which is itself called by CAGEE's main function when "--infile"/"-i" is specified  
-*/
-void read_gene_families(std::istream& input_file, clade *p_tree, std::vector<gene_transcript> &gene_families) {
+void read_gene_transcripts(std::istream& input_file, clade *p_tree, std::vector<gene_transcript> &transcripts) {
 
     map<int, std::string> sp_col_map; // For dealing with CAFE input format, {col_idx: sp_name} 
     std::string line;
@@ -81,22 +77,21 @@ void read_gene_families(std::istream& input_file, clade *p_tree, std::vector<gen
             }
         }
         
-        // Header has ended, reading gene family counts
         else {
-            gene_transcript genfam(tokens[1], tokens[0], first_gene_index == 3 ? tokens[2] : "");
+            gene_transcript gt(tokens[1], tokens[0], first_gene_index == 3 ? tokens[2] : "");
             
             for (size_t i = first_gene_index; i < tokens.size(); ++i) {
                 std::string sp_name = sp_col_map[i];
                 double val = pv::to_computational_space(atof(tokens[i].c_str()));
-                genfam.set_expression_value(sp_name, val);
+                gt.set_expression_value(sp_name, val);
             }
             
-            gene_families.push_back(genfam);
+            transcripts.push_back(gt);
         }
     }
 
-    if (gene_families.empty())
-        throw std::runtime_error("No families found");
+    if (transcripts.empty())
+        throw std::runtime_error("No transcripts found");
 
 #ifdef MODEL_GENE_EXPRESSION_LOGS
     LOG(INFO) << "Values converted to LOG space";
@@ -105,7 +100,6 @@ void read_gene_families(std::istream& input_file, clade *p_tree, std::vector<gen
 #endif
 
 }
-/* END: Reading in gene family data */
 
 double to_double(string s)
 {
@@ -213,71 +207,71 @@ void create_directory(std::string& dir)
 #endif
 }
 
-std::ostream& operator<<(std::ostream& ost, const gene_transcript& family)
+std::ostream& operator<<(std::ostream& ost, const gene_transcript& transcript)
 {
-    ost << family._id;
-    if (!family._desc.empty())
-        ost << "," << family._desc;
+    ost << transcript._id;
+    if (!transcript._desc.empty())
+        ost << "," << transcript._desc;
     ost << ":";
-    for (auto& element : family._species_size_map) {
+    for (auto& element : transcript._species_size_map) {
         ost << " " << element.first << ":" << element.second;
     }
     return ost;
 }
 
 
-TEST_CASE("GeneFamilies: read_gene_families_throws_if_no_families_found")
+TEST_CASE("read_gene_transcripts throws_if_no_families_found")
 {
     std::string empty;
     std::istringstream ist(empty);
 
     unique_ptr<clade> p_tree(parse_newick("((A:1,B:1):1,(C:1,D:1):1);"));
-    std::vector<gene_transcript> families;
-    CHECK_THROWS_WITH_AS(read_gene_families(ist, p_tree.get(), families), "No families found", runtime_error);
+    std::vector<gene_transcript> gt;
+    CHECK_THROWS_WITH_AS(read_gene_transcripts(ist, p_tree.get(), gt), "No transcripts found", runtime_error);
 }
 
-TEST_CASE("GeneFamilies: read_gene_families skips blank lines in input")
+TEST_CASE("read_gene_transcripts skips blank lines in input")
 {
     std::string str = "Desc\tFamily ID\tA\tB\tC\tD\n\n\n\n\t (null)1\t5\t10\t2\t6\n\n\n\n";
     std::istringstream ist(str);
-    std::vector<gene_transcript> families;
-    read_gene_families(ist, NULL, families);
-    CHECK_EQ(1, families.size());
+    std::vector<gene_transcript> gt;
+    read_gene_transcripts(ist, NULL, gt);
+    CHECK_EQ(1, gt.size());
 }
 
-TEST_CASE("GeneFamilies: read_gene_families skips comment lines in input")
+TEST_CASE("read_gene_transcripts skips comment lines in input")
 {
     std::string str = "Desc\tFamily ID\tA\tB\tC\tD\n\n#Comment1\n\n\t (null)1\t5\t10\t2\t6\n\n#Comment 2\n\n";
     std::istringstream ist(str);
     std::vector<gene_transcript> families;
-    read_gene_families(ist, NULL, families);
+    read_gene_transcripts(ist, NULL, families);
     CHECK_EQ(1, families.size());
 }
 
-TEST_CASE("GeneFamilies: read_gene_families_reads_cafe_files")
+TEST_CASE("read_gene_transcripts reads_cafe_files")
 {
     std::string str = "Desc\tFamily ID\tA\tB\tC\tD\ndesc1\tid1\t5\t10\t2\t6\ndesc2\tid2\t5\t10\t2\t6\ndesc3\tid3\t5\t10\t2\t6\ndesc4\tid4\t\t5\t10\t2\t6";
     std::istringstream ist(str);
-    std::vector<gene_transcript> families;
-    read_gene_families(ist, NULL, families);
-    CHECK_EQ(string("id3"), families[2].id());
-    CHECK_EQ(string("desc4"), families[3].description());
-    CHECK_EQ(doctest::Approx(5.0), pv::to_user_space(families.at(0).get_expression_value("A")));
-    CHECK_EQ(doctest::Approx(10.0), pv::to_user_space(families.at(0).get_expression_value("B")));
-    CHECK_EQ(doctest::Approx(2.0), pv::to_user_space(families.at(0).get_expression_value("C")));
-    CHECK_EQ(doctest::Approx(6.0), pv::to_user_space(families.at(0).get_expression_value("D")));
+    std::vector<gene_transcript> gt;
+    read_gene_transcripts(ist, NULL, gt);
+    CHECK_EQ(string("id3"), gt[2].id());
+    CHECK_EQ(string("desc4"), gt[3].description());
+    CHECK_EQ(doctest::Approx(5.0), pv::to_user_space(gt.at(0).get_expression_value("A")));
+    CHECK_EQ(doctest::Approx(10.0), pv::to_user_space(gt.at(0).get_expression_value("B")));
+    CHECK_EQ(doctest::Approx(2.0), pv::to_user_space(gt.at(0).get_expression_value("C")));
+    CHECK_EQ(doctest::Approx(6.0), pv::to_user_space(gt.at(0).get_expression_value("D")));
 }
 
-TEST_CASE("read_gene_families reads Treatment Tissue header")
+TEST_CASE("read_gene_transcripts reads Treatment Tissue header")
 {
     std::string str = "Desc\tFamily ID\tSAMPLETYPE\tA\tB\tC\tD\n\t (null)1\tovary\t5\t10\t2\t6\n\t (null)2\tlung\t5\t10\t2\t6\n\t (null)3\tbreast\t5\t10\t2\t6\n\t (null)4\tbrain\t5\t10\t2\t6";
     std::istringstream ist(str);
-    std::vector<gene_transcript> families;
-    read_gene_families(ist, NULL, families);
-    REQUIRE_EQ(4, families.size());
+    std::vector<gene_transcript> gt;
+    read_gene_transcripts(ist, NULL, gt);
+    REQUIRE_EQ(4, gt.size());
 
-    CHECK(families[0].tissue() == "ovary");
-    CHECK(families[1].tissue() == "lung");
-    CHECK(families[2].tissue() == "breast");
-    CHECK(families[3].tissue() == "brain");
+    CHECK(gt[0].tissue() == "ovary");
+    CHECK(gt[1].tissue() == "lung");
+    CHECK(gt[2].tissue() == "breast");
+    CHECK(gt[3].tissue() == "brain");
 }
