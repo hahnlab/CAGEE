@@ -258,7 +258,7 @@ void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes
         return;
 
     }
-    ost << "DESC\tFID";
+    ost << "DESC\tGENE_ID";
     for (size_t i = 0; i < order.size(); ++i)
     {
         if (!order[i]) continue;
@@ -347,7 +347,7 @@ TEST_CASE("print_process_prints_in_order")
     simulator sim(data, params);
     sim.print_simulations(ost, true, my_trials, get_ape_order(p_tree.get()));
 
-    CHECK_STREAM_CONTAINS(ost, "DESC\tFID\tA\tB\t3");
+    CHECK_STREAM_CONTAINS(ost, "DESC\tGENE_ID\tA\tB\t3");
     CHECK_STREAM_CONTAINS(ost, "SIG0\ttranscript0\t2\t4\t6");
 
 }
@@ -372,7 +372,7 @@ TEST_CASE("print_process_can_print_without_internal_nodes")
     input_parameters params;
     simulator sim(data, params);
     sim.print_simulations(ost, false, my_trials, get_ape_order(p_tree.get()));
-    CHECK_STREAM_CONTAINS(ost, "DESC\tFID\tA\tB\n");
+    CHECK_STREAM_CONTAINS(ost, "DESC\tGENE_ID\tA\tB\n");
     CHECK_STREAM_CONTAINS(ost, "SIG0\ttranscript0\t2\t4\n");
 
 }
