@@ -206,22 +206,23 @@ std::map<std::string, int> clade::get_sigma_index_map()
     return node_name_to_sigma_index;
 }
 
-void clade::write_newick(ostream& ost, std::function<std::string(const clade *c)> textwriter) const
+void clade::write_newick(ostream& ost, std::function<void(std::ostream& ost, const clade *c)> write_clade) const
 {
     if (is_leaf()) {
-        ost << textwriter(this);
+        write_clade(ost, this);
     }
     else {
         ost << '(';
 
         // some nonsense to supress trailing comma
         for (size_t i = 0; i< _descendants.size() - 1; i++) {
-            _descendants[i]->write_newick(ost, textwriter);
+            _descendants[i]->write_newick(ost, write_clade);
             ost << ',';
         }
 
-        _descendants[_descendants.size() - 1]->write_newick(ost, textwriter);
-        ost << ')' << textwriter(this);
+        _descendants[_descendants.size() - 1]->write_newick(ost, write_clade);
+        ost << ')';
+        write_clade(ost, this);
     }
 }
 
@@ -245,9 +246,11 @@ double clade::distance_from_root_to_tip() const
     return *max_element(candidates.begin(), candidates.end());
 }
 
-string clade_index_or_name(const clade* node)
-{
-    return (node->is_leaf() ? node->get_taxon_name() : string()) + "<" + to_string(node->get_ape_index()) + ">";
+std::ostream& operator<<(std::ostream& ost, const clade& c) {
+    if (c.is_leaf())
+        ost << c.get_taxon_name();
+    ost << "<" << c.get_ape_index() << ">";
+    return ost;
 }
 
 std::set<double> clade::get_branch_lengths() const

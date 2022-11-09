@@ -345,7 +345,7 @@ TEST_CASE_FIXTURE(Reconstruction, "base_model_reconstruction__print_reconstructe
     bmr.print_reconstructed_states(ost, { fam }, p_tree.get());
     CHECK_STREAM_CONTAINS(ost, "#nexus");
     CHECK_STREAM_CONTAINS(ost, "BEGIN TREES;");
-    CHECK_STREAM_CONTAINS(ost, "  TREE Family5 = ((A<1>_11.000000:1,B<2>_2.000000:3)<6>_8.000000:7,(C<3>_5.000000:11,D<4>_6.000000:17)<7>_6.000000:23)<5>_7.000000;");
+    CHECK_STREAM_CONTAINS(ost, "  TREE Family5 = ((A<1>_11:1,B<2>_2:3)<6>_8:7,(C<3>_5:11,D<4>_6:17)<7>_6:23)<5>_7;");
     CHECK_STREAM_CONTAINS(ost, "END;");
 
 }

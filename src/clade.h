@@ -87,7 +87,7 @@ public:
 
     std::string get_taxon_name() const { return _taxon_name; }
 
-    void write_newick(std::ostream& ost, std::function<std::string(const clade *c)> textwriter) const;
+    void write_newick(std::ostream& ost, std::function<void(std::ostream& ost, const clade *c)> write_clade) const;
 
     std::map<std::string, int> get_sigma_index_map();
 
@@ -132,9 +132,8 @@ using clademap = std::map<const clade *, T>;
 
 using cladevector = std::vector<const clade *>;
 
-std::string clade_index_or_name(const clade* node);
-
 clade* parse_newick(std::string newick_string, bool parse_sigmas);
 inline clade* parse_newick(std::string newick_string) { return parse_newick(newick_string, false); }
+
 
 #endif

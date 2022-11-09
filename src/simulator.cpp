@@ -191,8 +191,8 @@ void print_header(std::ostream& ost, const input_parameters& p, size_t c, const 
 
     if (p_tree)
     {
-        auto text_func = [](const clade* c) {
-            return clade_index_or_name(c);
+        auto text_func = [](ostream& ost, const clade* c) {
+            ost << *c;
         };
         ost << "# Tree: ";
         p_tree->write_newick(ost, text_func);
@@ -249,7 +249,6 @@ void simulator::simulate(std::vector<model *>& models, const input_parameters &m
     }
 }
 
-
 void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes, const std::vector<simulated_family>& results, const cladevector& order) 
 {
     if (results.empty())
@@ -258,34 +257,21 @@ void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes
         return;
 
     }
-    ost << "DESC\tGENE_ID";
-    for (size_t i = 0; i < order.size(); ++i)
-    {
-        if (!order[i]) continue;
-
-        if (order[i]->is_leaf())
-            ost << '\t' << order[i]->get_taxon_name();
-        else if (include_internal_nodes)
-            ost << '\t' << i;
-
-    }
-    ost << endl;
+    cladevector nodes;
+    copy_if(order.begin(), order.end(), back_inserter(nodes), [include_internal_nodes](const clade* c)
+        {
+            return c && (c->is_leaf() || include_internal_nodes);
+        });
+    write_node_ordered<const clade *>(ost, "DESC\tGENE_ID", nodes);
 
     for (size_t j = 0; j < results.size(); ++j) {
         auto& transcript = results[j];
         // Printing gene counts
         ost << "SIG" << transcript.sigma << "\ttranscript" << j;
-        for (size_t i = 0; i < order.size(); ++i)
-        {
-            if (!order[i]) continue;
-
-            if (order[i]->is_leaf() || include_internal_nodes)
-            {
-                ost << '\t';
-                ost << pv::to_user_space(transcript.values.at(order[i]));
-            }
-        }
-        ost << endl;
+        write_node_ordered<double>(ost, "", nodes, [&transcript](const clade* c) 
+            { 
+                return pv::to_user_space(transcript.values.at(c));
+            });
     }
 }
 
@@ -347,7 +333,7 @@ TEST_CASE("print_process_prints_in_order")
     simulator sim(data, params);
     sim.print_simulations(ost, true, my_trials, get_ape_order(p_tree.get()));
 
-    CHECK_STREAM_CONTAINS(ost, "DESC\tGENE_ID\tA\tB\t3");
+    CHECK_STREAM_CONTAINS(ost, "DESC\tGENE_ID\tA<1>\tB<2>\t<3>");
     CHECK_STREAM_CONTAINS(ost, "SIG0\ttranscript0\t2\t4\t6");
 
 }
@@ -372,7 +358,7 @@ TEST_CASE("print_process_can_print_without_internal_nodes")
     input_parameters params;
     simulator sim(data, params);
     sim.print_simulations(ost, false, my_trials, get_ape_order(p_tree.get()));
-    CHECK_STREAM_CONTAINS(ost, "DESC\tGENE_ID\tA\tB\n");
+    CHECK_STREAM_CONTAINS(ost, "DESC\tGENE_ID\tA<1>\tB<2>\n");
     CHECK_STREAM_CONTAINS(ost, "SIG0\ttranscript0\t2\t4\n");
 
 }
