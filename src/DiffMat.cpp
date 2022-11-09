@@ -9,7 +9,7 @@
 #include "gpu_multiplier.h"
 #endif
 
-#ifdef BLAS_FOUND
+#ifdef BLAS_AVAILABLE
 #include "blas_multiplier.h"
 #endif
 
@@ -55,14 +55,15 @@ DiffMat::DiffMat(int Npts) {
 
     Diff = A;
     
-#ifdef BLAS_FOUND
-    multiplier = new blas_multiplier();
-#elif defined HAVE_CUDA    
+#ifdef HAVE_CUDA
     multiplier = new gpu_multiplier(Npts);
+#elif defined BLAS_AVAILABLE
+    multiplier = new blas_multiplier();
 #else
     LOG(WARNING) << "No math library available, calculations may be slow";
-    multiplier = new eigen_multiplier();
+    multiplier = new eigen_multiplier(); 
 #endif
+
 }
 
 void DiffMat::create_or_read_eigenvectors()

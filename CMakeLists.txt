@@ -5,6 +5,8 @@ include(CheckIncludeFile)
 # set the project name
 project(CAGEE VERSION 1.0)
 
+set (CMAKE_PREFIX_PATH      "${PROJECT_SOURCE_DIR}/cmake")
+
 set(OPTIMIZER_HIGH_PRECISION 1e-6)
 set(OPTIMIZER_LOW_PRECISION 1e-3)
 set(PHASED_OPTIMIZER_PHASE1_ATTEMPTS 4)
@@ -16,11 +18,14 @@ if (CMAKE_HOST_WIN32)
 	set(NOMINMAX 1)
 endif()
 
+find_package(MKL QUIET)
+find_package(GSL QUIET)
+find_package(OpenBLAS QUIET)
+
 CHECK_INCLUDE_FILE(getopt.h HAVE_GETOPT_H)
 
 find_package (Eigen3 3.4 REQUIRED NO_MODULE)
 
-find_package(BLAS)
 
 find_package(Boost REQUIRED COMPONENTS program_options)
 
@@ -44,10 +49,6 @@ endif()
 
 add_definitions(-DOPTIMIZER_STRATEGY=${OPTIMIZER_STRATEGY})
 add_definitions(-DDISCRETIZATION_RANGE=${DISCRETIZATION_RANGE})
-
-if(DEFINED ENV{MKLROOT})
-  add_definitions(-DMKL_FOUND)
-endif()
 
 # Define the two required variables before including
 # the source code for watching a git repository.
@@ -95,19 +96,42 @@ if(Boost_FOUND)
     target_link_libraries(tests PRIVATE Boost::program_options)
 endif()
 
-if(BLAS_FOUND)
-    target_link_libraries(cagee PRIVATE ${BLAS_LIBRARIES})
-    target_link_libraries(tests PRIVATE ${BLAS_LIBRARIES})
-    target_link_libraries(diffmat_precalc PRIVATE ${BLAS_LIBRARIES})
+if(MKL_FOUND)
+    target_include_directories(cagee PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
+    target_include_directories(tests PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
+    target_include_directories(diffmat_precalc PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
+
+    target_compile_options(cagee PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
+    target_compile_options(tests PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
+    target_compile_options(diffmat_precalc PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
+
+    target_link_libraries(cagee PUBLIC $<LINK_ONLY:MKL::MKL>)
+    target_link_libraries(tests PUBLIC $<LINK_ONLY:MKL::MKL>)
+    target_link_libraries(diffmat_precalc PUBLIC $<LINK_ONLY:MKL::MKL>)
+    add_compile_definitions(BLAS_AVAILABLE)
+elseif(OpenBLAS_FOUND)
+    target_include_directories(cagee PUBLIC ${OpenBLAS_INCLUDE_DIRS})
+    target_include_directories(tests PUBLIC ${OpenBLAS_INCLUDE_DIRS})
+    target_include_directories(diffmat_precalc PUBLIC ${OpenBLAS_INCLUDE_DIRS})
+
+    target_link_libraries(cagee PUBLIC ${OpenBLAS_LIBRARIES})
+    target_link_libraries(tests PUBLIC ${OpenBLAS_LIBRARIES})
+    target_link_libraries(diffmat_precalc PUBLIC ${OpenBLAS_LIBRARIES})
+    add_compile_definitions(BLAS_AVAILABLE)
+elseif (GSL_FOUND)
+    target_include_directories(cagee PUBLIC ${GSL_INCLUDE_DIRS})
+    target_include_directories(tests PUBLIC ${GSL_INCLUDE_DIRS})
+    target_include_directories(diffmat_precalc PUBLIC ${GSL_INCLUDE_DIRS})
+
+    target_link_libraries(cagee PUBLIC ${GSL_LIBRARIES})
+    target_link_libraries(tests PUBLIC ${GSL_LIBRARIES})
+    target_link_libraries(diffmat_precalc PUBLIC ${GSL_LIBRARIES})
+    add_compile_definitions(BLAS_AVAILABLE)
 endif()
 
-if(MSVC)
-    add_definitions(/FI"C:\\Users\\befulton\\Documents\\GIT\\CAGEE\\out\\build\\x64-Debug\\config.h")
-else()
-    # GCC or Clang
-    add_definitions(-include config.h)
-    target_compile_options(tests PRIVATE -g -rdynamic -Wall -Werror)
-endif()
+# GCC or Clang
+add_definitions(-include config.h)
+target_compile_options(tests PRIVATE -g -rdynamic -Wall -Werror)
 
 
 install(TARGETS cagee DESTINATION bin)

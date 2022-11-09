@@ -1,14 +1,6 @@
 #ifndef BLAS_MULTIPLIER_H
 #define BLAS_MULTIPLIER_H
 
-#ifdef BLAS_FOUND
-
-#ifdef MKL_FOUND
-#include "mkl.h"
-#else
-#include "cblas.h"
-#endif
-#endif
 
 #include <Eigen/Dense>
 #include <vector>

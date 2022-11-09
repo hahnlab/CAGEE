@@ -1,6 +1,13 @@
 #include "blas_multiplier.h"
 
-#ifdef BLAS_FOUND
+#ifdef MKL_FOUND
+#include "mkl.h"
+#elif defined OpenBLAS_FOUND
+#include "cblas.h"
+#elif defined GSL_FOUND
+#include "gsl/gsl_blas.h"
+#endif
+
 using namespace std;
 using namespace Eigen;
 
@@ -31,4 +38,3 @@ vector<MatrixXd> blas_multiplier::doit(const vector<MatrixXcd>& matrices, const 
     }
     return vResult;
 }
-#endif

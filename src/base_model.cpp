@@ -283,7 +283,11 @@ TEST_CASE("infer_transcript_likelihoods")
 
     double multi = core.infer_transcript_likelihoods(ud, &ss, std::gamma_distribution<double>(1, 2));
 
+#ifdef GSL_FOUND
+    CHECK_EQ(doctest::Approx(114.708), multi);
+#else
     CHECK_EQ(doctest::Approx(114.7321), multi);
+#endif
 }
 
 

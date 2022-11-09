@@ -3,10 +3,6 @@
 #include "doctest.h"
 #include "easylogging++.h"
 
-#ifdef HAVE_VECTOR_EXP
-#include "mkl.h"
-#endif
-
 #include "inference_pruner.h"
 
 #include "clade.h"
