@@ -1,5 +1,6 @@
 #include "blas_multiplier.h"
 
+#ifdef BLAS_AVAILABLE
 #ifdef MKL_FOUND
 #include "mkl.h"
 #elif defined OpenBLAS_FOUND
@@ -38,3 +39,4 @@ vector<MatrixXd> blas_multiplier::doit(const vector<MatrixXcd>& matrices, const 
     }
     return vResult;
 }
+#endif
