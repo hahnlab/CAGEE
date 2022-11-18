@@ -11,7 +11,10 @@ namespace po = boost::program_options;
 
 #include "arguments.h"
 #include "io.h"
+
+#ifdef INCLUDE_GIT_IN_VERSION_INFO
 #include "../git_version.h"
+#endif
 
 using namespace std;
 
@@ -33,6 +36,7 @@ void show_version()
     cout << PROJECT_NAME " " PROJECT_VER << endl;
     cout << desc;
 
+#ifdef INCLUDE_GIT_IN_VERSION_INFO
     if (GitMetadata::Populated()) {
         cout << "Last git commit: \n";
         if (GitMetadata::AnyUncommittedChanges()) {
@@ -44,6 +48,7 @@ void show_version()
             << "Date: " << GitMetadata::CommitDate() << "\n\n"
             << GitMetadata::CommitSubject() << "\n" << GitMetadata::CommitBody() << std::endl;
     }
+#endif
 }
 void show_help(const po::options_description& gen, const po::options_description& required, const po::options_description& common, const po::options_description& rare)
 {

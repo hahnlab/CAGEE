@@ -38,6 +38,7 @@ set(OPTIMIZER_STRATEGY "NelderMead" CACHE STRING "Optimizer strategy (LBFGS, Nel
 set(DISCRETIZATION_RANGE "200" CACHE STRING "How finely to divide the continuous range")
 option(MODEL_GENE_EXPRESSION_LOGS "Perform calculations using log values rather than linear values" ON)
 option(USE_MAX_PROBABILITY "Evaluate probability as maximum value rather than cumulative" OFF)
+option(INCLUDE_GIT_IN_VERSION_INFO "Write information about the last GIT commit into version info" OFF)
 
 if (MODEL_GENE_EXPRESSION_LOGS)
   add_definitions(-DMODEL_GENE_EXPRESSION_LOGS)
@@ -50,16 +51,20 @@ endif()
 add_definitions(-DOPTIMIZER_STRATEGY=${OPTIMIZER_STRATEGY})
 add_definitions(-DDISCRETIZATION_RANGE=${DISCRETIZATION_RANGE})
 
-# Define the two required variables before including
-# the source code for watching a git repository.
-set(PRE_CONFIGURE_FILE "git_version.cpp.in")
-set(POST_CONFIGURE_FILE "${CMAKE_CURRENT_BINARY_DIR}/git_version.cpp")
-include(git_watcher.cmake)
 
-# Create a library out of the compiled post-configure file.
-add_library(git STATIC ${POST_CONFIGURE_FILE})
-target_include_directories(git PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-add_dependencies(git check_git)
+if (INCLUDE_GIT_IN_VERSION_INFO)
+  # Define the two required variables before including
+  # the source code for watching a git repository.
+  set(PRE_CONFIGURE_FILE "git_version.cpp.in")
+  set(POST_CONFIGURE_FILE "${CMAKE_CURRENT_BINARY_DIR}/git_version.cpp")
+  include(git_watcher.cmake)
+
+  # Create a library out of the compiled post-configure file.
+  add_definitions(-DINCLUDE_GIT_IN_VERSION_INFO)
+  add_library(git STATIC ${POST_CONFIGURE_FILE})
+  target_include_directories(git PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+  add_dependencies(git check_git)
+endif()
 
 # add the executable
 add_executable(cagee main.cpp)
@@ -77,8 +82,10 @@ add_subdirectory(src)
 
 link_libraries(Eigen3::Eigen)
 
-target_link_libraries(cagee PRIVATE git)
-target_link_libraries(tests PRIVATE git)
+if (INCLUDE_GIT_IN_VERSION_INFO)
+  target_link_libraries(cagee PRIVATE git)
+  target_link_libraries(tests PRIVATE git)
+endif()
 
 find_package(ZLIB)
 target_link_libraries(cagee PRIVATE ZLIB::ZLIB)
