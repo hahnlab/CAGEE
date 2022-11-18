@@ -144,6 +144,7 @@ target_compile_options(tests PRIVATE -g -rdynamic -Wall -Werror)
 install(TARGETS cagee DESTINATION bin)
 install(TARGETS diffmat_precalc DESTINATION bin)
 install(DIRECTORY examples DESTINATION .)
+install(DIRECTORY docs/manual DESTINATION .)
 install(FILES README.md LICENSE CHANGELOG.md DESTINATION .)
 
 include(CPack)
