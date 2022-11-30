@@ -10,16 +10,20 @@ using namespace std;
 
 error_model::error_model()
 {
-    _deviations = { -1, 0, 1 };
+    _deviations = {};
 }
 
 void error_model::set_max_family_size(size_t max_cnt) {
     _max_family_size = max_cnt;
 }
 
-void error_model::set_deviations(std::vector<std::string> deviations) {
-    _deviations.resize(deviations.size());
-    transform(deviations.begin(), deviations.end(), _deviations.begin(), [](const string& s) {return std::stoi(s); });
+void error_model::set_deviations(std::map<int,double> deviations) {
+    std::vector<int> deviations1;
+    for(auto i = deviations.begin(); i!=deviations.end();++i)
+    {   _deviations.push_back(i->first);
+    }
+
+
 }
 
 inline bool is_nearly_equal(double x, double y)
@@ -28,33 +32,85 @@ inline bool is_nearly_equal(double x, double y)
     return std::abs(x - y) <= epsilon * std::abs(x);
 }
 
-void error_model::set_probabilities(size_t fam_size, std::vector<double> probs_deviation) {
-    if ((fam_size == 0 || _error_dists.empty()) && !is_nearly_equal(probs_deviation[0], 0.0))
-    {
-        throw std::runtime_error("Cannot have a non-zero probability for family size 0 for negative deviation");
-    }
+double error_model::Normal(int x, int mu, double sigma)
+{
+double deno,numo,density;
+deno = pow((2*M_PI*sigma*sigma),-0.5);
+numo = exp(-0.5*pow(((x-mu)/sigma),2));
+density = numo*deno;
+return density;
 
-    if (!is_nearly_equal(accumulate(probs_deviation.begin(), probs_deviation.end(), 0.0), 1.0))
-    {
-        throw std::runtime_error("Sum of probabilities must be equal to one");
-    }
-
-    if (_error_dists.empty())
-        _error_dists.push_back(probs_deviation);
-
-    if (_error_dists.size() <= fam_size)
-    {
-        _error_dists.resize(fam_size + 1, _error_dists.back());
-    }
-    _error_dists[fam_size] = probs_deviation; // fam_size starts at 0 at tips, so fam_size = index of vector
 }
 
-std::vector<double> error_model::get_probs(size_t fam_size) const {
-    if (fam_size >= _error_dists.size() && fam_size <= _max_family_size)
-        return _error_dists.back();
+double error_model::Sum(std::map<int,double> dic)
+{
+    double sum_=0;
+     for(auto i = dic.begin(); i!=dic.end();++i)
+{    sum_=sum_+i->second;}
 
-    return _error_dists[fam_size];
+return sum_;
 }
+
+
+std::map<int,double> error_model::reNormalize(std::map<int,double>  dic){
+	double sum_values = Sum(dic);
+    for(auto i = dic.begin(); i!=dic.end();++i)
+{   i->second= i->second/sum_values;
+}
+
+	return dic;
+}
+
+
+
+std::map<int,double> error_model::generate_matrix(double a,double r,double mu,int upper_bound){
+	double log_sigma= exp(r*log(mu))*a;
+	double sigma = exp(log_sigma);
+	map<int,double> dic;
+	int i=round(mu);
+	double value=1;
+	while (round(value*10000.00)/10000 !=0 && i!=upper_bound){
+		value = Normal(i,mu,sigma);
+		dic[i]=value;
+		i=i+1;
+    }
+	int limit=round(mu)-i;
+	i=round(mu)-1;
+	value=1;
+    while (round(value*100000.00)/100000 !=0 && i!=0){
+		value = Normal(i,mu,sigma);
+		dic[i]=value;
+		i=i-1;
+    }
+
+	return dic;
+}
+
+
+
+void error_model::set_probabilities(double a, double r, size_t mu, double upper_bound) {
+    std::map<int,double> dic1;
+    dic1=generate_matrix(a,r,mu,upper_bound);
+    std::vector<double> err;
+    std::map<int,double> dic= reNormalize(dic1);
+    set_deviations(dic);
+    for(auto i = dic.begin(); i!=dic.end();++i)
+    {   err.push_back(i->second);
+    }
+
+    _error_dists[mu]=err;
+
+
+
+
+
+}
+
+ std::vector<double> error_model::get_probs(size_t mu) const {
+
+    return  _error_dists[mu];
+}
+
 
 std::vector<double> error_model::get_epsilons() const {
     set<double> unique_values;
@@ -73,38 +129,8 @@ void error_model::update_single_epsilon(double new_epsilon)
     assert(epsilons.size() == 1);
     map<double, double> replacements;
     replacements[epsilons[0]] = new_epsilon;
-    replace_epsilons(&replacements);
+    //replace_epsilons(&replacements);
 }
 
-void error_model::replace_epsilons(std::map<double, double>* new_epsilons)
-{
-    vector<double> vec = _error_dists[0];
-    assert(vec.size() == 3);
-    for (auto kv : *new_epsilons)
-    {
-        if (is_nearly_equal(kv.first, vec.back()))
-        {
-            vec.back() = kv.second;
-            vec[1] = 1 - kv.second;
-            set_probabilities(0, vec);
-        }
-    }
 
-    for (size_t i = 1; i < _error_dists.size(); ++i)
-    {
-        vector<double> vec = _error_dists[i];
-        assert(vec.size() == 3);
-
-        for (auto kv : *new_epsilons)
-        {
-            if (is_nearly_equal(kv.first, vec.back()))
-            {
-                vec.back() = kv.second;
-                vec.front() = kv.second;
-                vec[1] = 1 - (kv.second * 2);
-                set_probabilities(i, vec);
-            }
-        }
-    }
-}
 

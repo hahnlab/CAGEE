@@ -140,7 +140,7 @@ void read_error_model_file(std::istream& error_model_file, error_model *p_error_
 //                cout << *it << " ";
 //            }
 //            cout << endl;
-            p_error_model->set_deviations(cnt_diffs);
+            //p_error_model->set_deviations(cnt_diffs);
         }
         else
         {
@@ -150,7 +150,7 @@ void read_error_model_file(std::istream& error_model_file, error_model *p_error_
                 int sz = std::stoi(tokens[0]);
                 vector<double> values(tokens.size() - 1);
                 transform(tokens.begin() + 1, tokens.end(), values.begin(), to_double);
-                p_error_model->set_probabilities(sz, values);
+                //p_error_model->set_probabilities(sz, values);
             }
         }
     }

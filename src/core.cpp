@@ -10,6 +10,7 @@
 #include "doctest.h"
 #include "easylogging++.h"
 
+#include "inference_pruner.h"
 #include "core.h"
 #include "user_data.h"
 #include "matrix_cache.h"
@@ -48,8 +49,8 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
         if (user_input.use_error_model && !p_error_model)
         {
             p_error_model = new error_model();
-            p_error_model->set_probabilities(0, { 0, .95, 0.05 });
-            p_error_model->set_probabilities(200, { 0.05, .9, 0.05 });
+           for (int i=0 ;i<200;i++){
+            p_error_model->set_probabilities(0.5,0.4,i,200);}
         }
 
         p_model = new base_model(user_data.p_sigma, p_gene_transcripts, p_error_model);
@@ -92,9 +93,7 @@ void model::write_vital_statistics(std::ostream& ost, const clade *p_tree, doubl
         });
     ost << endl;
 
-    if (_p_error_model)
-        ost << "Epsilon: " << _p_error_model->get_epsilons()[0] << endl;
-
+ 
     get_monitor().log(ost);
 
     write_extra_vital_statistics(ost);
@@ -111,7 +110,7 @@ void model::write_error_model(int max_transcript_size, std::ostream& ost) const
     if (!em)
     {
         em = new error_model();
-        em->set_probabilities(max_transcript_size, { 0, 1, 0 });
+        em->set_probabilities(0.5,0.4,10,200);
     }
     write_error_model_file(ost, *em);
 }
