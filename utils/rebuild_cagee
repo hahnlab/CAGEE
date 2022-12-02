@@ -23,7 +23,7 @@ mkdir -vp ../build/ ../install/
 cd ../build/ && msg "moved to $PWD"
 
 msg "building CAGEE with $procs procs"
-cmake -DCMAKE_INSTALL_PREFIX=../install/ -DMODEL_GENE_EXPRESSION_LOGS=1 ..
+cmake -DCMAKE_INSTALL_PREFIX=../install/ ..
 make -j "$procs" && make install
 msg "CAGEE built and installed to CAGEE/install/bin/cagee"
 
