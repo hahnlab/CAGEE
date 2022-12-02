@@ -5,6 +5,8 @@
 #include <string>
 #include <map>
 
+using boundaries = std::pair<double, double>;
+
 class error_model {
 private:
     size_t _max_family_size;
@@ -39,7 +41,7 @@ public:
     void set_probabilities(double a, double r, size_t mu, double upperbound);
 
     //! Get deviation probability vector for a certain family size
-     std::vector<double> get_probs(size_t mu) const;
+     std::vector<double> get_probs(double expression_value, boundaries b) const;
 
     size_t n_deviations() const {
         return _deviations.size();

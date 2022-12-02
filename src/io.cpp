@@ -147,7 +147,7 @@ void read_error_model_file(std::istream& error_model_file, error_model *p_error_
             tokens = tokenize_str(line, ' ');
             if (tokens.size() > 0)
             {
-                int sz = std::stoi(tokens[0]);
+//                int sz = std::stoi(tokens[0]);
                 vector<double> values(tokens.size() - 1);
                 transform(tokens.begin() + 1, tokens.end(), values.begin(), to_double);
                 //p_error_model->set_probabilities(sz, values);
@@ -169,7 +169,7 @@ void write_error_model_file(std::ostream& ost, error_model& errormodel)
 
     vector<double> last_probs;
     for (size_t j = 0; j < errormodel.get_max_family_size(); j++) {
-        auto probs = errormodel.get_probs(j);
+        auto probs = errormodel.get_probs(j, boundaries(0,10));
         if (probs == last_probs) continue;
         last_probs = probs;
 

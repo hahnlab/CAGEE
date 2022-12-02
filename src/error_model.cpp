@@ -6,6 +6,9 @@
 #include <stdexcept>
 #include "error_model.h"
 
+#include "doctest.h"
+#include "easylogging++.h"
+
 using namespace std;
 
 error_model::error_model()
@@ -74,8 +77,8 @@ std::map<int,double> error_model::generate_matrix(double a,double r,double mu,in
 		dic[i]=value;
 		i=i+1;
     }
-	int limit=round(mu)-i;
-	i=round(mu)-1;
+
+    i=round(mu)-1;
 	value=1;
     while (round(value*100000.00)/100000 !=0 && i!=0){
 		value = Normal(i,mu,sigma);
@@ -97,6 +100,8 @@ void error_model::set_probabilities(double a, double r, size_t mu, double upper_
     for(auto i = dic.begin(); i!=dic.end();++i)
     {   err.push_back(i->second);
     }
+    if (_error_dists.size() <= mu)
+        _error_dists.resize(mu + 1);
 
     _error_dists[mu]=err;
 
@@ -106,9 +111,9 @@ void error_model::set_probabilities(double a, double r, size_t mu, double upper_
 
 }
 
- std::vector<double> error_model::get_probs(size_t mu) const {
+ std::vector<double> error_model::get_probs(double expression_value, boundaries b) const {
 
-    return  _error_dists[mu];
+    return  _error_dists[int(expression_value)];
 }
 
 
@@ -132,5 +137,11 @@ void error_model::update_single_epsilon(double new_epsilon)
     //replace_epsilons(&replacements);
 }
 
-
+TEST_CASE("error model does things")
+{
+    error_model e;
+    e.set_probabilities(0.5, 0.4, 0, 200);
+    auto probs = e.get_probs(0, boundaries(0,5));
+    CHECK_EQ(doctest::Approx(0.398942), probs[5]);
+}
 
