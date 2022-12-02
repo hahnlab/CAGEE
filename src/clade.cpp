@@ -429,7 +429,7 @@ clade* parse_newick(std::string newick_string, bool parse_to_sigmas) {
     else
     {
         validator = [](const clade* c) {
-            if (!c->is_root() && c->get_branch_length() <= 0)
+            if (!c->is_root() && c->get_branch_length() < 0)
                 throw std::runtime_error("Invalid branch length set for " + c->get_taxon_name());
         };
     }
