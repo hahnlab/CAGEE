@@ -557,7 +557,7 @@ TEST_CASE("Clade: parse_newick_throws_exception_for_invalid_lambdas_in_tree")
 
 TEST_CASE("Clade: parse_newick_throws_exception_for_invalid_branch_length_in_tree")
 {
-    CHECK_THROWS_WITH_AS(parse_newick("(A:1,B:0):2", false), "Invalid branch length set for B", runtime_error);
+    CHECK_THROWS_WITH_AS(parse_newick("(A:1,B:-0.1):2", false), "Invalid branch length set for B", runtime_error);
     CHECK_THROWS_WITH_AS(parse_newick("(A:-1,B:2)", false), "Invalid branch length set for A", runtime_error);
 }
 
