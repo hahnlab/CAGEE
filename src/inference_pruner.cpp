@@ -42,8 +42,15 @@ void compute_node_probability(const clade* node,
 
         if (p_error_model != NULL)
         {
-            auto probs = p_error_model->get_probs(expression_value, boundaries(0, upper_bound));
-            copy(probs.begin(), probs.end(), probabilities[node].begin());
+                    int Npts = probabilities[node].size();
+                    double nx = (Npts - 1) * (expression_value -0) / double(upper_bound );
+                    int ix = floor(nx);
+                    size_t l =((2*ix)+1)/2;
+
+                    std::vector<double> v= p_error_model->get_probs(l);
+                    Eigen::VectorXd v3 = Eigen::VectorXd::Map(v.data(), v.size());
+                    probabilities[node]= v3;
+ 
         }
         else
         {

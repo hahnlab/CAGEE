@@ -20,6 +20,8 @@
 #include "sigma.h"
 #include "arguments.h"
 #include "reconstruction.h"
+#include "DiffMat.h"
+
 
 using namespace std;
 
@@ -46,11 +48,32 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
     else
     {
         error_model* p_error_model = user_data.p_error_model;
-        if (user_input.use_error_model && !p_error_model)
+    if (user_input.use_error_model && !p_error_model)
         {
             p_error_model = new error_model();
-           for (int i=0 ;i<200;i++){
-            p_error_model->set_probabilities(0.5,0.4,i,200);}
+       
+            for (gene_transcript i: user_data.gene_transcripts)
+            {  
+                clade *p_trees = user_data.p_tree;
+                if (p_trees->is_leaf())
+                {
+                    double expression_value = i.get_expression_value(p_trees->get_taxon_name());
+                    int upper_bound = upper_bound_from_transcript_values(*p_gene_transcripts);
+                    Eigen::VectorXd actual(200);
+                    VectorPos_bounds(expression_value, pair<double, double>(0, upper_bound), actual);
+
+                    int Npts = actual.size();
+                    double nx = (Npts - 1) * (expression_value -0) / double(upper_bound );
+                    int ix = floor(nx);
+                    size_t l =((2*ix)+1)/2;
+                    p_error_model->set_probabilities(0.5,0.4,l,upper_bound,nx - ix);
+                    
+                    
+                }
+            }
+        
+ 
+
         }
 
         p_model = new base_model(user_data.p_sigma, p_gene_transcripts, p_error_model);
@@ -110,7 +133,7 @@ void model::write_error_model(int max_transcript_size, std::ostream& ost) const
     if (!em)
     {
         em = new error_model();
-        em->set_probabilities(0.5,0.4,10,200);
+        //em->set_probabilities(0.5,0.4,10,200);
     }
     write_error_model_file(ost, *em);
 }

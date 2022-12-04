@@ -5,8 +5,6 @@
 #include <string>
 #include <map>
 
-using boundaries = std::pair<double, double>;
-
 class error_model {
 private:
     size_t _max_family_size;
@@ -32,16 +30,16 @@ public:
 
 
     //!generate matrix
-    std::map<int,double> generate_matrix(double a,double r,double mu,int upper_bound);
+    std::map<int,double> generate_matrix(double a,double r,double mu,int upper_bound,double ux);
 
     //! ReNormalize the vectors
     std::map<int,double> reNormalize(std::map<int,double>  dic);
 
     //! Set deviation probability vector for a certain family size
-    void set_probabilities(double a, double r, size_t mu, double upperbound);
+    void set_probabilities(double a, double r, size_t mu, double upperbound,double ux);
 
     //! Get deviation probability vector for a certain family size
-     std::vector<double> get_probs(double expression_value, boundaries b) const;
+     std::vector<double> get_probs(size_t mu) const;
 
     size_t n_deviations() const {
         return _deviations.size();

@@ -167,6 +167,7 @@ void write_error_model_file(std::ostream& ost, error_model& errormodel)
     }
     ost << "\n";
 
+/*
     vector<double> last_probs;
     for (size_t j = 0; j < errormodel.get_max_family_size(); j++) {
         auto probs = errormodel.get_probs(j, boundaries(0,10));
@@ -178,6 +179,7 @@ void write_error_model_file(std::ostream& ost, error_model& errormodel)
             ost << " " << p;
         ost << endl;
     }
+    */
 }
 
 //! Split string into vector of strings given delimiter
