@@ -51,13 +51,15 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
     if (user_input.use_error_model && !p_error_model)
         {
             p_error_model = new error_model();
-       
+        clade *p_trees = user_data.p_tree;
+    for(auto k= p_trees->reverse_level_begin();k!=p_trees->reverse_level_end();++k)
+    {
             for (gene_transcript i: user_data.gene_transcripts)
             {  
-                clade *p_trees = user_data.p_tree;
-                if (p_trees->is_leaf())
+                const clade *node = *k;
+                if (node->is_leaf())
                 {
-                    double expression_value = i.get_expression_value(p_trees->get_taxon_name());
+                    double expression_value = i.get_expression_value(node->get_taxon_name());
                     int upper_bound = upper_bound_from_transcript_values(*p_gene_transcripts);
                     Eigen::VectorXd actual(200);
                     VectorPos_bounds(expression_value, pair<double, double>(0, upper_bound), actual);
@@ -75,7 +77,7 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
  
 
         }
-
+        }
         p_model = new base_model(user_data.p_sigma, p_gene_transcripts, p_error_model);
     }
 
