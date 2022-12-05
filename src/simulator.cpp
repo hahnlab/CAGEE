@@ -4,6 +4,7 @@
 #include <random>
 #include <vector>
 #include <iomanip>
+#include <ostream>
 
 #include "doctest.h"
 #include "easylogging++.h"
@@ -262,7 +263,14 @@ void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes
         {
             return c && (c->is_leaf() || include_internal_nodes);
         });
-    write_node_ordered<const clade *>(ost, "DESC\tGENE_ID", nodes);
+    if (include_internal_nodes)
+    {
+        write_node_ordered<const clade*>(ost, "DESC\tGENE_ID", nodes);
+    }
+    else
+    {
+        write_node_ordered<string>(ost, "DESC\tGENE_ID", nodes, [](const clade* c) { return c->get_taxon_name(); });
+    }
 
     for (size_t j = 0; j < results.size(); ++j) {
         auto& transcript = results[j];
@@ -358,7 +366,7 @@ TEST_CASE("print_process_can_print_without_internal_nodes")
     input_parameters params;
     simulator sim(data, params);
     sim.print_simulations(ost, false, my_trials, get_ape_order(p_tree.get()));
-    CHECK_STREAM_CONTAINS(ost, "DESC\tGENE_ID\tA<1>\tB<2>\n");
+    CHECK_STREAM_CONTAINS(ost, "DESC\tGENE_ID\tA\tB\n");
     CHECK_STREAM_CONTAINS(ost, "SIG0\ttranscript0\t2\t4\n");
 
 }
