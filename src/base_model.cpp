@@ -143,7 +143,7 @@ double base_model::infer_transcript_likelihoods(const user_data& ud, const sigma
 
     vector<inference_pruner> pruners;
     pruners.reserve(ud.gene_transcripts.size());
-    std::generate_n(std::back_inserter(pruners), ud.gene_transcripts.size(), [&]() {return inference_pruner(calc, p_sigma, _p_error_model, ud.p_tree, 1.0); });
+    std::generate_n(std::back_inserter(pruners), ud.gene_transcripts.size(), [&]() {return inference_pruner(calc, p_sigma, _p_error_model, ud.p_replicate_model, ud.p_tree, 1.0); });
 #pragma omp parallel for
     for (int i = 0; i < (int)ud.gene_transcripts.size(); ++i) {
         if ((int)references[i] == i)
@@ -200,7 +200,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
             });
     }
 
-    inference_pruner tr(_p_sigma, ud.p_tree, p_calc);
+    inference_pruner tr(_p_sigma, ud.p_tree, ud.p_replicate_model, p_calc);
 
     for (size_t i = 0; i< ud.gene_transcripts.size(); ++i)
     {

@@ -231,7 +231,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript assigns actual va
     matrix_cache calc;
     calc.precalculate_matrices(sig.get_values(), p_tree->get_branch_lengths(), 20);
 
-    inference_pruner tr(&sig, p_tree.get(), &calc);
+    inference_pruner tr(&sig, p_tree.get(), nullptr, &calc);
 
     auto actual = tr.reconstruct(fam, 20);
 
@@ -250,7 +250,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript calculates parent
     {
         calc.set_matrix(len, 10.1, 200, doubler);
     }
-    inference_pruner tr(&sig, p_tree.get(), &calc);
+    inference_pruner tr(&sig, p_tree.get(), nullptr, &calc);
 
     auto actual = tr.reconstruct(fam, 200);
 
@@ -267,7 +267,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns parent ab
     matrix_cache calc;
     calc.precalculate_matrices(sig.get_values(), p_tree->get_branch_lengths(), 20);
 
-    inference_pruner tr(&sig, p_tree.get(), &calc);
+    inference_pruner tr(&sig, p_tree.get(), nullptr, &calc);
     auto actual = tr.reconstruct(fam, 20);
     CHECK_EQ(0.05, actual[p_tree->find_descendant("AB")].most_likely_value);
 }
@@ -282,7 +282,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns correct v
     matrix_cache calc;
     calc.precalculate_matrices(sig.get_values(), p_tree->get_branch_lengths(), 20);
 
-    inference_pruner tr(&sig, p_tree.get(), &calc);
+    inference_pruner tr(&sig, p_tree.get(), nullptr, &calc);
     auto actual = tr.reconstruct(fam, 20);
     CHECK_EQ(50, actual[p_tree.get()].most_likely_value);
 }

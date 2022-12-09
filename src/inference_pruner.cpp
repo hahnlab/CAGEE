@@ -40,12 +40,12 @@ void compute_node_probability(const clade* node,
     int upper_bound)
 {
     if (node->is_leaf()) {
-        double species_size = gene_transcript.get_expression_value(node->get_taxon_name());
 
         if (p_error_model != NULL)
         {
-            auto error_model_probabilities = p_error_model->get_probs(species_size);
-            int offset = species_size - ((p_error_model->n_deviations() - 1) / 2);
+            double expression_value = gene_transcript.get_expression_value(node->get_taxon_name());
+            auto error_model_probabilities = p_error_model->get_probs(expression_value);
+            int offset = expression_value - ((p_error_model->n_deviations() - 1) / 2);
             for (size_t i = 0; i < error_model_probabilities.size(); ++i)
             {
                 if (offset + int(i) < 0)
@@ -56,14 +56,15 @@ void compute_node_probability(const clade* node,
         }
         else if (p_replicate_model)
         {
-            p_replicate_model->apply();
+            p_replicate_model->apply(node, gene_transcript, upper_bound, probabilities[node]);
             string taxon = node->get_taxon_name();
 
         }
         else
         {
+            double expression_value = gene_transcript.get_expression_value(node->get_taxon_name());
             // cout << "Leaf node " << node->get_taxon_name() << " has " << _probabilities[node].size() << " probabilities" << endl;
-            VectorPos_bounds(species_size, boundaries(0, upper_bound), probabilities[node]);
+            VectorPos_bounds(expression_value, boundaries(0, upper_bound), probabilities[node]);
             //print_probabilities(probabilities, node);
         }
     }
@@ -133,9 +134,10 @@ node_reconstruction get_value(const VectorXd& likelihood, int upper_bound)
 inference_pruner::inference_pruner(const matrix_cache& cache,
     const sigma_squared* sigma,
     const error_model* p_error_model,
+    const replicate_model* p_replicate_model,
     const clade* p_tree,
     double sigma_multiplier) :
-        _cache(cache),  _p_sigsqd(sigma), _p_error_model(p_error_model), _p_tree(p_tree), _sigma_multiplier(sigma_multiplier)
+        _cache(cache),  _p_sigsqd(sigma), _p_error_model(p_error_model), _p_replicate_model(p_replicate_model), _p_tree(p_tree), _sigma_multiplier(sigma_multiplier)
 {
     auto init_func = [&](const clade* node) { _probabilities[node] = _cache.create_vector(); };
     for_each(_p_tree->reverse_level_begin(), _p_tree->reverse_level_end(), init_func);
@@ -146,9 +148,7 @@ void inference_pruner::compute_all_probabilities(const gene_transcript& gf, int 
 {
     unique_ptr<sigma_squared> multiplier(_p_sigsqd->multiply(_sigma_multiplier));
 
-    replicate_model* rm = nullptr;
-
-    auto compute_func = [gf, this, upper_bound, &multiplier, rm](const clade* c) { compute_node_probability(c, gf, _p_error_model, rm, _probabilities, multiplier.get(), _cache, upper_bound); };
+    auto compute_func = [gf, this, upper_bound, &multiplier](const clade* c) { compute_node_probability(c, gf, _p_error_model, _p_replicate_model, _probabilities, multiplier.get(), _cache, upper_bound); };
     for_each(_p_tree->reverse_level_begin(), _p_tree->reverse_level_end(), compute_func);
 
 }
@@ -174,7 +174,10 @@ clademap<node_reconstruction> inference_pruner::reconstruct(const gene_transcrip
         if ((*it)->is_leaf())
         {
             node_reconstruction nr;
-            nr.most_likely_value = gf.get_expression_value((*it)->get_taxon_name());
+            if (_p_replicate_model)
+                nr.most_likely_value = _p_replicate_model->get_average_expression_value(gf, (*it)->get_taxon_name());
+            else
+                nr.most_likely_value = gf.get_expression_value((*it)->get_taxon_name());
             reconstruction[*it] = nr;
         }
         else
@@ -346,7 +349,7 @@ TEST_CASE("inference_pruner: check stats of returned probabilities")
     sigma_squared ss(10.0);
     matrix_cache cache;
     cache.precalculate_matrices(ss.get_values(), set<double>{1, 3, 7}, 20);
-    inference_pruner pruner(cache, &ss, nullptr, p_tree.get(), 1.0);
+    inference_pruner pruner(cache, &ss, nullptr, nullptr, p_tree.get(), 1.0);
 
     auto actual = pruner.prune(rt, 20);
 
