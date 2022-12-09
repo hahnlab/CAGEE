@@ -74,7 +74,7 @@ void compute_node_probability(const clade* node,
     if (node->is_leaf()) {
         if (p_replicate_model)
         {
-            p_replicate_model->apply();
+            p_replicate_model->apply(node, gene_transcript, bounds, probabilities[node]);
             string taxon = node->get_taxon_name();
         }
         else
@@ -162,9 +162,10 @@ node_reconstruction get_value(const VectorXd& likelihood, int upper_bound)
 inference_pruner::inference_pruner(const matrix_cache& cache,
     const sigma_squared* sigma,
     const error_model* p_error_model,
+    const replicate_model* p_replicate_model,
     const clade* p_tree,
     double sigma_multiplier) :
-        _cache(cache),  _p_sigsqd(sigma), _p_error_model(p_error_model), _p_tree(p_tree), _sigma_multiplier(sigma_multiplier)
+        _cache(cache),  _p_sigsqd(sigma), _p_error_model(p_error_model), _p_replicate_model(p_replicate_model), _p_tree(p_tree), _sigma_multiplier(sigma_multiplier)
 {
     auto init_func = [&](const clade* node) { _probabilities[node].reserve(_cache.create_vector()); };
     for_each(_p_tree->reverse_level_begin(), _p_tree->reverse_level_end(), init_func);
@@ -332,7 +333,7 @@ TEST_CASE("inference_pruner: check stats of returned probabilities")
     sigma_squared ss(10.0);
     matrix_cache cache;
     cache.precalculate_matrices(ss.get_values(), set<double>{1, 3, 7}, boundaries(0,20));
-    inference_pruner pruner(cache, &ss, nullptr, p_tree.get(), 1.0);
+    inference_pruner pruner(cache, &ss, nullptr, nullptr, p_tree.get(), 1.0);
 
     auto actual = pruner.prune(rt, boundaries(0,20));
 

@@ -11,6 +11,7 @@ class gene_transcript;
 class sigma_squared;
 class clade;
 class error_model;
+class replicate_model;
 class matrix_cache;
 
 size_t adjust_for_error_model(size_t c, const error_model *p_error_model);
@@ -45,6 +46,7 @@ class inference_pruner
     const matrix_cache& _cache;
     const sigma_squared* _p_sigsqd;
     const error_model* _p_error_model;
+    const replicate_model* _p_replicate_model;
     const clade* _p_tree;
     const double _sigma_multiplier;
 
@@ -55,10 +57,12 @@ public:
     inference_pruner(const matrix_cache& cache,
         const sigma_squared* sigma,
         const error_model* p_error_model,
+        const replicate_model* p_replicate_model,
         const clade* _p_tree,
         double _sigma_multiplier);
-    inference_pruner(const sigma_squared* sigma, const clade* p_tree, const matrix_cache* p_cache) :
-        inference_pruner(*p_cache, sigma, nullptr, p_tree, 1.0)
+
+    inference_pruner(const sigma_squared* sigma, const clade* p_tree, const replicate_model* p_replicate_model, const matrix_cache* p_cache) :
+        inference_pruner(*p_cache, sigma, nullptr, p_replicate_model, p_tree, 1.0)
     {
 
     }

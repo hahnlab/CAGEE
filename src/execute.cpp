@@ -20,6 +20,7 @@
 #include "root_equilibrium_distribution.h"
 #include "sigma.h"
 #include "DiffMat.h"
+#include "replicate_model.h"
 
 using namespace std;
 
@@ -61,6 +62,24 @@ void estimator::write_error_model_if_specified(const input_parameters& my_input_
             p_model->write_error_model(200, errmodel);
         }
     }
+}
+
+void check_tree(const user_data& data)
+{
+    if (data.p_replicate_model)
+    {
+        data.p_replicate_model->verify_replicates(data.p_tree, data.gene_transcripts[0]);
+    }
+    else
+    {
+        data.p_tree->apply_prefix_order([data](const clade* c) {
+            if (c->is_leaf())
+            {
+                data.gene_transcripts[0].get_expression_value(c->get_taxon_name());
+            }
+        });
+    }
+
 }
 
 void estimator::compute(std::vector<model *>& models, const input_parameters &my_input_parameters)
@@ -114,6 +133,8 @@ void estimator::estimate_missing_variables(std::vector<model *>& models, user_da
 
 void estimator::execute(std::vector<model *>& models)
 {
+    check_tree(data);
+
     string dir = _user_input.output_prefix;
     if (dir.empty()) dir = "results";
     create_directory(dir);
@@ -166,4 +187,31 @@ TEST_CASE("create_rootdist throws error if nothing set")
     input_parameters ip;
     estimator e(ud, ip);
     CHECK_EQ(gamma_distribution<double>(0.375, 1600.0), e.prior());
+}
+
+TEST_CASE("check_tree checks tree against a gene family to make sure all leaf node species are available")
+{
+    user_data ud;
+    ud.gene_transcripts.resize(1);
+    gene_transcript gt;
+    ud.gene_transcripts[0].set_expression_value("Dog", 0.254007);
+    ud.gene_transcripts[0].set_expression_value("Rat", 0.1);
+
+    unique_ptr<clade> p_tree(parse_newick("(Dog:1,Rat:3):7"));
+    ud.p_tree = p_tree.get();
+    check_tree(ud);
+}
+
+TEST_CASE("check_tree throws error on unknown species")
+{
+    user_data ud;
+    ud.gene_transcripts.resize(1);
+    gene_transcript gt;
+    ud.gene_transcripts[0].set_expression_value("Dog", 0.254007);
+    ud.gene_transcripts[0].set_expression_value("Cow", 0.1);
+
+    unique_ptr<clade> p_tree(parse_newick("(Dog:1,Rat:3):7"));
+    ud.p_tree = p_tree.get();
+
+    CHECK_THROWS_WITH(check_tree(ud), "Rat was not found in transcript ");
 }
