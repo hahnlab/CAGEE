@@ -33,7 +33,7 @@ class base_model_reconstruction : public reconstruction
 {
 public:
 
-    base_model_reconstruction()
+    base_model_reconstruction(replicate_model* p_model) : reconstruction(p_model)
     {
 
     }
@@ -186,7 +186,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 {
     LOG(INFO) << "Starting reconstruction processes for Base model";
 
-    auto result = new base_model_reconstruction();
+    auto result = new base_model_reconstruction(ud.p_replicate_model);
 
     int upper_bound = upper_bound_from_transcript_values(ud.gene_transcripts);
 
@@ -333,7 +333,7 @@ public:
 
 TEST_CASE_FIXTURE(Reconstruction, "base_model_reconstruction__print_reconstructed_states")
 {
-    base_model_reconstruction bmr;
+    base_model_reconstruction bmr(nullptr);
     auto& values = bmr._reconstructions["Family5"];
 
     values[p_tree.get()].most_likely_value = pv::to_computational_space(7);
@@ -352,7 +352,7 @@ TEST_CASE_FIXTURE(Reconstruction, "base_model_reconstruction__print_reconstructe
 
 TEST_CASE("increase_decrease")
 {
-    base_model_reconstruction bmr;
+    base_model_reconstruction bmr(nullptr);
     gene_transcript gf("myid", "", "");
 
     unique_ptr<clade> p_tree(parse_newick("((A:1,B:3):7,(C:11,D:17):23);"));

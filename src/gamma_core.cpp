@@ -41,6 +41,13 @@ public:
     gamma_model_reconstruction(const std::vector<double>& sigma_multipliers) :
         _sigma_multipliers(sigma_multipliers)
     {
+
+    }
+
+    gamma_model_reconstruction(replicate_model* p_model, const std::vector<double>& sigma_multipliers) :
+        reconstruction(p_model),
+        _sigma_multipliers(sigma_multipliers)
+    {
     }
 
     void print_additional_data(transcript_vector& gene_transcripts, std::string output_prefix) override;
@@ -295,7 +302,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
 
     calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), upper_bound);
 
-    gamma_model_reconstruction* result = new gamma_model_reconstruction(_sigma_multipliers);
+    gamma_model_reconstruction* result = new gamma_model_reconstruction(ud.p_replicate_model, _sigma_multipliers);
     vector<gamma_model_reconstruction::gamma_reconstruction *> recs(ud.gene_transcripts.size());
     for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
     {
