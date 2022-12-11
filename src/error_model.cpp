@@ -5,6 +5,7 @@
 #include <cmath>
 #include <stdexcept>
 #include "error_model.h"
+#include <iostream>
 
 using namespace std;
 
@@ -17,7 +18,7 @@ void error_model::set_max_family_size(size_t max_cnt) {
     _max_family_size = max_cnt;
 }
 
-void error_model::set_deviations(std::map<int,double> deviations) {
+void error_model::set_deviations(std::map<double,double> deviations) {
     std::vector<int> deviations1;
     for(auto i = deviations.begin(); i!=deviations.end();++i)
     {   _deviations.push_back(i->first);
@@ -32,7 +33,7 @@ inline bool is_nearly_equal(double x, double y)
     return std::abs(x - y) <= epsilon * std::abs(x);
 }
 
-double error_model::Normal(int x, int mu, double sigma)
+double error_model::Normal(double x, double mu, double sigma)
 {
 double deno,numo,density;
 deno = pow((2*M_PI*sigma*sigma),-0.5);
@@ -42,7 +43,7 @@ return density;
 
 }
 
-double error_model::Sum(std::map<int,double> dic)
+double error_model::Sum(std::map<double,double> dic)
 {
     double sum_=0;
      for(auto i = dic.begin(); i!=dic.end();++i)
@@ -52,7 +53,7 @@ return sum_;
 }
 
 
-std::map<int,double> error_model::reNormalize(std::map<int,double>  dic){
+std::map<double,double> error_model::reNormalize(std::map<double,double>  dic){
 	double sum_values = Sum(dic);
     for(auto i = dic.begin(); i!=dic.end();++i)
 {   i->second= i->second/sum_values;
@@ -63,56 +64,69 @@ std::map<int,double> error_model::reNormalize(std::map<int,double>  dic){
 
 
 
-std::map<int,double> error_model::generate_matrix(double a,double r,double mu,int upper_bound, double ux){
+std::map<double,double> error_model::generate_matrix(double a,double r,double mu,double upper_bound){
 	double sigma= exp(r*mu)*a;
-	map<int,double> dic;
-	int i=round(mu);
+
+	map<double,double> dic;
+	double i= mu;
 	double value=1;
      int Npts = 200;
-	while (round(value*10000.00)/10000 !=0 && i!=upper_bound){
-        double nx = (Npts - 1) * (i -0) / double(upper_bound );
-        int ix = floor(nx);
-		value = Normal(ix,ux*mu,(ux*ux)*sigma);
-		dic[i]+=value;
-		i=i+1;
-    }
-	int limit=round(mu)-i;
-	i=round(mu)-1;
-	value=1;
-    while (round(value*100000.00)/100000 !=0 && i!=0){
-        double nx = (Npts - 1) * (i -0) / double(upper_bound );
-        int ix = floor(nx);
-		value = Normal(ix,ux*mu,(ux*ux)*sigma);
-		dic[i]+=value;
-		i=i-1;
-    }
+     
+    double step = upper_bound/Npts;
+    for(auto i= step;i<=upper_bound;i=i+step)
+        {
+        value = Normal(i,mu,sigma);
+        dic[i]=value;
+        }    
+
 
 	return dic;
 }
 
 
 
-void error_model::set_probabilities(double a, double r, size_t mu, double upper_bound,double ux) {
-    std::map<int,double> dic1;
-    dic1=generate_matrix(a,r,mu,upper_bound,ux);
+void error_model::set_probabilities(double a, double r, double mu, double upper_bound) {
+    std::map<double,double> dic1;
+    dic1=generate_matrix(a,r,mu,upper_bound);
     std::vector<double> err;
-    std::map<int,double> dic= reNormalize(dic1);
+    std::map<double,double> dic= reNormalize(dic1);
     set_deviations(dic);
+
     for(auto i = dic.begin(); i!=dic.end();++i)
     {   err.push_back(i->second);
+
+    }
+
+      if (_error_dists.empty())
+        _error_dists.push_back(err);
+
+    if (_error_dists.size() <= mu)
+    {
+        _error_dists.resize(200, _error_dists.back());
     }
 
     _error_dists[mu]=err;
+    cout<<endl;
+    cout<<mu<<endl;
 
-
-
-
+    cout<<endl;
+    cout<<_error_dists.size()<<endl;
+    
 
 }
 
- std::vector<double> error_model::get_probs(size_t mu) const {
+ std::vector<double> error_model::get_probs(double mu,double ux,double scale) const {
+  if (mu >= _error_dists.size() && mu <= _max_family_size)
+        return _error_dists.back();
+    vector<double> retur;
+     for(auto i = _error_dists.begin(); i!=_error_dists.end();++i)
+    {
+        vector<double> x= *i;
+        //cout<<mu<<" "<<(x[mu+1]*ux+x[mu]*(1-ux))*scale<<endl;
+        retur.push_back((x[mu+1]*ux+x[mu]*(1-ux))*scale);
+    }
 
-    return  _error_dists[mu];
+    return  retur;
 }
 
 

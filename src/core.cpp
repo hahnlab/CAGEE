@@ -50,33 +50,16 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
         error_model* p_error_model = user_data.p_error_model;
     if (user_input.use_error_model && !p_error_model)
         {
-            p_error_model = new error_model();
-        clade *p_trees = user_data.p_tree;
-    for(auto k= p_trees->reverse_level_begin();k!=p_trees->reverse_level_end();++k)
-    {
-            for (gene_transcript i: user_data.gene_transcripts)
-            {  
-                const clade *node = *k;
-                if (node->is_leaf())
-                {
-                    double expression_value = i.get_expression_value(node->get_taxon_name());
-                    int upper_bound = upper_bound_from_transcript_values(*p_gene_transcripts);
-                    Eigen::VectorXd actual(200);
-                    VectorPos_bounds(expression_value, pair<double, double>(0, upper_bound), actual);
-
-                    int Npts = actual.size();
-                    double nx = (Npts - 1) * (expression_value -0) / double(upper_bound );
-                    int ix = floor(nx);
-                    size_t l =((2*ix)+1)/2;
-                    p_error_model->set_probabilities(0.5,0.4,l,upper_bound,nx - ix);
-                    
-                    
-                }
-            }
-        
- 
-
-        }
+        p_error_model = new error_model();
+        int upper_bound = upper_bound_from_transcript_values(*p_gene_transcripts);
+        int Npts = 200;
+        double nx = double(upper_bound )/Npts;
+        for(auto i= nx;i<upper_bound;i=i+nx)
+        {
+        double l =i;
+        p_error_model->set_probabilities(0.5,0.4,l,upper_bound);
+        }           
+    
         }
         p_model = new base_model(user_data.p_sigma, p_gene_transcripts, p_error_model);
     }

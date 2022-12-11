@@ -5,6 +5,7 @@
 #include <string>
 #include <map>
 
+
 class error_model {
 private:
     size_t _max_family_size;
@@ -20,26 +21,26 @@ public:
     void set_max_family_size(size_t max_cnt);
 
     //! Calculate normal Distribution
-    double Normal(int x, int mu, double sigma);
+    double Normal(double x, double mu, double sigma);
 
     //! Set deviations
-    void set_deviations(std::map<int,double> deviations);
+    void set_deviations(std::map<double,double> deviations);
 
     //! Sum of vectors
-    double Sum(std::map<int,double> dic);
+    double Sum(std::map<double,double> dic);
 
 
     //!generate matrix
-    std::map<int,double> generate_matrix(double a,double r,double mu,int upper_bound,double ux);
+    std::map<double,double> generate_matrix(double a,double r,double mu,double upper_bound);
 
     //! ReNormalize the vectors
-    std::map<int,double> reNormalize(std::map<int,double>  dic);
+    std::map<double,double> reNormalize(std::map<double,double>  dic);
 
     //! Set deviation probability vector for a certain family size
-    void set_probabilities(double a, double r, size_t mu, double upperbound,double ux);
+    void set_probabilities(double a, double r, double mu, double upperbound);
 
     //! Get deviation probability vector for a certain family size
-     std::vector<double> get_probs(size_t mu) const;
+     std::vector<double> get_probs(double mu,double ux,double scale) const;
 
     size_t n_deviations() const {
         return _deviations.size();
