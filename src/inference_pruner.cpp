@@ -41,16 +41,17 @@ void compute_node_probability(const clade* node,
         double expression_value = gene_transcript.get_expression_value(node->get_taxon_name());
 
         if (p_error_model != NULL)
-        {
+        {          
                     int Npts = probabilities[node].size();
                     double nx = (Npts - 1) * (expression_value -0) / double(upper_bound );
                     int ix = floor(nx);
-                    size_t l =((2*ix)+1)/2;
-
-                    std::vector<double> v= p_error_model->get_probs(l);
+                    size_t l =ix;
+                    double ux = nx - ix;
+                    double scale =(Npts - 1) / upper_bound; 
+                    std::vector<double> v= p_error_model->get_probs(l,ux,scale);
                     Eigen::VectorXd v3 = Eigen::VectorXd::Map(v.data(), v.size());
                     probabilities[node]= v3;
- 
+                    
         }
         else
         {
