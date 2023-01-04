@@ -68,7 +68,6 @@ std::map<double,double> error_model::generate_matrix(double a,double r,double mu
 	double sigma= exp(r*mu)*a;
 
 	map<double,double> dic;
-	double i= mu;
 	double value=1;
      int Npts = 200;
      

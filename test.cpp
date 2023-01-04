@@ -307,44 +307,6 @@ TEST_CASE("Inference: create_gamma_model_if__n_gamma_cats__provided")
         delete m;
 }
 
-TEST_CASE("Probability: read_error_model" * doctest::skip(true))
-{
-    string input = "maxcnt: 10\ncntdiff: -1 0 1\n"
-        "0 0.0 0.8 0.2\n"
-        "1 0.2 0.6 0.2\n"
-        "2 0.2 0.6 0.2\n"
-        "3 0.2 0.6 0.2\n"
-        "5 0.2 0.6 0.2\n";
-
-    boundaries b(0, 10);
-    istringstream ist(input);
-    error_model model;
-    read_error_model_file(ist, &model);
-    auto vec = model.get_probs(0, b);
-    CHECK_EQ(3, vec.size());
-    CHECK_EQ(0.0, vec[0]);
-    CHECK_EQ(0.8, vec[1]);
-    CHECK_EQ(0.2, vec[2]);
-
-    vec = model.get_probs(1, b);
-    CHECK_EQ(3, vec.size());
-    CHECK_EQ(0.2, vec[0]);
-    CHECK_EQ(0.6, vec[1]);
-    CHECK_EQ(0.2, vec[2]);
-
-    vec = model.get_probs(4, b);
-    CHECK_EQ(3, vec.size());
-    CHECK_EQ(0.2, vec[0]);
-    CHECK_EQ(0.6, vec[1]);
-    CHECK_EQ(0.2, vec[2]);
-
-    vec = model.get_probs(7, b);
-    CHECK_EQ(3, vec.size());
-    CHECK_EQ(0.2, vec[0]);
-    CHECK_EQ(0.6, vec[1]);
-    CHECK_EQ(0.2, vec[2]);
-}
-
 TEST_CASE("Clade: get_lambda_index_throws_from_branch_length_tree")
 {
     ostringstream ost;

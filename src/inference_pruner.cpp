@@ -151,6 +151,63 @@ clademap<node_reconstruction> inference_pruner::reconstruct(const gene_transcrip
     return reconstruction;
 }
 
+inline void CHECK_VECTORS_EQ(const std::vector<double>& expected, const VectorXd& actual)
+{
+    CHECK_EQ(expected.size(), actual.size());
+    CHECK(mismatch(expected.begin(), expected.end(), actual.begin(), [](double a, double b) { return doctest::Approx(a) == b;  }).first == expected.end());
+}
+
+TEST_CASE("compute_node_probability sets leaf probabilities correctly")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    gene_transcript gt;
+    gt.set_expression_value("A", 7.0);
+
+    clademap<VectorXd> probabilities;
+    matrix_cache cache;
+    sigma_squared ss(0.03);
+    int upper_bound = 10;
+
+    auto A = p_tree->find_descendant("A");
+    auto& actual = probabilities[A];
+    actual = VectorXd::Zero(20);
+
+    compute_node_probability(A, gt, nullptr, probabilities, &ss, cache, upper_bound);
+    vector<double> expected{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.33, 0.57, 0, 0, 0, 0, 0 };
+    CHECK_VECTORS_EQ(expected, actual);
+}
+
+TEST_CASE("compute_node_probability sets leaf probabilities correctly with error model")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    gene_transcript gt;
+    gt.set_expression_value("A", 7.0);
+
+    clademap<VectorXd> probabilities;
+    matrix_cache cache;
+    sigma_squared ss(0.03);
+    int upper_bound = 10;
+
+    auto A = p_tree->find_descendant("A");
+    auto& actual = probabilities[A];
+
+    int Npts = 20;
+    actual = VectorXd::Zero(Npts);
+
+    error_model err;
+    double nx = double(upper_bound) / Npts;
+    for (auto i = nx; i < upper_bound; i = i + nx)
+    {
+        double l = i;
+        err.set_probabilities(0.5, 0.4, l, upper_bound);
+    }
+    compute_node_probability(A, gt, &err, probabilities, &ss, cache, upper_bound);
+    vector<double> expected{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.33, 0.57, 0, 0, 0, 0, 0 };
+    CHECK_VECTORS_EQ(expected, actual);
+}
+
 TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
 {
     int Npts = 200;
@@ -253,49 +310,6 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly")
     {
         string x = string("At index ") + to_string(i);
         CHECK_MESSAGE(doctest::Approx(expected) == actual[i], x);
-    }
-}
-
-TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_from_error_model_if_provided" * doctest::skip(true))
-{
-    int Npts = 200;
-    ostringstream ost;
-
-    gene_transcript gt;
-    gt.set_expression_value("A", 17.4);
-    gt.set_expression_value("B", 22.9);
-
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-
-    sigma_squared ss(0.03);
-    matrix_cache cache;
-
-    string input = "maxcnt: 20\ncntdiff: -1 0 1\n"
-        "0 0.0 0.8 0.2\n"
-        "1 0.2 0.6 0.2\n"
-        "20 0.2 0.6 0.2\n";
-    istringstream ist(input);
-    error_model model;
-    read_error_model_file(ist, &model);
-
-    std::map<const clade*, VectorXd> probabilities;
-    auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(Npts); };
-    for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
-
-    auto A = p_tree->find_descendant("A");
-    compute_node_probability(A, gt, &model, probabilities, &ss, cache, 40);
-    VectorXd& actual = probabilities[A];
-
-    vector<double> expected(Npts);
-    expected[16] = 0.2;
-    expected[17] = 0.6;
-    expected[18] = 0.2;
-
-    REQUIRE(expected.size() == actual.size());
-    for (size_t i = 0; i < expected.size(); ++i)
-    {
-        string x = string("At index ") + to_string(i);
-        CHECK_MESSAGE(doctest::Approx(expected[i]) == actual[i], x);
     }
 }
 
