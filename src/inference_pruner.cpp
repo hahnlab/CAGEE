@@ -38,37 +38,49 @@ void compute_node_probability(const clade* node,
     int upper_bound)
 {
     if (node->is_leaf()) {
-        double species_size = gene_transcript.get_expression_value(node->get_taxon_name());
-
-        if (p_error_model != NULL)
+        try
         {
-            auto error_model_probabilities = p_error_model->get_probs(species_size);
-            int offset = species_size - ((p_error_model->n_deviations() - 1) / 2);
-            for (size_t i = 0; i < error_model_probabilities.size(); ++i)
-            {
-                if (offset + int(i) < 0)
-                    continue;
+            double species_size = gene_transcript.get_expression_value(node->get_taxon_name());
 
-                probabilities[node][offset + i] = error_model_probabilities[i];
+            if (p_error_model != NULL)
+            {
+                auto error_model_probabilities = p_error_model->get_probs(species_size);
+                int offset = species_size - ((p_error_model->n_deviations() - 1) / 2);
+                for (size_t i = 0; i < error_model_probabilities.size(); ++i)
+                {
+                    if (offset + int(i) < 0)
+                        continue;
+
+                    probabilities[node][offset + i] = error_model_probabilities[i];
+                }
+            }
+            else
+            {
+                // cout << "Leaf node " << node->get_taxon_name() << " has " << _probabilities[node].size() << " probabilities" << endl;
+                VectorPos_bounds(species_size, boundaries(0, upper_bound), probabilities[node]);
+                //print_probabilities(probabilities, node);
             }
         }
-        else
+        catch (missing_expression_value& mev)
         {
-            // cout << "Leaf node " << node->get_taxon_name() << " has " << _probabilities[node].size() << " probabilities" << endl;
-            VectorPos_bounds(species_size, boundaries(0, upper_bound), probabilities[node]);
-            //print_probabilities(probabilities, node);
+
         }
     }
     else  {
         auto& node_probs = probabilities[node];
-        node_probs.fill(1);
 
         for (auto it = node->descendant_begin(); it != node->descendant_end(); ++it) {
-            const MatrixXd& m = cache.get_matrix((*it)->get_branch_length(), p_sigma->get_named_value(*it, gene_transcript), upper_bound);
+            if (!probabilities[*it].isZero())
+            {
+                if (node_probs.isZero())
+                    node_probs.fill(1);
 
-            VectorXd result = m * probabilities[*it];
-            for (VectorXd::Index i = 0; i < node_probs.size(); i++) {
-                node_probs[i] *= result[i];
+                const MatrixXd& m = cache.get_matrix((*it)->get_branch_length(), p_sigma->get_named_value(*it, gene_transcript), upper_bound);
+
+                VectorXd result = m * probabilities[*it];
+                for (VectorXd::Index i = 0; i < node_probs.size(); i++) {
+                    node_probs[i] *= result[i];
+                }
             }
         }
     }
@@ -159,20 +171,23 @@ clademap<node_reconstruction> inference_pruner::reconstruct(const gene_transcrip
     compute_all_probabilities(gf, upper_bound);
 
     clademap<node_reconstruction> reconstruction;
-    for (auto it = _p_tree->reverse_level_begin(); it != _p_tree->reverse_level_end(); ++it)
+    cladevector internal_nodes;
+    copy_if(_p_tree->reverse_level_begin(), _p_tree->reverse_level_end(), back_inserter(internal_nodes), [](const clade* c)
+        {
+            return !c->is_leaf();
+        });
+
+    for (auto& n : internal_nodes)
     {
-        if ((*it)->is_leaf())
-        {
-            node_reconstruction nr;
-            nr.most_likely_value = gf.get_expression_value((*it)->get_taxon_name());
-            reconstruction[*it] = nr;
-        }
-        else
-        {
-            reconstruction[*it] = get_value(_probabilities[*it], upper_bound);
-        }
+        reconstruction[n] = get_value(_probabilities[n], upper_bound);
     }
     return reconstruction;
+}
+
+inline void CHECK_VECTORS_EQ(const std::vector<double>& expected, const VectorXd& actual)
+{
+    CHECK_EQ(expected.size(), actual.size());
+    CHECK(mismatch(expected.begin(), expected.end(), actual.begin(), [](double a, double b) { return doctest::Approx(a) == b;  }).first == expected.end());
 }
 
 TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
@@ -411,4 +426,78 @@ TEST_CASE("verify a complex credible interval")
     
     CHECK_EQ(doctest::Approx(0.255), i.credible_interval.first);
     CHECK_EQ(doctest::Approx(0.745), i.credible_interval.second);
+}
+
+TEST_CASE("compute_node_probablities skips a missing leaf value")
+{
+    int Npts = 200;
+    ostringstream ost;
+
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    sigma_squared ss(0.03);
+    matrix_cache cache;
+
+    clademap<VectorXd> probabilities;
+
+    auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(Npts); };
+    for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
+
+    auto A = p_tree->find_descendant("A");
+
+    gene_transcript empty;
+    compute_node_probability(A, empty, NULL, probabilities, &ss, cache, 60);
+    auto& actual = probabilities[A];
+    CHECK(actual.isZero());
+
+}
+
+TEST_CASE("compute_node_probablities skips a non-leaf value with missing child values")
+{
+    int Npts = 200;
+    ostringstream ost;
+
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    sigma_squared ss(0.03);
+    matrix_cache cache;
+
+    clademap<VectorXd> probabilities;
+
+    auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(Npts); };
+    for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
+
+    gene_transcript empty;
+    compute_node_probability(p_tree.get(), empty, NULL, probabilities, &ss, cache, 60);
+    auto& actual = probabilities[p_tree.get()];
+    CHECK(actual.isZero());
+
+}
+
+TEST_CASE("compute_node_probablities computes a non-leaf value with a single child value")
+{
+    int Npts = 10;
+    ostringstream ost;
+
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    sigma_squared ss(0.03);
+    matrix_cache cache;
+    MatrixXd doubler = MatrixXd::Identity(Npts, Npts) * 2;
+    cache.set_matrix(7, 0.03, 40, doubler);
+    cache.set_matrix(1, 0.03, 40, doubler);
+
+    clademap<VectorXd> probabilities;
+
+    auto init_func = [&](const clade* node) { probabilities[node] = VectorXd::Zero(Npts); };
+    for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), init_func);
+
+    gene_transcript onechild;
+    onechild.set_expression_value("A", 3);
+
+    compute_node_probability(p_tree->find_descendant("A"), onechild, NULL, probabilities, &ss, cache, 40);
+    compute_node_probability(p_tree.get(), onechild, NULL, probabilities, &ss, cache, 40);
+    auto& actual = probabilities[p_tree.get()];
+    vector<double> expected{ 0.14625,  0.30375, 0, 0, 0, 0, 0, 0, 0, 0 };
+    CHECK_VECTORS_EQ(expected, actual);
 }

@@ -6,6 +6,7 @@
 class clade;
 class error_model;
 class gene_transcript;
+class missing_expression_value;
 
 clade *read_tree(std::string tree_file_path, bool lambda_tree);
 
@@ -31,8 +32,17 @@ void write_node_ordered(std::ostream& ost, std::string title, const std::vector<
         if (node)
         {
             ost << "\t";
-            if (f) 
-                ost << f(node);
+            if (f)
+            {
+                try
+                {
+                    ost << f(node);
+                }
+                catch (missing_expression_value&)
+                {
+                    ost << "N";
+                }
+            }
             else
                 ost << *node;
         }

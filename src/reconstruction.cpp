@@ -49,20 +49,27 @@ void reconstruction::print_increases_decreases_by_clade(std::ostream& ost, const
 
     for (auto& transcript : gene_transcripts)
     {
-        cladevector nodes;
-        // See 0015-credible_interval_calculation.md
-        copy_if(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), back_inserter(nodes), [this, transcript, count_all_changes](const clade* node)
-            {
-                return count_all_changes || !credible_interval_intersects_parent(node, transcript, this);
-            });
-
-        for(auto node : nodes)
+        try
         {
-            double diff = get_difference_from_parent(transcript, node);
-            if (diff > 0)
-                increase_decrease_map[node].first++;
-            if (diff < 0)
-                increase_decrease_map[node].second++;
+            cladevector nodes;
+            // See 0015-credible_interval_calculation.md
+            copy_if(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), back_inserter(nodes), [this, transcript, count_all_changes](const clade* node)
+                {
+                    return count_all_changes || !credible_interval_intersects_parent(node, transcript, this);
+                });
+
+            for (auto node : nodes)
+            {
+                double diff = get_difference_from_parent(transcript, node);
+                if (diff > 0)
+                    increase_decrease_map[node].first++;
+                if (diff < 0)
+                    increase_decrease_map[node].second++;
+            }
+        }
+        catch (missing_expression_value&)
+        {
+            // no increases or decreases in this case
         }
     }
 
@@ -87,7 +94,6 @@ void print_family_clade_table(std::ostream& ost, const cladevector& order, trans
 double node_value(const clade* node, const gene_transcript& transcript, const reconstruction* r)
 {
     double val = node->is_leaf() ? transcript.get_expression_value(node->get_taxon_name()) : r->get_internal_node_value(transcript, node).most_likely_value;
-
     return pv::to_user_space(val);
 }
 
@@ -101,8 +107,15 @@ void reconstruction::print_reconstructed_states(std::ostream& ost, transcript_ve
 
         function<void(std::ostream& ost, const clade*)> text_func;
         text_func = [gene_transcript, this](std::ostream& ost, const clade* node) {
-            ost << *node << "_" << node_value(node, gene_transcript, this);
-
+            ost << *node << "_";
+            try
+            {
+                ost << node_value(node, gene_transcript, this);
+            }
+            catch (missing_expression_value&)
+            {
+                ost << "N";
+            }
             if (!node->is_root())
                 ost << ':' << node->get_branch_length();
         };
@@ -119,37 +132,49 @@ void reconstruction::print_reconstructed_states(std::ostream& ost, transcript_ve
 
 string node_change(const clade* node, const gene_transcript& transcript, const reconstruction* r)
 {
-    ostringstream ost;
-    ost << showpos << r->get_difference_from_parent(transcript, node);
-    if (!credible_interval_intersects_parent(node, transcript, r))
+    try
     {
-        ost << "*";
+        ostringstream ost;
+        ost << showpos << r->get_difference_from_parent(transcript, node);
+        if (!credible_interval_intersects_parent(node, transcript, r))
+        {
+            ost << "*";
+        }
+
+        return ost.str();
     }
-
-    return ost.str();
-
+    catch(missing_expression_value&)
+    {
+        return "N";
+    }
 }
 
 string node_credible_interval(const clade* node, const gene_transcript& transcript, const reconstruction* r)
 {
-    double lower, upper;
-    if (node->is_leaf())
+    try
     {
-        auto val = pv::to_user_space(transcript.get_expression_value(node->get_taxon_name()));
-        lower = val;
-        upper = val;
+        double lower, upper;
+        if (node->is_leaf())
+        {
+            auto val = pv::to_user_space(transcript.get_expression_value(node->get_taxon_name()));
+            lower = val;
+            upper = val;
+        }
+        else
+        {
+            auto val = r->get_internal_node_value(transcript, node);
+            lower = pv::to_user_space(val.credible_interval.first);
+            upper = pv::to_user_space(val.credible_interval.second);
+        }
+
+        ostringstream ost;
+        ost << '[' << lower << "-" << upper << ']';
+        return ost.str();
     }
-    else
+    catch (missing_expression_value&)
     {
-        auto val = r->get_internal_node_value(transcript, node);
-        lower = pv::to_user_space(val.credible_interval.first);
-        upper = pv::to_user_space(val.credible_interval.second);
+        return "[N-N]";
     }
-
-    ostringstream ost;
-    ost << '[' << lower << "-" << upper << ']';
-    return ost.str();
-
 }
 
 void reconstruction::write_results(std::string output_prefix, 
@@ -221,23 +246,6 @@ public:
         fam.set_expression_value("D", 6);
     }
 };
-
-TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript assigns actual values to leaves")
-{
-    sigma_squared sig(0.1);
-    fam.set_expression_value("A", 3.7);
-    fam.set_expression_value("D", 9.4);
-
-    matrix_cache calc;
-    calc.precalculate_matrices(sig.get_values(), p_tree->get_branch_lengths(), 20);
-
-    inference_pruner tr(&sig, p_tree.get(), &calc);
-
-    auto actual = tr.reconstruct(fam, 20);
-
-    CHECK_EQ(3.7, actual[p_tree->find_descendant("A")].most_likely_value);
-    CHECK_EQ(9.4, actual[p_tree->find_descendant("D")].most_likely_value);
-}
 
 TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript calculates parent node values correctly")
 {

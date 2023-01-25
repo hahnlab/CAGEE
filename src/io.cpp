@@ -82,8 +82,17 @@ void read_gene_transcripts(std::istream& input_file, clade *p_tree, std::vector<
             
             for (size_t i = first_gene_index; i < tokens.size(); ++i) {
                 std::string sp_name = sp_col_map[i];
-                double val = pv::to_computational_space(atof(tokens[i].c_str()));
-                gt.set_expression_value(sp_name, val);
+                try
+                {
+                    double val = pv::to_computational_space(stod(tokens[i]));
+                    gt.set_expression_value(sp_name, val);
+                }
+                catch (const invalid_argument& e)
+                {
+                    if (tokens[i] != "?" && tokens[i] != "-" && tokens[i] != "N" && tokens[i] != "n")
+                        LOG(WARNING) << "Invalid value '" << tokens[i] << "' found, treating as missing data";
+                    // check token value and warn if it is unexpected
+                }
             }
             
             transcripts.push_back(gt);
@@ -237,6 +246,34 @@ TEST_CASE("read_gene_transcripts skips blank lines in input")
     std::vector<gene_transcript> gt;
     read_gene_transcripts(ist, NULL, gt);
     CHECK_EQ(1, gt.size());
+}
+
+TEST_CASE("read_gene_transcripts handles missing data")
+{
+    std::string str = "Desc\tFamily ID\tA\tB\tC\tD\n(null)\tt1\t5\t10\t?\t6\n(null)\tt2\t5\t10\tN\t6\n(null)\tt3\t5\t10\t-\t6\n\n";
+    std::istringstream ist(str);
+    std::vector<gene_transcript> gt;
+    read_gene_transcripts(ist, NULL, gt);
+    REQUIRE_EQ(3, gt.size());
+    CHECK_THROWS_WITH_AS(gt[0].get_expression_value("C"), "C was not found in transcript t1", missing_expression_value);
+    CHECK_THROWS_WITH_AS(gt[1].get_expression_value("C"), "C was not found in transcript t2", missing_expression_value);
+    CHECK_THROWS_WITH_AS(gt[2].get_expression_value("C"), "C was not found in transcript t3", missing_expression_value);
+}
+
+
+void clear_test_log();
+vector<string> get_test_log();
+
+TEST_CASE("read_gene_transcripts warns if missing data is not N,?,or -")
+{
+    clear_test_log();
+    std::string str = "Desc\tFamily ID\tA\tB\tC\tD\n(null)\tt1\t5\t10\t?\t6\n(null)\tt2\t5\t10\tnonexistent\t6\n(null)\tt3\t5\t10\t-\t6\n\n";
+    std::istringstream ist(str);
+    std::vector<gene_transcript> gt;
+    read_gene_transcripts(ist, NULL, gt);
+    auto log = get_test_log();
+    REQUIRE(log.size() > 0);
+    CHECK_EQ("Invalid value 'nonexistent' found, treating as missing data", log[0]);
 }
 
 TEST_CASE("read_gene_transcripts skips comment lines in input")

@@ -4,6 +4,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <stdexcept>
 
 #include "clade.h"
 
@@ -24,6 +25,16 @@ struct ci_less
     }
 };
 
+class missing_expression_value : public std::runtime_error
+{
+public:
+    missing_expression_value(std::string transcript_id, std::string species) : std::runtime_error(species + " was not found in transcript " + transcript_id)
+    {
+
+    }
+
+
+};
 
 class gene_transcript {
 private:

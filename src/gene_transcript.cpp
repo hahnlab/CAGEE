@@ -40,7 +40,7 @@ double gene_transcript::get_expression_value(std::string species) const {
     // First checks if species data has been entered (i.e., is key in map?)
     auto it = _species_size_map.find(species);
     if (it == _species_size_map.end()) {
-        throw std::runtime_error(species + " was not found in transcript " + _id);
+        throw missing_expression_value(_id, species);
     }
     return it->second;
 }
