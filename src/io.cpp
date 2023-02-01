@@ -95,7 +95,10 @@ void read_gene_transcripts(std::istream& input_file, clade *p_tree, std::vector<
                 }
             }
             
-            transcripts.push_back(gt);
+            if (gt.get_species().empty())
+                LOG(WARNING) << "No values found for " << gt.id() << ", skipping";
+            else
+                transcripts.push_back(gt);
         }
     }
 
@@ -260,9 +263,21 @@ TEST_CASE("read_gene_transcripts handles missing data")
     CHECK_THROWS_WITH_AS(gt[2].get_expression_value("C"), "C was not found in transcript t3", missing_expression_value);
 }
 
-
 void clear_test_log();
 vector<string> get_test_log();
+
+TEST_CASE("read_gene_transcripts skips transcripts with all missing data and warns")
+{
+    clear_test_log();
+    std::string str = "Desc\tFamily ID\tA\tB\tC\tD\n(null)\tt1\t5\t10\t?\t6\n(null)\tt2\tN\tN\tN\tN\n(null)\tt3\t5\t10\t-\t6\n\n";
+    std::istringstream ist(str);
+    std::vector<gene_transcript> gt;
+    read_gene_transcripts(ist, NULL, gt);
+    CHECK_EQ(2, gt.size());
+    auto log = get_test_log();
+    REQUIRE(log.size() > 0);
+    CHECK_EQ("No values found for t2, skipping", log[0]);
+}
 
 TEST_CASE("read_gene_transcripts warns if missing data is not N,?,or -")
 {
