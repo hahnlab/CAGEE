@@ -18,6 +18,26 @@ size_t adjust_for_error_model(size_t c, const error_model *p_error_model);
 template<typename T>
 using clademap = std::map<const clade*, T>;
 
+class optional_probabilities
+{
+    bool has_value = false;
+    Eigen::VectorXd _probabilities;
+public:
+    void setOne();
+    void clear() { has_value = false; }
+    const Eigen::VectorXd& probabilities() const;
+    bool hasValue() const { return has_value; }
+    void initialize(double transcript_value, int upper_bound);
+    void reserve(const Eigen::VectorXd& v) { _probabilities = v;  }
+    void multiply_elements(const Eigen::VectorXd& multipliers);
+
+    void set(const Eigen::VectorXd& v)
+    {
+        _probabilities = v;
+        has_value = true;
+    }
+};
+
 class inference_pruner
 {
     const matrix_cache& _cache;
@@ -26,7 +46,7 @@ class inference_pruner
     const clade* _p_tree;
     const double _sigma_multiplier;
 
-    clademap<Eigen::VectorXd> _probabilities;
+    clademap<optional_probabilities> _probabilities;
 
     void compute_all_probabilities(const gene_transcript& gf, int upper_bound);
 public:
