@@ -1,4 +1,4 @@
-# 16. Calculate a credible interval for each reconstructed value
+# 16. Handling missing input data
 
 Date: 2023-01-25
 

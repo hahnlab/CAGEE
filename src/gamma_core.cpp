@@ -120,7 +120,7 @@ std::vector<double> gamma_model::get_posterior_probabilities(std::vector<double>
 
     double denominator = accumulate(numerators.begin(), numerators.end(), 0.0);
     vector<double> posterior_probabilities(process_count);
-    transform(numerators.begin(), numerators.end(), posterior_probabilities.begin(), bind2nd(divides<double>(), denominator));
+    transform(numerators.begin(), numerators.end(), posterior_probabilities.begin(), [denominator](double d) { return d/denominator; });
 
     return posterior_probabilities;
 }

@@ -58,7 +58,7 @@ void read_gene_transcripts(std::istream& input_file, clade *p_tree, std::vector<
     map<int, std::string> sp_col_map; // For dealing with CAFE input format, {col_idx: sp_name} 
     std::string line;
     bool is_header = true;
-    int first_gene_index = 2;
+    unsigned int first_gene_index = 2;
 
     while (getline(input_file, line)) {
         if (line.empty()) continue;
@@ -78,6 +78,9 @@ void read_gene_transcripts(std::istream& input_file, clade *p_tree, std::vector<
         }
         
         else {
+            if (tokens.size() < first_gene_index)
+                throw std::runtime_error("Invalid transcript found: '" + line + "'");
+                
             gene_transcript gt(tokens[1], tokens[0], first_gene_index == 3 ? tokens[2] : "");
             
             for (size_t i = first_gene_index; i < tokens.size(); ++i) {
@@ -326,4 +329,26 @@ TEST_CASE("read_gene_transcripts reads Treatment Tissue header")
     CHECK(gt[1].tissue() == "lung");
     CHECK(gt[2].tissue() == "breast");
     CHECK(gt[3].tissue() == "brain");
+}
+
+TEST_CASE("Line without sample type throws error")
+{
+    std::string str = "Desc\tFamily ID\tSAMPLETYPE\tA\tB\tC\tD\n"
+                      "desc\tfid\tovary\t5\t10\t2\t6\n"
+                      "des2\tfi2\n"
+                      "\t (null)4\tbrain\t5\t10\t2\t6";
+    std::istringstream ist(str);
+    std::vector<gene_transcript> gt;
+
+    CHECK_THROWS_WITH_AS(read_gene_transcripts(ist, NULL, gt), "Invalid transcript found: 'des2	fi2'", runtime_error);
+}
+
+TEST_CASE("Line without family id throws error")
+{
+    std::string str = "Desc\tFamily ID\tA\tB\tC\tD\n"
+                      "desc\n";
+    std::istringstream ist(str);
+    std::vector<gene_transcript> gt;
+
+    CHECK_THROWS_WITH_AS(read_gene_transcripts(ist, NULL, gt), "Invalid transcript found: 'desc'", runtime_error);
 }
