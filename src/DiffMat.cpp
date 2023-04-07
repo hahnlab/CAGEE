@@ -91,7 +91,7 @@ void DiffMat::create_eigenvectors()
 
 DiffMat* p_diffmat = nullptr;
 
-vector<MatrixXd> ConvProp_bounds_batched(vector<double> vt, vector<double> cCoeff, const DiffMat& dMat, vector<boundaries> vbounds) {
+vector<MatrixXd> ConvProp_bounds_batched(vector<double> vt, vector<double> cCoeff, const DiffMat& dMat, boundaries bounds) {
     // Calculate the transition density (dMat.diff to the power of cCoeff * t * (n-1)^2 / (b-a)^2
     // using eigenvectors to speed up the calculation
     size_t count = vt.size();
@@ -100,7 +100,7 @@ vector<MatrixXd> ConvProp_bounds_batched(vector<double> vt, vector<double> cCoef
 
     for (size_t k = 0; k < count; ++k)
     {
-        double tau = pow((vbounds[k].second - vbounds[k].first) / (Npts - 1), 2);
+        double tau = pow((bounds.second - bounds.first) / (Npts - 1), 2);
         vector<double> expD(Npts);
         for (int i = 0; i < Npts; ++i)
         {
@@ -121,7 +121,7 @@ vector<MatrixXd> ConvProp_bounds_batched(vector<double> vt, vector<double> cCoef
 }
 
 MatrixXd ConvProp_bounds(double t, double cCoeff, const DiffMat& dMat, boundaries bounds) {
-    return ConvProp_bounds_batched(vector<double>({ t }), vector<double>({ cCoeff }), dMat, vector<boundaries>({ bounds }))[0];
+    return ConvProp_bounds_batched(vector<double>({ t }), vector<double>({ cCoeff }), dMat, bounds )[0];
 }
 
 // This function is used in tight parallel loops so make an effort to avoid having it allocate memory

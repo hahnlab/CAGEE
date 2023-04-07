@@ -68,13 +68,11 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& squared_sigm
     // calculate matrices in parallel
     size_t i = 0;
     size_t num_keys = keys.size();
-    vector<boundaries> vBounds(keys.size());
     vector<double> vBranches(keys.size());
     vector<double> vSigSqd(keys.size());
-    transform(keys.begin(), keys.end(), vBounds.begin(), [](matrix_cache_key k) { return boundaries(0,k.bound()); });
     transform(keys.begin(), keys.end(), vBranches.begin(), [](matrix_cache_key k) { return k.branch_length(); });
     transform(keys.begin(), keys.end(), vSigSqd.begin(), [](matrix_cache_key k) { return k.sigma() / 2; });
-    auto matrices = ConvProp_bounds_batched(vBranches, vSigSqd, *diffusion_matrix, vBounds);
+    auto matrices = ConvProp_bounds_batched(vBranches, vSigSqd, *diffusion_matrix, boundaries(0, upper_bound));
     for (i = 0; i < num_keys; ++i)
     {
         _matrix_cache[keys[i]] = matrices[i];
