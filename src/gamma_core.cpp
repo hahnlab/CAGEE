@@ -137,14 +137,14 @@ bool gamma_model::can_infer() const
 }
 
 bool gamma_model::prune(const gene_transcript& transcript, const std::gamma_distribution<double>& prior, const matrix_cache& diff_mat, const sigma_squared*p_sigma,
-    const clade *p_tree, std::vector<double>& category_likelihoods, int upper_bound) 
+    const clade *p_tree, std::vector<double>& category_likelihoods, boundaries bounds) 
 {
     category_likelihoods.clear();
 
     for (size_t k = 0; k < _gamma_cat_probs.size(); ++k)
     {
         inference_pruner pruner(diff_mat, p_sigma, _p_error_model, p_tree, _sigma_multipliers[k]);
-        auto partial_likelihood = pruner.prune(transcript, boundaries(0, upper_bound));
+        auto partial_likelihood = pruner.prune(transcript, bounds);
         if (accumulate(partial_likelihood.begin(), partial_likelihood.end(), 0.0) == 0.0)
             return false;   // saturation
 
@@ -172,8 +172,6 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
 
     _monitor.Event_InferenceAttempt_Started();
 
-    int upper_bound = upper_bound_from_transcript_values(ud.gene_transcripts);
-
     if (!can_infer())
     {
         _monitor.Event_InferenceAttempt_InvalidValues();
@@ -194,13 +192,13 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
         auto values = mult->get_values();
         multipliers.insert(multipliers.end(), values.begin(), values.end());
     }
-    cache.precalculate_matrices(multipliers, ud.p_tree->get_branch_lengths(), boundaries(0,upper_bound));
+    cache.precalculate_matrices(multipliers, ud.p_tree->get_branch_lengths(), ud.bounds);
 
 #pragma omp parallel for
     for (size_t i = 0; i < ud.gene_transcripts.size(); i++) {
         auto& cat_likelihoods = _category_likelihoods[i];
 
-        if (prune(ud.gene_transcripts.at(i), prior, cache, p_sigma, ud.p_tree, cat_likelihoods, upper_bound))
+        if (prune(ud.gene_transcripts.at(i), prior, cache, p_sigma, ud.p_tree, cat_likelihoods, ud.bounds))
         {
             double transcript_likelihood = accumulate(cat_likelihoods.begin(), cat_likelihoods.end(), 0.0);
 
@@ -281,8 +279,6 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
 {
     LOG(INFO) << "Starting reconstruction processes for Gamma model";
 
-    int upper_bound = upper_bound_from_transcript_values(ud.gene_transcripts);
-
     auto values = _p_sigma->get_values();
     vector<double> all;
     for (double multiplier : _sigma_multipliers)
@@ -293,7 +289,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
         }
     }
 
-    calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), boundaries(0,upper_bound));
+    calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), ud.bounds);
 
     gamma_model_reconstruction* result = new gamma_model_reconstruction(_sigma_multipliers);
     vector<gamma_model_reconstruction::gamma_reconstruction *> recs(ud.gene_transcripts.size());
@@ -313,7 +309,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
 
         for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
         {
-            recs[i]->category_reconstruction[k] = tr.reconstruct(ud.gene_transcripts[i], boundaries(0, upper_bound));
+            recs[i]->category_reconstruction[k] = tr.reconstruct(ud.gene_transcripts[i], ud.bounds);
         }
     }
 
@@ -551,5 +547,22 @@ TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade")
     CHECK_STREAM_CONTAINS(ost, "A<1>\t1\t0");
     CHECK_STREAM_CONTAINS(ost, "B<2>\t0\t1");
 }
+
+TEST_CASE("gamma_model_prune_returns_false_if_saturated" * doctest::skip(true))
+{
+    vector<gene_transcript> families(1);
+    families[0].set_expression_value("A", 3);
+    families[0].set_expression_value("B", 6);
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    sigma_squared lambda(0.9);
+    matrix_cache cache;
+
+    vector<double> cat_likelihoods;
+
+    gamma_model model(&lambda, &families, { 1.0,1.0 }, { 0.1, 0.5 }, NULL);
+
+    CHECK(!model.prune(families[0], std::gamma_distribution<double>(1, 2), cache, &lambda, p_tree.get(), cat_likelihoods, boundaries(0, 20)));
+}
+
 
 

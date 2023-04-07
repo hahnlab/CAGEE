@@ -248,29 +248,12 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_prune" * doctest::skip(true))
     gamma_model model(&lambda, &families, { 0.01, 0.05 }, { 0.1, 0.5 }, NULL);
 
     vector<double> cat_likelihoods;
-    CHECK(model.prune(families[0], prior, cache, &lambda, p_tree.get(), cat_likelihoods, 20));
+    CHECK(model.prune(families[0], prior, cache, &lambda, p_tree.get(), cat_likelihoods, boundaries(0,20)));
 
     CHECK_EQ(2, cat_likelihoods.size());
     CHECK_EQ(doctest::Approx(-23.04433), log(cat_likelihoods[0]));
     CHECK_EQ(doctest::Approx(-16.68005), log(cat_likelihoods[1]));
 }
-
-TEST_CASE("gamma_model_prune_returns_false_if_saturated" * doctest::skip(true))
-{
-    vector<gene_transcript> families(1);
-    families[0].set_expression_value("A", 3);
-    families[0].set_expression_value("B", 6);
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-    sigma_squared lambda(0.9);
-    matrix_cache cache;
-
-    vector<double> cat_likelihoods;
-
-    gamma_model model(&lambda, &families, { 1.0,1.0 }, { 0.1, 0.5 }, NULL);
-
-    CHECK(!model.prune(families[0], std::gamma_distribution<double>(1, 2), cache, &lambda, p_tree.get(), cat_likelihoods, 20));
-}
-
 
 TEST_CASE("Inference: create_one_model_if_lambda_is_null")
 {

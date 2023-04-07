@@ -17,6 +17,8 @@ class error_model;
 
 struct input_parameters;
 
+using boundaries = std::pair<double, double>;
+
 class event_monitor : public el::Loggable
 {
     std::map<std::string, int> failure_count;
@@ -86,8 +88,6 @@ inline std::string filename(std::string base, std::string suffix)
 {
     return filename(base, suffix, "txt");
 }
-
-int upper_bound_from_transcript_values(const std::vector<gene_transcript>& transcripts);
 
 //! Create a sigma based on the sigma tree model the user passed.
 /// Called when the user has provided no sigma value and one must

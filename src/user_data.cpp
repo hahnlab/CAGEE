@@ -37,6 +37,8 @@ void user_data::read_gene_transcript_data(const input_parameters &my_input_param
     }
     
     LOG(DEBUG) << "Read input file " << my_input_parameters.input_file_path << ".";
+
+    update_boundaries();
 }
 
 //! Read user provided error model file (whose path is stored in input_parameters instance)
@@ -140,5 +142,60 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
         if (rootdist[0] == "file")
             read_rootdist(rootdist[1]);
     }
+}
+
+int upper_bound_from_transcript_values(const vector<gene_transcript>& transcripts)
+{
+    vector<int> bounds(transcripts.size());
+    transform(transcripts.begin(), transcripts.end(), bounds.begin(), [](const gene_transcript& gt) {
+
+        return max(1.0, ceil(gt.get_max_expression_value() + MATRIX_SIZE_MULTIPLIER));
+        });
+
+    return *max_element(bounds.begin(), bounds.end());
+}
+
+void user_data::update_boundaries()
+{
+    bounds = boundaries(0, upper_bound_from_transcript_values(gene_transcripts));
+}
+
+/// Bounds are next largest integer if in log space.
+TEST_CASE("upper_bound_from_transcript_values returns next multiple of 5")
+{
+    gene_transcript gt;
+    gt.set_expression_value("A", .3);
+    gt.set_expression_value("B", .8);
+    CHECK_EQ(4, upper_bound_from_transcript_values({ gt }));
+
+    gt.set_expression_value("A", 1.1);
+    CHECK_EQ(5, upper_bound_from_transcript_values({ gt }));
+
+    gt.set_expression_value("B", 7.3);
+    CHECK_EQ(11, upper_bound_from_transcript_values({ gt }));
+}
+
+TEST_CASE("upper_bound_from_transcript_values never returns less than MATRIX_SIZE_MULTIPLIER")
+{
+    gene_transcript gt;
+    gt.set_expression_value("A", 0.00005);
+    gt.set_expression_value("B", 0.00004);
+    CHECK_EQ(MATRIX_SIZE_MULTIPLIER + 1, upper_bound_from_transcript_values({ gt }));
+}
+
+TEST_CASE("upper_bound_from_transcript_values never returns less than MATRIX_SIZE_MULTIPLIER even if all values are very small")
+{
+    gene_transcript gt;
+    gt.set_expression_value("A", 0.0000000002);
+    gt.set_expression_value("B", 0.0000000005);
+    CHECK_EQ(MATRIX_SIZE_MULTIPLIER + 1, upper_bound_from_transcript_values({ gt }));
+}
+
+TEST_CASE("upper_bound_from_transcript_values returns MATRIX_SIZE_MULTIPLIER if all values are zero")
+{
+    gene_transcript gt;
+    gt.set_expression_value("A", 0);
+    gt.set_expression_value("B", 0);
+    CHECK_EQ(MATRIX_SIZE_MULTIPLIER, upper_bound_from_transcript_values({ gt }));
 }
 

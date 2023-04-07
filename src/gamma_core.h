@@ -58,6 +58,6 @@ public:
         const sigma_squared*p_sigma,
         const clade *p_tree, 
         std::vector<double>& category_likelihoods, 
-        int upper_bound);
+        boundaries bounds);
 };
 

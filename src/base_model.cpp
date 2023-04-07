@@ -119,13 +119,12 @@ double base_model::infer_transcript_likelihoods(const user_data& ud, const sigma
         return -log(0);
     }
 
-    int upper_bound = upper_bound_from_transcript_values(ud.gene_transcripts);
     matrix_cache calc;
     auto v = calc.create_vector();
     vector<double> priors(v.size());
     copy(v.begin(), v.end(), priors.begin());
     for (size_t j = 0; j < priors.size(); ++j) {
-        double x = (double(j) + 0.5) * double(upper_bound) / (priors.size() - 1);
+        double x = (double(j) + 0.5) * double(ud.bounds.second) / (priors.size() - 1);
 
         priors[j] = computational_space_prior(x, prior);
     }
@@ -137,7 +136,7 @@ double base_model::infer_transcript_likelihoods(const user_data& ud, const sigma
     }
     std::vector<double> all_transcripts_likelihood(ud.gene_transcripts.size());
 
-    calc.precalculate_matrices(p_sigma->get_values(),  ud.p_tree->get_branch_lengths(), boundaries(0, upper_bound));
+    calc.precalculate_matrices(p_sigma->get_values(),  ud.p_tree->get_branch_lengths(), ud.bounds);
 
     vector<vector<double>> partial_likelihoods(ud.gene_transcripts.size());
 
@@ -147,7 +146,7 @@ double base_model::infer_transcript_likelihoods(const user_data& ud, const sigma
 #pragma omp parallel for
     for (int i = 0; i < (int)ud.gene_transcripts.size(); ++i) {
         if ((int)references[i] == i)
-            partial_likelihoods[i] = pruners[i].prune(ud.gene_transcripts.at(i), boundaries(0,upper_bound));
+            partial_likelihoods[i] = pruners[i].prune(ud.gene_transcripts.at(i), ud.bounds);
     }
 
 #pragma omp parallel for
@@ -188,9 +187,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
     auto result = new base_model_reconstruction();
 
-    boundaries bounds(0, upper_bound_from_transcript_values(ud.gene_transcripts));
-
-    p_calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), bounds);
+    p_calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), ud.bounds);
 
     for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
     {
@@ -204,7 +201,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
     for (size_t i = 0; i< ud.gene_transcripts.size(); ++i)
     {
-        result->_reconstructions[ud.gene_transcripts[i].id()] = tr.reconstruct(ud.gene_transcripts[i], bounds);
+        result->_reconstructions[ud.gene_transcripts[i].id()] = tr.reconstruct(ud.gene_transcripts[i], ud.bounds);
     }
 
     LOG(INFO) << "Done!\n";
@@ -276,6 +273,8 @@ TEST_CASE("infer_transcript_likelihoods")
     fam4.set_expression_value("A", 6);
     fam4.set_expression_value("B", 3);
     transcripts.push_back(fam4);
+
+    ud.update_boundaries();
 
     sigma_squared ss(0.01);
 
@@ -380,14 +379,14 @@ TEST_CASE("base_model_reconstruction")
     ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
     ud.gene_transcripts[0].set_expression_value("A", 1);
     ud.gene_transcripts[0].set_expression_value("B", 2);
-
+    ud.bounds = boundaries(0, 20);
     sigma_squared sl(0.05);
     ud.p_sigma = &sl;
 
     std::vector<gene_transcript> families(1);
     families[0].set_expression_value("A", 3);
     families[0].set_expression_value("B", 4);
-    boundaries b(0, 20);
+    
     base_model model(&sl, &families, NULL);
 
     matrix_cache calc;

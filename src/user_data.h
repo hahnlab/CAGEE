@@ -16,6 +16,8 @@ class sigma_squared;
 class error_model;
 struct input_parameters;
 
+using boundaries = std::pair<double, double>;
+
 /// Class holding data defined by the user, or derived from data defined by the user
 class user_data {
 public:
@@ -30,6 +32,8 @@ public:
 
     std::vector<gene_transcript> gene_transcripts;
     std::vector<std::pair<float, int>> rootdist;    // first is value, second is count
+
+    boundaries bounds;
 
     void read_datafiles(const input_parameters& my_input_parameters);
 
@@ -49,6 +53,8 @@ public:
     sigma_squared* read_sigma(const input_parameters &my_input_parameters, clade *p_sigma_tree);
 
     void read_rootdist(std::string rootdist_file_path);
+
+    void update_boundaries();
 };
 
 #endif
