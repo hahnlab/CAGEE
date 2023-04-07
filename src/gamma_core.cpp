@@ -144,7 +144,7 @@ bool gamma_model::prune(const gene_transcript& transcript, const std::gamma_dist
     for (size_t k = 0; k < _gamma_cat_probs.size(); ++k)
     {
         inference_pruner pruner(diff_mat, p_sigma, _p_error_model, p_tree, _sigma_multipliers[k]);
-        auto partial_likelihood = pruner.prune(transcript, upper_bound);
+        auto partial_likelihood = pruner.prune(transcript, boundaries(0, upper_bound));
         if (accumulate(partial_likelihood.begin(), partial_likelihood.end(), 0.0) == 0.0)
             return false;   // saturation
 
@@ -313,7 +313,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
 
         for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
         {
-            recs[i]->category_reconstruction[k] = tr.reconstruct(ud.gene_transcripts[i], upper_bound);
+            recs[i]->category_reconstruction[k] = tr.reconstruct(ud.gene_transcripts[i], boundaries(0, upper_bound));
         }
     }
 

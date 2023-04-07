@@ -147,7 +147,7 @@ double base_model::infer_transcript_likelihoods(const user_data& ud, const sigma
 #pragma omp parallel for
     for (int i = 0; i < (int)ud.gene_transcripts.size(); ++i) {
         if ((int)references[i] == i)
-            partial_likelihoods[i] = pruners[i].prune(ud.gene_transcripts.at(i), upper_bound);
+            partial_likelihoods[i] = pruners[i].prune(ud.gene_transcripts.at(i), boundaries(0,upper_bound));
     }
 
 #pragma omp parallel for
@@ -188,9 +188,9 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
     auto result = new base_model_reconstruction();
 
-    int upper_bound = upper_bound_from_transcript_values(ud.gene_transcripts);
+    boundaries bounds(0, upper_bound_from_transcript_values(ud.gene_transcripts));
 
-    p_calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), boundaries(0, upper_bound));
+    p_calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), bounds);
 
     for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
     {
@@ -204,7 +204,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
     for (size_t i = 0; i< ud.gene_transcripts.size(); ++i)
     {
-        result->_reconstructions[ud.gene_transcripts[i].id()] = tr.reconstruct(ud.gene_transcripts[i], upper_bound);
+        result->_reconstructions[ud.gene_transcripts[i].id()] = tr.reconstruct(ud.gene_transcripts[i], bounds);
     }
 
     LOG(INFO) << "Done!\n";

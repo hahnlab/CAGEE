@@ -35,10 +35,10 @@ const Eigen::VectorXd& optional_probabilities::probabilities() const
     return _probabilities;
 }
 
-void optional_probabilities::initialize(double transcript_value, int upper_bound)
+void optional_probabilities::initialize(double transcript_value, boundaries bounds)
 {
     // cout << "Leaf node " << node->get_taxon_name() << " has " << _probabilities[node].size() << " probabilities" << endl;
-    VectorPos_bounds(transcript_value, boundaries(0, upper_bound), _probabilities);
+    VectorPos_bounds(transcript_value, bounds, _probabilities);
     has_value = true;
     //print_probabilities(probabilities, node);
 
@@ -67,13 +67,13 @@ void compute_node_probability(const clade* node,
     std::map<const clade*, optional_probabilities>& probabilities,
     const sigma_squared* p_sigma,
     const matrix_cache& cache,
-    int upper_bound)
+    boundaries bounds)
 {
     if (node->is_leaf()) {
         try
         {
             // TODO: initialize values from error model if it exists
-            probabilities[node].initialize(gene_transcript.get_expression_value(node->get_taxon_name()), upper_bound);
+            probabilities[node].initialize(gene_transcript.get_expression_value(node->get_taxon_name()), bounds);
         }
         catch (missing_expression_value& mev)
         {
@@ -161,11 +161,11 @@ inference_pruner::inference_pruner(const matrix_cache& cache,
 }
 
 
-void inference_pruner::compute_all_probabilities(const gene_transcript& gf, int upper_bound)
+void inference_pruner::compute_all_probabilities(const gene_transcript& gf, boundaries bounds)
 {
     unique_ptr<sigma_squared> multiplier(_p_sigsqd->multiply(_sigma_multiplier));
 
-    auto compute_func = [gf, this, upper_bound, &multiplier](const clade* c) { compute_node_probability(c, gf, _p_error_model, _probabilities, multiplier.get(), _cache, upper_bound); };
+    auto compute_func = [gf, this, bounds, &multiplier](const clade* c) { compute_node_probability(c, gf, _p_error_model, _probabilities, multiplier.get(), _cache, bounds); };
     for_each(_p_tree->reverse_level_begin(), _p_tree->reverse_level_end(), compute_func);
 
 }
@@ -174,17 +174,17 @@ void inference_pruner::compute_all_probabilities(const gene_transcript& gf, int 
 /// and a given multiplier. Works by calling \ref compute_node_probability on all nodes of the tree
 /// using the species counts for the family. 
 /// \returns a vector of probabilities for gene counts at the root of the tree 
-std::vector<double> inference_pruner::prune(const gene_transcript& gf, int upper_bound)
+std::vector<double> inference_pruner::prune(const gene_transcript& gf, boundaries bounds)
 {
-    compute_all_probabilities(gf, upper_bound);
+    compute_all_probabilities(gf, bounds);
 
     auto& p = _probabilities[_p_tree].probabilities();
     return vector<double>(p.begin(), p.end());
 }
 
-clademap<node_reconstruction> inference_pruner::reconstruct(const gene_transcript& gf, int upper_bound)
+clademap<node_reconstruction> inference_pruner::reconstruct(const gene_transcript& gf, boundaries bounds)
 {
-    compute_all_probabilities(gf, upper_bound);
+    compute_all_probabilities(gf, bounds);
 
     clademap<node_reconstruction> reconstruction;
     cladevector internal_nodes;
@@ -195,7 +195,7 @@ clademap<node_reconstruction> inference_pruner::reconstruct(const gene_transcrip
 
     for (auto& n : internal_nodes)
     {
-        reconstruction[n] = get_value(_probabilities[n].probabilities(), upper_bound);
+        reconstruction[n] = get_value(_probabilities[n].probabilities(), bounds.second);
     }
     return reconstruction;
 }
@@ -232,7 +232,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     auto probabilities = create_probability_map(p_tree.get(), Npts);
 
     auto A = p_tree->find_descendant("A");
-    compute_node_probability(A, gt, NULL, probabilities, &ss, cache, 60);
+    compute_node_probability(A, gt, NULL, probabilities, &ss, cache, boundaries(0,60));
     auto& actual = probabilities[A];
 
     vector<double> expected(Npts);
@@ -251,7 +251,7 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     CHECK_VECTORS_EQ(expected, actual.probabilities());
 
     auto B = p_tree->find_descendant("B");
-    compute_node_probability(B, gt, NULL, probabilities, &ss, cache, 60);
+    compute_node_probability(B, gt, NULL, probabilities, &ss, cache, boundaries(0,60));
     actual = probabilities[B];
 
     expected = vector<double>(Npts);
@@ -294,7 +294,7 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly")
     probabilities[p_tree->find_descendant("A")].set(equal_probs);
     probabilities[p_tree->find_descendant("B")].set(equal_probs);
 
-    compute_node_probability(AB, gt, NULL, probabilities, &ss, cache, 40);
+    compute_node_probability(AB, gt, NULL, probabilities, &ss, cache, boundaries(0,40));
 
     auto& actual = probabilities[AB];
     double expected = (2 * prob) * (2 * prob);
@@ -322,7 +322,7 @@ TEST_CASE("inference_pruner: check stats of returned probabilities")
     cache.precalculate_matrices(ss.get_values(), set<double>{1, 3, 7}, boundaries(0,20));
     inference_pruner pruner(cache, &ss, nullptr, p_tree.get(), 1.0);
 
-    auto actual = pruner.prune(rt, 20);
+    auto actual = pruner.prune(rt, boundaries(0,20));
 
     size_t sz = actual.size();
     CHECK_EQ(sz, Npts);
@@ -412,7 +412,7 @@ TEST_CASE("compute_node_probablities skips a missing leaf value")
     auto A = p_tree->find_descendant("A");
 
     gene_transcript empty;
-    compute_node_probability(A, empty, NULL, probabilities, &ss, cache, 60);
+    compute_node_probability(A, empty, NULL, probabilities, &ss, cache, boundaries(0,60));
 
     CHECK_FALSE(probabilities[A].hasValue());
 
@@ -432,7 +432,7 @@ TEST_CASE("compute_node_probablities skips a non-leaf value with missing child v
     //for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), [&probabilities](const clade* c) { probabilities[c].clear(); });
 
     gene_transcript empty;
-    compute_node_probability(p_tree.get(), empty, NULL, probabilities, &ss, cache, 60);
+    compute_node_probability(p_tree.get(), empty, NULL, probabilities, &ss, cache, boundaries(0,60));
     CHECK_FALSE(probabilities[p_tree.get()].hasValue());
 
 }
@@ -456,8 +456,9 @@ TEST_CASE("compute_node_probablities computes a non-leaf value with a single chi
     gene_transcript onechild;
     onechild.set_expression_value("A", 3);
 
-    compute_node_probability(p_tree->find_descendant("A"), onechild, NULL, probabilities, &ss, cache, 40);
-    compute_node_probability(p_tree.get(), onechild, NULL, probabilities, &ss, cache, 40);
+    boundaries bounds(0, 40);
+    compute_node_probability(p_tree->find_descendant("A"), onechild, NULL, probabilities, &ss, cache, bounds);
+    compute_node_probability(p_tree.get(), onechild, NULL, probabilities, &ss, cache, bounds);
     auto& actual = probabilities[p_tree.get()];
     vector<double> expected{ 0.14625,  0.30375, 0, 0, 0, 0, 0, 0, 0, 0 };
     CHECK_VECTORS_EQ(expected, actual.probabilities());
