@@ -21,7 +21,7 @@ DiffMat* matrix_cache::diffusion_matrix = nullptr;
 
 std::ostream& operator<<(std::ostream& ost, const matrix_cache_key& k)
 {
-    ost << "(" << k.branch_length() << ", " << k.branch_length() << ", (" << k.bound() << "));";
+    ost << "(" << k.branch_length() << ", " << k.branch_length() << ");";
     return ost;
 }
 
@@ -32,11 +32,11 @@ void matrix_cache::initialize(int Npts)
     diffusion_matrix->create_or_read_eigenvectors();
 }
 
-const Eigen::MatrixXd& matrix_cache::get_matrix(double branch_length, double sigma, int bound) const
+const Eigen::MatrixXd& matrix_cache::get_matrix(double branch_length, double sigma) const
 {
     // cout << "Matrix request " << size << "," << branch_length << "," << lambda << endl;
 
-    matrix_cache_key key(bound, sigma, branch_length);
+    matrix_cache_key key(sigma, branch_length);
     if (_matrix_cache.find(key) != _matrix_cache.end())
     {
        return _matrix_cache.at(key);
@@ -49,7 +49,7 @@ const Eigen::MatrixXd& matrix_cache::get_matrix(double branch_length, double sig
     }
 }
 
-void matrix_cache::precalculate_matrices(const std::vector<double>& squared_sigmas, const std::set<double>& branch_lengths, int upper_bound)
+void matrix_cache::precalculate_matrices(const std::vector<double>& squared_sigmas, const std::set<double>& branch_lengths, boundaries bounds)
 {
     // build a list of required matrices
     vector<matrix_cache_key> keys;
@@ -57,7 +57,7 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& squared_sigm
     {
         for (double sigsqd : squared_sigmas)
         {
-            matrix_cache_key key(upper_bound, sigsqd, branch_length);
+            matrix_cache_key key(sigsqd, branch_length);
             if (_matrix_cache.find(key) == _matrix_cache.end())
             {
                 keys.push_back(key);
@@ -72,7 +72,7 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& squared_sigm
     vector<double> vSigSqd(keys.size());
     transform(keys.begin(), keys.end(), vBranches.begin(), [](matrix_cache_key k) { return k.branch_length(); });
     transform(keys.begin(), keys.end(), vSigSqd.begin(), [](matrix_cache_key k) { return k.sigma() / 2; });
-    auto matrices = ConvProp_bounds_batched(vBranches, vSigSqd, *diffusion_matrix, boundaries(0, upper_bound));
+    auto matrices = ConvProp_bounds_batched(vBranches, vSigSqd, *diffusion_matrix, bounds);
     for (i = 0; i < num_keys; ++i)
     {
         _matrix_cache[keys[i]] = matrices[i];
@@ -80,9 +80,9 @@ void matrix_cache::precalculate_matrices(const std::vector<double>& squared_sigm
 
 }
 
-void matrix_cache::set_matrix(double branch_length, double sigma, int bound, const Eigen::MatrixXd& m)
+void matrix_cache::set_matrix(double branch_length, double sigma, const Eigen::MatrixXd& m)
 {
-    matrix_cache_key key(bound, sigma, branch_length);
+    matrix_cache_key key(sigma, branch_length);
     _matrix_cache[key] = m;
 }
 
@@ -109,12 +109,12 @@ TEST_CASE(" matrix_cache_key handles floating point imprecision")
     for (int i = 0; i < 31; i++)
     {
         t += 0.1;
-        matrix_cache_key key(40, 0.01, t);
+        matrix_cache_key key(0.01, t);
         keys.insert(key);
     }
     CHECK_EQ(31, keys.size());
 
-    matrix_cache_key key(40, 0.01, 1.4);
+    matrix_cache_key key(0.01, 1.4);
     CHECK_EQ(1, keys.count(key));
 }
 
@@ -122,19 +122,19 @@ TEST_CASE("get_matrix returns correct matrix based on key")
 {
     matrix_cache cache;
     Matrix3d m1;
-    cache.set_matrix(44, 3.2642504711034, 85, m1);
+    cache.set_matrix(3.2642504711034, 85, m1);
 
     Matrix2d m2;
-    cache.set_matrix(44, 3.1010379475482, 85, m2);
+    cache.set_matrix(3.1010379475482, 85, m2);
 
-    CHECK_EQ(4, cache.get_matrix(44, 3.1010379475482, 85).size());
-    CHECK_EQ(9, cache.get_matrix(44, 3.2642504711034, 85).size());
+    CHECK_EQ(4, cache.get_matrix(3.1010379475482, 85).size());
+    CHECK_EQ(9, cache.get_matrix(3.2642504711034, 85).size());
 }
 
 TEST_CASE("matrix_cache_key checks sigma for less than")
 {
-    matrix_cache_key key(85, 3.2642504711034, 44);
-    matrix_cache_key key2(85, 3.1010379475482, 44);
+    matrix_cache_key key(3.2642504711034, 44);
+    matrix_cache_key key2(3.1010379475482, 44);
 
     CHECK(key2 < key);
 }
@@ -145,9 +145,9 @@ TEST_CASE("Probability:matrices_take_fractional_branch_lengths_into_account")
     sigma_squared sigsq(9.1);
     matrix_cache calc;
     std::set<double> branch_lengths{ 68, 68.7105 };
-    calc.precalculate_matrices(sigsq.get_values(), branch_lengths, 3);
-    CHECK_EQ(doctest::Approx(0.005), calc.get_matrix(68.7105, sigsq.get_values()[0], 3)(100, 100)); // a value 
-    CHECK_EQ(doctest::Approx(0.005), calc.get_matrix(68,      sigsq.get_values()[0], 3)(100, 100));
+    calc.precalculate_matrices(sigsq.get_values(), branch_lengths, boundaries(0,3));
+    CHECK_EQ(doctest::Approx(0.005), calc.get_matrix(68.7105, sigsq.get_values()[0])(100, 100)); // a value 
+    CHECK_EQ(doctest::Approx(0.005), calc.get_matrix(68,      sigsq.get_values()[0])(100, 100));
 }
 
 TEST_CASE("Probability: probability_of_matrix")
@@ -155,8 +155,8 @@ TEST_CASE("Probability: probability_of_matrix")
     sigma_squared sigsq(0.05);
     matrix_cache calc;
     std::set<double> branch_lengths{ 5 };
-    calc.precalculate_matrices(sigsq.get_values(), branch_lengths, 3);
-    MatrixXd actual = calc.get_matrix(5, sigsq.get_values()[0], 3);
+    calc.precalculate_matrices(sigsq.get_values(), branch_lengths, boundaries(0,3));
+    MatrixXd actual = calc.get_matrix(5, sigsq.get_values()[0]);
     CHECK_EQ(200, actual.rows());
     CHECK_EQ(200, actual.cols());
 

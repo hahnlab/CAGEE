@@ -137,7 +137,7 @@ double base_model::infer_transcript_likelihoods(const user_data& ud, const sigma
     }
     std::vector<double> all_transcripts_likelihood(ud.gene_transcripts.size());
 
-    calc.precalculate_matrices(p_sigma->get_values(),  ud.p_tree->get_branch_lengths(), upper_bound);
+    calc.precalculate_matrices(p_sigma->get_values(),  ud.p_tree->get_branch_lengths(), boundaries(0, upper_bound));
 
     vector<vector<double>> partial_likelihoods(ud.gene_transcripts.size());
 
@@ -190,7 +190,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
     int upper_bound = upper_bound_from_transcript_values(ud.gene_transcripts);
 
-    p_calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), upper_bound);
+    p_calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), boundaries(0, upper_bound));
 
     for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
     {

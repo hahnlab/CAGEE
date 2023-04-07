@@ -194,7 +194,7 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
         auto values = mult->get_values();
         multipliers.insert(multipliers.end(), values.begin(), values.end());
     }
-    cache.precalculate_matrices(multipliers, ud.p_tree->get_branch_lengths(), upper_bound);
+    cache.precalculate_matrices(multipliers, ud.p_tree->get_branch_lengths(), boundaries(0,upper_bound));
 
 #pragma omp parallel for
     for (size_t i = 0; i < ud.gene_transcripts.size(); i++) {
@@ -293,7 +293,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
         }
     }
 
-    calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), upper_bound);
+    calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), boundaries(0,upper_bound));
 
     gamma_model_reconstruction* result = new gamma_model_reconstruction(_sigma_multipliers);
     vector<gamma_model_reconstruction::gamma_reconstruction *> recs(ud.gene_transcripts.size());

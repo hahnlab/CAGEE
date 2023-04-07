@@ -11,24 +11,19 @@ class sigma;
 class DiffMat;
 
 class matrix_cache_key {
-    int _bound;
     long _branch_length;
     long _sigma;
     const double SIGNIFICANT_DIGITS = double(1e9);
 
 public:
-    matrix_cache_key(double bound, double sigma, double branch_length) :
-        _bound(bound)
+    matrix_cache_key(double sigma, double branch_length)
     {
         _branch_length = long(branch_length * SIGNIFICANT_DIGITS);
         _sigma = long(sigma * SIGNIFICANT_DIGITS);
     }
 
     bool operator<(const matrix_cache_key& o) const {
-        return std::tie(_bound, _branch_length, _sigma) < std::tie(o._bound, o._branch_length, o._sigma);
-    }
-    int bound() const {
-        return _bound;
+        return std::tie(_branch_length, _sigma) < std::tie(o._branch_length, o._sigma);
     }
     double branch_length() const {
         return double(_branch_length) / SIGNIFICANT_DIGITS;
@@ -39,6 +34,8 @@ public:
     }
 };
 
+using boundaries = std::pair<double, double>;
+
 //! Computation of the probabilities of moving from a family size (parent) to another (child)
 /*!
 Contains a map (_cache) that serves as a hash table to store precalculated values.
@@ -48,9 +45,9 @@ class matrix_cache {
 private:
     std::map<matrix_cache_key, Eigen::MatrixXd> _matrix_cache; //!< nested map that stores transition probabilities for a given lambda and branch_length (outer), then for a given parent and child size (inner)
 public:
-    void precalculate_matrices(const std::vector<double>& sigmas, const std::set<double>& branch_lengths, int upper_bound);
-    const Eigen::MatrixXd& get_matrix(double branch_length, double sigma, int bound) const;
-    void set_matrix(double branch_length, double sigma, int bound, const Eigen::MatrixXd& m);
+    void precalculate_matrices(const std::vector<double>& sigmas, const std::set<double>& branch_lengths, boundaries bounds);
+    const Eigen::MatrixXd& get_matrix(double branch_length, double sigma) const;
+    void set_matrix(double branch_length, double sigma, const Eigen::MatrixXd& m);
 
     Eigen::VectorXd create_vector() const;
 

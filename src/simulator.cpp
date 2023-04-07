@@ -106,7 +106,7 @@ simulated_family create_simulated_family(const clade *p_tree, const sigma_square
     boundaries bounds(pv::to_computational_space(0), upper_bound);
     std::function <void(const clade*)> get_child_value;
     get_child_value = [&](const clade* c) {
-        auto m = cache.get_matrix(c->get_branch_length(), p_sigsqrd->get_value_for_clade(c), upper_bound);
+        auto m = cache.get_matrix(c->get_branch_length(), p_sigsqrd->get_value_for_clade(c));
         VectorXd v(m.cols());
         VectorPos_bounds(sim.values[c->get_parent()], bounds, v);
         VectorXd probs = m * v;
@@ -172,7 +172,7 @@ std::vector<simulated_family> simulator::simulate_processes(model *p_model) {
     LOG(DEBUG) << "Upper bound for discretization vector: " << upper_bound;
 
     matrix_cache cache;
-    cache.precalculate_matrices(sim_sigsqd->get_values(), data.p_tree->get_branch_lengths(), upper_bound);
+    cache.precalculate_matrices(sim_sigsqd->get_values(), data.p_tree->get_branch_lengths(), boundaries(0,upper_bound));
 
     transform(root_sizes.begin(), root_sizes.end(), results.begin(), [this, &sim_sigsqd, &cache, upper_bound](double root_size) {
         return create_simulated_family(data.p_tree, sim_sigsqd.get(), upper_bound, root_size, cache);
@@ -293,7 +293,7 @@ TEST_CASE("create_trial")
     const int ub = 5;
 
     matrix_cache cache;
-    cache.precalculate_matrices(ss.get_values(), p_tree->get_branch_lengths(), ub);
+    cache.precalculate_matrices(ss.get_values(), p_tree->get_branch_lengths(), boundaries(0,ub));
 
     simulated_family actual = create_simulated_family(p_tree.get(), &ss, ub, 5.0, cache);
 
@@ -382,7 +382,7 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
     const int ub = 15;
 
     matrix_cache cache;
-    cache.precalculate_matrices(vector<double>{10}, p_tree->get_branch_lengths(), ub);
+    cache.precalculate_matrices(vector<double>{10}, p_tree->get_branch_lengths(), boundaries(0,ub));
     size_t sz = 3;
     vector<double> v(sz);
     generate(v.begin(), v.end(), [&]() {

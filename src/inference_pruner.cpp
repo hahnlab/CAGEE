@@ -92,7 +92,7 @@ void compute_node_probability(const clade* node,
             probabilities[node].setOne();
 
             for (auto child : descendants_with_values) {
-                const MatrixXd& m = cache.get_matrix(child->get_branch_length(), p_sigma->get_named_value(child, gene_transcript), upper_bound);
+                const MatrixXd& m = cache.get_matrix(child->get_branch_length(), p_sigma->get_named_value(child, gene_transcript));
 
                 VectorXd result = m * probabilities[child].probabilities();
                 probabilities[node].multiply_elements(result);
@@ -285,8 +285,8 @@ TEST_CASE("Inference: likelihood_computer_sets_root_nodes_correctly")
     MatrixXd doubler = MatrixXd::Identity(Npts, Npts) * 2;
     sigma_squared ss(0.03);
     matrix_cache cache;
-    cache.set_matrix(1, 0.03, 40, doubler);
-    cache.set_matrix(3, 0.03, 40, doubler);
+    cache.set_matrix(1, 0.03, doubler);
+    cache.set_matrix(3, 0.03, doubler);
 
     auto probabilities = create_probability_map(p_tree.get(), Npts);
 
@@ -319,7 +319,7 @@ TEST_CASE("inference_pruner: check stats of returned probabilities")
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
     sigma_squared ss(10.0);
     matrix_cache cache;
-    cache.precalculate_matrices(ss.get_values(), set<double>{1, 3, 7}, 20);
+    cache.precalculate_matrices(ss.get_values(), set<double>{1, 3, 7}, boundaries(0,20));
     inference_pruner pruner(cache, &ss, nullptr, p_tree.get(), 1.0);
 
     auto actual = pruner.prune(rt, 20);
@@ -447,8 +447,8 @@ TEST_CASE("compute_node_probablities computes a non-leaf value with a single chi
     sigma_squared ss(0.03);
     matrix_cache cache;
     MatrixXd doubler = MatrixXd::Identity(Npts, Npts) * 2;
-    cache.set_matrix(7, 0.03, 40, doubler);
-    cache.set_matrix(1, 0.03, 40, doubler);
+    cache.set_matrix(7, 0.03, doubler);
+    cache.set_matrix(1, 0.03, doubler);
 
     auto probabilities = create_probability_map(p_tree.get(), Npts);
     

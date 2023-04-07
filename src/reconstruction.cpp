@@ -256,7 +256,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript calculates parent
     matrix_cache calc;
     for (auto len : p_tree->get_branch_lengths())
     {
-        calc.set_matrix(len, 10.1, 200, doubler);
+        calc.set_matrix(len, 10.1, doubler);
     }
     inference_pruner tr(&sig, p_tree.get(), &calc);
 
@@ -273,7 +273,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns parent ab
     fam.set_expression_value("B", 0);
 
     matrix_cache calc;
-    calc.precalculate_matrices(sig.get_values(), p_tree->get_branch_lengths(), 20);
+    calc.precalculate_matrices(sig.get_values(), p_tree->get_branch_lengths(), boundaries(0,20));
 
     inference_pruner tr(&sig, p_tree.get(), &calc);
     auto actual = tr.reconstruct(fam, 20);
@@ -288,7 +288,7 @@ TEST_CASE_FIXTURE(Reconstruction, "reconstruct_gene_transcript returns correct v
     fam.set_expression_value("B", 0);
 
     matrix_cache calc;
-    calc.precalculate_matrices(sig.get_values(), p_tree->get_branch_lengths(), 20);
+    calc.precalculate_matrices(sig.get_values(), p_tree->get_branch_lengths(), boundaries(0,20));
 
     inference_pruner tr(&sig, p_tree.get(), &calc);
     auto actual = tr.reconstruct(fam, 20);
