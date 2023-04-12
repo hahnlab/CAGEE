@@ -28,6 +28,7 @@ public:
     std::string prior;
     bool help = false;
     int discretization_size = 200;
+    bool input_file_has_ratios = false;
 
     //! Check calls
     void check_input();

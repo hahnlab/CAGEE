@@ -100,6 +100,7 @@ input_parameters read_arguments(int argc, char* const argv[])
         ("simulate,s", po::value<string>()->default_value("false"), "Simulate families. Optionally provide the number of simulations to generate")
         ("fixed_sigma,l", po::value<double>(), "Value for a single user provided sigma value, otherwise sigma is estimated.")
         ("count_all_changes", po::value<bool>()->implicit_value(true), "Reconstruction will count all changes rather than only credible changes")
+        ("ratio", po::value<bool>()->implicit_value(true), "The input file contains ratios of gene expression values rather than absolute values")
         ;
     
     po::options_description rare("Less Common Options");
@@ -118,39 +119,39 @@ input_parameters read_arguments(int argc, char* const argv[])
     cmdline_options.add(generic).add(required).add(common).add(rare);
 
     po::variables_map vm;
-    store(po::command_line_parser(argc, argv).
-        options(cmdline_options).run(), vm);
-    notify(vm);
-
-    if (vm.count("help")) {
-        show_help(generic, required, common, rare);
-        my_input_parameters.help = true;
-    }
-
-    if (vm.count("version")) {
-        show_version();
-        my_input_parameters.help = true;
-    }
-
-    if (!config_file.empty())
+    try
     {
-        ifstream ifs(config_file.c_str());
-        if (!ifs)
-        {
-            throw std::runtime_error("Config file not found: " + config_file);
+        store(po::command_line_parser(argc, argv).
+            options(cmdline_options).run(), vm);
+        notify(vm);
+
+        if (vm.count("help")) {
+            show_help(generic, required, common, rare);
+            my_input_parameters.help = true;
         }
-        else
+
+        if (vm.count("version")) {
+            show_version();
+            my_input_parameters.help = true;
+        }
+
+        if (!config_file.empty())
         {
-            try
+            ifstream ifs(config_file.c_str());
+            if (!ifs)
+            {
+                throw std::runtime_error("Config file not found: " + config_file);
+            }
+            else
             {
                 store(po::parse_config_file(ifs, config_file_options), vm);
                 notify(vm);
             }
-            catch (boost::program_options::unknown_option& e)
-            {
-                throw std::runtime_error("Unknown option: " + e.get_option_name());
-            }
         }
+    }
+    catch (boost::program_options::unknown_option& e)
+    {
+        throw std::runtime_error(e.what());
     }
 
     //maybe_set(vm, "fixed_root_value", my_input_parameters.fixed_root_value);
@@ -171,6 +172,7 @@ input_parameters read_arguments(int argc, char* const argv[])
     maybe_set(vm, "prior", my_input_parameters.prior);
     maybe_set(vm, "discretization_size", my_input_parameters.discretization_size);
     maybe_set(vm, "count_all_changes", my_input_parameters.count_all_changes);
+    maybe_set(vm, "ratio", my_input_parameters.input_file_has_ratios);
 
     string simulate_string = vm["simulate"].as<string>();
     my_input_parameters.is_simulating = simulate_string != "false";

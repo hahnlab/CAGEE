@@ -274,7 +274,7 @@ TEST_CASE("infer_transcript_likelihoods")
     fam4.set_expression_value("B", 3);
     transcripts.push_back(fam4);
 
-    ud.update_boundaries();
+    ud.update_boundaries(false);
 
     sigma_squared ss(0.01);
 
