@@ -116,6 +116,10 @@ void gene_transcript::remove_ungrouped_transcripts(const std::vector<std::string
 
     auto fmsize = transcripts.size();
     transcripts.erase(rem, transcripts.end());
+    
+    if (transcripts.empty())
+        throw std::runtime_error("Unable to match any transcripts to sample groups");
+    
     if (fmsize != transcripts.size())
     {
         LOG(WARNING) << "Some transcripts were not matched to a sample group";
@@ -214,6 +218,25 @@ TEST_CASE("remove_ungrouped_transcripts is aware of comma-specified groups")
     gene_transcript::remove_ungrouped_transcripts(vector<string>({ "heart,lungs" }), transcripts);
 
     CHECK_EQ(1, transcripts.size());
+}
+
+TEST_CASE("remove_ungrouped_transcripts throws error if unable to match any transcripts")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    istringstream ist(
+        "Desc\tFamily ID\tSAMPLETYPE\tA\tB\n"
+        "(null)\tt1\tbrain\t0\t0\n"
+        "(null)\tt2\tlungs\t0\t0\n");
+
+    vector<gene_transcript> transcripts;
+
+    read_gene_transcripts(ist, p_tree.get(), transcripts);
+
+    REQUIRE_EQ(2, transcripts.size());
+
+    CHECK_THROWS_WITH(gene_transcript::remove_ungrouped_transcripts(vector<string>({ "heart,ankle" }), transcripts),
+        "Unable to match any transcripts to sample groups");
 }
 
 TEST_CASE("expand_sample_groups")
