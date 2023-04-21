@@ -143,7 +143,7 @@ bool gamma_model::can_infer() const
     return true;
 }
 
-bool gamma_model::prune(const gene_transcript& transcript, const std::gamma_distribution<double>& prior, const matrix_cache& diff_mat, const sigma_squared*p_sigma,
+bool gamma_model::prune(const gene_transcript& transcript, const prior *p_prior, const matrix_cache& diff_mat, const sigma_squared*p_sigma,
     const clade *p_tree, std::vector<double>& category_likelihoods, boundaries bounds) 
 {
     category_likelihoods.clear();
@@ -160,7 +160,7 @@ bool gamma_model::prune(const gene_transcript& transcript, const std::gamma_dist
 #endif
         std::vector<double> full(partial_likelihood.size());
         for (size_t j = 0; j < partial_likelihood.size(); ++j) {
-            double eq_freq = gammapdf(j, prior);
+            double eq_freq = gammapdf(j, p_prior->_prior);
             full[j] = partial_likelihood[j] * eq_freq;
         }
 
@@ -175,7 +175,7 @@ bool gamma_model::prune(const gene_transcript& transcript, const std::gamma_dist
 }
 
 //! Infer bundle
-double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigma_squared*p_sigma, const std::gamma_distribution<double>& prior) {
+double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigma_squared*p_sigma) {
 
     _monitor.Event_InferenceAttempt_Started();
 
@@ -205,7 +205,7 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
     for (size_t i = 0; i < ud.gene_transcripts.size(); i++) {
         auto& cat_likelihoods = _category_likelihoods[i];
 
-        if (prune(ud.gene_transcripts.at(i), prior, cache, p_sigma, ud.p_tree, cat_likelihoods, ud.bounds))
+        if (prune(ud.gene_transcripts.at(i), ud.p_prior, cache, p_sigma, ud.p_tree, cat_likelihoods, ud.bounds))
         {
             double transcript_likelihood = accumulate(cat_likelihoods.begin(), cat_likelihoods.end(), 0.0);
 
@@ -237,7 +237,7 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
     return final_likelihood;
 }
 
-sigma_optimizer_scorer* gamma_model::get_sigma_optimizer(const user_data& data, const std::vector<string>& sample_groups, const std::gamma_distribution<double>& prior)
+sigma_optimizer_scorer* gamma_model::get_sigma_optimizer(const user_data& data, const std::vector<string>& sample_groups)
 {
     bool estimate_sigma = data.p_sigma == NULL;
     bool estimate_alpha = _alpha <= 0.0;
@@ -245,17 +245,17 @@ sigma_optimizer_scorer* gamma_model::get_sigma_optimizer(const user_data& data, 
     if (estimate_sigma && estimate_alpha)
     {
         _p_sigma = initialize_search_sigma(data.p_sigma_tree, sample_groups);
-        return new sigma_optimizer_scorer(this, data, prior, _p_sigma);
+        return new sigma_optimizer_scorer(this, data, _p_sigma);
     }
     else if (estimate_sigma && !estimate_alpha)
     {
         _p_sigma = initialize_search_sigma(data.p_sigma_tree, sample_groups);
-        return new sigma_optimizer_scorer(dynamic_cast<model *>(this), data, prior, _p_sigma);
+        return new sigma_optimizer_scorer(dynamic_cast<model *>(this), data, _p_sigma);
     }
     else if (!estimate_sigma && estimate_alpha)
     {
         _p_sigma = data.p_sigma->clone();
-        return new sigma_optimizer_scorer(this, data, prior);
+        return new sigma_optimizer_scorer(this, data);
     }
     else
     {
@@ -387,7 +387,7 @@ TEST_CASE("Inference: gamma_model__creates sigma optimizer__if_alpha_provided")
     data.gene_transcripts[0].set_expression_value("B", 2);
     data.p_tree = p_tree.get();
 
-    auto opt = model.get_sigma_optimizer(data, vector<string>(), std::gamma_distribution<double>(1, 2));
+    auto opt = model.get_sigma_optimizer(data, vector<string>());
 
     REQUIRE(opt);
     CHECK_EQ("Optimizing Sigma ", opt->description());
@@ -403,7 +403,7 @@ TEST_CASE("Inference: gamma_model__creates__gamma_optimizer__if_sigma_provided")
     sigma_squared sl(0.05);
     data.p_sigma = &sl;
 
-    auto opt = model.get_sigma_optimizer(data, vector<string>(), std::gamma_distribution<double>(1, 2));
+    auto opt = model.get_sigma_optimizer(data, vector<string>());
 
     REQUIRE(opt);
     CHECK_EQ("Optimizing Alpha ", opt->description());
@@ -420,7 +420,7 @@ TEST_CASE("Inference: gamma_model_creates_nothing_if_sigma_and_alpha_provided")
     sigma_squared sl(0.05);
     data.p_sigma = &sl;
 
-    CHECK(model.get_sigma_optimizer(data, vector<string>(), std::gamma_distribution<double>(1, 2)) == nullptr);
+    CHECK(model.get_sigma_optimizer(data, vector<string>()) == nullptr);
 }
 
 
@@ -568,7 +568,7 @@ TEST_CASE("gamma_model_prune_returns_false_if_saturated" * doctest::skip(true))
 
     gamma_model model(&lambda, &families, { 1.0,1.0 }, { 0.1, 0.5 }, NULL);
 
-    CHECK(!model.prune(families[0], std::gamma_distribution<double>(1, 2), cache, &lambda, p_tree.get(), cat_likelihoods, boundaries(0, 20)));
+    CHECK(!model.prune(families[0], new prior(), cache, &lambda, p_tree.get(), cat_likelihoods, boundaries(0, 20)));
 }
 
 

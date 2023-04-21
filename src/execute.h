@@ -41,13 +41,18 @@ public:
     bool quiet = false;
 };
 
+class prior
+{
+public:
+    std::gamma_distribution<double> _prior;
+};
+
 /*! @brief Estimator is used to guess at any missing values that the
     user did not provide. It will provide values for lambda, gamma, 
     and epsilon.
 */
 class estimator : public action
 {
-    std::gamma_distribution<double> _prior;
 public:
     estimator(user_data& d, const input_parameters& ui);
 
@@ -58,8 +63,6 @@ public:
     void compute(std::vector<model *>& models, const input_parameters &my_input_parameters);
 
     void estimate_missing_variables(std::vector<model *>& models, user_data& data);
-
-    std::gamma_distribution<double> prior() const { return _prior; }
 };
 
 void initialization_failure_advice(std::ostream& ost, const std::vector<gene_transcript>& families);

@@ -15,6 +15,7 @@ class sigma_squared;
 class error_model;
 struct input_parameters;
 class replicate_model;
+class prior;
 
 using boundaries = std::pair<double, double>;
 
@@ -30,6 +31,7 @@ public:
     clade *p_sigma_tree = NULL;
     error_model *p_error_model = NULL;
     replicate_model* p_replicate_model = NULL;
+    prior* p_prior = NULL;
 
     std::vector<gene_transcript> gene_transcripts;
     std::vector<std::pair<float, int>> rootdist;    // first is value, second is count

@@ -1,5 +1,7 @@
 #include "core.h"
 
+class prior;
+
 //! @brief Represents a model of species change in which lambda values are expected to belong to a gamma distribution
 //! \ingroup gamma
 class gamma_model : public model {
@@ -30,9 +32,9 @@ public:
     //! Randomly select one of the multipliers to apply to the simulation
     virtual sigma_squared* get_simulation_sigma() override;
 
-    double infer_transcript_likelihoods(const user_data& ud, const sigma_squared*p_sigma, const std::gamma_distribution<double>& prior) override;
+    double infer_transcript_likelihoods(const user_data& ud, const sigma_squared*p_sigma) override;
 
-    virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const std::vector<std::string>& sample_groups, const std::gamma_distribution<double>& prior) override;
+    virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const std::vector<std::string>& sample_groups) override;
 
     virtual void write_extra_vital_statistics(std::ostream& ost);
 
@@ -53,7 +55,7 @@ public:
     bool can_infer() const;
 
     bool prune(const gene_transcript& family, 
-        const std::gamma_distribution<double>& prior, 
+        const prior* p_prior, 
         const matrix_cache& calc, 
         const sigma_squared*p_sigma,
         const clade *p_tree, 

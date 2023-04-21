@@ -20,9 +20,9 @@ public:
     base_model(sigma_squared* p_sigma, const std::vector<gene_transcript>* p_gene_transcripts,
         error_model *p_error_model);
 
-    virtual double infer_transcript_likelihoods(const user_data& ud, const sigma_squared*p_sigma, const std::gamma_distribution<double>& prior) override;
+    virtual double infer_transcript_likelihoods(const user_data& ud, const sigma_squared*p_sigma) override;
 
-    virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const std::vector<std::string>& sample_groups, const std::gamma_distribution<double>& prior) override;
+    virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const std::vector<std::string>& sample_groups) override;
 
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache *p_calc);
 

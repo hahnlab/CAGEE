@@ -109,7 +109,7 @@ double compute_prior_likelihood(const vector<double>& partial_likelihood, const 
     return log(likelihood);
 }
 
-double base_model::infer_transcript_likelihoods(const user_data& ud, const sigma_squared *p_sigma, const gamma_distribution<double>& prior) {
+double base_model::infer_transcript_likelihoods(const user_data& ud, const sigma_squared *p_sigma) {
     //TIMED_FUNC(timerObj);
     _monitor.Event_InferenceAttempt_Started();
 
@@ -126,7 +126,7 @@ double base_model::infer_transcript_likelihoods(const user_data& ud, const sigma
     for (size_t j = 0; j < priors.size(); ++j) {
         double x = (double(j) + 0.5) * double(ud.bounds.second) / (priors.size() - 1);
 
-        priors[j] = computational_space_prior(x, prior);
+        priors[j] = computational_space_prior(x, ud.p_prior->_prior);
     }
 
     if (all_of(priors.begin(), priors.end(), [](double prior) { return prior <= 0 || isnan(prior); }))
@@ -162,7 +162,7 @@ double base_model::infer_transcript_likelihoods(const user_data& ud, const sigma
     return final_likelihood;
 }
 
-sigma_optimizer_scorer* base_model::get_sigma_optimizer(const user_data& data, const std::vector<string>& sample_groups, const std::gamma_distribution<double>& prior)
+sigma_optimizer_scorer* base_model::get_sigma_optimizer(const user_data& data, const std::vector<string>& sample_groups)
 {
     if (data.p_sigma != NULL)  // already have a sigma, nothing we want to optimize
         return nullptr;
@@ -171,11 +171,11 @@ sigma_optimizer_scorer* base_model::get_sigma_optimizer(const user_data& data, c
 
     if (_p_error_model && !data.p_error_model)
     {
-        return new sigma_optimizer_scorer(this, data, prior, _p_sigma, _p_error_model);
+        return new sigma_optimizer_scorer(this, data, _p_sigma, _p_error_model);
     }
     else
     {
-        return new sigma_optimizer_scorer(this, data, prior, _p_sigma);
+        return new sigma_optimizer_scorer(this, data, _p_sigma);
     }
 }
 
@@ -243,7 +243,7 @@ TEST_CASE("base optimizer guesses sigma only")
 
     base_model model(ud.p_sigma, NULL, NULL);
 
-    unique_ptr<sigma_optimizer_scorer> opt(model.get_sigma_optimizer(ud, vector<string>(), std::gamma_distribution<double>(1, 2)));
+    unique_ptr<sigma_optimizer_scorer> opt(model.get_sigma_optimizer(ud, vector<string>()));
     auto guesses = opt->initial_guesses();
     CHECK_EQ(1, guesses.size());
     CHECK_EQ(0.5, guesses[0]);
@@ -276,11 +276,12 @@ TEST_CASE("infer_transcript_likelihoods")
 
     ud.update_boundaries(false);
 
+    ud.p_prior = new prior(); ud.p_prior->_prior = std::gamma_distribution<double>(1, 2);
     sigma_squared ss(0.01);
 
     base_model core(&ss, &transcripts, NULL);
 
-    double multi = core.infer_transcript_likelihoods(ud, &ss, std::gamma_distribution<double>(1, 2));
+    double multi = core.infer_transcript_likelihoods(ud, &ss);
 
 #ifdef GSL_FOUND
     CHECK_EQ(doctest::Approx(114.708), multi);
@@ -299,9 +300,10 @@ TEST_CASE("infer_transcript_likelihoods returns invalid on invalid prior")
     ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
     ud.gene_transcripts[0].set_expression_value("A", 1);
     ud.gene_transcripts[0].set_expression_value("B", 2);
+    ud.p_prior = new prior(); ud.p_prior->_prior = std::gamma_distribution<double>(0.0, 1600);
 
     base_model model(&ss, &ud.gene_transcripts, NULL);
-    CHECK_EQ(-log(0),  model.infer_transcript_likelihoods(ud, &ss, gamma_distribution<double>(0.0, 1600)));
+    CHECK_EQ(-log(0),  model.infer_transcript_likelihoods(ud, &ss));
 }
 
 class Reconstruction

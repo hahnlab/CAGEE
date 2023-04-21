@@ -50,10 +50,10 @@ class mock_model : public model {
     {
         return nullptr;
     }
-    virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const vector<string>& sample_groups, const std::gamma_distribution<double>& prior) override
+    virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const vector<string>& sample_groups) override
     {
         _p_sigma = initialize_search_sigma(data.p_sigma_tree, sample_groups);
-        auto result = new sigma_optimizer_scorer(this, data, prior, _p_sigma);
+        auto result = new sigma_optimizer_scorer(this, data, _p_sigma);
         result->quiet = true;
         return result;
     }
@@ -70,7 +70,7 @@ public:
     void set_invalid_likelihood() { _invalid_likelihood = true;  }
 
     // Inherited via model
-    virtual double infer_transcript_likelihoods(const user_data& ud, const sigma_squared* p_sigma, const std::gamma_distribution<double>& prior) override
+    virtual double infer_transcript_likelihoods(const user_data& ud, const sigma_squared* p_sigma) override
     {
         return _invalid_likelihood ? nan("") : 0.0;
     }
@@ -173,7 +173,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_infers_processes_without_crashing")
     gamma_model core(_user_data.p_sigma, &_user_data.gene_transcripts, 1, 0, NULL);
 
     // TODO: make this return a non-infinite value and add a check for it
-    core.infer_transcript_likelihoods(_user_data, _user_data.p_sigma, std::gamma_distribution<double>(1,2));
+    core.infer_transcript_likelihoods(_user_data, _user_data.p_sigma);
     CHECK(true);
 
 }
@@ -205,7 +205,7 @@ TEST_CASE_FIXTURE(Inference, "base_model creates lambda_epsilon_optimizer if req
     _user_data.p_error_model = nullptr;
     _user_data.p_sigma = nullptr;
 
-    auto opt = model.get_sigma_optimizer(_user_data, vector<string>(), std::gamma_distribution<double>(1,2));
+    auto opt = model.get_sigma_optimizer(_user_data, vector<string>());
 
     REQUIRE(opt);
     CHECK_EQ("Optimizing Sigma Epsilon ", opt->description());
@@ -216,7 +216,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_creates__gamma_lambda_optimizer_if_not
     gamma_model model(NULL, NULL,4, -1, NULL);
     _user_data.p_sigma = nullptr;
 
-    auto opt = model.get_sigma_optimizer(_user_data, vector<string>(), std::gamma_distribution<double>(1, 2));
+    auto opt = model.get_sigma_optimizer(_user_data, vector<string>());
     REQUIRE(opt);
     CHECK_EQ("Optimizing Sigma Alpha ", opt->description());
 
@@ -243,12 +243,10 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_prune" * doctest::skip(true))
     sigma_squared lambda(0.005);
     matrix_cache cache;
 
-    std::gamma_distribution<double> prior(1,2);
-
     gamma_model model(&lambda, &families, { 0.01, 0.05 }, { 0.1, 0.5 }, NULL);
 
     vector<double> cat_likelihoods;
-    CHECK(model.prune(families[0], prior, cache, &lambda, p_tree.get(), cat_likelihoods, boundaries(0,20)));
+    CHECK(model.prune(families[0], new prior(), cache, &lambda, p_tree.get(), cat_likelihoods, boundaries(0, 20)));
 
     CHECK_EQ(2, cat_likelihoods.size());
     CHECK_EQ(doctest::Approx(-23.04433), log(cat_likelihoods[0]));

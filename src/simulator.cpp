@@ -475,11 +475,11 @@ TEST_CASE("create_rootdist creates fixed root if requested")
 class mock_model : public model {
     // Inherited via model
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache* p_calc) override { return nullptr; }
-    virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const std::vector<string>& sample_groups, const std::gamma_distribution<double>& prior) override { return nullptr; }
+    virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const std::vector<string>& sample_groups) override { return nullptr; }
     bool _invalid_likelihood = false;
 public:
     mock_model(sigma_squared* s) : model(s, NULL, NULL) {}
-    virtual double infer_transcript_likelihoods(const user_data& ud, const sigma_squared* p_sigma, const std::gamma_distribution<double>& prior) override { return 0; }
+    virtual double infer_transcript_likelihoods(const user_data& ud, const sigma_squared* p_sigma) override { return 0; }
 };
 
 TEST_CASE("Simulation, simulate_processes")

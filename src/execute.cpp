@@ -36,7 +36,7 @@ estimator::estimator(user_data& d, const input_parameters& ui) : action(d, ui)
 
     auto k = stof(tokens[1]), theta = stof(tokens[2]);
     LOG(INFO) << "Using gamma prior with k=" << k << ", theta=" << theta << ")";
-    _prior = gamma_distribution<double>(k, theta);
+    d.p_prior = new prior(); d.p_prior->_prior = gamma_distribution<double>(k, theta);
 
 #ifdef USE_MAX_PROBABILITY
     LOG(INFO) << "Maximum probability calculation";
@@ -88,7 +88,7 @@ void estimator::compute(std::vector<model *>& models, const input_parameters &my
     for (size_t i = 0; i < models.size(); ++i) {
         LOG(INFO) << "Inferring processes";
 
-        double result = models[i]->infer_transcript_likelihoods(data, models[i]->get_sigma(), _prior);
+        double result = models[i]->infer_transcript_likelihoods(data, models[i]->get_sigma());
         std::ofstream results_file(filename("results", my_input_parameters.output_prefix));
         models[i]->write_vital_statistics(results_file, data.p_tree, result, my_input_parameters);
 
@@ -115,7 +115,7 @@ void estimator::estimate_missing_variables(std::vector<model *>& models, user_da
         throw runtime_error("No tree specified for lambda estimation");
     }
     for (model* p_model : models) {
-        unique_ptr<sigma_optimizer_scorer> scorer(p_model->get_sigma_optimizer(data, _user_input.sample_groups, _prior));
+        unique_ptr<sigma_optimizer_scorer> scorer(p_model->get_sigma_optimizer(data, _user_input.sample_groups));
         if (scorer.get() == nullptr)
             continue;   // nothing to be optimized
 
@@ -186,7 +186,7 @@ TEST_CASE("create_rootdist throws error if nothing set")
     user_data ud;
     input_parameters ip;
     estimator e(ud, ip);
-    CHECK_EQ(gamma_distribution<double>(0.375, 1600.0), e.prior());
+    CHECK_EQ(gamma_distribution<double>(0.375, 1600.0), ud.p_prior->_prior);
 }
 
 TEST_CASE("check_tree checks tree against a gene family to make sure all leaf node species are available")
