@@ -11,11 +11,19 @@
 using namespace Eigen;
 using namespace std;
 
+void replicate_model::vlog_vector(std::string replicate_name, std::string taxon_name, VectorXd likelihood_vector) const {
+	VLOG(9) << replicate_name << "\t" << taxon_name << " >>> " << likelihood_vector.transpose().format(_fmt) << endl;
+	if( replicate_name == "SUM") VLOG(9) << endl;
+}
+
 void replicate_model::apply(const clade* node, const gene_transcript& gene_transcript, int upper_bound, VectorXd& result) const
 {
 	bool rep_found = false;
 	result.setZero();
 	auto t = node->get_taxon_name();
+	// auto gene_id = gene_transript._id # can't access this because it's private
+	std::string gene_id = gene_transcript.get_id();
+	VLOG(9) << "gene_id = " << gene_id << endl;
 	for (auto p : _replicates)
 	{
 		auto replicate = p.first;
@@ -27,9 +35,24 @@ void replicate_model::apply(const clade* node, const gene_transcript& gene_trans
 
 			double expression_value = gene_transcript.get_expression_value(replicate);
 			VectorPos_bounds(expression_value, boundaries(0, upper_bound), values);
+			
+			// original code to be compatible with main branch:
+			// this->vlog_vector(replicate, taxon, rep_values);
+			// values += rep_values;
+			
+			// code to work with replicate_model branch
+			this->vlog_vector(replicate, taxon, values);
 			result += values;
 		}
+			
 	}
+	// original code for main branch: (within additional conditional block)
+	// this->vlog_vector("sum", t, values);
+	// result.set(values);
+
+	// code to work with replicate_model branch
+	this->vlog_vector("SUM", t, result);
+
 	if (!rep_found)
 	{
 		VectorPos_bounds(gene_transcript.get_expression_value(node->get_taxon_name()), boundaries(0, upper_bound), result);

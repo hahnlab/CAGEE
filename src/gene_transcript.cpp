@@ -26,6 +26,10 @@ bool max_value(const std::pair<T, U>& p1, const std::pair<T, U>& p2) {
 	return p1.second < p2.second;
 }
 
+std::string gene_transcript::get_id() const {
+    return this->_id;
+}
+
 double gene_transcript::get_max_expression_value() const {
     // Max family size can only be found if there is data inside the object in the first place
     double max_family_size = 0.0;

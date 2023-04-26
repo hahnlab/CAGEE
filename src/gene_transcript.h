@@ -46,6 +46,8 @@ public:
         *this = std::move(other);
     }
 
+    std::string get_id() const;
+
     void set_expression_value(std::string species, double val) {
         _species_size_map[species] = val;
     }
