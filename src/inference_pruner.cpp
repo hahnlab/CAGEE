@@ -176,9 +176,7 @@ void inference_pruner::compute_all_probabilities(const gene_transcript& gf, boun
 {
     unique_ptr<sigma_squared> multiplier(_p_sigsqd->multiply(_sigma_multiplier));
 
-    replicate_model* rm = nullptr;
-
-    auto compute_func = [gf, this, bounds, &multiplier, rm](const clade* c) { compute_node_probability(c, gf, _p_error_model, rm, _probabilities, multiplier.get(), _cache, bounds); };
+    auto compute_func = [gf, this, bounds, &multiplier](const clade* c) { compute_node_probability(c, gf, _p_error_model, _p_replicate_model, _probabilities, multiplier.get(), _cache, bounds); };
     for_each(_p_tree->reverse_level_begin(), _p_tree->reverse_level_end(), compute_func);
 
 }
@@ -475,4 +473,15 @@ TEST_CASE("compute_node_probablities computes a non-leaf value with a single chi
     auto& actual = probabilities[p_tree.get()];
     vector<double> expected{ 0.14625,  0.30375, 0, 0, 0, 0, 0, 0, 0, 0 };
     CHECK_VECTORS_EQ(expected, actual.probabilities());
+}
+
+TEST_CASE("optional_probabilities supports reserve and capacity")
+{
+    VectorXd v(25);
+
+    optional_probabilities p;
+    p.reserve(v);
+    CHECK_EQ(25, p.capacity());
+ 
+    CHECK_THROWS_WITH_AS(p.probabilities(), "Attempt to access missing probability vector", runtime_error);
 }

@@ -32,6 +32,7 @@ public:
     bool hasValue() const { return has_value; }
     void initialize(double transcript_value, boundaries bounds);
     void reserve(const Eigen::VectorXd& v) { _probabilities = v;  }
+    size_t capacity() const { return _probabilities.size(); }
     void multiply_elements(const Eigen::VectorXd& multipliers);
 
     void set(const Eigen::VectorXd& v)

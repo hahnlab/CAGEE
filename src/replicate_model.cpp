@@ -14,7 +14,7 @@ using namespace std;
 
 void replicate_model::apply(const clade* node, const gene_transcript& gene_transcript, boundaries bounds, optional_probabilities& result) const
 {
-	int Npts = result.probabilities().size();
+	int Npts = result.capacity();
 
 	bool rep_found = false;
 	VectorXd values(Npts);
@@ -103,7 +103,7 @@ TEST_CASE("replicate_model replaces leaf values by adding together the replicate
 
 	VectorXd v(10);
 	optional_probabilities result;
-	result.set(v);
+	result.reserve(v);
 	model.apply(p_tree->find_descendant("A"), g, boundaries(0,10), result);
 
 	ostringstream ost;
