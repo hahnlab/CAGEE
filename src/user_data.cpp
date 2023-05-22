@@ -16,6 +16,7 @@
 #include "error_model.h"
 #include "io.h"
 #include "root_equilibrium_distribution.h"
+#include "prior.h"
 
 using namespace std;
 
@@ -158,6 +159,15 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
         if (rootdist[0] == "file")
             read_rootdist(rootdist[1]);
     }
+
+    auto tokens = tokenize_str(my_input_parameters.prior_params_or_default(), ':');
+    if (tokens[0] != "gamma")
+        throw std::runtime_error("Prior must be given in the form gamma:k:theta");
+    auto k = stof(tokens[1]), theta = stof(tokens[2]);
+    LOG(INFO) << "Using gamma prior with k=" << k << ", theta=" << theta << ")";
+    p_prior = new prior(tokens[0], k, theta);
+
+
 }
 
 int upper_bound_from_transcript_values(const vector<gene_transcript>& transcripts)

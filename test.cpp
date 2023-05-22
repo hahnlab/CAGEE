@@ -35,6 +35,7 @@ INITIALIZE_EASYLOGGINGPP
 #include "src/DiffMat.h"
 #include "src/arguments.h"
 #include "src/proportional_variance.h"
+#include "src/prior.h"
 
 using namespace std;
 using namespace Eigen;
@@ -246,7 +247,7 @@ TEST_CASE_FIXTURE(Inference, "gamma_model_prune" * doctest::skip(true))
     gamma_model model(&lambda, &families, { 0.01, 0.05 }, { 0.1, 0.5 }, NULL);
 
     vector<double> cat_likelihoods;
-    CHECK(model.prune(families[0], new prior(), cache, &lambda, p_tree.get(), cat_likelihoods, boundaries(0, 20)));
+    CHECK(model.prune(families[0], new prior("gamma", 0.0, 1600), cache, &lambda, p_tree.get(), cat_likelihoods, boundaries(0, 20)));
 
     CHECK_EQ(2, cat_likelihoods.size());
     CHECK_EQ(doctest::Approx(-23.04433), log(cat_likelihoods[0]));

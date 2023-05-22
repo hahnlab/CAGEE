@@ -41,7 +41,10 @@ public:
 
     std::string prior_params_or_default() const
     {
-        return prior.empty() ? "gamma:0.375:1600.0" : prior;
+        if (!prior.empty())
+            return prior;
+
+        return input_file_has_ratios ? "fisher:0.75:0.75" : "gamma:0.375:1600.0";
     }
 };
 

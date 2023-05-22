@@ -28,16 +28,9 @@ double __Qs[] = { 1.000000000190015, 76.18009172947146, -86.50532032941677,
 24.01409824083091, -1.231739572450155, 1.208650973866179e-3,
 -5.395239384953e-6 };
 
+
 estimator::estimator(user_data& d, const input_parameters& ui) : action(d, ui)
 {
-    auto tokens = tokenize_str(ui.prior_params_or_default(), ':');
-    if (tokens[0] != "gamma")
-        throw std::runtime_error("Prior must be given in the form gamma:k:theta");
-
-    auto k = stof(tokens[1]), theta = stof(tokens[2]);
-    LOG(INFO) << "Using gamma prior with k=" << k << ", theta=" << theta << ")";
-    d.p_prior = new prior(); d.p_prior->_prior = gamma_distribution<double>(k, theta);
-
 #ifdef USE_MAX_PROBABILITY
     LOG(INFO) << "Maximum probability calculation";
 #else
@@ -178,15 +171,6 @@ void initialization_failure_advice(std::ostream& ost, const std::vector<gene_tra
     for (auto& t : m)
         ost << t.first << ": " << t.second << "\n";
     ost << "\nYou may want to try removing the top few transcripts with the largest difference\nbetween the max and min counts and then re-run the analysis.\n\n";
-}
-
-
-TEST_CASE("create_rootdist throws error if nothing set")
-{
-    user_data ud;
-    input_parameters ip;
-    estimator e(ud, ip);
-    CHECK_EQ(gamma_distribution<double>(0.375, 1600.0), ud.p_prior->_prior);
 }
 
 TEST_CASE("check_tree checks tree against a gene family to make sure all leaf node species are available")

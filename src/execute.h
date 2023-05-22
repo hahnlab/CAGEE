@@ -41,12 +41,6 @@ public:
     bool quiet = false;
 };
 
-class prior
-{
-public:
-    std::gamma_distribution<double> _prior;
-};
-
 /*! @brief Estimator is used to guess at any missing values that the
     user did not provide. It will provide values for lambda, gamma, 
     and epsilon.

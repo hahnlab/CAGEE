@@ -23,6 +23,7 @@
 #include "DiffMat.h"
 #include "proportional_variance.h"
 #include "inference_pruner.h"
+#include "prior.h"
 
 using namespace std;
 namespace pv = proportional_variance;
@@ -161,7 +162,7 @@ bool gamma_model::prune(const gene_transcript& transcript, const prior *p_prior,
 #endif
         std::vector<double> full(partial_likelihood.size());
         for (size_t j = 0; j < partial_likelihood.size(); ++j) {
-            double eq_freq = gammapdf(j, p_prior->_prior);
+            double eq_freq = p_prior->pdf(j);
             full[j] = partial_likelihood[j] * eq_freq;
         }
 
@@ -569,7 +570,7 @@ TEST_CASE("gamma_model_prune_returns_false_if_saturated" * doctest::skip(true))
 
     gamma_model model(&lambda, &families, { 1.0,1.0 }, { 0.1, 0.5 }, NULL);
 
-    CHECK(!model.prune(families[0], new prior(), cache, &lambda, p_tree.get(), cat_likelihoods, boundaries(0, 20)));
+    CHECK(!model.prune(families[0], new prior("gamma", 0.0, 1600), cache, &lambda, p_tree.get(), cat_likelihoods, boundaries(0, 20)));
 }
 
 

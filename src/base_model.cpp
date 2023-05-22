@@ -21,6 +21,7 @@
 #include "reconstruction.h"
 #include "proportional_variance.h"
 #include "inference_pruner.h"
+#include "prior.h"
 
 using namespace std;
 namespace pv = proportional_variance;
@@ -82,27 +83,16 @@ vector<size_t> build_reference_list(const vector<gene_transcript>& transcripts)
     return reff;
 }
 
-double gammapdf(double value, const std::gamma_distribution<double>& dist) {
-    double k = dist.alpha();
-    double theta = dist.beta(); // see discussion in root_distribution_gamma
-
-    double a = pow(theta, k);
-    double b = pow(value, (k - 1));
-    double c = exp(-1 * value / theta);
-    double d = tgamma(k);
-
-    return (b * c) / (a * d);
-}
-
-inline double computational_space_prior(double val, const gamma_distribution<double>& prior)
+inline double computational_space_prior(double val, const prior *p_prior)
 {
 #ifdef MODEL_GENE_EXPRESSION_LOGS
-    return exp(val) * gammapdf(exp(val), prior);
+    return exp(val) * p_prior->pdf(exp(val));
 #else
-    return gammapdf(val, prior);
+    return p_prior->pdf(val);
 #endif
 
 }
+
 double compute_prior_likelihood(const vector<double>& partial_likelihood, const vector<double>& priors)
 {
     std::vector<double> full(partial_likelihood.size());
@@ -136,7 +126,7 @@ double base_model::infer_transcript_likelihoods(const user_data& ud, const sigma
     for (size_t j = 0; j < priors.size(); ++j) {
         double x = (double(j) + 0.5) * double(ud.bounds.second) / (priors.size() - 1);
 
-        priors[j] = computational_space_prior(x, ud.p_prior->_prior);
+        priors[j] = computational_space_prior(x, ud.p_prior);
     }
 
     if (all_of(priors.begin(), priors.end(), [](double prior) { return prior <= 0 || isnan(prior); }))
@@ -286,7 +276,7 @@ TEST_CASE("infer_transcript_likelihoods")
 
     ud.update_boundaries(false);
 
-    ud.p_prior = new prior(); ud.p_prior->_prior = std::gamma_distribution<double>(1, 2);
+    ud.p_prior = new prior("gamma", 1, 2);
     sigma_squared ss(0.01);
 
     base_model core(&ss, &transcripts, NULL);
@@ -310,7 +300,7 @@ TEST_CASE("infer_transcript_likelihoods returns invalid on invalid prior")
     ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
     ud.gene_transcripts[0].set_expression_value("A", 1);
     ud.gene_transcripts[0].set_expression_value("B", 2);
-    ud.p_prior = new prior(); ud.p_prior->_prior = std::gamma_distribution<double>(0.0, 1600);
+    ud.p_prior = new prior("gamma", 0.0, 1600);
 
     base_model model(&ss, &ud.gene_transcripts, NULL);
     CHECK_EQ(-log(0),  model.infer_transcript_likelihoods(ud, &ss));

@@ -524,3 +524,16 @@ TEST_CASE("Cannot specify an input file when simulating")
     CHECK_THROWS_WITH_AS(params.check_input(), "A families file was provided while simulating", runtime_error);
 
 }
+
+TEST_CASE("Prior params defaults to gamma if not unbounded")
+{
+    input_parameters params;
+    CHECK_EQ("gamma:0.375:1600.0", params.prior_params_or_default());
+}
+
+TEST_CASE("Prior params defaults to fisher if unbounded")
+{
+    input_parameters params;
+    params.input_file_has_ratios = true;
+    CHECK_EQ("fisher:0.75:0.75", params.prior_params_or_default());
+}
