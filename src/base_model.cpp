@@ -123,17 +123,21 @@ double base_model::infer_transcript_likelihoods(const user_data& ud, const sigma
     auto v = calc.create_vector();
     vector<double> priors(v.size());
     copy(v.begin(), v.end(), priors.begin());
-    for (size_t j = 0; j < priors.size(); ++j) {
-        double x = (double(j) + 0.5) * double(ud.bounds.second) / (priors.size() - 1);
-
-        priors[j] = computational_space_prior(x, ud.p_prior);
-    }
-
-    if (all_of(priors.begin(), priors.end(), [](double prior) { return prior <= 0 || isnan(prior); }))
+    try
     {
+        for (size_t j = 0; j < priors.size(); ++j) {
+            double x = (double(j) + 0.5) * double(ud.bounds.second) / (priors.size() - 1);
+
+            priors[j] = computational_space_prior(x, ud.p_prior);
+        }
+    }
+    catch (std::domain_error& e)
+    {
+        LOG(DEBUG) << e.what();
         LOG(WARNING) << "Prior not valid for this sigma and data set";
         return -log(0);
     }
+
     std::vector<double> all_transcripts_likelihood(ud.gene_transcripts.size());
 
     calc.precalculate_matrices(p_sigma->get_values(),  ud.p_tree->get_branch_lengths(), ud.bounds);
