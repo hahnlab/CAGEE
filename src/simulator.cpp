@@ -100,13 +100,13 @@ void simulator::execute(std::vector<model *>& models)
 simulated_family create_simulated_family(const clade *p_tree, const sigma_squared* p_sigsqrd, int upper_bound, double root_value, const matrix_cache& cache)
 {
     simulated_family sim;
-    sim.sigma = p_sigsqrd->get_value_for_clade(p_tree);
+    sim.sigma = p_sigsqrd->get_named_value(p_tree, gene_transcript());
 
     sim.values[p_tree] = root_value;
     boundaries bounds(pv::to_computational_space(0), upper_bound);
     std::function <void(const clade*)> get_child_value;
     get_child_value = [&](const clade* c) {
-        auto m = cache.get_matrix(c->get_branch_length(), p_sigsqrd->get_value_for_clade(c));
+        auto m = cache.get_matrix(c->get_branch_length(), p_sigsqrd->get_named_value(c, gene_transcript()));
         VectorXd v(m.cols());
         VectorPos_bounds(sim.values[c->get_parent()], bounds, v);
         VectorXd probs = m * v;
@@ -506,10 +506,11 @@ TEST_CASE("Simulation, simulate_processes")
 TEST_CASE("get_upper_bound uses largest sigma if there are several")
 {
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):6"));
+    unique_ptr<clade> p_sigma_tree(parse_newick("(A:1,B:2):1", true));
 
-    sigma_squared ss({ {"A",0},{"B",1},{"AB",0} }, { 4,16 }, sigma_type::lineage_specific);
+    unique_ptr<sigma_squared> ss(sigma_squared::create(p_sigma_tree.get(), { 4,16 }));
 
-    CHECK_EQ(55, upper_bound_from_root_values(&ss, p_tree.get(), {1.0}));
+    CHECK_EQ(55, upper_bound_from_root_values(ss.get(), p_tree.get(), {1.0}));
 }
 
 TEST_CASE("get_upper_bound get_max_bound")

@@ -7,47 +7,35 @@
 class clade;
 class gene_transcript;
 
-enum class sigma_type { uniform, lineage_specific, sample_specific };
+class ss_resolver;
 
 class sigma_squared {
 private:
-    std::map<std::string, int> _node_name_to_sigma_index;
+    ss_resolver* _p_resolver;
     std::vector<double> _values;
-    sigma_type _type = sigma_type::uniform;
+
 public:
-    sigma_squared(double lam)
-    {
-        _values.push_back(lam);
-    }
+    sigma_squared(double lam);
+    sigma_squared(ss_resolver *p_resolver, size_t sz);
+    sigma_squared(ss_resolver* p_resolver, const std::vector<double>& v);
 
-    sigma_squared(std::map<std::string, int> nodename_index_map, std::vector<double> value_vector, sigma_type t) :
-        _node_name_to_sigma_index(nodename_index_map), _values(value_vector), _type(t) { } //!< Constructor
+    ~sigma_squared();
 
-    sigma_squared* multiply(double factor) const
-    {
-        auto npi = _values;
-
-        for (auto& i : npi)
-            i *= factor;
-
-        return new sigma_squared(_node_name_to_sigma_index, npi, _type);
-    }
+    sigma_squared* multiply(double factor) const;
     void update(const double* values) ;
-    int count() const  {
-        return _values.size();
-    }
+    int count() const;
+
     std::string to_string() const;
-    double get_value_for_clade(const clade* c) const ;
     double get_named_value(const clade* c, const gene_transcript& t) const;
 
-    bool is_valid() const ;
+    bool is_valid() const;
 
-    std::vector<double> get_values() const {
-        return _values;
-    }
-    sigma_squared* clone() const  {
-        return new sigma_squared(_node_name_to_sigma_index, _values, _type);
-    }
+    std::vector<double> get_values() const;
+
+    sigma_squared* clone() const;
+
+    static sigma_squared* create(clade* p_sigma_tree, const std::vector<std::string>& sample_groups);
+    static sigma_squared* create(clade* p_sigma_tree, const std::vector<double>& values);
 
 };
 

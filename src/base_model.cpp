@@ -167,7 +167,7 @@ sigma_optimizer_scorer* base_model::get_sigma_optimizer(const user_data& data, c
     if (data.p_sigma != NULL)  // already have a sigma, nothing we want to optimize
         return nullptr;
 
-    _p_sigma = initialize_search_sigma(data.p_sigma_tree, sample_groups);
+    _p_sigma = sigma_squared::create(data.p_sigma_tree, sample_groups);
 
     if (_p_error_model && !data.p_error_model)
     {

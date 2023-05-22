@@ -244,12 +244,12 @@ sigma_optimizer_scorer* gamma_model::get_sigma_optimizer(const user_data& data, 
 
     if (estimate_sigma && estimate_alpha)
     {
-        _p_sigma = initialize_search_sigma(data.p_sigma_tree, sample_groups);
+        _p_sigma = sigma_squared::create(data.p_sigma_tree, sample_groups);
         return new sigma_optimizer_scorer(this, data, _p_sigma);
     }
     else if (estimate_sigma && !estimate_alpha)
     {
-        _p_sigma = initialize_search_sigma(data.p_sigma_tree, sample_groups);
+        _p_sigma = sigma_squared::create(data.p_sigma_tree, sample_groups);
         return new sigma_optimizer_scorer(dynamic_cast<model *>(this), data, _p_sigma);
     }
     else if (!estimate_sigma && estimate_alpha)

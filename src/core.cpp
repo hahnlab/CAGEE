@@ -5,8 +5,6 @@
 #include <assert.h>
 #include <numeric>
 
-#include <boost/algorithm/string.hpp>
-
 #include "doctest.h"
 #include "easylogging++.h"
 
@@ -133,94 +131,7 @@ void event_monitor::log(el::base::type::ostream_t& ost) const
     }
 }
 
-map<string, int> get_sigma_index_map(const std::vector<string>& sample_groups)
-{
-    map<string, int> sample_to_sigma_index;
-    for (size_t i = 0; i < sample_groups.size(); ++i)
-    {
-        vector<string> groups;
-        boost::split(groups, sample_groups[i], boost::is_any_of(","));
-        for (auto g : groups)
-            sample_to_sigma_index[g] = i;
-    }
-    return sample_to_sigma_index;
-}
 
-//! Create a sigma based on the sigma tree model the user passed.
-/// Called when the user has provided no sigma value and one must
-/// be estimated. If the p_sigma_tree is NULL, uses a single
-/// sigma; otherwise uses the number of unique sigmas in the provided
-/// tree
-sigma_squared* initialize_search_sigma(clade* p_sigma_tree, const std::vector<string>& sample_groups)
-{
-    sigma_squared* p_sigma = NULL;
-    if (p_sigma_tree != NULL)
-    {
-        std::set<int> unique_sigmas;
-        auto fn = [&unique_sigmas](const clade* p_node) { unique_sigmas.insert(p_node->get_sigma_index()); };
-        p_sigma_tree->apply_prefix_order(fn);
-        auto node_name_to_sigma_index = p_sigma_tree->get_sigma_index_map();
-        p_sigma = new sigma_squared(node_name_to_sigma_index, std::vector<double>(unique_sigmas.size()), sigma_type::lineage_specific);
-        LOG(INFO) << "Searching for " << unique_sigmas.size() << " sigmas" << endl;
-    }
-    else if (!sample_groups.empty())
-    {
-        auto sample_name_to_sigma_index = get_sigma_index_map(sample_groups);
-        p_sigma = new sigma_squared(sample_name_to_sigma_index, std::vector<double>(sample_groups.size()), sigma_type::sample_specific);
-        LOG(INFO) << "Searching for " << sample_groups.size() << " sigmas" << endl;
-    }
-    else
-    {
-        p_sigma = new sigma_squared(0.0);
-    }
-
-    return p_sigma;
-}
-
-TEST_CASE("initialize_search_sigma returns single sigma if no arguments")
-{
-    unique_ptr<sigma_squared> sig(initialize_search_sigma(nullptr, vector<string>()));
-    CHECK_EQ(1, sig->get_values().size());
-}
-
-TEST_CASE("initialize_search_sigma returns lineage-specific with a sigma tree")
-{
-    string s = "((((cat:1,horse:1):1,cow:1):1,(((((chimp:2,human:2):2,orang:1):1,gibbon:1):1,(macaque:1,baboon:1):1):1,marmoset:1):1):1,(rat:1,mouse:1):1);";
-    unique_ptr<clade> p_tree(parse_newick(s, true));
-
-    unique_ptr<sigma_squared> sig(initialize_search_sigma(p_tree.get(), vector<string>()));
-    REQUIRE_EQ(2, sig->get_values().size());
-
-    double values[2] = { 7,14 };
-    sig->update(values);
-    CHECK_EQ(7, sig->get_named_value(p_tree->find_descendant("cow"), gene_transcript()));
-    CHECK_EQ(14, sig->get_named_value(p_tree->find_descendant("chimp"), gene_transcript()));
-}
-
-TEST_CASE("initialize_search_sigma returns sample-specific with sample groups")
-{
-    unique_ptr<sigma_squared> sig(initialize_search_sigma(nullptr, vector<string>({"heart", "lungs"})));
-    REQUIRE_EQ(2, sig->get_values().size());
-
-    double values[2] = { 7,14 };
-    sig->update(values);
-    CHECK_EQ(7, sig->get_named_value(nullptr, gene_transcript("A", "", "heart")));
-    CHECK_EQ(14, sig->get_named_value(nullptr, gene_transcript("B", "", "lungs")));
-}
-
-TEST_CASE("get_sigma_index_map creates map")
-{   
-    auto m = get_sigma_index_map(vector<string>({ "heart,lungs", "brain", "kidneys,liver,spleen" }));
-
-    REQUIRE_EQ(6, m.size());
-
-    CHECK_EQ(0, m["heart"]);
-    CHECK_EQ(0, m["lungs"]);
-    CHECK_EQ(1, m["brain"]);
-    CHECK_EQ(2, m["kidneys"]);
-    CHECK_EQ(2, m["liver"]);
-    CHECK_EQ(2, m["spleen"]);
-}
 
 #define CHECK_STREAM_CONTAINS(x,y) CHECK_MESSAGE(x.str().find(y) != std::string::npos, x.str())
 

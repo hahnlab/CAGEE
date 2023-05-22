@@ -91,7 +91,7 @@ sigma_squared* user_data::read_sigma(const input_parameters &my_input_parameters
 
         transform(sigmastrings.begin(), sigmastrings.end(), sigmas.begin(), [](string const& val) { return stod(val); });
 
-        p_sigma = new sigma_squared(node_name_to_sigma_index, sigmas, sigma_type::lineage_specific);
+        p_sigma = sigma_squared::create(p_sigma_tree, sigmas);
     }
 
     return p_sigma;

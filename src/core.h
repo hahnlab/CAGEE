@@ -88,12 +88,6 @@ inline std::string filename(std::string base, std::string suffix)
     return filename(base, suffix, "txt");
 }
 
-//! Create a sigma based on the sigma tree model the user passed.
-/// Called when the user has provided no sigma value and one must
-/// be estimated. If the sigma tree is NULL, uses a single
-/// sigma; otherwise uses the number of unique sigmas in the provided
-/// tree
-sigma_squared* initialize_search_sigma(clade* p_sigma_tree, const std::vector<std::string>& sample_groups);
 
 #endif /* CORE_H */
 

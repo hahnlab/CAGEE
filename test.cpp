@@ -52,7 +52,7 @@ class mock_model : public model {
     }
     virtual sigma_optimizer_scorer* get_sigma_optimizer(const user_data& data, const vector<string>& sample_groups) override
     {
-        _p_sigma = initialize_search_sigma(data.p_sigma_tree, sample_groups);
+        _p_sigma = sigma_squared::create(data.p_sigma_tree, sample_groups);
         auto result = new sigma_optimizer_scorer(this, data, _p_sigma);
         result->quiet = true;
         return result;
