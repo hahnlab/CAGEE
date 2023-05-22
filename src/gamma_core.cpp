@@ -13,7 +13,6 @@
 
 #include "gamma_core.h"
 #include "gamma.h"
-#include "rootdist_estimator.h"
 #include "reconstruction.h"
 #include "matrix_cache.h"
 #include "gene_transcript.h"
@@ -27,6 +26,8 @@
 
 using namespace std;
 namespace pv = proportional_variance;
+
+double gammapdf(double value, const std::gamma_distribution<double>& dist);
 
 extern mt19937 randomizer_engine;
 

@@ -9,7 +9,6 @@
 #include "doctest.h"
 
 #include "base_model.h"
-#include "rootdist_estimator.h"
 #include "matrix_cache.h"
 #include "gene_transcript.h"
 #include "user_data.h"
@@ -83,6 +82,17 @@ vector<size_t> build_reference_list(const vector<gene_transcript>& transcripts)
     return reff;
 }
 
+double gammapdf(double value, const std::gamma_distribution<double>& dist) {
+    double k = dist.alpha();
+    double theta = dist.beta(); // see discussion in root_distribution_gamma
+
+    double a = pow(theta, k);
+    double b = pow(value, (k - 1));
+    double c = exp(-1 * value / theta);
+    double d = tgamma(k);
+
+    return (b * c) / (a * d);
+}
 
 inline double computational_space_prior(double val, const gamma_distribution<double>& prior)
 {

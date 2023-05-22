@@ -8,7 +8,6 @@
 #include "easylogging++.h"
 
 #include "root_equilibrium_distribution.h"
-#include "rootdist_estimator.h"
 #include "io.h"
 #include "optimizer.h"
 #include "gene_transcript.h"
@@ -46,55 +45,6 @@ float root_distribution_uniform::get_raw_root_value(int family_number)
 
     std::uniform_real_distribution<float> distribution(0.0, _max_value);
     return distribution(randomizer_engine);
-}
-
-root_distribution_poisson::root_distribution_poisson(const std::vector<gene_transcript>& gene_families, size_t num_values)
-{
-    poisson_scorer scorer(gene_families);
-    optimizer opt(&scorer);
-    optimizer_parameters params;
-    auto result = opt.optimize(params);
-    auto poisson_lambda = result.values[0];
-
-    LOG(INFO) << "Empirical Prior Estimation Result : (" << result.num_iterations << " iterations)";
-    LOG(INFO) << "Poisson lambda: " << poisson_lambda << " &  Score: " << result.score;
-
-    for (int i = 0; _vectorized_distribution.size() < num_values; ++i)
-    {
-        double pct = poisspdf(i, poisson_lambda);
-        for (size_t j = 0; j < pct * num_values; ++j)
-            _vectorized_distribution.push_back(i + 1);
-        _frequency_percentage.push_back(pct);
-    }
-    // set a few extra percentages beyond the maximum size in the distribution
-    for (int i = 0; i < 5; ++i)
-        _frequency_percentage.push_back(poisspdf(_frequency_percentage.size(), poisson_lambda));
-}
-
-root_distribution_poisson::root_distribution_poisson(double poisson_lambda, size_t num_values)
-{
-    for (int i = 0; _vectorized_distribution.size() < num_values; ++i)
-    {
-        double pct = poisspdf(i, poisson_lambda);
-        for (size_t j = 0; j < pct * num_values; ++j)
-            _vectorized_distribution.push_back(i + 1);
-        _frequency_percentage.push_back(pct);
-    }
-    // set a few extra percentages beyond the maximum size in the distribution
-    for (int i = 0; i < 5; ++i)
-        _frequency_percentage.push_back(poisspdf(_frequency_percentage.size(), poisson_lambda));
-}
-
-void root_distribution_poisson::resize(size_t new_size)
-{
-}
-
-float root_distribution_poisson::get_raw_root_value(int family_number)
-{
-    if ((size_t)family_number >= _vectorized_distribution.size())
-        return 0;
-
-    return _vectorized_distribution[family_number];
 }
 
 root_distribution_specific::root_distribution_specific(std::vector<std::pair<float, int>> distribution)
@@ -179,18 +129,6 @@ TEST_CASE("root_equilibrium_distribution__resize")
     rd.resize(15);
     CHECK_EQ(rd.get_raw_root_value(14), 8);
     CHECK_EQ(rd.get_raw_root_value(15), 0);
-}
-
-TEST_CASE("root_equilibrium_distribution__poisson_select_root_size")
-{
-    root_distribution_poisson pd(0.75, 9);
-
-    CHECK_EQ(1, pd.get_raw_root_value(1));
-    CHECK_EQ(1, pd.get_raw_root_value(3));
-    CHECK_EQ(2, pd.get_raw_root_value(5));
-    CHECK_EQ(2, pd.get_raw_root_value(7));
-
-    CHECK_EQ(0, pd.select_root_value(100));
 }
 
 TEST_CASE("root_equilibrium_distribution fixed_root_value")

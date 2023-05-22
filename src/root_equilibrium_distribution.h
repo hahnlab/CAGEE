@@ -39,18 +39,6 @@ public:
     float get_raw_root_value(int family_number) override;
 };
 
-class root_distribution_poisson : public root_equilibrium_distribution
-{
-    std::vector<float> _vectorized_distribution;
-    std::vector<double> _frequency_percentage;
-public:
-    root_distribution_poisson(double poisson_lambda, size_t num_values);
-    root_distribution_poisson(const std::vector<gene_transcript>& gene_families, size_t num_values);
-
-    void resize(size_t new_size) override;
-    float get_raw_root_value(int family_number) override;
-}; 
-
 class root_distribution_specific : public root_equilibrium_distribution
 {
     std::vector<float> _vectorized_distribution;
