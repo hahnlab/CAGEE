@@ -12,6 +12,11 @@
 using namespace Eigen;
 using namespace std;
 
+void replicate_model::vlog_vector(std::string replicate_name, std::string taxon_name, VectorXd likelihood_vector) const {
+	VLOG_IF(_vprint, 9) << replicate_name << "\t" << taxon_name << " >>> " << likelihood_vector.transpose().format(_vector_fmt);
+	if( replicate_name == "SUM") VLOG_IF(_vprint, 9) << endl;
+}
+
 void replicate_model::apply(const clade* node, const gene_transcript& gene_transcript, boundaries bounds, optional_probabilities& result) const
 {
 	int Npts = result.capacity();
@@ -20,6 +25,7 @@ void replicate_model::apply(const clade* node, const gene_transcript& gene_trans
 	VectorXd values(Npts);
 	values.setZero();
 	auto t = node->get_taxon_name();
+	VLOG_IF(_vprint, 9) << "gene_id = " << gene_transcript.id();
 	for (auto p : _replicates)
 	{
 		auto replicate = p.first;
@@ -31,11 +37,13 @@ void replicate_model::apply(const clade* node, const gene_transcript& gene_trans
 
 			double expression_value = gene_transcript.get_expression_value(replicate);
 			VectorPos_bounds(expression_value, bounds, rep_values);
+			this->vlog_vector(replicate, taxon, rep_values);
 			values += rep_values;
 		}
 	}
 	if (rep_found)
 	{
+		this->vlog_vector("SUM", t, values);
 		result.set(values);
 	}
 	else

@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include <Eigen/Dense>
 
 class clade;
 class gene_transcript;
@@ -13,6 +14,15 @@ using boundaries = std::pair<double, double>;
 
 class replicate_model
 {
+private:
+    Eigen::IOFormat _vector_fmt{Eigen::IOFormat(3, 0, ", ", "", "[ ", " ]", "", "", (char)32)};
+
+#ifdef VECTOR_DEBUG
+    std:bool _vprint = true;
+#else
+    std:bool _vprint = false;
+#endif
+
 public:
     // replicate id to species id
     std::map<std::string, std::string> _replicates;

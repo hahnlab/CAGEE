@@ -1,3 +1,105 @@
+#include <cassert>
+#include <stdexcept>
+#include "error_model.h"
+
+using namespace std;
+
+class error_model {
+
+private:
+    // default params
+    string _model_type = "normal";
+    int _vector_length = 200;
+    long _upper_bound = 1e6;
+    double _elem_width = _upper_bound / _vector_length;
+    vector<double> _elem_vals = vector<double>(200);
+    double _likelihood_cutoff = 0.000001
+    
+    // vals for normal mean vs. variance fit
+    double _a = 0.314021;
+    double _r = -0.553507;
+    double _inv_sqrt_2pi = 1 / sqrt(2 * M_PI);
+
+    // set element values of likelihood vector for pdf input
+    void set_elem_vals() {
+        _elem_vals = vector<double> (_vector_length);
+        _elem_width = _upper_bound / _vector_length;
+        _elem_vals[0] = 0.5 * _elem_width;
+        for(size_t i = 1; i < _elem_vals.size(); i++){
+            _elem_vals[i] = _elem_vals[i - 1] + _elem_width;
+        }
+    }
+
+    // current normal log counts variance fit = a * exp(r * log_counts)
+    double calc_variance(double log_counts) { 
+        return _a * exp(_r * log_counts);
+    }
+
+    // normal pdf = (1 / s * sqrt(2 * pi)) * exp(-0.5 * ((x - mu) / s)^2)
+    double calc_density(double element_val, double log_counts) {
+        double s = sqrt(calc_variance(log_counts));
+        double A = _inv_sqrt_2pi * s;
+        double B = (element_val - log_counts) / s;
+        return A * exp(-0.5 * B * B);
+    }
+
+public:
+    error_model() { set_elem_vals(); print_info(); }
+    
+    // for default normal with user-specified likelihood vector
+    error_model(int vector_length, long upper_bound) {
+        _vector_length = vector_length;
+        _upper_bound = upper_bound;
+        set_elem_vals();
+        print_info();
+    }
+
+    // for default normal with custom model parameters, or future non-normal model
+    error_model(string model_type, int vector_length, long upper_bound, vector<double> model_params) {
+        if(model_type == "normal") {
+            _model_type = model_type;
+            _vector_length = vector_length;
+            _upper_bound = upper_bound;
+            _a = model_params[0];
+            _r = model_params[1];
+            set_elem_vals();
+            print_info();
+        } else {
+            throw invalid_argument("only NORMAL parametric error model currently supported");
+        }
+    }
+
+    Eigen::VectorXd add_error(double log_counts) {
+        Eigen::VectorXd likelihood = Eigen::VectorXd::Zero(_vector_length);
+        // for loop over vector elements and their rep values, add PDF density
+        assert(_elem_vals.size() == likelihood.size());
+        for(size_t i = 0; i < likelihood.size(); i++) {
+            likelihood(i) = calc_density(_elem_vals[i], log_counts);
+        }
+        // renormalize total likelihood to 1
+        likelihood = likelihood / likelihood.sum();
+        // cutoff off very small values to zero, renormalize to 1
+        return (cutoff < likelihood.array()).select(likelihood, 0.0f);
+    }
+    
+    void print_info() {
+        cout << "initializing " << _model_type << " error model with parameters:" << endl;
+        cout << "  fitting var = a * exp(r * log_counts)" << endl;
+        cout << "      a = " << _a << endl;
+        cout << "      r = " << _r << endl;
+        cout << "  likelihood vector length = " << _vector_length << endl;
+        cout << "  upper_bound = " << _upper_bound << endl;
+        cout << "  likelihood vector element width = " << _elem_width << endl;
+        cout << "  likelihood vector element values (for pdf):" << endl << "    ";
+        cout.precision(4);
+        for(auto val : _elem_vals) cout << val << " | ";
+        cout << endl << endl;
+    }
+};
+
+
+// ORIGINAL (CAFE) ERROR MODEL DEFINITIONS
+/*
 #include <numeric>
 #include <set>
 #include <cassert>
@@ -107,4 +209,4 @@ void error_model::replace_epsilons(std::map<double, double>* new_epsilons)
         }
     }
 }
-
+*/

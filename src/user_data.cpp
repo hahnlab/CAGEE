@@ -45,16 +45,16 @@ void user_data::read_gene_transcript_data(const input_parameters &my_input_param
 }
 
 //! Read user provided error model file (whose path is stored in input_parameters instance)
-void user_data::read_error_model(const input_parameters &my_input_parameters, error_model *p_error_model) {
+// void user_data::read_error_model(const input_parameters &my_input_parameters, error_model *p_error_model) {
 
-    ifstream error_model_file(my_input_parameters.error_model_file_path);
-    if (!error_model_file.is_open()) {
-        throw std::runtime_error("Failed to open " + my_input_parameters.error_model_file_path + ". Exiting...");
-    }
+//     ifstream error_model_file(my_input_parameters.error_model_file_path);
+//     if (!error_model_file.is_open()) {
+//         throw std::runtime_error("Failed to open " + my_input_parameters.error_model_file_path + ". Exiting...");
+//     }
 
-    read_error_model_file(error_model_file, p_error_model);
+//     read_error_model_file(error_model_file, p_error_model);
 
-} 
+// } 
 
 void user_data::read_replicate_model(const input_parameters& my_input_parameters) {
 
@@ -135,10 +135,10 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
     }
 
     /* -e */
-    if (!my_input_parameters.error_model_file_path.empty()) {
-        p_error_model = new error_model;
-        read_error_model(my_input_parameters, p_error_model);
-    }
+    // if (!my_input_parameters.error_model_file_path.empty()) {
+    //     p_error_model = new error_model;
+    //     read_error_model(my_input_parameters, p_error_model);
+    // }
 
     if (!my_input_parameters.replicate_model_file_path.empty())
     {

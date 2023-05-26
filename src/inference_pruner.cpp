@@ -111,30 +111,30 @@ void compute_node_probability(const clade* node,
     }
 }
 
-size_t adjust_for_error_model(size_t c, const error_model *p_error_model)
-{
-    if (p_error_model == nullptr)
-        return c;
+// size_t adjust_for_error_model(size_t c, const error_model *p_error_model)
+// {
+//     if (p_error_model == nullptr)
+//         return c;
 
-    if (c >= p_error_model->get_max_family_size())
-    {
-        throw runtime_error("Trying to simulate leaf transcript value that was not included in error model");
-    }
-    auto probs = p_error_model->get_probs(c);
+//     if (c >= p_error_model->get_max_family_size())
+//     {
+//         throw runtime_error("Trying to simulate leaf transcript value that was not included in error model");
+//     }
+//     auto probs = p_error_model->get_probs(c);
 
-    std::uniform_real_distribution<double> distribution(0.0, 1.0);
-    double rnd = distribution(randomizer_engine);
-    if (rnd < probs[0])
-    {
-        c--;
-    }
-    else if (rnd >(1 - probs[2]))
-    {
-        c++;
-    }
+//     std::uniform_real_distribution<double> distribution(0.0, 1.0);
+//     double rnd = distribution(randomizer_engine);
+//     if (rnd < probs[0])
+//     {
+//         c--;
+//     }
+//     else if (rnd >(1 - probs[2]))
+//     {
+//         c++;
+//     }
 
-    return c;
-}
+//     return c;
+// }
 
 node_reconstruction get_value(const VectorXd& likelihood, int upper_bound)
 {

@@ -39,23 +39,23 @@ estimator::estimator(user_data& d, const input_parameters& ui) : action(d, ui)
 
 }
 
-void estimator::write_error_model_if_specified(const input_parameters& my_input_parameters, const model * p_model)
-{
-    if (my_input_parameters.use_error_model)
-    {
-        ofstream errmodel(filename("error_model", _user_input.output_prefix));
-        if (data.p_error_model)
-        {
-            /// user specified an error model, write that out to the results directory
-            write_error_model_file(errmodel, *data.p_error_model);
-        }
-        else
-        {
-            /// user did not specify an error model, write out the estimated one or a default
-            p_model->write_error_model(200, errmodel);
-        }
-    }
-}
+// void estimator::write_error_model_if_specified(const input_parameters& my_input_parameters, const model * p_model)
+// {
+//     if (my_input_parameters.use_error_model)
+//     {
+//         ofstream errmodel(filename("error_model", _user_input.output_prefix));
+//         if (data.p_error_model)
+//         {
+//             /// user specified an error model, write that out to the results directory
+//             write_error_model_file(errmodel, *data.p_error_model);
+//         }
+//         else
+//         {
+//             /// user did not specify an error model, write out the estimated one or a default
+//             p_model->write_error_model(200, errmodel);
+//         }
+//     }
+// }
 
 void check_tree(const user_data& data)
 {

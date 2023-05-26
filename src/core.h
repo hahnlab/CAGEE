@@ -63,7 +63,7 @@ public:
     virtual double infer_transcript_likelihoods(const user_data& ud, const sigma_squared*p_sigma) = 0;  // return vector of likelihoods
     
     void write_vital_statistics(std::ostream& ost, const clade *p_tree, double final_likelihood, const input_parameters& p);
-    void write_error_model(int max_transcript_size, std::ostream& ost) const;
+    // void write_error_model(int max_transcript_size, std::ostream& ost) const;
 
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache *p_calc) = 0;
 

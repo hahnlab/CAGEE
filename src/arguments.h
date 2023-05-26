@@ -5,7 +5,7 @@
 struct input_parameters {
 public:
     std::string input_file_path;
-    std::string error_model_file_path;
+    // std::string error_model_file_path;
     std::string replicate_model_file_path;
     std::string output_prefix;
     std::string tree_file_path;

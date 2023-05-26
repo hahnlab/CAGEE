@@ -14,8 +14,8 @@ clade *read_tree(std::string tree_file_path, bool lambda_tree);
 
 void read_gene_transcripts(std::istream& input_file, clade *p_tree, std::vector<gene_transcript>& transcripts);
 
-void read_error_model_file(std::istream& error_model_file, error_model *p_error_model);
-void write_error_model_file(std::ostream& ost, error_model& errormodel);
+// void read_error_model_file(std::istream& error_model_file, error_model *p_error_model);
+// void write_error_model_file(std::ostream& ost, error_model& errormodel);
 
 replicate_model* read_replicate_model_file(std::istream& replicate_model_file);
 

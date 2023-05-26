@@ -46,8 +46,11 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
         if (user_input.use_error_model && !p_error_model)
         {
             p_error_model = new error_model();
-            p_error_model->set_probabilities(0, { 0, .95, 0.05 });
-            p_error_model->set_probabilities(200, { 0.05, .9, 0.05 });
+            cout << "just created an error model in core.cpp:" << endl;
+            p_error_model->print_info();
+            // TODO assign error model vector length and upper bound
+            // p_error_model->set_probabilities(0, { 0, .95, 0.05 });
+            // p_error_model->set_probabilities(200, { 0.05, .9, 0.05 });
         }
 
         p_model = new base_model(user_data.p_sigma, p_gene_transcripts, p_error_model);
@@ -78,8 +81,8 @@ void model::write_vital_statistics(std::ostream& ost, const clade *p_tree, doubl
         });
     ost << endl;
 
-    if (_p_error_model)
-        ost << "Epsilon: " << _p_error_model->get_epsilons()[0] << endl;
+    // if (_p_error_model)
+    //     ost << "Epsilon: " << _p_error_model->get_epsilons()[0] << endl;
 
     get_monitor().log(ost);
 
@@ -91,16 +94,16 @@ sigma_squared* model::get_simulation_sigma()
     return _p_sigma->clone();
 }
 
-void model::write_error_model(int max_transcript_size, std::ostream& ost) const
-{
-    auto em = _p_error_model;
-    if (!em)
-    {
-        em = new error_model();
-        em->set_probabilities(max_transcript_size, { 0, 1, 0 });
-    }
-    write_error_model_file(ost, *em);
-}
+// void model::write_error_model(int max_transcript_size, std::ostream& ost) const
+// {
+//     auto em = _p_error_model;
+//     if (!em)
+//     {
+//         em = new error_model();
+//         em->set_probabilities(max_transcript_size, { 0, 1, 0 });
+//     }
+//     write_error_model_file(ost, *em);
+// }
 
 void event_monitor::Event_InferenceAttempt_Started() 
 { 

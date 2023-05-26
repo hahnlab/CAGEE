@@ -14,7 +14,7 @@ class error_model;
 class replicate_model;
 class matrix_cache;
 
-size_t adjust_for_error_model(size_t c, const error_model *p_error_model);
+// size_t adjust_for_error_model(size_t c, const error_model *p_error_model);
 
 template<typename T>
 using clademap = std::map<const clade*, T>;
