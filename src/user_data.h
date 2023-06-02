@@ -60,6 +60,8 @@ public:
     void read_rootdist(std::string rootdist_file_path);
 
     void update_boundaries(bool transcripts_are_ratios);
+
+    int upper_bound_from_transcript_values(const vector<gene_transcript>& transcripts);
 };
 
 #endif

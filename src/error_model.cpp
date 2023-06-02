@@ -69,7 +69,12 @@ public:
         }
     }
 
-    Eigen::VectorXd add_error(double log_counts) {
+    Eigen::VectorXd add_error(double log_counts, int upper_bound) {
+        if (upper_bound != _upper_bound) {
+            cout << "resetting error model upper bound to: " << upper_bound << endl;
+            _upper_bound = upper_bound;
+            set_elem_vals();
+        }
         Eigen::VectorXd likelihood = Eigen::VectorXd::Zero(_vector_length);
         // for loop over vector elements and their rep values, add PDF density
         assert(_elem_vals.size() == likelihood.size());
@@ -79,7 +84,7 @@ public:
         // renormalize total likelihood to 1
         likelihood = likelihood / likelihood.sum();
         // cutoff off very small values to zero, renormalize to 1
-        return (cutoff < likelihood.array()).select(likelihood, 0.0f);
+        return (_likelihood_cutoff < likelihood.array()).select(likelihood, 0.0f);
     }
     
     void print_info() {

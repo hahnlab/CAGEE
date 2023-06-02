@@ -77,11 +77,16 @@ void compute_node_probability(const clade* node,
             p_replicate_model->apply(node, gene_transcript, bounds, probabilities[node]);
             string taxon = node->get_taxon_name();
         }
+        else if(p_error_model) // TODO: initialize values from error model if it exists
+        {
+            string taxon = node->get_taxon_name();
+            double expression_value = gene_transcript.get_expression_value(taxon);
+            probabilities[node].set(p_error_model->add_error(expression_value, bounds.second));
+        }
         else
         {
             try
             {
-                // TODO: initialize values from error model if it exists
                 probabilities[node].initialize(gene_transcript.get_expression_value(node->get_taxon_name()), bounds);
             }
             catch (missing_expression_value& mev)

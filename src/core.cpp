@@ -43,16 +43,6 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
     else
     {
         error_model* p_error_model = user_data.p_error_model;
-        if (user_input.use_error_model && !p_error_model)
-        {
-            p_error_model = new error_model();
-            cout << "just created an error model in core.cpp:" << endl;
-            p_error_model->print_info();
-            // TODO assign error model vector length and upper bound
-            // p_error_model->set_probabilities(0, { 0, .95, 0.05 });
-            // p_error_model->set_probabilities(200, { 0.05, .9, 0.05 });
-        }
-
         p_model = new base_model(user_data.p_sigma, p_gene_transcripts, p_error_model);
     }
 
