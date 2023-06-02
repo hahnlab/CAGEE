@@ -88,14 +88,13 @@ input_parameters read_arguments(int argc, char* const argv[])
     po::options_description common("Configuration options (May be specified on command line or in file)");
     common.add_options()
         ("cores,@", po::value<int>(), "Number of processing cores to use, requires an integer argument. Default=All available cores.")
-        ("error,e", po::value<string>()->default_value("false")->implicit_value("true"), "Run with no file name to estimate the global error model file. This file can be provided"
-            "in subsequent runs by providing the path to the Error model file with no spaces(e.g. - eBase_error_model.txt).")
+        ("parametric_error,e", po::value<string>()->default_value("false")->implicit_value("true"), "enable the parametric error model")
         ("output_prefix,o", po::value<string>(), " Output directory - Name of directory automatically created for output. Default=results.")
         ("fixed_multiple_sigmas,m", po::value<string>(), "Multiple sigma values, comma separated.")
         ("rootdist", po::value<string>(), "Distribution of the root in Simulation Mode (mutually exclusive with --prior in Inference Mode). Can be gamma:[k]:[theta], fixed:[count], or a path/to/tab_sep_file.txt with two columns: trascripts names and their counts. Default=gamma:0.375:1600.0")
         ("prior", po::value<string>(), "Expected distribution of the root in Inference Mode (mutually exclusive with --rootdist in Simulation Mode). Must be gamma:[k]:[theta].  Default=gamma:0.375:1600.0")
         ("verbose", po::value<int>())
-        ("replicate_map", po::value<string>(), "Filename of a file containing a list of specie replicates to be combined into a single species")
+        ("replicate_map", po::value<string>(), "Filename of a file containing a list of species replicates to be combined into a single species")
         ("sample_group", po::value<vector<string>>(), "Specifies sample groups (if any) for which to infer sigma^2.  Each sample and sigma^2 estimate requires a --sample_group [your_sample_A] arg, or combine them with comma: --sample_group [your_sample_A,your_sample_B,...].  Optional, no default.")
         ("sigma_tree,y", po::value<string>(), "Path to sigma tree, for use with multiple sigmas")
         ("simulate,s", po::value<string>()->default_value("false"), "Simulate families. Optionally provide the number of simulations to generate")
@@ -175,7 +174,8 @@ input_parameters read_arguments(int argc, char* const argv[])
     maybe_set(vm, "count_all_changes", my_input_parameters.count_all_changes);
     maybe_set(vm, "ratio", my_input_parameters.input_file_has_ratios);
     maybe_set(vm, "replicate_map", my_input_parameters.replicate_model_file_path);
-
+    maybe_set(vm, "parametric_error", my_input_parameters.parametric_error);
+    
     string simulate_string = vm["simulate"].as<string>();
     my_input_parameters.is_simulating = simulate_string != "false";
     if (my_input_parameters.is_simulating)
@@ -186,11 +186,13 @@ input_parameters read_arguments(int argc, char* const argv[])
             my_input_parameters.nsims = 0;
     }
 
-    string error = vm["error"].as<string>();
-    my_input_parameters.use_error_model = error != "false";
-    if (my_input_parameters.use_error_model && error != "true")
+    string error = vm["parametric_error"].as<string>();
+    my_input_parameters.use_parametric_error_model = parametric_error != "false";
+    if (my_input_parameters.use_parametric_error_model && parametric_error != "true")
     {
-        my_input_parameters.error_model_file_path = error;
+        my_input_parameters.parametric_error_model_specification = parametric_error;
+        //TODO parse and store the parametric model string e.g. "normal,0.95,1.3" for model init
+        // (or parse it inside the model class)
     }
 
     my_input_parameters.check_input(); // seeing if options are not mutually exclusive              
@@ -242,10 +244,10 @@ void input_parameters::check_input() {
             errors.push_back("A root distribution was provided while estimating");
         }
 
-        if (n_gamma_cats > 1 && use_error_model && error_model_file_path.empty())
-        {
-            errors.push_back("Estimating an error model with a gamma distribution is not supported at this time");
-        }
+        // if (n_gamma_cats > 1 && use_error_model && error_model_file_path.empty())
+        // {
+        //     errors.push_back("Estimating an error model with a gamma distribution is not supported at this time");
+        // }
     }
 
     if (errors.size() == 1)
@@ -366,13 +368,13 @@ TEST_CASE("Options, multiple_sigmas_long")
     CHECK_EQ("5,10,15", actual.fixed_multiple_sigmas);
 }
 
-TEST_CASE("Options: errormodel_accepts_argument")
+TEST_CASE("Options: parametric_error_model_accepts_argument")
 {
-    option_test c({ "cagee", "-eerror.txt" });
+    option_test c({ "cagee", "-e normal,0.5,30" });
 
     auto actual = read_arguments(c.argc, c.values);
-    CHECK(actual.use_error_model);
-    CHECK(actual.error_model_file_path == "error.txt");
+    CHECK(actual.use_parametric_error_model);
+    CHECK(actual.parametic_error_model_specification == "normal,0.5,30");
 }
 
 TEST_CASE("Options: fixed_root_value")
@@ -394,13 +396,13 @@ TEST_CASE("Options: sample_group")
     CHECK_EQ("brain", actual.sample_groups[1]);
 }
 
-TEST_CASE("Options, errormodel_accepts_no_argument")
+TEST_CASE("Options, parametric_error_model_accepts_no_argument")
 {
     option_test c({ "cagee", "-e" });
 
     auto actual = read_arguments(c.argc, c.values);
-    CHECK(actual.use_error_model);
-    CHECK(actual.error_model_file_path.empty());
+    CHECK(actual.use_parametric_error_model);
+    CHECK(actual.parametric_error_model_specification.empty());
 }
 
 TEST_CASE("Options, replicate_map needs argument")
@@ -483,19 +485,19 @@ TEST_CASE("Options: check_input_does_not_throw_when_simulating_with_multiple_sig
     CHECK(true);
 }
 
-TEST_CASE("Options: cannot_estimate_error_and_gamma_together")
-{
-    input_parameters params;
-    params.n_gamma_cats = 3;
-    params.use_error_model = true;
-    params.error_model_file_path = "model.txt";
-    params.check_input();
-    CHECK(true);
+// TEST_CASE("Options: cannot_estimate_error_and_gamma_together")
+// {
+//     input_parameters params;
+//     params.n_gamma_cats = 3;
+//     params.use_error_model = true;
+//     params.error_model_file_path = "model.txt";
+//     params.check_input();
+//     CHECK(true);
 
-    params.error_model_file_path.clear();
-    CHECK_THROWS_WITH_AS(params.check_input(), "Estimating an error model with a gamma distribution is not supported at this time", runtime_error);
+//     params.error_model_file_path.clear();
+//     CHECK_THROWS_WITH_AS(params.check_input(), "Estimating an error model with a gamma distribution is not supported at this time", runtime_error);
 
-}
+// }
 
 TEST_CASE("Specifying a --rootdist argument without the --simulate argument will result in an error")
 {

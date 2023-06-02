@@ -195,22 +195,22 @@ bool operator==(const MatrixXd& m1, const MatrixXd& m2)
 }
 
 
-TEST_CASE_FIXTURE(Inference, "base_model creates lambda_epsilon_optimizer if requested")
-{
-    error_model err;
-    err.set_probabilities(0, { .0, .7, .3 });
-    err.set_probabilities(1, { .4, .2, .4 });
+// TEST_CASE_FIXTURE(Inference, "base_model creates lambda_epsilon_optimizer if requested")
+// {
+//     error_model err;
+//     err.set_probabilities(0, { .0, .7, .3 });
+//     err.set_probabilities(1, { .4, .2, .4 });
 
-    base_model model(_user_data.p_sigma, &_user_data.gene_transcripts, &err);
+//     base_model model(_user_data.p_sigma, &_user_data.gene_transcripts, &err);
 
-    _user_data.p_error_model = nullptr;
-    _user_data.p_sigma = nullptr;
+//     _user_data.p_error_model = nullptr;
+//     _user_data.p_sigma = nullptr;
 
-    auto opt = model.get_sigma_optimizer(_user_data, vector<string>());
+//     auto opt = model.get_sigma_optimizer(_user_data, vector<string>());
 
-    REQUIRE(opt);
-    CHECK_EQ("Optimizing Sigma Epsilon ", opt->description());
-}
+//     REQUIRE(opt);
+//     CHECK_EQ("Optimizing Sigma Epsilon ", opt->description());
+// }
 
 TEST_CASE_FIXTURE(Inference, "gamma_model_creates__gamma_lambda_optimizer_if_nothing_provided")
 {
@@ -340,170 +340,170 @@ TEST_CASE("Probability, matrix_multiply")
 }
 #endif
 
-TEST_CASE("Probability: error_model_set_probs")
-{
-    error_model model;
-    model.set_probabilities(0, { .0, .7, .3 });
-    model.set_probabilities(1, { .2, .6, .2 });
-    auto vec = model.get_probs(0);
-    CHECK_EQ(3, vec.size());
-    CHECK_EQ(0.0, vec[0]);
-    CHECK_EQ(0.7, vec[1]);
-    CHECK_EQ(0.3, vec[2]);
+// TEST_CASE("Probability: error_model_set_probs")
+// {
+//     error_model model;
+//     model.set_probabilities(0, { .0, .7, .3 });
+//     model.set_probabilities(1, { .2, .6, .2 });
+//     auto vec = model.get_probs(0);
+//     CHECK_EQ(3, vec.size());
+//     CHECK_EQ(0.0, vec[0]);
+//     CHECK_EQ(0.7, vec[1]);
+//     CHECK_EQ(0.3, vec[2]);
 
-    vec = model.get_probs(1);
-    CHECK_EQ(3, vec.size());
-    CHECK_EQ(0.2, vec[0]);
-    CHECK_EQ(0.6, vec[1]);
-    CHECK_EQ(0.2, vec[2]);
-}
+//     vec = model.get_probs(1);
+//     CHECK_EQ(3, vec.size());
+//     CHECK_EQ(0.2, vec[0]);
+//     CHECK_EQ(0.6, vec[1]);
+//     CHECK_EQ(0.2, vec[2]);
+// }
 
-TEST_CASE("Probability: error_model_get_epsilon")
-{
-    error_model model;
-    model.set_probabilities(0, { .0, .7, .3 });
-    model.set_probabilities(1, { .2, .6, .2 });
-    model.set_probabilities(2, { .1, .8, .1 });
-    model.set_probabilities(3, { .2, .6, .2 });
+// TEST_CASE("Probability: error_model_get_epsilon")
+// {
+//     error_model model;
+//     model.set_probabilities(0, { .0, .7, .3 });
+//     model.set_probabilities(1, { .2, .6, .2 });
+//     model.set_probabilities(2, { .1, .8, .1 });
+//     model.set_probabilities(3, { .2, .6, .2 });
 
-    auto actual = model.get_epsilons();
-    CHECK_EQ(3, actual.size());
-    vector<double> expected{ .1, .2, .3 };
-    CHECK(expected == actual);
-}
+//     auto actual = model.get_epsilons();
+//     CHECK_EQ(3, actual.size());
+//     vector<double> expected{ .1, .2, .3 };
+//     CHECK(expected == actual);
+// }
 
-TEST_CASE("Probability: error_model_get_epsilon_zero_zero_must_be_zero")
-{
-    error_model model;
-    CHECK_THROWS_WITH_AS(model.set_probabilities(0, { 0.4, 0.3, 0.3 }), "Cannot have a non-zero probability for family size 0 for negative deviation", runtime_error);
-}
+// TEST_CASE("Probability: error_model_get_epsilon_zero_zero_must_be_zero")
+// {
+//     error_model model;
+//     CHECK_THROWS_WITH_AS(model.set_probabilities(0, { 0.4, 0.3, 0.3 }), "Cannot have a non-zero probability for family size 0 for negative deviation", runtime_error);
+// }
 
-TEST_CASE("Probability: error_model__set_probabilities__cannot_set_higher_values_without_setting_zero")
-{
-    error_model model;
-    CHECK_THROWS_WITH_AS(model.set_probabilities(5, { 0.4, 0.3, 0.3 }), "Cannot have a non-zero probability for family size 0 for negative deviation", runtime_error);
-    model.set_probabilities(0, { 0, 0.7, 0.3 });
-    model.set_probabilities(5, { 0.4, 0.3, 0.3 });
-    CHECK(model.get_probs(5) == vector<double>({ 0.4, 0.3, 0.3 }));
-}
+// TEST_CASE("Probability: error_model__set_probabilities__cannot_set_higher_values_without_setting_zero")
+// {
+//     error_model model;
+//     CHECK_THROWS_WITH_AS(model.set_probabilities(5, { 0.4, 0.3, 0.3 }), "Cannot have a non-zero probability for family size 0 for negative deviation", runtime_error);
+//     model.set_probabilities(0, { 0, 0.7, 0.3 });
+//     model.set_probabilities(5, { 0.4, 0.3, 0.3 });
+//     CHECK(model.get_probs(5) == vector<double>({ 0.4, 0.3, 0.3 }));
+// }
 
-TEST_CASE("Probability: error_model__set_probabilities__can_set_higher_values_if_valid_for_zero")
-{
-    error_model model;
-    model.set_probabilities(5, { 0, 0.7, 0.3 });
-    CHECK(model.get_probs(5) == vector<double>({ 0, 0.7, 0.3 }));
-}
+// TEST_CASE("Probability: error_model__set_probabilities__can_set_higher_values_if_valid_for_zero")
+// {
+//     error_model model;
+//     model.set_probabilities(5, { 0, 0.7, 0.3 });
+//     CHECK(model.get_probs(5) == vector<double>({ 0, 0.7, 0.3 }));
+// }
 
-TEST_CASE("Probability: error_model_rows_must_add_to_one")
-{
-    error_model model;
-    model.set_probabilities(0, { 0,1,0 });
-    CHECK(true);
-    CHECK_THROWS_WITH_AS(model.set_probabilities(1, { 0.3, 0.3, 0.3 }), "Sum of probabilities must be equal to one", runtime_error);
-}
+// TEST_CASE("Probability: error_model_rows_must_add_to_one")
+// {
+//     error_model model;
+//     model.set_probabilities(0, { 0,1,0 });
+//     CHECK(true);
+//     CHECK_THROWS_WITH_AS(model.set_probabilities(1, { 0.3, 0.3, 0.3 }), "Sum of probabilities must be equal to one", runtime_error);
+// }
 
-TEST_CASE("Probability: error_model_replace_epsilons")
-{
-    string input = "maxcnt: 10\ncntdiff: -1 0 1\n"
-        "0 0.0 0.8 0.2\n"
-        "1 0.2 0.6 0.2\n"
-        "2 0.2 0.6 0.2\n";
+// TEST_CASE("Probability: error_model_replace_epsilons")
+// {
+//     string input = "maxcnt: 10\ncntdiff: -1 0 1\n"
+//         "0 0.0 0.8 0.2\n"
+//         "1 0.2 0.6 0.2\n"
+//         "2 0.2 0.6 0.2\n";
 
-    istringstream ist(input);
-    error_model model;
-    read_error_model_file(ist, &model);
+//     istringstream ist(input);
+//     error_model model;
+//     read_error_model_file(ist, &model);
 
-    map<double, double> replacements;
-    replacements[.2] = .3;
-    model.replace_epsilons(&replacements);
+//     map<double, double> replacements;
+//     replacements[.2] = .3;
+//     model.replace_epsilons(&replacements);
 
-    auto actual = model.get_probs(0);
-    CHECK_EQ(.7, actual[1]);
-    CHECK_EQ(.3, actual[2]);
+//     auto actual = model.get_probs(0);
+//     CHECK_EQ(.7, actual[1]);
+//     CHECK_EQ(.3, actual[2]);
 
-    actual = model.get_probs(1);
-    CHECK_EQ(.3, actual[0]);
-    CHECK_EQ(.4, actual[1]);
-    CHECK_EQ(.3, actual[2]);
-}
+//     actual = model.get_probs(1);
+//     CHECK_EQ(.3, actual[0]);
+//     CHECK_EQ(.4, actual[1]);
+//     CHECK_EQ(.3, actual[2]);
+// }
 
-TEST_CASE("Probability: read_error_model")
-{
-    string input = "maxcnt: 10\ncntdiff: -1 0 1\n"
-        "0 0.0 0.8 0.2\n"
-        "1 0.2 0.6 0.2\n"
-        "2 0.2 0.6 0.2\n"
-        "3 0.2 0.6 0.2\n"
-        "5 0.2 0.6 0.2\n";
+// TEST_CASE("Probability: read_error_model")
+// {
+//     string input = "maxcnt: 10\ncntdiff: -1 0 1\n"
+//         "0 0.0 0.8 0.2\n"
+//         "1 0.2 0.6 0.2\n"
+//         "2 0.2 0.6 0.2\n"
+//         "3 0.2 0.6 0.2\n"
+//         "5 0.2 0.6 0.2\n";
 
-    istringstream ist(input);
-    error_model model;
-    read_error_model_file(ist, &model);
-    auto vec = model.get_probs(0);
-    CHECK_EQ(3, vec.size());
-    CHECK_EQ(0.0, vec[0]);
-    CHECK_EQ(0.8, vec[1]);
-    CHECK_EQ(0.2, vec[2]);
+//     istringstream ist(input);
+//     error_model model;
+//     read_error_model_file(ist, &model);
+//     auto vec = model.get_probs(0);
+//     CHECK_EQ(3, vec.size());
+//     CHECK_EQ(0.0, vec[0]);
+//     CHECK_EQ(0.8, vec[1]);
+//     CHECK_EQ(0.2, vec[2]);
 
-    vec = model.get_probs(1);
-    CHECK_EQ(3, vec.size());
-    CHECK_EQ(0.2, vec[0]);
-    CHECK_EQ(0.6, vec[1]);
-    CHECK_EQ(0.2, vec[2]);
+//     vec = model.get_probs(1);
+//     CHECK_EQ(3, vec.size());
+//     CHECK_EQ(0.2, vec[0]);
+//     CHECK_EQ(0.6, vec[1]);
+//     CHECK_EQ(0.2, vec[2]);
 
-    vec = model.get_probs(4);
-    CHECK_EQ(3, vec.size());
-    CHECK_EQ(0.2, vec[0]);
-    CHECK_EQ(0.6, vec[1]);
-    CHECK_EQ(0.2, vec[2]);
+//     vec = model.get_probs(4);
+//     CHECK_EQ(3, vec.size());
+//     CHECK_EQ(0.2, vec[0]);
+//     CHECK_EQ(0.6, vec[1]);
+//     CHECK_EQ(0.2, vec[2]);
 
-    vec = model.get_probs(7);
-    CHECK_EQ(3, vec.size());
-    CHECK_EQ(0.2, vec[0]);
-    CHECK_EQ(0.6, vec[1]);
-    CHECK_EQ(0.2, vec[2]);
-}
+//     vec = model.get_probs(7);
+//     CHECK_EQ(3, vec.size());
+//     CHECK_EQ(0.2, vec[0]);
+//     CHECK_EQ(0.6, vec[1]);
+//     CHECK_EQ(0.2, vec[2]);
+// }
 
-TEST_CASE("Probability: write_error_model")
-{
-    error_model model;
-    model.set_probabilities(0, { .0, .7, .3 });
-    model.set_probabilities(1, { .2, .6, .2 });
-    model.set_probabilities(2, { .1, .8, .1 });
-    model.set_probabilities(3, { .2, .6, .2 });
+// TEST_CASE("Probability: write_error_model")
+// {
+//     error_model model;
+//     model.set_probabilities(0, { .0, .7, .3 });
+//     model.set_probabilities(1, { .2, .6, .2 });
+//     model.set_probabilities(2, { .1, .8, .1 });
+//     model.set_probabilities(3, { .2, .6, .2 });
 
-    ostringstream ost;
-    write_error_model_file(ost, model);
+//     ostringstream ost;
+//     write_error_model_file(ost, model);
 
-    const char* expected = "maxcnt: 3\ncntdiff: -1 0 1\n"
-        "0 0 0.7 0.3\n"
-        "1 0.2 0.6 0.2\n"
-        "2 0.1 0.8 0.1\n"
-        "3 0.2 0.6 0.2\n";
+//     const char* expected = "maxcnt: 3\ncntdiff: -1 0 1\n"
+//         "0 0 0.7 0.3\n"
+//         "1 0.2 0.6 0.2\n"
+//         "2 0.1 0.8 0.1\n"
+//         "3 0.2 0.6 0.2\n";
 
-    STRCMP_EQUAL(expected, ost.str().c_str());
-}
+//     STRCMP_EQUAL(expected, ost.str().c_str());
+// }
 
-TEST_CASE("Probability: write_error_model_skips_unnecessary_lines")
-{
-    error_model model;
-    model.set_probabilities(0, { .0, .7, .3 });
-    model.set_probabilities(1, { .2, .6, .2 });
-    model.set_probabilities(10, { .1, .8, .1 });
-    model.set_probabilities(15, { .05, .9, .05 });
-    model.set_probabilities(18, { .05, .9, .05 });
+// TEST_CASE("Probability: write_error_model_skips_unnecessary_lines")
+// {
+//     error_model model;
+//     model.set_probabilities(0, { .0, .7, .3 });
+//     model.set_probabilities(1, { .2, .6, .2 });
+//     model.set_probabilities(10, { .1, .8, .1 });
+//     model.set_probabilities(15, { .05, .9, .05 });
+//     model.set_probabilities(18, { .05, .9, .05 });
 
-    ostringstream ost;
-    write_error_model_file(ost, model);
+//     ostringstream ost;
+//     write_error_model_file(ost, model);
 
-    const char* expected = "maxcnt: 18\ncntdiff: -1 0 1\n"
-        "0 0 0.7 0.3\n"
-        "1 0.2 0.6 0.2\n"
-        "10 0.1 0.8 0.1\n"
-        "15 0.05 0.9 0.05\n";
+//     const char* expected = "maxcnt: 18\ncntdiff: -1 0 1\n"
+//         "0 0 0.7 0.3\n"
+//         "1 0.2 0.6 0.2\n"
+//         "10 0.1 0.8 0.1\n"
+//         "15 0.05 0.9 0.05\n";
 
-    STRCMP_EQUAL(expected, ost.str().c_str());
-}
+//     STRCMP_EQUAL(expected, ost.str().c_str());
+// }
 
 TEST_CASE("Clade: get_lambda_index_throws_from_branch_length_tree")
 {

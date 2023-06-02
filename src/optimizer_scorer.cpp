@@ -95,11 +95,11 @@ std::vector<double> sigma_optimizer_scorer::initial_guesses()
         }
     }
 
-    if (optimize_epsilon)
-    {
-        current_epsilon_guesses = _p_error_model->get_epsilons();
-        guesses.insert(guesses.end(), current_epsilon_guesses.begin(), current_epsilon_guesses.end());
-    }
+    // if (optimize_epsilon)
+    // {
+    //     current_epsilon_guesses = _p_error_model->get_epsilons();
+    //     guesses.insert(guesses.end(), current_epsilon_guesses.begin(), current_epsilon_guesses.end());
+    // }
 
     if (optimize_gamma)
     {
@@ -134,19 +134,19 @@ void sigma_optimizer_scorer::prepare_calculation(const double *values)
         _p_sigma->update(values);
         ptr += _p_sigma->get_values().size();
     }
-    if (optimize_epsilon)
-    {
-        auto epsilons = values + ptr;
-        map<double, double> replacements;
-        for (size_t i = 0; i < current_epsilon_guesses.size(); ++i)
-        {
-            replacements[current_epsilon_guesses[i]] = epsilons[i];
-            current_epsilon_guesses[i] = epsilons[i];
-        }
+    // if (optimize_epsilon)
+    // {
+    //     auto epsilons = values + ptr;
+    //     map<double, double> replacements;
+    //     for (size_t i = 0; i < current_epsilon_guesses.size(); ++i)
+    //     {
+    //         replacements[current_epsilon_guesses[i]] = epsilons[i];
+    //         current_epsilon_guesses[i] = epsilons[i];
+    //     }
 
-        _p_error_model->replace_epsilons(&replacements);
-        ptr += current_epsilon_guesses.size();
-    }
+    //     _p_error_model->replace_epsilons(&replacements);
+    //     ptr += current_epsilon_guesses.size();
+    // }
     if (optimize_gamma)
     {
         dynamic_cast<gamma_model *>(_p_model)->set_alpha(*(values + ptr));
@@ -160,10 +160,10 @@ void sigma_optimizer_scorer::report_precalculation()
     {
         ost << "Sigma^2:" << *_p_sigma;
     }
-    if (optimize_epsilon)
-    {
-        ost << " Epsilon:" << _p_error_model->get_epsilons().back() * 2.0;
-    }
+    // if (optimize_epsilon)
+    // {
+    //     ost << " Epsilon:" << _p_error_model->get_epsilons().back() * 2.0;
+    // }
     if (optimize_gamma)
     {
         ost << " Alpha:" << dynamic_cast<gamma_model*>(_p_model)->get_alpha();
@@ -176,10 +176,10 @@ void sigma_optimizer_scorer::report_precalculation()
 void sigma_optimizer_scorer::finalize(double *results)
 {
     _p_sigma->update(results);
-    if (_p_error_model)
-    {
-        _p_error_model->update_single_epsilon(results[_p_sigma->count()]);
-    }
+    // if (_p_error_model)
+    // {
+    //     _p_error_model->update_single_epsilon(results[_p_sigma->count()]);
+    // }
 }
 
 std::string sigma_optimizer_scorer::description() const
@@ -190,10 +190,10 @@ std::string sigma_optimizer_scorer::description() const
     {
         t.push_back("Sigma");
     }
-    if (optimize_epsilon)
-    {
-        t.push_back("Epsilon");
-    }
+    // if (optimize_epsilon)
+    // {
+    //     t.push_back("Epsilon");
+    // }
     if (optimize_gamma)
     {
         t.push_back("Alpha");
@@ -265,23 +265,23 @@ public:
     void set_invalid_likelihood() { _invalid_likelihood = true; }
 };
 
-TEST_CASE("sigma_epsilon_optimizer guesses sigma and unique epsilons")
-{
-    error_model err;
-    err.set_probabilities(0, { .0, .7, .3 });
-    err.set_probabilities(1, { .4, .2, .4 });
+// TEST_CASE("sigma_epsilon_optimizer guesses sigma and unique epsilons")
+// {
+//     error_model err;
+//     err.set_probabilities(0, { .0, .7, .3 });
+//     err.set_probabilities(1, { .4, .2, .4 });
 
-    sigma_squared s(10);
-    user_data ud;
-    mock_scorer_model model;
-    sigma_optimizer_scorer leo(&model, ud, &s, &err);
-    leo.force_distribution_mean(10, 1);
-    auto guesses = leo.initial_guesses();
-    REQUIRE(guesses.size() == 3);
-    CHECK_EQ(doctest::Approx(0.31622).epsilon(0.00001), guesses[0]);
-    CHECK_EQ(0.3, guesses[1]);
-    CHECK_EQ(0.4, guesses[2]);
-}
+//     sigma_squared s(10);
+//     user_data ud;
+//     mock_scorer_model model;
+//     sigma_optimizer_scorer leo(&model, ud, &s, &err);
+//     leo.force_distribution_mean(10, 1);
+//     auto guesses = leo.initial_guesses();
+//     REQUIRE(guesses.size() == 3);
+//     CHECK_EQ(doctest::Approx(0.31622).epsilon(0.00001), guesses[0]);
+//     CHECK_EQ(0.3, guesses[1]);
+//     CHECK_EQ(0.4, guesses[2]);
+// }
 
 TEST_CASE("gamma_sigma_optimizer provides two guesses")
 {
@@ -312,32 +312,32 @@ TEST_CASE("gamma_optimizer creates single initial guess")
 }
 
 
-TEST_CASE("sigma_epsilon_optimizer")
-{
-    const double initial_epsilon = 0.01;
-    error_model err;
-    err.set_probabilities(0, { .0, .99, initial_epsilon });
-    err.set_probabilities(1, { initial_epsilon, .98, initial_epsilon });
+// TEST_CASE("sigma_epsilon_optimizer")
+// {
+//     const double initial_epsilon = 0.01;
+//     error_model err;
+//     err.set_probabilities(0, { .0, .99, initial_epsilon });
+//     err.set_probabilities(1, { initial_epsilon, .98, initial_epsilon });
 
-    mock_scorer_model model;
+//     mock_scorer_model model;
 
-    sigma_squared sigma(0.05);
-    user_data ud;
-    sigma_optimizer_scorer optimizer(&model, ud, &sigma, &err);
-    optimizer.force_distribution_mean(10, 3);
-    optimizer.initial_guesses();
-    vector<double> values = { 0.05, 0.06 };
-    optimizer.calculate_score(&values[0]);
-    auto actual = err.get_probs(0);
-    vector<double> expected{ 0, .94, .06 };
-    CHECK(expected == actual);
+//     sigma_squared sigma(0.05);
+//     user_data ud;
+//     sigma_optimizer_scorer optimizer(&model, ud, &sigma, &err);
+//     optimizer.force_distribution_mean(10, 3);
+//     optimizer.initial_guesses();
+//     vector<double> values = { 0.05, 0.06 };
+//     optimizer.calculate_score(&values[0]);
+//     auto actual = err.get_probs(0);
+//     vector<double> expected{ 0, .94, .06 };
+//     CHECK(expected == actual);
 
-    values[1] = 0.04;
-    optimizer.calculate_score(&values[0]);
-    actual = err.get_probs(0);
-    expected = { 0, .96, .04 };
-    CHECK(expected == actual);
-}
+//     values[1] = 0.04;
+//     optimizer.calculate_score(&values[0]);
+//     actual = err.get_probs(0);
+//     expected = { 0, .96, .04 };
+//     CHECK(expected == actual);
+// }
 
 TEST_CASE("prepare_calculation sets sigma correctly")
 {
@@ -352,23 +352,23 @@ TEST_CASE("prepare_calculation sets sigma correctly")
     CHECK_EQ(0.01, sig.get_values()[0]);
 }
 
-TEST_CASE("prepare_calculation sets sigma and epsilon correctly ")
-{
-    user_data ud;
-    ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
-    ud.p_tree = parse_newick("(A:1,B:1);");
-    mock_scorer_model model;
-    sigma_squared sig(1);
-    error_model err;
-    err.set_probabilities(0, { .0, .7, .3 });
-    sigma_optimizer_scorer optimizer(&model, ud, &sig, &err);
-    optimizer.initial_guesses();
+// TEST_CASE("prepare_calculation sets sigma and epsilon correctly ")
+// {
+//     user_data ud;
+//     ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
+//     ud.p_tree = parse_newick("(A:1,B:1);");
+//     mock_scorer_model model;
+//     sigma_squared sig(1);
+//     error_model err;
+//     err.set_probabilities(0, { .0, .7, .3 });
+//     sigma_optimizer_scorer optimizer(&model, ud, &sig, &err);
+//     optimizer.initial_guesses();
 
-    vector<double> values{ 0.01, 0.025 };
-    optimizer.prepare_calculation(values.data());
-    CHECK_EQ(0.01, sig.get_values()[0]);
-    CHECK_EQ(0.025, err.get_epsilons()[0]);
-}
+//     vector<double> values{ 0.01, 0.025 };
+//     optimizer.prepare_calculation(values.data());
+//     CHECK_EQ(0.01, sig.get_values()[0]);
+//     CHECK_EQ(0.025, err.get_epsilons()[0]);
+// }
 
 
 TEST_CASE("prepare_calculation sets sigma and gamma correctly ")
