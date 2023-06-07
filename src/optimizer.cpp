@@ -623,10 +623,8 @@ optimizer::result optimizer::optimize(const optimizer_parameters& params)
     strat->Run(pfm, r, initial);
     r.duration = chrono::duration_cast<chrono::seconds>(clock::now() - before);
 
-    if (!quiet)
-    {
-        LOG(INFO) << r;
-    }
+    _p_scorer->finalize(r.values.data());
+
     return r;
 }
 
@@ -642,11 +640,7 @@ std::ostream& operator<<(std::ostream& ost, const optimizer::result& r)
         ost << "Time: " << chrono::duration_cast<chrono::hours>(r.duration).count() << "H";
         ost << " " << chrono::duration_cast<chrono::minutes>(r.duration).count() % 60 << "M";
         ost << " " << chrono::duration_cast<chrono::seconds>(r.duration).count() % 60 << "S" << endl;
-        ost << "Best match" << (r.values.size() == 1 ? " is: " : "es are: ") << setprecision(14);
-        for (size_t i = 0; i < r.values.size() - 1; ++i)
-            ost << r.values[i] << ',';
-        ost << r.values[r.values.size() - 1] << endl; 
-        ost << "Final -lnL: " << r.score << endl;
+        ost << "Final -lnL: " << r.score;
     }
 
     return ost;
@@ -700,6 +694,7 @@ class mock_scorer : public optimizer_scorer
 
         return 1000;
     }
+    virtual void finalize(double* results) {}
 public:
     bool force_scoring_error = false;
 };
@@ -736,7 +731,6 @@ TEST_CASE("Inference, optimizer_result_stream")
     ost << r;
     CHECK_STREAM_CONTAINS(ost, "Completed 10 iterations");
     CHECK_STREAM_CONTAINS(ost, "Time: 1H 23M 20S");
-    CHECK_STREAM_CONTAINS(ost, "Best matches are: 0.05,0.03");
     CHECK_STREAM_CONTAINS(ost, "Final -lnL: 5");
 }
 

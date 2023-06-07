@@ -22,6 +22,7 @@ public:
     virtual size_t count() const = 0;
     virtual ss_resolver* clone() const = 0;
     virtual ~ss_resolver() {}
+    virtual string format_values(vector<double> values) = 0;
 };
 
 class ss_resolver_uniform : public ss_resolver
@@ -32,6 +33,8 @@ public:
     virtual ss_resolver* clone() const { return new ss_resolver_uniform(); }
 
     virtual size_t count() const { return 1; }
+
+    virtual string format_values(vector<double> values) { return to_string(values[0]); }
 };
 
 class ss_resolver_lineage_specific : public ss_resolver
@@ -57,6 +60,18 @@ public:
         for (auto a : _node_name_to_sigma_index)
             s.insert(a.second);
         return s.size(); 
+    }
+
+    virtual string format_values(vector<double> values) 
+    { 
+        ostringstream ost;
+        ost << setprecision(14);
+        for (size_t i = 0; i < values.size(); ++i)
+        {
+            ost << values[i];
+            if (i != values.size() - 1) ost << ", ";
+        }
+        return ost.str();
     }
 };
 
@@ -84,16 +99,43 @@ public:
             s.insert(a.second);
         return s.size();
     }
+
+    vector<string> sample_groups() const
+    {
+        vector<string> groups(count());
+        for (auto a : _sample_to_sigma_index)
+        {
+            if (groups[a.second].empty())
+                groups[a.second] = a.first;
+            else
+                groups[a.second] += "," + a.first;
+        }
+
+        return groups;
+    }
+
+    virtual string format_values(vector<double> values) 
+    {
+        auto groups = sample_groups();
+        ostringstream ost;
+        ost << setprecision(14);
+        for (size_t i = 0; i < groups.size(); ++i)
+        {
+            ost << "Sigma for " << groups[i] << ": " << values[i] << endl;
+        }
+        return ost.str();
+    }
+
 };
 
 class ss_resolver_composite : public ss_resolver
 {
     using key = pair<size_t, size_t>;
-    ss_resolver* _r1;
+    ss_resolver_sample_specific* _r1;
     ss_resolver* _r2;
     map<key,size_t> values;
 public:
-    ss_resolver_composite(ss_resolver *r1, ss_resolver* r2) :
+    ss_resolver_composite(ss_resolver_sample_specific*r1, ss_resolver* r2) :
         _r1(r1), _r2(r2)
     {
         int n = 0;
@@ -112,9 +154,26 @@ public:
         return values.at(key(_r1->get_value_index(c, t), _r2->get_value_index(c, t)));
     }
 
-    virtual ss_resolver* clone() const { return new ss_resolver_composite(_r1->clone(), _r2->clone()); }
+    virtual ss_resolver* clone() const { return new ss_resolver_composite(dynamic_cast<ss_resolver_sample_specific*>(_r1->clone()), _r2->clone()); }
 
     virtual size_t count() const { return values.size(); }
+
+    virtual string format_values(vector<double> values) 
+    {
+        auto groups = _r1->sample_groups();
+        string result;
+        vector<double> foo(_r2->count());
+        size_t i = 0;
+        for (auto g : groups)
+        {
+            result += g + ": ";
+            copy(values.begin() + i, values.begin() + i + _r2->count(), foo.begin());
+            result += _r2->format_values(foo) + "\n";
+            i += _r2->count();
+        }
+        return result; 
+    }
+
 };
 
 sigma_squared::sigma_squared(double val) : _p_resolver(new ss_resolver_uniform())
@@ -165,18 +224,6 @@ void sigma_squared::update(const double* values)
     std::copy(values, values + _values.size(), _values.begin());
 }
 
-std::string sigma_squared::to_string() const
-{
-    ostringstream ost;
-    ost << setprecision(14);
-    for (size_t i = 0; i < _values.size(); ++i)
-    {
-        ost << _values[i];
-        if (i != _values.size() - 1) ost << ", ";
-    }
-    return ost.str();
-}
-
 bool sigma_squared::is_valid() const
 {
     return std::none_of(_values.begin(), _values.end(), [](double d) { return d < 0; });
@@ -204,36 +251,36 @@ sigma_squared* sigma_squared::create(clade* p_sigma_tree, const std::vector<stri
 {
     sigma_squared* result = nullptr;
 
-    vector<ss_resolver*> resolvers;
+    ss_resolver_sample_specific* r1 = nullptr;
+    ss_resolver_lineage_specific* r2 = nullptr;
+
     if (p_sigma_tree)
     {
         std::set<int> unique_sigmas;
         auto fn = [&unique_sigmas](const clade* p_node) { unique_sigmas.insert(p_node->get_sigma_index()); };
         p_sigma_tree->apply_prefix_order(fn);
-        resolvers.push_back(new ss_resolver_lineage_specific(p_sigma_tree->get_sigma_index_map()));
+        r2 = new ss_resolver_lineage_specific(p_sigma_tree->get_sigma_index_map());
     }
 
     if (!sample_groups.empty())
     {
-       resolvers.push_back(new ss_resolver_sample_specific(get_sigma_index_map(sample_groups)));
+       r1 = new ss_resolver_sample_specific(get_sigma_index_map(sample_groups));
     }
 
-    switch (resolvers.size())
+    if (!r1 && !r2)
     {
-    case 0:
         result = new sigma_squared(0.0);
-        break;
-    case 1:
-        result = new sigma_squared(resolvers[0], resolvers[0]->count());
-        break;
-    case 2:
-    {
-        auto x = new ss_resolver_composite(resolvers[0], resolvers[1]);
-        result = new sigma_squared(x, resolvers[0]->count() * resolvers[1]->count());
     }
-        break;
-    default:
-        throw std::domain_error("Cannot handle more than two resolvers");
+    else if (r1 && r2)
+    {
+        auto x = new ss_resolver_composite(r1, r2);
+        result = new sigma_squared(x, r1->count() * r2->count());
+    }
+    else
+    {
+        ss_resolver* r = r1;
+        if (!r) r = r2;
+        result = new sigma_squared(r, r->count());
     }
 
     LOG(INFO) << "Searching for " << result->count() << " sigmas" << endl;
@@ -244,6 +291,15 @@ sigma_squared* sigma_squared::create(clade* p_sigma_tree, const std::vector<doub
 {
     return new sigma_squared(new ss_resolver_lineage_specific(p_sigma_tree->get_sigma_index_map()), values);
 }
+
+std::ostream& operator<<(std::ostream& ost, const sigma_squared& sigma)
+{
+    ost << sigma._p_resolver->format_values(sigma._values);
+
+    return ost;
+}
+
+#define CHECK_STREAM_CONTAINS(x,y) CHECK_MESSAGE(x.str().find(y) != std::string::npos, x.str())
 
 TEST_CASE("lineage_specific sigma returns correct values")
 {
@@ -344,7 +400,7 @@ TEST_CASE("get_sigma_index_map creates map")
     CHECK_EQ(2, m["spleen"]);
 }
 
-TEST_CASE("composite resolver count is all possible sigma pairs")
+TEST_CASE("lineage and tissue sigmas are multiplied together")
 {
     string s = "((((cat:1,horse:1):1,cow:1):1,(((((chimp:2,human:2):2,orang:1):1,gibbon:1):1,(macaque:1,baboon:1):1):1,marmoset:1):1):1,(rat:3,mouse:3):3);";
     unique_ptr<clade> p_sigma_tree(parse_newick(s, true));
@@ -356,9 +412,49 @@ TEST_CASE("composite resolver count is all possible sigma pairs")
     CHECK_EQ(0, ss->get_named_value(p_sigma_tree->find_descendant("cat"), gt));
 }
 
-TEST_CASE("Sample specific resolver only counts unique sample groups")
+TEST_CASE("Lineage sigmas are comma-separated")
 {
-    ss_resolver_sample_specific ss({ {"heart",1}, {"lungs,brain",2} });
+    string s = "((((cat:1,horse:1):1,cow:1):1,(((((chimp:2,human:2):2,orang:1):1,gibbon:1):1,(macaque:1,baboon:1):1):1,marmoset:1):1):1,(rat:1,mouse:1):1);";
+    unique_ptr<clade> p_tree(parse_newick(s, true));
 
-    CHECK_EQ(2, ss.count());
+    unique_ptr<sigma_squared> sig(sigma_squared::create(p_tree.get(), vector<string>()));
+
+    vector<double> d({ 1.4, 3.7 });
+    sig->update(d.data());
+
+    ostringstream ost;
+    ost << *sig;
+    CHECK_STREAM_CONTAINS(ost, "1.4, 3.7");
+
+}
+
+TEST_CASE("sample sigmas are labelled")
+{
+    unique_ptr<sigma_squared> sig(sigma_squared::create(nullptr, vector<string>({ "heart,lungs", "brain" })));
+    REQUIRE_EQ(2, sig->get_values().size());
+
+    double values[2] = { 7.7, 14.54 };
+    sig->update(values);
+
+    ostringstream ost;
+    ost << *sig;
+    CHECK_STREAM_CONTAINS(ost, "Sigma for heart,lungs: 7.7");
+    CHECK_STREAM_CONTAINS(ost, "Sigma for brain: 14.54");
+}
+
+TEST_CASE("sample + tissue sigmas are labelled")
+{
+    string s = "((((cat:1,horse:1):1,cow:1):1,(((((chimp:2,human:2):2,orang:1):1,gibbon:1):1,(macaque:1,baboon:1):1):1,marmoset:1):1):1,(rat:3,mouse:3):3);";
+    unique_ptr<clade> p_sigma_tree(parse_newick(s, true));
+
+    unique_ptr<sigma_squared> sig(sigma_squared::create(p_sigma_tree.get(), vector<string>({ "heart", "lungs", "brain" })));
+
+    double values[] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+    sig->update(values);
+
+    ostringstream ost;
+    ost << *sig;
+    CHECK_STREAM_CONTAINS(ost, "heart: 1, 2, 3");
+    CHECK_STREAM_CONTAINS(ost, "lungs: 4, 5, 6");
+    CHECK_STREAM_CONTAINS(ost, "brain: 7, 8, 9");
 }

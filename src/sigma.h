@@ -25,7 +25,6 @@ public:
     void update(const double* values) ;
     int count() const;
 
-    std::string to_string() const;
     double get_named_value(const clade* c, const gene_transcript& t) const;
 
     bool is_valid() const;
@@ -37,13 +36,10 @@ public:
     static sigma_squared* create(clade* p_sigma_tree, const std::vector<std::string>& sample_groups);
     static sigma_squared* create(clade* p_sigma_tree, const std::vector<double>& values);
 
+    friend std::ostream& operator<<(std::ostream& ost, const sigma_squared& sigma);
 };
 
-inline std::ostream& operator<<(std::ostream& ost, const sigma_squared& sigma)
-{
-    ost << sigma.to_string();
-    return ost;
-}
+std::ostream& operator<<(std::ostream& ost, const sigma_squared& sigma);
 
 /* END: Holding lambda values and specifying how likelihood is computed depending on the number of different lambdas */
 

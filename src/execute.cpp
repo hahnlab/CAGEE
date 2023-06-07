@@ -3,6 +3,7 @@
 #include <fstream>
 #include <algorithm>
 #include <iterator>
+#include <iomanip>
 
 #include "doctest.h"
 #include "easylogging++.h"
@@ -114,8 +115,11 @@ void estimator::estimate_missing_variables(std::vector<model *>& models, user_da
 
         optimizer opt(scorer.get());
 
-        auto result = opt.optimize(_user_input.optimizer_params);
-        scorer->finalize(&result.values[0]);
+        auto r = opt.optimize(_user_input.optimizer_params);
+
+        LOG(INFO) << r;
+        LOG(INFO) << "Best match" << (r.values.size() == 1 ? " is: " : "es are: ") << setprecision(14);
+        LOG(INFO) << *p_model->get_sigma();
 
         LOG(INFO) << p_model->get_monitor();
     }

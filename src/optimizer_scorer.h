@@ -20,6 +20,8 @@ public:
     virtual std::vector<double> initial_guesses() = 0;
 
     virtual double calculate_score(const double *values) = 0;
+
+    virtual void finalize(double* results) = 0;
 };
 
 //! @brief Scorer that optimizes for sigma

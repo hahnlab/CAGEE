@@ -716,6 +716,8 @@ public:
     {
         return std::accumulate(values, values + num_scores, 1.0, std::multiplies<double>());
     }
+
+    virtual void finalize(double* results) {}
 };
 
 TEST_CASE_FIXTURE(Optimizer, "fminsearch_min_init")

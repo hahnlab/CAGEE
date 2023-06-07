@@ -5,6 +5,9 @@
 #include <algorithm>
 #include <iterator>
 
+#include <boost/algorithm/string/join.hpp>
+#include <boost/range/adaptor/transformed.hpp>
+
 #include "doctest.h"
 #include "easylogging++.h"
 
@@ -158,7 +161,9 @@ void sigma_optimizer_scorer::report_precalculation()
     ostringstream ost;
     if (optimize_sigma)
     {
-        ost << "Sigma^2:" << *_p_sigma;
+        using boost::adaptors::transformed;
+        using boost::algorithm::join;
+        ost << "Sigma^2:" << join(_p_sigma->get_values() | transformed([](double d) { return std::to_string(d); }), ", ");
     }
     if (optimize_epsilon)
     {
