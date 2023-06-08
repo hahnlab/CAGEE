@@ -161,13 +161,11 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
     }
 
     auto tokens = tokenize_str(my_input_parameters.prior_params_or_default(), ':');
-    if (tokens[0] != "gamma")
+    if (tokens[0] != "gamma" && tokens[0] != "fisher")
         throw std::runtime_error("Prior must be given in the form gamma:k:theta");
     auto k = stof(tokens[1]), theta = stof(tokens[2]);
-    LOG(INFO) << "Using gamma prior with k=" << k << ", theta=" << theta << ")";
+    LOG(INFO) << "Prior: " << tokens[0] << "(" << k << "," << theta << ")";
     p_prior = new prior(tokens[0], k, theta);
-
-
 }
 
 int upper_bound_from_transcript_values(const vector<gene_transcript>& transcripts)
