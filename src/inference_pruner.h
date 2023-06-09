@@ -21,6 +21,8 @@ using clademap = std::map<const clade*, T>;
 
 using boundaries = std::pair<double, double>;
 
+Eigen::IOFormat vector_fmt{Eigen::IOFormat(3, 0, ", ", "", "[ ", " ]", "", "", (char)32)};
+
 class optional_probabilities
 {
     bool has_value = false;

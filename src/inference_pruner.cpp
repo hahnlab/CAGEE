@@ -62,6 +62,11 @@ void print_probabilities(const std::map<const clade*, VectorXd>& probabilities, 
     cout << endl;
 }
 
+void vlog_vector(std::string taxon_name, std::string gene_id, VectorXd likelihood_vector, Eigen::IOFormat vector_fmt) const {
+    VLOG_IF(VECTOR_DEBUG, 9) << taxon_name << " | " << gene_id << " >>> "
+        << likelihood_vector.transpose().format(vector_fmt);
+}
+
 void compute_node_probability(const clade* node,
     const gene_transcript& gene_transcript,
     const error_model* p_error_model,
@@ -77,11 +82,14 @@ void compute_node_probability(const clade* node,
             p_replicate_model->apply(node, gene_transcript, bounds, probabilities[node]);
             string taxon = node->get_taxon_name();
         }
-        else if(p_error_model) // TODO: initialize values from error model if it exists
+        else if(p_error_model)
         {
             string taxon = node->get_taxon_name();
             double expression_value = gene_transcript.get_expression_value(taxon);
-            probabilities[node].set(p_error_model->add_error(expression_value, bounds.second));
+            Eigen::VectorXd error_vector = p_error_model->get_error_vector(expression_value, bounds.second);
+            probabilities[node].set(error_vector);
+            vlog_vector(taxon, gene_transcript.id(), error_vector, vector_fmt);
+            //TODO also print what VectorPos_bounds() would have assigned for comparison
         }
         else
         {
@@ -89,7 +97,7 @@ void compute_node_probability(const clade* node,
             {
                 probabilities[node].initialize(gene_transcript.get_expression_value(node->get_taxon_name()), bounds);
             }
-            catch (missing_expression_value& mev)
+            catch (missing_expression_value& mev);
             {
             }
         }

@@ -12,8 +12,8 @@ private:
     int _vector_length = 200;
     long _upper_bound = 1e6;
     double _elem_width = _upper_bound / _vector_length;
-    vector<double> _elem_vals = vector<double>(200);
-    double _likelihood_cutoff = 0.000001
+    vector<double> _elem_vals = vector<double>(_vector_length);
+    double _likelihood_cutoff = 0.000001;
     
     // vals for normal mean vs. variance fit
     double _a = 0.314021;
@@ -69,12 +69,7 @@ public:
         }
     }
 
-    Eigen::VectorXd add_error(double log_counts, int upper_bound) {
-        if (upper_bound != _upper_bound) {
-            cout << "resetting error model upper bound to: " << upper_bound << endl;
-            _upper_bound = upper_bound;
-            set_elem_vals();
-        }
+    Eigen::VectorXd get_error_vector(double log_counts) {
         Eigen::VectorXd likelihood = Eigen::VectorXd::Zero(_vector_length);
         // for loop over vector elements and their rep values, add PDF density
         assert(_elem_vals.size() == likelihood.size());

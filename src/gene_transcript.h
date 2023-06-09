@@ -52,6 +52,7 @@ public:
     gene_transcript(const gene_transcript& other) : _id(other._id), _desc(other._desc), _tissue(other._tissue), _species_size_map(other._species_size_map)
     {
     }
+    
     gene_transcript(gene_transcript&& other) noexcept
     {
         *this = std::move(other);
