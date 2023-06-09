@@ -39,6 +39,7 @@ set(DISCRETIZATION_RANGE "200" CACHE STRING "How finely to divide the continuous
 option(MODEL_GENE_EXPRESSION_LOGS "Perform calculations using log values rather than linear values" ON)
 option(USE_MAX_PROBABILITY "Evaluate probability as maximum value rather than cumulative" OFF)
 option(INCLUDE_GIT_IN_VERSION_INFO "Write information about the last GIT commit into version info" OFF)
+option(VECTOR_DEBUG "Print error moddel-transformed likelihood vectors" OFF)
 
 if (MODEL_GENE_EXPRESSION_LOGS)
   add_definitions(-DMODEL_GENE_EXPRESSION_LOGS)
@@ -64,6 +65,10 @@ if (INCLUDE_GIT_IN_VERSION_INFO)
   add_library(git STATIC ${POST_CONFIGURE_FILE})
   target_include_directories(git PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
   add_dependencies(git check_git)
+endif()
+
+if (VECTOR_DEBUG)
+  add_definitions(-DVECTOR_DEBUG)
 endif()
 
 # add the executable

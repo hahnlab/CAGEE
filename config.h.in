@@ -23,6 +23,7 @@
 #cmakedefine MKL_FOUND @MKL_FOUND@
 #cmakedefine OpenBLAS_FOUND @OpenBLAS_FOUND@
 #cmakedefine GSL_FOUND @GSL_FOUND@
+#cmakedefine VECTOR_DEBUG @VECTOR_DEBUG@
 
 #cmakedefine LOG_OFFSET @LOG_OFFSET@
 

@@ -136,7 +136,7 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
     /* -e */
     if (my_input_parameters.use_parametric_error_model && my_input_parameters.parametic_error_model_specification.empty()) {
         cout << "initializing default error model from user_data.cpp" << endl;
-        int upper_bound = upper_bround_from_transcript_values(gene_transcripts);
+        int upper_bound = upper_bound_from_transcript_values(gene_transcripts);
         p_error_model = new error_model(my_input_parameters.discretization_size, bounds.second);
         p_error_model->print_info();
     } else if (my_input_parameters.use_parametric_error_model && !my_input_parameters.parametic_error_model_specification.empty()) {

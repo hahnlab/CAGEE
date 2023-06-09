@@ -18,9 +18,9 @@ private:
     Eigen::IOFormat _vector_fmt{Eigen::IOFormat(3, 0, ", ", "", "[ ", " ]", "", "", (char)32)};
 
 #ifdef VECTOR_DEBUG
-    std:bool _vprint = true;
+    const bool _vprint = true;
 #else
-    std:bool _vprint = false;
+    const bool _vprint = false;
 #endif
 
 public:

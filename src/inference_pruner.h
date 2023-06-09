@@ -21,7 +21,15 @@ using clademap = std::map<const clade*, T>;
 
 using boundaries = std::pair<double, double>;
 
+#ifdef VECTOR_DEBUG
+    const bool vprint = true;
+#else
+    const bool vprint = false;
+#endif
+
 Eigen::IOFormat vector_fmt{Eigen::IOFormat(3, 0, ", ", "", "[ ", " ]", "", "", (char)32)};
+
+void vlog_vector();
 
 class optional_probabilities
 {
