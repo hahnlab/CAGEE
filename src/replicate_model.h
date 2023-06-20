@@ -17,11 +17,11 @@ class replicate_model
 private:
     Eigen::IOFormat _vector_fmt{Eigen::IOFormat(3, 0, ", ", "", "[ ", " ]", "", "", (char)32)};
 
-#ifdef VECTOR_DEBUG
-    const bool _vprint = true;
-#else
-    const bool _vprint = false;
-#endif
+// #ifdef VECTOR_DEBUG
+//     const bool _vprint = true;
+// #else
+//     const bool _vprint = false;
+// #endif
 
 public:
     // replicate id to species id
@@ -32,6 +32,8 @@ public:
     void verify_replicates(const clade* p_tree, const gene_transcript& t) const;
 
     double get_average_expression_value(const gene_transcript& t, std::string taxon) const;
+
+    void vlog_vector(std::string replicate_name, std::string taxon_name, Eigen::VectorXd likelihood_vector) const;
 };
 
 

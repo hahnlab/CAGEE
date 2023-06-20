@@ -2,6 +2,7 @@
 #define TRANSCRIPT_RECONSTRUCTOR_H
 
 #include "gene_transcript.h"
+#include "Eigen/Dense"
 
 class replicate_model;
 
@@ -14,11 +15,11 @@ class reconstruction {
 private:
     Eigen::IOFormat _vector_fmt{Eigen::IOFormat(3, 0, ", ", "", "[ ", " ]", "", "", (char)32)};
 
-#ifdef VECTOR_DEBUG
-    std:bool _vprint = true;
-#else
-    std:bool _vprint = false;
-#endif
+// #ifdef VECTOR_DEBUG
+//     bool _vprint = true;
+// #else
+//     bool _vprint = false;
+// #endif
 
 public:
     void print_reconstructed_states(std::ostream& ost, transcript_vector& transcripts, const clade* p_tree);

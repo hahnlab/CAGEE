@@ -16,7 +16,7 @@ private:
     long _upper_bound = 1e6;
     double _elem_width = _upper_bound / _vector_length;
     vector<double> _elem_vals = vector<double>(200);
-    double _likelihood_cutoff = 0.000001
+    double _likelihood_cutoff = 0.000001;
     
     // vals for normal mean vs. variance fit
     double _a = 0.314021;
@@ -24,14 +24,14 @@ private:
     double _inv_sqrt_2pi = 1 / sqrt(2 * M_PI);
 
     void set_elem_vals();
-    double calc_variance(double log_counts);
-    double calc_density(double element_val, double log_counts);
+    double calc_variance(double log_counts) const;
+    double calc_density(double element_val, double log_counts) const;
 
 public:
     error_model();
     error_model(int vector_length, long upper_bound);
     error_model(string model_type, int vector_length, long upper_bound, vector<double> model_params);
-    Eigen::VectorXd get_error_vector(double log_counts);
+    Eigen::VectorXd get_error_vector(double log_counts) const;
     void print_info();
 };
 

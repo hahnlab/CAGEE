@@ -12,9 +12,10 @@
 using namespace Eigen;
 using namespace std;
 
-void replicate_model::vlog_vector(std::string replicate_name, std::string taxon_name, VectorXd likelihood_vector) const {
-	VLOG_IF(_vprint, 9) << replicate_name << "\t" << taxon_name << " >>> " << likelihood_vector.transpose().format(_vector_fmt);
-	if( replicate_name == "SUM") VLOG_IF(_vprint, 9) << endl;
+void replicate_model::vlog_vector(std::string replicate_name, std::string taxon_name,
+	Eigen::VectorXd likelihood_vector) const {
+	VLOG(9) << replicate_name << "\t" << taxon_name << " >>> " << likelihood_vector.transpose().format(_vector_fmt);
+	if( replicate_name == "SUM") VLOG(9) << endl;
 }
 
 void replicate_model::apply(const clade* node, const gene_transcript& gene_transcript, boundaries bounds, optional_probabilities& result) const
@@ -25,7 +26,7 @@ void replicate_model::apply(const clade* node, const gene_transcript& gene_trans
 	VectorXd values(Npts);
 	values.setZero();
 	auto t = node->get_taxon_name();
-	VLOG_IF(_vprint, 9) << "gene_id = " << gene_transcript.id();
+	VLOG(9) << "gene_id = " << gene_transcript.id();
 	for (auto p : _replicates)
 	{
 		auto replicate = p.first;

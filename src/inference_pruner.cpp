@@ -62,12 +62,14 @@ void print_probabilities(const std::map<const clade*, VectorXd>& probabilities, 
     cout << endl;
 }
 
-void vlog_vector(bool vprint, std::string taxon_name, std::string gene_id,
+void vlog_vector(std::string taxon_name, std::string gene_id,
     VectorXd likelihood_vector, Eigen::IOFormat vector_fmt
     ) {
-    VLOG_IF(vprint, 9) << taxon_name << " | " << gene_id << " >>> "
+    VLOG(9) << taxon_name << " | " << gene_id << " >>> "
         << likelihood_vector.transpose().format(vector_fmt);
 }
+
+Eigen::IOFormat vector_fmt{Eigen::IOFormat(3, 0, ", ", "", "[ ", " ]", "", "", (char)32)};
 
 void compute_node_probability(const clade* node,
     const gene_transcript& gene_transcript,
@@ -76,9 +78,8 @@ void compute_node_probability(const clade* node,
     std::map<const clade*, optional_probabilities>& probabilities,
     const sigma_squared* p_sigma,
     const matrix_cache& cache,
-    boundaries bounds,
-    bool vprint
-    ) {
+    boundaries bounds)
+{
     if (node->is_leaf()) {
         if (p_replicate_model)
         {
@@ -89,9 +90,9 @@ void compute_node_probability(const clade* node,
         {
             string taxon = node->get_taxon_name();
             double expression_value = gene_transcript.get_expression_value(taxon);
-            Eigen::VectorXd error_vector = p_error_model->get_error_vector(expression_value, bounds.second);
+            Eigen::VectorXd error_vector = p_error_model->get_error_vector(expression_value);
             probabilities[node].set(error_vector);
-            vlog_vector(vprint, taxon, gene_transcript.id(), error_vector, vector_fmt);
+            vlog_vector(taxon, gene_transcript.id(), error_vector, vector_fmt);
             //TODO also print what VectorPos_bounds() would have assigned for comparison
         }
         else
@@ -100,7 +101,7 @@ void compute_node_probability(const clade* node,
             {
                 probabilities[node].initialize(gene_transcript.get_expression_value(node->get_taxon_name()), bounds);
             }
-            catch (missing_expression_value& mev);
+            catch (missing_expression_value& mev)
             {
             }
         }
@@ -192,7 +193,7 @@ void inference_pruner::compute_all_probabilities(const gene_transcript& gf, boun
 {
     unique_ptr<sigma_squared> multiplier(_p_sigsqd->multiply(_sigma_multiplier));
 
-    auto compute_func = [gf, this, bounds, &multiplier](const clade* c) { compute_node_probability(c, gf, _p_error_model, _p_replicate_model, _probabilities, multiplier.get(), _cache, bounds, vprint); };
+    auto compute_func = [gf, this, bounds, &multiplier](const clade* c) { compute_node_probability(c, gf, _p_error_model, _p_replicate_model, _probabilities, multiplier.get(), _cache, bounds); };
     for_each(_p_tree->reverse_level_begin(), _p_tree->reverse_level_end(), compute_func);
 
 }

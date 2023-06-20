@@ -21,13 +21,13 @@ using clademap = std::map<const clade*, T>;
 
 using boundaries = std::pair<double, double>;
 
-#ifdef VECTOR_DEBUG
-    const bool vprint = true;
-#else
-    const bool vprint = false;
-#endif
+// #ifdef VECTOR_DEBUG
+//     const bool vprint = true;
+// #else
+//     const bool vprint = false;
+// #endif
 
-Eigen::IOFormat vector_fmt{Eigen::IOFormat(3, 0, ", ", "", "[ ", " ]", "", "", (char)32)};
+extern Eigen::IOFormat vector_fmt;
 
 void vlog_vector();
 

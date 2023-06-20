@@ -18,10 +18,10 @@ public:
     bool is_simulating = false;
     int nsims = 0;
     int n_gamma_cats = 1;
-    bool exclude_zero_rogit ot_transcripts = false;
-    bool use_error_model = false;
-    // bool use_parametric_error_model = false;
-    // string parametric_error_model_specification;
+    bool exclude_zero_root_transcripts = false;
+    // bool use_error_model = false;
+    std::string parametric_error;
+    bool use_parametric_error_model = false;
     bool count_all_changes = false;
     int verbose_logging_level = 0;
     int cores = 0;
