@@ -18,7 +18,10 @@ void replicate_model::apply(const clade* node, const gene_transcript& gene_trans
 
 	bool rep_found = false;
 	VectorXd values(Npts);
-	values.setZero();
+	// values.setZero();
+	//TODO set vector init values such that multiplication will work below
+	// VectorXd values = VectorXd:Constant(Npts, 1); ? but this will still leave 1s after *= ....
+	// or values.setOnes();
 	auto t = node->get_taxon_name();
 	for (auto p : _replicates)
 	{
@@ -32,7 +35,7 @@ void replicate_model::apply(const clade* node, const gene_transcript& gene_trans
 			double expression_value = gene_transcript.get_expression_value(replicate);
 			VectorPos_bounds(expression_value, bounds, rep_values);
 			//values += rep_values;
-			values *= rep_values; // try multiplication
+			values = values.cwiseProduct(rep_values); // try Eigen coefficient-wise multiplication
 		}
 	}
 	if (rep_found)
