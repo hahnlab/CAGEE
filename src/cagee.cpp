@@ -48,6 +48,7 @@ int cagee(int argc, char *const argv[]) {
         data.read_datafiles(user_input);
 
         LOG(INFO) << "Command line: " << user_input.command_line;
+        cout << "!! muliplying nonparametric error individual vectors !!" << endl;
 
         if (user_input.exclude_zero_root_transcripts)
         {
