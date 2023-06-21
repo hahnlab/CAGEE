@@ -12,6 +12,8 @@
 using namespace Eigen;
 using namespace std;
 
+cout << "muliplying nonparametric error individual vectors" << endl;
+
 void replicate_model::apply(const clade* node, const gene_transcript& gene_transcript, boundaries bounds, optional_probabilities& result) const
 {
 	int Npts = result.capacity();
@@ -31,7 +33,8 @@ void replicate_model::apply(const clade* node, const gene_transcript& gene_trans
 
 			double expression_value = gene_transcript.get_expression_value(replicate);
 			VectorPos_bounds(expression_value, bounds, rep_values);
-			values += rep_values;
+			//values += rep_values;
+			values *= rep_values; // try multiplication
 		}
 	}
 	if (rep_found)
