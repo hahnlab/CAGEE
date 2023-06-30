@@ -17,11 +17,10 @@ void replicate_model::apply(const clade* node, const gene_transcript& gene_trans
 	int Npts = result.capacity();
 
 	bool rep_found = false;
-	VectorXd values(Npts);
+	// VectorXd values(Npts);
 	// values.setZero();
-	//TODO set vector init values such that multiplication will work below
-	// VectorXd values = VectorXd:Constant(Npts, 1); ? but this will still leave 1s after *= ....
-	// or values.setOnes();
+	// set vector init values such that multiplication will work below
+	VectorXd values = VectorXd::Constant(Npts, 1);
 	auto t = node->get_taxon_name();
 	for (auto p : _replicates)
 	{
