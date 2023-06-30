@@ -145,7 +145,7 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
         //TODO parse the specification string and init the error model
     }
     else {
-        throw(std::runtime_error("something has gone wrong - error model not initialized !!"));
+        cout << "running without parametric error model" << endl;
     }
 
     if (!my_input_parameters.replicate_model_file_path.empty())
