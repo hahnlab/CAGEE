@@ -141,11 +141,11 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
         p_error_model->print_info();
     }
     else if (my_input_parameters.use_parametric_error_model && (!my_input_parameters.parametric_error.empty())) {
-        throw("specificiation of parametric error not yet supported");
+        throw(std::runtime_error("specificiation of parametric error not yet supported"));
         //TODO parse the specification string and init the error model
     }
     else {
-        throw("something has gone wrong - error model not initialized !!");
+        throw(std::runtime_error("something has gone wrong - error model not initialized !!"));
     }
 
     if (!my_input_parameters.replicate_model_file_path.empty())
