@@ -13,7 +13,7 @@ private:
 
     string _model_type = "normal";
     int _vector_length = 200;
-    long _upper_bound = 1e6;
+    double _upper_bound = 1e6;
     double _elem_width = _upper_bound / _vector_length;
     vector<double> _elem_vals = vector<double>(200);
     double _likelihood_cutoff = 0.000001;
@@ -29,7 +29,7 @@ private:
 
 public:
     error_model();
-    error_model(int vector_length, long upper_bound);
+    error_model(int vector_length, double upper_bound);
     error_model(string model_type, int vector_length, long upper_bound, vector<double> model_params);
     Eigen::VectorXd get_error_vector(double log_counts) const;
     void print_info();

@@ -27,12 +27,11 @@ double error_model::calc_density(double element_val, double log_counts) const {
     return A * exp(-0.5 * B * B);
 }
 
-error_model::error_model() { set_elem_vals(); print_info(); }
-
 // for default normal with user-specified likelihood vector
-error_model::error_model(int vector_length, long upper_bound) {
-    _vector_length = vector_length;
-    _upper_bound = upper_bound;
+error_model::error_model(int vector_length, double upper_bound)
+    : _vector_length{ vector_length }, _upper_bound{upper_bound}
+{
+    cout << "initialized error model with int vector_length and double upper_bound constructor" << endl;
     set_elem_vals();
     print_info();
 }
