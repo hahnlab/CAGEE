@@ -38,14 +38,14 @@ public:
 
     }
 
-    std::map<std::string, clademap<node_reconstruction>> _reconstructions;
+    std::map<const gene_transcript*, clademap<node_reconstruction>> _reconstructions;
 
     node_reconstruction get_internal_node_value(const gene_transcript& transcript, const clade* c) const
     {
-        if (_reconstructions.find(transcript.id()) == _reconstructions.end())
+        if (_reconstructions.find(&transcript) == _reconstructions.end())
             throw runtime_error("Transcript " + transcript.id() + " not found in reconstruction");
 
-        return _reconstructions.at(transcript.id()).at(c);
+        return _reconstructions.at(&transcript).at(c);
     }
 
 };
@@ -195,7 +195,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
     for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
     {
-        auto &rc = result->_reconstructions[ud.gene_transcripts[i].id()];
+        auto &rc = result->_reconstructions[&ud.gene_transcripts[i]];
         ud.p_tree->apply_prefix_order([&rc](const clade* c) {
             rc[c].most_likely_value = 0;
             });
@@ -205,7 +205,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
     for (size_t i = 0; i< ud.gene_transcripts.size(); ++i)
     {
-        result->_reconstructions[ud.gene_transcripts[i].id()] = tr.reconstruct(ud.gene_transcripts[i], ud.bounds);
+        result->_reconstructions[&ud.gene_transcripts[i]] = tr.reconstruct(ud.gene_transcripts[i], ud.bounds);
     }
 
     LOG(INFO) << "Done!\n";
@@ -310,36 +310,29 @@ TEST_CASE("infer_transcript_likelihoods returns invalid on invalid prior")
     CHECK_EQ(-log(0),  model.infer_transcript_likelihoods(ud, &ss));
 }
 
-class Reconstruction
+#define CHECK_STREAM_CONTAINS(x,y) CHECK_MESSAGE(x.str().find(y) != std::string::npos, x.str())
+
+TEST_CASE("base_model_reconstruction__print_reconstructed_states")
 {
-public:
-    gene_transcript fam;
+    gene_transcript gf("Family5", "", "");
+    gf.set_expression_value("A", pv::to_computational_space(11));
+    gf.set_expression_value("B", pv::to_computational_space(2));
+    gf.set_expression_value("C", pv::to_computational_space(5));
+    gf.set_expression_value("D", pv::to_computational_space(6));
+
+    transcript_vector transcripts{ gf };
     unique_ptr<clade> p_tree;
     cladevector order;
 
-    Reconstruction() : fam("Family5", "", "")
-    {
-        p_tree.reset(parse_newick("((A:1,B:3):7,(C:11,D:17):23);"));
+    p_tree.reset(parse_newick("((A:1,B:3):7,(C:11,D:17):23);"));
 
-        fam.set_expression_value("A", pv::to_computational_space(11));
-        fam.set_expression_value("B", pv::to_computational_space(2));
-        fam.set_expression_value("C", pv::to_computational_space(5));
-        fam.set_expression_value("D", pv::to_computational_space(6));
+    vector<string> nodes{ "A", "B", "C", "D", "AB", "CD", "ABCD" };
+    order.resize(nodes.size());
+    const clade* t = p_tree.get();
+    transform(nodes.begin(), nodes.end(), order.begin(), [t](string s) { return t->find_descendant(s); });
 
-        vector<string> nodes{ "A", "B", "C", "D", "AB", "CD", "ABCD" };
-        order.resize(nodes.size());
-        const clade* t = p_tree.get();
-        transform(nodes.begin(), nodes.end(), order.begin(), [t](string s) { return t->find_descendant(s); });
-
-    }
-};
-
-#define CHECK_STREAM_CONTAINS(x,y) CHECK_MESSAGE(x.str().find(y) != std::string::npos, x.str())
-
-TEST_CASE_FIXTURE(Reconstruction, "base_model_reconstruction__print_reconstructed_states")
-{
     base_model_reconstruction bmr(nullptr);
-    auto& values = bmr._reconstructions["Family5"];
+    auto& values = bmr._reconstructions[&transcripts[0]];
 
     values[p_tree.get()].most_likely_value = pv::to_computational_space(7);
     values[p_tree->find_descendant("AB")].most_likely_value = pv::to_computational_space(8);
@@ -347,7 +340,7 @@ TEST_CASE_FIXTURE(Reconstruction, "base_model_reconstruction__print_reconstructe
 
     ostringstream ost;
 
-    bmr.print_reconstructed_states(ost, { fam }, p_tree.get());
+    bmr.print_reconstructed_states(ost, transcripts, p_tree.get());
     CHECK_STREAM_CONTAINS(ost, "#nexus");
     CHECK_STREAM_CONTAINS(ost, "BEGIN TREES;");
     CHECK_STREAM_CONTAINS(ost, "  TREE Family5 = ((A<1>_11:1,B<2>_2:3)<6>_8:7,(C<3>_5:11,D<4>_6:17)<7>_6:23)<5>_7;");
@@ -369,8 +362,8 @@ TEST_CASE("increase_decrease")
 
     gf.set_expression_value("A", pv::to_computational_space(4));
     gf.set_expression_value("B", pv::to_computational_space(2));
-    bmr._reconstructions["myid"][ab].most_likely_value = pv::to_computational_space(3);
-    bmr._reconstructions["myid"][abcd].most_likely_value = pv::to_computational_space(3);
+    bmr._reconstructions[&gf][ab].most_likely_value = pv::to_computational_space(3);
+    bmr._reconstructions[&gf][abcd].most_likely_value = pv::to_computational_space(3);
 
     CHECK_EQ(doctest::Approx(1.0), bmr.get_difference_from_parent(gf, a));
     CHECK_EQ(doctest::Approx(-1.0), bmr.get_difference_from_parent(gf, b));

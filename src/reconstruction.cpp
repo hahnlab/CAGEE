@@ -110,13 +110,21 @@ void reconstruction::print_increases_decreases_by_clade(std::ostream& ost, const
     }
 }
 
+
+template<typename T>
+void write_node_ordered(std::ostream& ost, const gene_transcript& gt, bool has_tissues, const std::vector<const clade*>& order, std::function<T(const clade* c)> f = nullptr)
+{
+    write_node_ordered(ost, gt.id() + (has_tissues ? "\t" + gt.tissue() : ""), order, f);
+}
+
 template<typename T>
 void print_family_clade_table(std::ostream& ost, const cladevector& order, transcript_vector& gene_transcripts, const clade* p_tree, std::function<T(const gene_transcript& transcript, const clade *c)> get_family_clade_value)
 {
-    write_node_ordered<const clade*>(ost, "TranscriptID", order);
+    bool has_tissues = any_of(gene_transcripts.begin(), gene_transcripts.end(), [](const gene_transcript& g) { return !g.tissue().empty(); });
+    write_node_ordered<const clade*>(ost, has_tissues ? "TranscriptID\tSAMPLETYPE" : "TranscriptID" , order);
     for (auto& transcript : gene_transcripts)
     {
-        write_node_ordered<T>(ost, transcript.id(), order, [&transcript, get_family_clade_value](const clade* c) { return get_family_clade_value(transcript, c); });
+        write_node_ordered<T>(ost, transcript, has_tissues, order, [&transcript, get_family_clade_value](const clade* c) { return get_family_clade_value(transcript, c); });
     }
 }
 
@@ -129,12 +137,10 @@ double node_value(const clade* node, const gene_transcript& transcript, const re
 void reconstruction::print_reconstructed_states(std::ostream& ost, transcript_vector& transcripts, const clade* p_tree)
 {
     ost << "#nexus\nBEGIN TREES;\n";
-    for (size_t i = 0; i < transcripts.size(); ++i)
+    for (auto& gene_transcript : transcripts)
     {
-        auto& gene_transcript = transcripts[i];
-
         function<void(std::ostream& ost, const clade*)> text_func;
-        text_func = [gene_transcript, this](std::ostream& ost, const clade* node) {
+        text_func = [&gene_transcript, this](std::ostream& ost, const clade* node) {
             ost << *node << "_";
             try
             {
@@ -418,6 +424,38 @@ TEST_CASE("Reconstruction: print_increases_decreases_by_clade includes clades in
     CHECK_STREAM_CONTAINS(ost, "#Taxon_ID\tIncrease\tDecrease");
     CHECK_STREAM_CONTAINS(ost, "A<1>\t1\t0");
     CHECK_STREAM_CONTAINS(ost, "B<2>\t0\t1");
+}
+
+TEST_CASE("print_family_clade_table prints simple header and fields")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    ostringstream ost;
+    cladevector order{ p_tree->find_descendant("A"), p_tree->find_descendant("B"), p_tree->find_descendant("AB") };
+    vector<gene_transcript> transcripts;
+    gene_transcript gf("myid", "", "");
+    transcripts.push_back(gf);
+
+    print_family_clade_table<double>(ost, order, transcripts, p_tree.get(), [](const gene_transcript& transcript, const clade* c) {
+        return 3;
+        });
+    CHECK_STREAM_CONTAINS(ost, "TranscriptID\tA<1>\tB<2>\t<3>");
+    CHECK_STREAM_CONTAINS(ost, "myid\t3\t3\t3");
+}
+
+TEST_CASE("print_family_clade_table prints header and fields with tissue")
+{
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    ostringstream ost;
+    cladevector order{ p_tree->find_descendant("A"), p_tree->find_descendant("B"), p_tree->find_descendant("AB") };
+    vector<gene_transcript> transcripts;
+    gene_transcript gf("myid", "", "lungs");
+    transcripts.push_back(gf);
+
+    print_family_clade_table<double>(ost, order, transcripts, p_tree.get(), [](const gene_transcript& transcript, const clade* c) {
+        return 3;
+        });
+    CHECK_STREAM_CONTAINS(ost, "TranscriptID\tSAMPLETYPE\tA<1>\tB<2>\t<3>");
+    CHECK_STREAM_CONTAINS(ost, "myid\tlungs\t3\t3\t3");
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "get_difference_from_parent")
