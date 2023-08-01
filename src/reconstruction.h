@@ -12,14 +12,14 @@ struct node_reconstruction {
 
 class reconstruction {
 public:
-    void print_reconstructed_states(std::ostream& ost, transcript_vector& transcripts, const clade* p_tree);
+    void print_reconstructed_states(std::ostream& ost, const clade* p_tree);
 
-    void print_increases_decreases_by_clade(std::ostream& ost, const clade* p_tree, transcript_vector& transcripts, bool count_all_changes);
+    void print_increases_decreases_by_clade(std::ostream& ost, const clade* p_tree, bool count_all_changes);
 
-    void write_results(std::string output_prefix, const clade* p_tree, transcript_vector& families, bool count_all_changes);
+    void write_results(std::string output_prefix, const clade* p_tree, bool count_all_changes);
 
-    reconstruction() : _p_replicates(nullptr) {};
-    reconstruction(replicate_model* p_replicate) : _p_replicates(p_replicate) {};
+    reconstruction(transcript_vector& transcripts) : reconstruction(transcripts, nullptr) {};
+    reconstruction(transcript_vector& transcripts, replicate_model* p_replicate) : _transcripts(transcripts), _p_replicates(p_replicate) {};
 
     virtual ~reconstruction()
     {
@@ -31,8 +31,10 @@ public:
 
     double get_leaf_node_value(const gene_transcript& gf, const clade* c) const;
 
+protected:
+    transcript_vector& _transcripts;
 private:
-    virtual void print_additional_data(transcript_vector& transcripts, std::string output_prefix) {};
+    virtual void print_additional_data(std::string output_prefix) {};
 
     virtual void write_nexus_extensions(std::ostream& ost) {};
 

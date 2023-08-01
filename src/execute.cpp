@@ -131,7 +131,7 @@ void estimator::execute(std::vector<model *>& models)
 
             std::unique_ptr<reconstruction> rec(p_model->reconstruct_ancestral_states(data, &cache));
 
-            rec->write_results(_user_input.output_prefix, data.p_tree, data.gene_transcripts, _user_input.count_all_changes);
+            rec->write_results(_user_input.output_prefix, data.p_tree, _user_input.count_all_changes);
         }
     }
     catch (const OptimizerInitializationFailure& e )
