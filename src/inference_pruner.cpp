@@ -66,7 +66,7 @@ void vlog_vector(std::string taxon_name, std::string gene_id,
     VectorXd likelihood_vector, Eigen::IOFormat vector_fmt
     ) {
     VLOG(9) << taxon_name << " | " << gene_id << " >>> "
-        << likelihood_vector.transpose().format(vector_fmt);
+        << likelihood_vector;//.transpose().format(vector_fmt);
 }
 
 Eigen::IOFormat vector_fmt{Eigen::IOFormat(3, 0, ", ", "", "[ ", " ]", "", "", (char)32)};
@@ -92,7 +92,8 @@ void compute_node_probability(const clade* node,
             double expression_value = gene_transcript.get_expression_value(taxon);
             Eigen::VectorXd error_vector = p_error_model->get_error_vector(expression_value);
             probabilities[node].set(error_vector);
-            vlog_vector(taxon, gene_transcript.id(), error_vector, vector_fmt);
+            //vlog_vector(taxon, gene_transcript.id(), error_vector, vector_fmt);
+            VLOG(9) << taxon << " | " << gene_transcript.id() << " >>> " << error_vector.transpose().format(vector_fmt);
             //TODO also print what VectorPos_bounds() would have assigned for comparison
         }
         else
