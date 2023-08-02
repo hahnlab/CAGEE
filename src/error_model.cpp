@@ -16,7 +16,8 @@ void error_model::set_elem_vals() {
 
 // current normal log counts variance fit = a * exp(r * log_counts)
 double error_model::calc_variance(double log_counts) const { 
-    return _a * exp(_r * log_counts);
+    //return _a * exp(_r * log_counts);
+    return 0.25;
 }
 
 // normal pdf = (1 / s * sqrt(2 * pi)) * exp(-0.5 * ((x - mu) / s)^2)
