@@ -38,7 +38,7 @@ error_model::error_model(int vector_length, double upper_bound)
 }
 
 // for default normal with custom model parameters, or future non-normal model
-error_model::error_model(int vector_length, long upper_bound, model_params model_params)
+error_model::error_model(int vector_length, long upper_bound, struct model_params model_params)
     : _vector_length{vector_length}, _upper_bound{upper_bound}
 {
     if(model_params.model_type == "normal") {

@@ -21,6 +21,12 @@ using boundaries = std::pair<double, double>;
 
 int upper_bound_from_transcript_values(const std::vector<gene_transcript>& transcripts);
 
+// typedef struct model_params {
+//     std::string model_type;
+//     double a;
+//     double r;
+// } model_params;
+
 /// Class holding data defined by the user, or derived from data defined by the user
 class user_data {
 public:
