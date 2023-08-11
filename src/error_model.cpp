@@ -1,5 +1,6 @@
 #include <cassert>
 #include <stdexcept>
+//#include <utility>
 #include "error_model.h"
 
 using namespace std;
@@ -29,22 +30,23 @@ double error_model::calc_density(double element_val, double log_counts) const {
 
 // for default normal with user-specified likelihood vector
 error_model::error_model(int vector_length, double upper_bound)
-    : _vector_length{ vector_length }, _upper_bound{upper_bound}
+    : _vector_length{vector_length}, _upper_bound{upper_bound}
 {
-    cout << "initialized error model with int vector_length and double upper_bound constructor" << endl;
+    cout << "initialized default parametric error model" << endl;
     set_elem_vals();
     print_info();
 }
 
 // for default normal with custom model parameters, or future non-normal model
-error_model::error_model(string model_type, int vector_length, long upper_bound, vector<double> model_params) {
-    if(model_type == "normal") {
-        _model_type = model_type;
-        _vector_length = vector_length;
-        _upper_bound = upper_bound;
-        _a = model_params[0];
-        _r = model_params[1];
+error_model::error_model(int vector_length, long upper_bound, model_params model_params)
+    : _vector_length{vector_length}, _upper_bound{upper_bound}
+{
+    if(model_params.model_type == "normal") {
+        _model_type = model_params.model_type;
+        _a = model_params.a;
+        _r = model_params.r;
         set_elem_vals();
+        cout << "initialized parametric error model with custom parameters" << endl;
         print_info();
     } else {
         throw invalid_argument("only NORMAL parametric error model currently supported");
@@ -65,8 +67,8 @@ Eigen::VectorXd error_model::get_error_vector(double log_counts) const {
 }
 
 void error_model::print_info() {
-    cout << "initializing " << _model_type << " error model with parameters:" << endl;
-    cout << "  fitting var = a * exp(r * log_counts)" << endl;
+    cout << "initialized " << _model_type << " error model with parameters:" << endl;
+    cout << "  fitting variance = a * exp(r * log_counts)" << endl;
     cout << "      a = " << _a << endl;
     cout << "      r = " << _r << endl;
     cout << "  likelihood vector length = " << _vector_length << endl;

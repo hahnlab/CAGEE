@@ -135,16 +135,21 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
 
     /* -e */
     if (my_input_parameters.use_parametric_error_model && (my_input_parameters.parametric_error == "true")) {
-        cout << "initializing default error model from user_data.cpp" << endl;
-        int upper_bound = upper_bound_from_transcript_values(gene_transcripts);
+        cout << "!! instantiating default error model from user_data.cpp !!" << endl;
         p_error_model = new error_model(my_input_parameters.discretization_size, bounds.second);
     }
     else if (my_input_parameters.use_parametric_error_model && (!my_input_parameters.parametric_error.empty())) {
-        throw(std::runtime_error("specificiation of parametric error not yet supported"));
-        //TODO parse the specification string and init the error model
+        cout << "!! instantiating custom error model from user_data.cpp !!" << endl;
+        std::vector<std::string> params = tokenize_str(my_input_parameters.parametric_error, ':');
+        struct {
+            std::string model_type = params[0];
+            double a = to_double(params[1]);
+            double r = to_touble(params[2]);
+        } model_params;
+        p_error_model = new error_model(my_input_parameters.discretization_size, bounds.second, model_params);
     }
     else {
-        cout << "running without parametric error model" << endl;
+        cout << "!! running without parametric error model !!" << endl;
     }
 
     if (!my_input_parameters.replicate_model_file_path.empty())
