@@ -1,6 +1,6 @@
 #!/bin/bash
 # quickly rebuild local cagee without running cmake config or tests
-# jtourig / hahnlab 2022
+# jtourig / hahnlab 2023
 
 set -euo pipefail
 
@@ -14,16 +14,15 @@ set_wd() { cd "${0%/*}" && msg "set current working dir to script dir:\n    ${PW
 set_wd 				# go to CAGEE/utils/ dir
 msg "Quick-building CAGEE from current local source..."
 
-msg "removing existing build and install dirs if present..."
-{ [[ -d ../build/ ]] && rm -vr ../build/; } || msg '../build/ not found'
+msg "removing existing install dir if present..."
 { [[ -d ../install/ ]] && rm -vr ../install/; } || msg '../install/ not found'
 
 msg 'creating new build and install dirs...'
-mkdir -vp ../build/ ../install/
-cd ../build/ && msg "moved to $PWD"
+mkdir -vp ../install/
+{ cd ../build/ && msg "moved to $PWD"; } || err "could not enter build dir"
 
 msg "building CAGEE with $procs procs"
-make -j "$procs" && make install
+{ make -j "$procs" && make install; } || err "problem running make"
 msg "CAGEE built and installed to CAGEE/install/bin/cagee"
 
 msg "done quick-building local CAGEE !!"

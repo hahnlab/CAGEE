@@ -2,6 +2,7 @@
 #include <stdexcept>
 //#include <utility>
 #include "error_model.h"
+#include "user_data.h"
 
 using namespace std;
 
@@ -29,8 +30,8 @@ double error_model::calc_density(double element_val, double log_counts) const {
 }
 
 // for default normal with user-specified likelihood vector
-error_model::error_model(int vector_length, double upper_bound)
-    : _vector_length{vector_length}, _upper_bound{upper_bound}
+error_model::error_model(int vector_length, int upper_bound)
+    : _vector_length{ vector_length }, _upper_bound{ upper_bound }
 {
     cout << "initialized default parametric error model" << endl;
     set_elem_vals();
@@ -38,18 +39,18 @@ error_model::error_model(int vector_length, double upper_bound)
 }
 
 // for default normal with custom model parameters, or future non-normal model
-error_model::error_model(int vector_length, long upper_bound, struct model_params model_params)
-    : _vector_length{vector_length}, _upper_bound{upper_bound}
+error_model::error_model(int vector_length, int upper_bound, model_params model_params)
+    : _vector_length{ vector_length }, _upper_bound{ upper_bound }
 {
     if(model_params.model_type == "normal") {
+        cout << "initializing parametric error model with custom parameters..." << endl;
         _model_type = model_params.model_type;
         _a = model_params.a;
         _r = model_params.r;
         set_elem_vals();
-        cout << "initialized parametric error model with custom parameters" << endl;
         print_info();
     } else {
-        throw invalid_argument("only NORMAL parametric error model currently supported");
+        throw invalid_argument("only 'NORMAL' parametric error model currently supported");
     }
 }
 

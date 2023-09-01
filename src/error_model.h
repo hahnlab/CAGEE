@@ -3,7 +3,7 @@
 #include <vector>
 #include <Eigen/Dense>
 #include <cmath>
-#include "error_model.h"
+#include "user_data.h"
 
 using namespace std;
 
@@ -12,9 +12,9 @@ class error_model {
 private:
 
     string _model_type = "normal";
-    int _vector_length = 200;
-    double _upper_bound = 1e6;
-    double _elem_width = _upper_bound / _vector_length;
+    int _vector_length;
+    int _upper_bound;
+    double _elem_width;
     vector<double> _elem_vals = vector<double>(200);
     double _likelihood_cutoff = 0.000001;
     
@@ -27,10 +27,12 @@ private:
     double calc_variance(double log_counts) const;
     double calc_density(double element_val, double log_counts) const;
 
+
 public:
+
     error_model();
-    error_model(int vector_length, double upper_bound);
-    error_model(string model_type, int vector_length, long upper_bound, vector<double> model_params);
+    error_model(int vector_length, int upper_bound);
+    error_model(int vector_length, int upper_bound, model_params model_params);
     Eigen::VectorXd get_error_vector(double log_counts) const;
     void print_info();
 };
