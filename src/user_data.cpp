@@ -141,6 +141,8 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
     else if (my_input_parameters.use_parametric_error_model && (!my_input_parameters.parametric_error.empty())) {
         cout << "!! instantiating custom error model from user_data.cpp !!" << endl;
         std::vector<std::string> params = tokenize_str(my_input_parameters.parametric_error, ':');
+        cout << "!! " << my_input_parameters.parametric_error << " !!" << endl;
+        for(auto word : params) cout << word << endl;
         model_params model_params{ params[0], std::stod(params[1]), std::stod(params[2]) };
         p_error_model = new error_model(my_input_parameters.discretization_size, bounds.second, model_params);
     }

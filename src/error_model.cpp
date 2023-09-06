@@ -8,8 +8,8 @@ using namespace std;
 
 // set element values of likelihood vector for pdf input
 void error_model::set_elem_vals() {
-    _elem_vals = vector<double> (_vector_length);
-    _elem_width = _upper_bound / _vector_length;
+    _elem_vals = vector<double>(_vector_length);
+    _elem_width = static_cast<double>(_upper_bound) / static_cast<double>(_vector_length);
     _elem_vals[0] = 0.5 * _elem_width;
     for(size_t i = 1; i < _elem_vals.size(); i++){
         _elem_vals[i] = _elem_vals[i - 1] + _elem_width;
