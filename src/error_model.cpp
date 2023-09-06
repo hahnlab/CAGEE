@@ -57,8 +57,8 @@ error_model::error_model(int vector_length, int upper_bound, model_params model_
 Eigen::VectorXd error_model::get_error_vector(double log_counts) const {
     Eigen::VectorXd likelihood = Eigen::VectorXd::Zero(_vector_length);
     // for loop over vector elements and their rep values, add PDF density
-    assert(_elem_vals.size() == likelihood.size());
-    for(size_t i = 0; i < likelihood.size(); i++) {
+    assert(_elem_vals.size() == (size_t) likelihood.size());
+    for(size_t i = 0; i < (size_t) likelihood.size(); i++) {
         likelihood(i) = calc_density(_elem_vals[i], log_counts);
     }
     // renormalize total likelihood to 1
