@@ -192,19 +192,16 @@ sigma_squared::sigma_squared(ss_resolver* p_resolver, const std::vector<double>&
 
 }
 
+sigma_squared::sigma_squared(const sigma_squared& other, double multiplier) :
+    _p_resolver(other._p_resolver->clone())
+{
+    _values.resize(other._values.size());
+    transform(other._values.begin(), other._values.end(), _values.begin(), [multiplier](double d) { return d * multiplier; });
+}
+
 sigma_squared::~sigma_squared()
 {
     delete _p_resolver;
-}
-
-sigma_squared* sigma_squared::multiply(double factor) const
-{
-    auto npi = _values;
-
-    for (auto& i : npi)
-        i *= factor;
-
-    return new sigma_squared(_p_resolver->clone(), npi);
 }
 
 int sigma_squared::count() const {
@@ -316,6 +313,20 @@ TEST_CASE("lineage_specific sigma returns correct values")
     CHECK_EQ(.017, ml.get_named_value(p_tree->find_descendant("A"), t));
     CHECK_EQ(.011, ml.get_named_value(p_tree->find_descendant("B"), t));
 
+}
+
+TEST_CASE("Multiplier constructor")
+{
+    sigma_squared s(75.5);
+    sigma_squared s2(s, 2.0);
+    CHECK_EQ(151, s2.get_values()[0]);
+
+    sigma_squared s3(new ss_resolver_uniform(), { 3.0, 5.0});
+    sigma_squared s4(s3, 0.1);
+    REQUIRE_EQ(2, s4.get_values().size());
+
+    CHECK_EQ(doctest::Approx(0.3), s4.get_values()[0]);
+    CHECK_EQ(doctest::Approx(0.5), s4.get_values()[1]);
 }
 
 TEST_CASE("sample_specific sigma returns correct values")

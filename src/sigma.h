@@ -19,9 +19,11 @@ public:
     sigma_squared(ss_resolver *p_resolver, size_t sz);
     sigma_squared(ss_resolver* p_resolver, const std::vector<double>& v);
 
+    // multiplier constructor
+    sigma_squared(const sigma_squared& other, double mutiplier);
+
     ~sigma_squared();
 
-    sigma_squared* multiply(double factor) const;
     void update(const double* values) ;
     int count() const;
 

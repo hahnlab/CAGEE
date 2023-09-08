@@ -53,7 +53,7 @@ class inference_pruner
 
     clademap<optional_probabilities> _probabilities;
 
-    void compute_all_probabilities(const gene_transcript& gf, double multiplier);
+    void compute_all_probabilities(const gene_transcript& gf);
 public:
     inference_pruner(const matrix_cache& cache,
         const sigma_squared* sigma,
@@ -68,7 +68,7 @@ public:
 
     }
 
-    std::vector<double> prune(const gene_transcript& gf, double multiplier = 1.0);
+    std::vector<double> prune(const gene_transcript& gf);
 
     clademap<node_reconstruction> reconstruct(const gene_transcript& gf);
 };

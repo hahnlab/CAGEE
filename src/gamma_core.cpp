@@ -116,7 +116,7 @@ void gamma_model::write_probabilities(ostream& ost)
 sigma_squared* gamma_model::get_simulation_sigma()
 {
     discrete_distribution<int> dist(_gamma_cat_probs.begin(), _gamma_cat_probs.end());
-    return _p_sigma->multiply(_sigma_multipliers[dist(randomizer_engine)]);
+    return new sigma_squared(*_p_sigma, _sigma_multipliers[dist(randomizer_engine)]);
 }
 
 std::vector<double> gamma_model::get_posterior_probabilities(std::vector<double> cat_likelihoods)
@@ -196,8 +196,8 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
     vector<double> multipliers;
     for (auto multiplier : _sigma_multipliers)
     {
-        unique_ptr<sigma_squared> mult(p_sigma->multiply(multiplier));
-        auto values = mult->get_values();
+        sigma_squared mult(*p_sigma, multiplier);
+        auto values = mult.get_values();
         multipliers.insert(multipliers.end(), values.begin(), values.end());
     }
     cache.precalculate_matrices(multipliers, ud.p_tree->get_branch_lengths(), ud.bounds);
@@ -205,12 +205,16 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
     vector<inference_pruner> pruners;
     pruners.reserve(ud.gene_transcripts.size() * multipliers.size());
 
-    // create a set of pruners, one for each combination of transcript and multiplier  
-    // replace the following code with a generate_n call  
+    vector<sigma_squared> sigmas;
+    for (auto m : multipliers)
+    {
+        sigmas.emplace_back(*p_sigma, m);
+    }
     for (size_t i = 0; i<ud.gene_transcripts.size(); ++i)
-        for (size_t j = 0; j<multipliers.size(); ++j)
-            pruners.push_back(inference_pruner(cache, p_sigma, _p_error_model, ud.p_replicate_model, ud.p_tree, ud.bounds));
-
+        for (size_t j = 0; j<sigmas.size(); ++j)
+        {
+            pruners.push_back(inference_pruner(cache, &sigmas[j], _p_error_model, ud.p_replicate_model, ud.p_tree, ud.bounds));
+        }
 
 #pragma omp parallel for
     for (size_t i = 0; i < ud.gene_transcripts.size(); i++) {
@@ -321,9 +325,9 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
     for (size_t k = 0; k < _gamma_cat_probs.size(); ++k)
     {
         VLOG(1) << "Reconstructing for multiplier " << _sigma_multipliers[k];
-        unique_ptr<sigma_squared> ml(_p_sigma->multiply(_sigma_multipliers[k]));
+        sigma_squared ml(*_p_sigma, _sigma_multipliers[k]);
 
-        inference_pruner tr(ml.get(), ud.p_tree, ud.p_replicate_model, calc, ud.bounds);
+        inference_pruner tr(&ml, ud.p_tree, ud.p_replicate_model, calc, ud.bounds);
 
         for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
         {

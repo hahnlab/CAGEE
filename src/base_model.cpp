@@ -215,7 +215,7 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
 sigma_squared* base_model::get_simulation_sigma()
 {
-    return _p_sigma->multiply(simulation_sigma_multiplier);
+    return new sigma_squared(*_p_sigma, simulation_sigma_multiplier);
 }
 
 TEST_CASE("compute_prior_likelihood combines prior and inference correctly")
