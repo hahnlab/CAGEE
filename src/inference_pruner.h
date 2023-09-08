@@ -49,28 +49,28 @@ class inference_pruner
     const error_model* _p_error_model;
     const replicate_model* _p_replicate_model;
     const clade* _p_tree;
-    const double _sigma_multiplier;
+    const boundaries _bounds;
 
     clademap<optional_probabilities> _probabilities;
 
-    void compute_all_probabilities(const gene_transcript& gf, boundaries bounds);
+    void compute_all_probabilities(const gene_transcript& gf, double multiplier);
 public:
     inference_pruner(const matrix_cache& cache,
         const sigma_squared* sigma,
         const error_model* p_error_model,
         const replicate_model* p_replicate_model,
         const clade* _p_tree,
-        double _sigma_multiplier);
+        boundaries bounds);
 
-    inference_pruner(const sigma_squared* sigma, const clade* p_tree, const replicate_model* p_replicate_model, const matrix_cache* p_cache) :
-        inference_pruner(*p_cache, sigma, nullptr, p_replicate_model, p_tree, 1.0)
+    inference_pruner(const sigma_squared* sigma, const clade* p_tree, const replicate_model* p_replicate_model, const matrix_cache* p_cache, boundaries bounds) :
+        inference_pruner(*p_cache, sigma, nullptr, p_replicate_model, p_tree, bounds)
     {
 
     }
 
-    std::vector<double> prune(const gene_transcript& gf, boundaries bounds);
+    std::vector<double> prune(const gene_transcript& gf, double multiplier = 1.0);
 
-    clademap<node_reconstruction> reconstruct(const gene_transcript& gf, boundaries bounds);
+    clademap<node_reconstruction> reconstruct(const gene_transcript& gf);
 };
 
 #endif

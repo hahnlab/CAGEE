@@ -28,8 +28,6 @@
 using namespace std;
 namespace pv = proportional_variance;
 
-double gammapdf(double value, const std::gamma_distribution<double>& dist);
-
 extern mt19937 randomizer_engine;
 
 //! @brief Holds data for reconstructing a tree based on the Gamma model
@@ -153,8 +151,8 @@ bool gamma_model::prune(const gene_transcript& transcript, const prior *p_prior,
 
     for (size_t k = 0; k < _gamma_cat_probs.size(); ++k)
     {
-        inference_pruner pruner(diff_mat, p_sigma, _p_error_model, nullptr, p_tree, _sigma_multipliers[k]);
-        auto partial_likelihood = pruner.prune(transcript, bounds);
+        inference_pruner pruner(diff_mat, p_sigma, _p_error_model, nullptr, p_tree, bounds);
+        auto partial_likelihood = pruner.prune(transcript);
         if (accumulate(partial_likelihood.begin(), partial_likelihood.end(), 0.0) == 0.0)
             return false;   // saturation
 
@@ -203,6 +201,16 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
         multipliers.insert(multipliers.end(), values.begin(), values.end());
     }
     cache.precalculate_matrices(multipliers, ud.p_tree->get_branch_lengths(), ud.bounds);
+
+    vector<inference_pruner> pruners;
+    pruners.reserve(ud.gene_transcripts.size() * multipliers.size());
+
+    // create a set of pruners, one for each combination of transcript and multiplier  
+    // replace the following code with a generate_n call  
+    for (size_t i = 0; i<ud.gene_transcripts.size(); ++i)
+        for (size_t j = 0; j<multipliers.size(); ++j)
+            pruners.push_back(inference_pruner(cache, p_sigma, _p_error_model, ud.p_replicate_model, ud.p_tree, ud.bounds));
+
 
 #pragma omp parallel for
     for (size_t i = 0; i < ud.gene_transcripts.size(); i++) {
@@ -315,11 +323,11 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
         VLOG(1) << "Reconstructing for multiplier " << _sigma_multipliers[k];
         unique_ptr<sigma_squared> ml(_p_sigma->multiply(_sigma_multipliers[k]));
 
-        inference_pruner tr(ml.get(), ud.p_tree, ud.p_replicate_model, calc);
+        inference_pruner tr(ml.get(), ud.p_tree, ud.p_replicate_model, calc, ud.bounds);
 
         for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
         {
-            recs[i]->category_reconstruction[k] = tr.reconstruct(ud.gene_transcripts[i], ud.bounds);
+            recs[i]->category_reconstruction[k] = tr.reconstruct(ud.gene_transcripts[i]);
         }
     }
 

@@ -1,4 +1,4 @@
-#include <algorithm>
+#include <numeric>
 #include <any>
 
 #include "doctest.h"
@@ -164,19 +164,19 @@ inference_pruner::inference_pruner(const matrix_cache& cache,
     const error_model* p_error_model,
     const replicate_model* p_replicate_model,
     const clade* p_tree,
-    double sigma_multiplier) :
-        _cache(cache),  _p_sigsqd(sigma), _p_error_model(p_error_model), _p_replicate_model(p_replicate_model), _p_tree(p_tree), _sigma_multiplier(sigma_multiplier)
+    boundaries bounds) :
+        _cache(cache),  _p_sigsqd(sigma), _p_error_model(p_error_model), _p_replicate_model(p_replicate_model), _p_tree(p_tree), _bounds(bounds)
 {
     auto init_func = [&](const clade* node) { _probabilities[node].reserve(_cache.create_vector()); };
     for_each(_p_tree->reverse_level_begin(), _p_tree->reverse_level_end(), init_func);
 }
 
 
-void inference_pruner::compute_all_probabilities(const gene_transcript& gf, boundaries bounds)
+void inference_pruner::compute_all_probabilities(const gene_transcript& gf, double multiplier)
 {
-    unique_ptr<sigma_squared> multiplier(_p_sigsqd->multiply(_sigma_multiplier));
+    unique_ptr<sigma_squared> ss(_p_sigsqd->multiply(multiplier));
 
-    auto compute_func = [gf, this, bounds, &multiplier](const clade* c) { compute_node_probability(c, gf, _p_error_model, _p_replicate_model, _probabilities, multiplier.get(), _cache, bounds); };
+    auto compute_func = [gf, this, &ss](const clade* c) { compute_node_probability(c, gf, _p_error_model, _p_replicate_model, _probabilities, ss.get(), _cache, _bounds); };
     for_each(_p_tree->reverse_level_begin(), _p_tree->reverse_level_end(), compute_func);
 
 }
@@ -185,17 +185,17 @@ void inference_pruner::compute_all_probabilities(const gene_transcript& gf, boun
 /// and a given multiplier. Works by calling \ref compute_node_probability on all nodes of the tree
 /// using the species counts for the family. 
 /// \returns a vector of probabilities for gene counts at the root of the tree 
-std::vector<double> inference_pruner::prune(const gene_transcript& gf, boundaries bounds)
+std::vector<double> inference_pruner::prune(const gene_transcript& gf, double multiplier /*= 1.0*/)
 {
-    compute_all_probabilities(gf, bounds);
+    compute_all_probabilities(gf, multiplier);
 
     auto& p = _probabilities[_p_tree].probabilities();
     return vector<double>(p.begin(), p.end());
 }
 
-clademap<node_reconstruction> inference_pruner::reconstruct(const gene_transcript& gf, boundaries bounds)
+clademap<node_reconstruction> inference_pruner::reconstruct(const gene_transcript& gf)
 {
-    compute_all_probabilities(gf, bounds);
+    compute_all_probabilities(gf, 1.0);
 
     clademap<node_reconstruction> reconstruction;
     cladevector internal_nodes;
@@ -206,7 +206,7 @@ clademap<node_reconstruction> inference_pruner::reconstruct(const gene_transcrip
 
     for (auto& n : internal_nodes)
     {
-        reconstruction[n] = get_value(_probabilities[n].probabilities(), bounds.second);
+        reconstruction[n] = get_value(_probabilities[n].probabilities(), _bounds.second);
     }
     return reconstruction;
 }
@@ -331,9 +331,9 @@ TEST_CASE("inference_pruner: check stats of returned probabilities")
     sigma_squared ss(10.0);
     matrix_cache cache;
     cache.precalculate_matrices(ss.get_values(), set<double>{1, 3, 7}, boundaries(0,20));
-    inference_pruner pruner(cache, &ss, nullptr, nullptr, p_tree.get(), 1.0);
+    inference_pruner pruner(cache, &ss, nullptr, nullptr, p_tree.get(), boundaries(0,20));
 
-    auto actual = pruner.prune(rt, boundaries(0,20));
+    auto actual = pruner.prune(rt);
 
     size_t sz = actual.size();
     CHECK_EQ(sz, Npts);
