@@ -5,7 +5,6 @@
 struct input_parameters {
 public:
     std::string input_file_path;
-    // std::string error_model_file_path;
     std::string replicate_model_file_path;
     std::string output_prefix;
     std::string tree_file_path;
@@ -19,9 +18,7 @@ public:
     int nsims = 0;
     int n_gamma_cats = 1;
     bool exclude_zero_root_transcripts = false;
-    // bool use_error_model = false;
     std::string parametric_error;
-    bool use_parametric_error_model = false;
     bool count_all_changes = false;
     int verbose_logging_level = 0;
     int cores = 0;

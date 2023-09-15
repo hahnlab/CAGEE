@@ -44,18 +44,6 @@ void user_data::read_gene_transcript_data(const input_parameters &my_input_param
     update_boundaries(my_input_parameters.input_file_has_ratios);
 }
 
-//! Read user provided error model file (whose path is stored in input_parameters instance)
-// void user_data::read_error_model(const input_parameters &my_input_parameters, error_model *p_error_model) {
-
-//     ifstream error_model_file(my_input_parameters.error_model_file_path);
-//     if (!error_model_file.is_open()) {
-//         throw std::runtime_error("Failed to open " + my_input_parameters.error_model_file_path + ". Exiting...");
-//     }
-
-//     read_error_model_file(error_model_file, p_error_model);
-
-// } 
-
 void user_data::read_replicate_model(const input_parameters& my_input_parameters) {
 
     ifstream replicate_model_file(my_input_parameters.replicate_model_file_path);
@@ -134,20 +122,20 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
     }
 
     /* -e */
-    if (my_input_parameters.use_parametric_error_model && (my_input_parameters.parametric_error == "true")) {
-        cout << "!! instantiating default error model from user_data.cpp !!" << endl;
+    if (my_input_parameters.parametric_error == "true") {
+        LOG(INFO) << "default parametric error model enabled" << endl;
         p_error_model = new error_model(my_input_parameters.discretization_size, bounds.second);
     }
-    else if (my_input_parameters.use_parametric_error_model && (!my_input_parameters.parametric_error.empty())) {
-        cout << "!! instantiating custom error model from user_data.cpp !!" << endl;
+    else if (my_input_parameters.parametric_error != "false" && (!my_input_parameters.parametric_error.empty())) {
+        LOG(INFO) << "custom error model specified" << endl;
         std::vector<std::string> params = tokenize_str(my_input_parameters.parametric_error, ':');
-        cout << "!! " << my_input_parameters.parametric_error << " !!" << endl;
-        for(auto word : params) cout << word << endl;
+        // cout << "!! " << my_input_parameters.parametric_error << " !!" << endl;
+        // for(auto word : params) cout << word << endl;
         model_params model_params{ params[0], std::stod(params[1]), std::stod(params[2]) };
         p_error_model = new error_model(my_input_parameters.discretization_size, bounds.second, model_params);
     }
     else {
-        cout << "!! running without parametric error model !!" << endl;
+        // LOG(INFO) << "no parametric error model specified" << endl;
     }
 
     if (!my_input_parameters.replicate_model_file_path.empty())
@@ -237,3 +225,4 @@ TEST_CASE("upper_bound_from_transcript_values returns MATRIX_SIZE_MULTIPLIER if 
     CHECK_EQ(MATRIX_SIZE_MULTIPLIER, upper_bound_from_transcript_values({ gt }));
 }
 
+// TODO add tests for error model parsing

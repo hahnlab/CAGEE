@@ -50,6 +50,7 @@ void show_version()
     }
 #endif
 }
+
 void show_help(const po::options_description& gen, const po::options_description& required, const po::options_description& common, const po::options_description& rare)
 {
     show_version();
@@ -88,7 +89,8 @@ input_parameters read_arguments(int argc, char* const argv[])
     po::options_description common("Configuration options (May be specified on command line or in file)");
     common.add_options()
         ("cores,@", po::value<int>(), "Number of processing cores to use, requires an integer argument. Default=All available cores.")
-        ("parametric_error,e", po::value<string>()->default_value("false")->implicit_value("true"), "enable the parametric error model")
+        ("parametric_error,e", po::value<string>()->default_value("false")->implicit_value("true"),
+            "Enable the parametric error model with default gaussian fit.  To customize, additionally specify [model_type]:[coef_a]:[coef_r]")
         ("output_prefix,o", po::value<string>(), " Output directory - Name of directory automatically created for output. Default=results.")
         ("fixed_multiple_sigmas,m", po::value<string>(), "Multiple sigma values, comma separated.")
         ("rootdist", po::value<string>(), "Distribution of the root in Simulation Mode (mutually exclusive with --prior in Inference Mode). Can be gamma:[k]:[theta], fixed:[count], or a path/to/tab_sep_file.txt with two columns: trascripts names and their counts. Default=gamma:0.375:1600.0")
@@ -176,7 +178,6 @@ input_parameters read_arguments(int argc, char* const argv[])
     maybe_set(vm, "replicate_map", my_input_parameters.replicate_model_file_path);
     maybe_set(vm, "parametric_error", my_input_parameters.parametric_error);
     
-
     string simulate_string = vm["simulate"].as<string>();
     my_input_parameters.is_simulating = simulate_string != "false";
     if (my_input_parameters.is_simulating)
@@ -185,15 +186,6 @@ input_parameters read_arguments(int argc, char* const argv[])
             my_input_parameters.nsims = stoi(simulate_string);
         else
             my_input_parameters.nsims = 0;
-    }
-
-    
-    my_input_parameters.use_parametric_error_model = my_input_parameters.parametric_error != "false";
-    if (my_input_parameters.use_parametric_error_model && (my_input_parameters.parametric_error != "true"))
-    {
-        cout << "specifying the parametric error model is not yet supported" << endl;
-        //TODO parse and store the parametric model string e.g. "normal,0.95,1.3" for model init
-        // (or parse it inside the model class)
     }
 
     my_input_parameters.check_input(); // seeing if options are not mutually exclusive              
@@ -369,14 +361,13 @@ TEST_CASE("Options, multiple_sigmas_long")
     CHECK_EQ("5,10,15", actual.fixed_multiple_sigmas);
 }
 
-// TEST_CASE("Options: parametric_error_model_accepts_argument") // TODO update once parsed
-// {
-//     option_test c({ "cagee", "-e normal,0.5,30" });
+TEST_CASE("Options: parametric_error_model_accepts_argument")
+{
+    option_test c({ "cagee", "-e", "normal:0.4:-0.6" });
 
-//     auto actual = read_arguments(c.argc, c.values);
-//     CHECK(actual.use_parametric_error_model);
-//     CHECK(actual.parametric_error); // == "normal,0.5,30");
-// }
+    auto actual = read_arguments(c.argc, c.values);
+    CHECK_EQ(actual.parametric_error, "normal:0.4:-0.6");
+}
 
 TEST_CASE("Options: fixed_root_value")
 {
@@ -397,13 +388,13 @@ TEST_CASE("Options: sample_group")
     CHECK_EQ("brain", actual.sample_groups[1]);
 }
 
-// TEST_CASE("Options, parametric_error_model_accepts_no_argument") //TODO update when complete
-// {
-//     option_test c({ "cagee", "-e" });
+TEST_CASE("Options, parametric_error_model_accepts_no_argument")
+{
+    option_test c({ "cagee", "-e" });
 
-//     auto actual = read_arguments(c.argc, c.values);
-//     CHECK(actual.parametric_error);
-// }
+    auto actual = read_arguments(c.argc, c.values);
+    CHECK(actual.parametric_error == "true");
+}
 
 TEST_CASE("Options, replicate_map needs argument")
 {

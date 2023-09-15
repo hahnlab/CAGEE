@@ -51,9 +51,6 @@ public:
     //! Read in gene transcript data
     void read_gene_transcript_data(const input_parameters &my_input_parameters, clade *p_tree, std::vector<gene_transcript> *p_gene_transcripts);
 
-    //! Read in error model file
-    // void read_error_model(const input_parameters &my_input_parameters, error_model *p_error_model);
-
     void read_replicate_model(const input_parameters& my_input_parameters);
 
     //! Read in phylogenetic tree data
