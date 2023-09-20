@@ -83,32 +83,6 @@ vector<size_t> build_reference_list(const vector<gene_transcript>& transcripts)
     return reff;
 }
 
-inline double computational_space_prior(double val, const prior *p_prior)
-{
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-    return exp(val) * p_prior->pdf(exp(val));
-#else
-    return p_prior->pdf(val);
-#endif
-
-}
-
-double compute_prior_likelihood(const vector<double>& partial_likelihood, const vector<double>& priors)
-{
-    std::vector<double> full(partial_likelihood.size());
-    std::transform(partial_likelihood.begin(), partial_likelihood.end(), priors.begin(), full.begin(), std::multiplies<double>());
-    std::transform(full.begin(), full.end(), full.begin(), [](double d) {
-        return isnan(d) ? -numeric_limits<double>::infinity() : d;
-        });
-
-#ifdef USE_MAX_PROBABILITY
-    double likelihood = *max_element(full.begin(), full.end()); // get max (CAFE's approach)
-#else
-    double likelihood = accumulate(full.begin(), full.end(), 0.0, [](double a, double b) { return isinf(b) ? a : a+b; }); // sum over all sizes (Felsenstein's approach)
-#endif
-    return log(likelihood);
-}
-
 double base_model::infer_transcript_likelihoods(const user_data& ud, const sigma_squared *p_sigma) {
     //TIMED_FUNC(timerObj);
     _monitor.Event_InferenceAttempt_Started();

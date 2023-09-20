@@ -183,6 +183,8 @@ void user_data::update_boundaries(bool transcripts_are_ratios)
 {
     int upper_bound = upper_bound_from_transcript_values(gene_transcripts);
     bounds = boundaries(transcripts_are_ratios ? -upper_bound : 0, upper_bound);
+    LOG(DEBUG) << "Boundaries for discretization vector: " << bounds.first << ", " << bounds.second;
+
 }
 
 /// Bounds are next largest integer if in log space.

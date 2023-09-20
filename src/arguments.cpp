@@ -88,6 +88,7 @@ input_parameters read_arguments(int argc, char* const argv[])
     po::options_description common("Configuration options (May be specified on command line or in file)");
     common.add_options()
         ("cores,@", po::value<int>(), "Number of processing cores to use, requires an integer argument. Default=All available cores.")
+        ("n_gamma_cats,@", po::value<int>(), "Number of gamma categories to use, requires an integer argument. Default=1 (No gamma modelling)")
         ("error,e", po::value<string>()->default_value("false")->implicit_value("true"), "Run with no file name to estimate the global error model file. This file can be provided"
             "in subsequent runs by providing the path to the Error model file with no spaces(e.g. - eBase_error_model.txt).")
         ("output_prefix,o", po::value<string>(), " Output directory - Name of directory automatically created for output. Default=results.")
@@ -175,6 +176,7 @@ input_parameters read_arguments(int argc, char* const argv[])
     maybe_set(vm, "count_all_changes", my_input_parameters.count_all_changes);
     maybe_set(vm, "ratio", my_input_parameters.input_file_has_ratios);
     maybe_set(vm, "replicate_map", my_input_parameters.replicate_model_file_path);
+    maybe_set(vm, "n_gamma_cats", my_input_parameters.n_gamma_cats);
 
     string simulate_string = vm["simulate"].as<string>();
     my_input_parameters.is_simulating = simulate_string != "false";
@@ -536,4 +538,15 @@ TEST_CASE("Prior params defaults to fisher if unbounded")
     input_parameters params;
     params.input_file_has_ratios = true;
     CHECK_EQ("fisher:0.75:0.75", params.prior_params_or_default());
+}
+
+TEST_CASE("Options: n_gamma_cats")
+{
+    input_parameters by_default;
+    CHECK_EQ(1, by_default.n_gamma_cats);
+
+    option_test c({ "cagee", "--n_gamma_cats", "5"});
+
+    auto actual = read_arguments(c.argc, c.values);
+    CHECK_EQ(5, actual.n_gamma_cats);
 }

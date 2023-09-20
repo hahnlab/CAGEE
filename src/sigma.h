@@ -16,6 +16,7 @@ private:
 
 public:
     sigma_squared(double lam);
+    sigma_squared(const sigma_squared& other);
     sigma_squared(ss_resolver *p_resolver, size_t sz);
     sigma_squared(ss_resolver* p_resolver, const std::vector<double>& v);
 
@@ -33,7 +34,7 @@ public:
 
     std::vector<double> get_values() const;
 
-    sigma_squared* clone() const;
+//    sigma_squared* clone() const;
 
     static sigma_squared* create(clade* p_sigma_tree, const std::vector<std::string>& sample_groups);
     static sigma_squared* create(clade* p_sigma_tree, const std::vector<double>& values);

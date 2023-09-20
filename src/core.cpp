@@ -17,6 +17,7 @@
 #include "sigma.h"
 #include "arguments.h"
 #include "reconstruction.h"
+#include "prior.h"
 
 using namespace std;
 
@@ -88,7 +89,7 @@ void model::write_vital_statistics(std::ostream& ost, const clade *p_tree, doubl
 
 sigma_squared* model::get_simulation_sigma()
 {
-    return _p_sigma->clone();
+    return new sigma_squared(*_p_sigma);
 }
 
 void model::write_error_model(int max_transcript_size, std::ostream& ost) const
@@ -101,6 +102,33 @@ void model::write_error_model(int max_transcript_size, std::ostream& ost) const
     }
     write_error_model_file(ost, *em);
 }
+
+double computational_space_prior(double val, const prior *p_prior)
+{
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+    return exp(val) * p_prior->pdf(exp(val));
+#else
+    return p_prior->pdf(val);
+#endif
+
+}
+
+double compute_prior_likelihood(const vector<double>& partial_likelihood, const vector<double>& priors)
+{
+    std::vector<double> full(partial_likelihood.size());
+    std::transform(partial_likelihood.begin(), partial_likelihood.end(), priors.begin(), full.begin(), std::multiplies<double>());
+    std::transform(full.begin(), full.end(), full.begin(), [](double d) {
+        return isnan(d) ? -numeric_limits<double>::infinity() : d;
+        });
+
+#ifdef USE_MAX_PROBABILITY
+    double likelihood = *max_element(full.begin(), full.end()); // get max (CAFE's approach)
+#else
+    double likelihood = accumulate(full.begin(), full.end(), 0.0, [](double a, double b) { return isinf(b) ? a : a+b; }); // sum over all sizes (Felsenstein's approach)
+#endif
+    return log(likelihood);
+}
+
 
 void event_monitor::Event_InferenceAttempt_Started() 
 { 

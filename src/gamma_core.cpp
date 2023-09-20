@@ -147,6 +147,7 @@ bool gamma_model::can_infer() const
 bool gamma_model::prune(const gene_transcript& transcript, const prior *p_prior, const matrix_cache& diff_mat, const sigma_squared*p_sigma,
     const clade *p_tree, std::vector<double>& category_likelihoods, boundaries bounds) 
 {
+    #if 0
     category_likelihoods.clear();
 
     for (size_t k = 0; k < _gamma_cat_probs.size(); ++k)
@@ -171,8 +172,16 @@ bool gamma_model::prune(const gene_transcript& transcript, const prior *p_prior,
         category_likelihoods.push_back(accumulate(full.begin(), full.end(), 0.0) * _gamma_cat_probs[k]); // sum over all sizes (Felsenstein's approach)
 #endif
     }
-
+#endif
     return true;
+}
+
+void flatten_vector(const vector<vector<double>>& v, vector<double>& result)
+{
+    for (auto& vv : v)
+    {
+        result.insert(result.end(), vv.begin(), vv.end());
+    }
 }
 
 //! Infer bundle
@@ -192,61 +201,68 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
 
     vector<bool> failure(ud.gene_transcripts.size());
 
-    matrix_cache cache;
-    vector<double> multipliers;
-    for (auto multiplier : _sigma_multipliers)
-    {
-        sigma_squared mult(*p_sigma, multiplier);
-        auto values = mult.get_values();
-        multipliers.insert(multipliers.end(), values.begin(), values.end());
-    }
-    cache.precalculate_matrices(multipliers, ud.p_tree->get_branch_lengths(), ud.bounds);
-
-    vector<inference_pruner> pruners;
-    pruners.reserve(ud.gene_transcripts.size() * multipliers.size());
-
     vector<sigma_squared> sigmas;
-    for (auto m : multipliers)
+    for (auto m : _sigma_multipliers)
     {
         sigmas.emplace_back(*p_sigma, m);
     }
-    for (size_t i = 0; i<ud.gene_transcripts.size(); ++i)
-        for (size_t j = 0; j<sigmas.size(); ++j)
-        {
-            pruners.push_back(inference_pruner(cache, &sigmas[j], _p_error_model, ud.p_replicate_model, ud.p_tree, ud.bounds));
-        }
 
-#pragma omp parallel for
-    for (size_t i = 0; i < ud.gene_transcripts.size(); i++) {
-        auto& cat_likelihoods = _category_likelihoods[i];
+    vector<vector<double>> vv;
+    transform(sigmas.begin(), sigmas.end(), back_inserter(vv), [](sigma_squared s) { return s.get_values(); });
+    vector<double> multipliers;
+    flatten_vector(vv, multipliers);
 
-        if (prune(ud.gene_transcripts.at(i), ud.p_prior, cache, p_sigma, ud.p_tree, cat_likelihoods, ud.bounds))
-        {
-            double transcript_likelihood = accumulate(cat_likelihoods.begin(), cat_likelihoods.end(), 0.0);
+    matrix_cache cache;
+    cache.precalculate_matrices(multipliers, ud.p_tree->get_branch_lengths(), ud.bounds);
 
-            vector<double> posterior_probabilities = get_posterior_probabilities(cat_likelihoods);
+    auto v = cache.create_vector();
+    vector<double> priors(v.size());
+    copy(v.begin(), v.end(), priors.begin());
+    try
+    {
+        for (size_t j = 0; j < priors.size(); ++j) {
+            double x = (double(j) + 0.5) * double(ud.bounds.second) / (priors.size() - 1);
 
-            all_bundles_likelihood[i] = std::log(transcript_likelihood);
-        }
-        else
-        {
-            // we got here because one of the gamma categories was saturated - reject this 
-            failure[i] = true;
+            priors[j] = computational_space_prior(x, ud.p_prior);
         }
     }
-
-    if (find(failure.begin(), failure.end(), true) != failure.end())
+    catch (std::domain_error& e)
     {
-        for (size_t i = 0; i < ud.gene_transcripts.size(); i++) {
-            if (failure[i])
-            {
-                _monitor.Event_InferenceAttempt_Saturation(ud.gene_transcripts.at(i).id());
-            }
-        }
+        LOG(DEBUG) << e.what();
+        LOG(WARNING) << "Prior not valid for this sigma and data set";
         return -log(0);
     }
 
-    double final_likelihood = -accumulate(all_bundles_likelihood.begin(), all_bundles_likelihood.end(), 0.0);
+    vector<inference_pruner> pruners;
+    pruners.reserve(ud.gene_transcripts.size() * sigmas.size());
+
+    for (auto& gt : ud.gene_transcripts)
+        for (auto& ss : sigmas)
+        {
+            pruners.push_back(inference_pruner(cache, &ss, _p_error_model, ud.p_replicate_model, ud.p_tree, ud.bounds));
+        }
+
+    vector<vector<double>> partial_likelihoods(pruners.size());
+#pragma omp parallel for
+    for (size_t i = 0; i < pruners.size(); i++) {
+
+        partial_likelihoods[i] = pruners[i].prune(ud.gene_transcripts.at(i/sigmas.size()));
+    }
+
+    // for each gamma category
+        // multiply each partial likelihood by the associated prior
+        // find the max value and multiply by the gamma category probability
+        // add to the category likelihoods
+
+    vector<double> transcript_likelihoods(ud.gene_transcripts.size());
+    for (size_t i = 0; i < partial_likelihoods.size(); i++) {
+        double loglikelihood = compute_prior_likelihood(partial_likelihoods[i], priors)
+            + log(_gamma_cat_probs[i % _gamma_cat_probs.size()]);
+
+        transcript_likelihoods[i / _gamma_cat_probs.size()] += loglikelihood;
+    }
+
+    double final_likelihood = -accumulate(transcript_likelihoods.begin(), transcript_likelihoods.end(), 0.0);
 
     LOG(INFO) << "Score (-lnL): " << std::setw(15) << std::setprecision(14) << final_likelihood;
     return final_likelihood;
@@ -269,7 +285,7 @@ sigma_optimizer_scorer* gamma_model::get_sigma_optimizer(const user_data& data, 
     }
     else if (!estimate_sigma && estimate_alpha)
     {
-        _p_sigma = data.p_sigma->clone();
+        _p_sigma = new sigma_squared(*data.p_sigma);
         return new sigma_optimizer_scorer(this, data);
     }
     else

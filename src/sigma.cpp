@@ -181,6 +181,11 @@ sigma_squared::sigma_squared(double val) : _p_resolver(new ss_resolver_uniform()
     _values.push_back(val);
 }
 
+sigma_squared::sigma_squared(const sigma_squared& other) :
+    _p_resolver(other._p_resolver->clone()), _values(other._values)
+{
+}
+
 sigma_squared::sigma_squared(ss_resolver* p_resolver, size_t sz) : 
     _p_resolver(p_resolver), _values(sz)
 {
@@ -210,10 +215,6 @@ int sigma_squared::count() const {
 
 std::vector<double> sigma_squared::get_values() const {
     return _values;
-}
-
-sigma_squared* sigma_squared::clone() const {
-    return new sigma_squared(_p_resolver->clone(), _values);
 }
 
 void sigma_squared::update(const double* values)
@@ -468,4 +469,16 @@ TEST_CASE("sample + tissue sigmas are labelled")
     CHECK_STREAM_CONTAINS(ost, "heart: 1, 2, 3");
     CHECK_STREAM_CONTAINS(ost, "lungs: 4, 5, 6");
     CHECK_STREAM_CONTAINS(ost, "brain: 7, 8, 9");
+}
+
+TEST_CASE("Copy constructor")
+{
+    // We should be able to create an vector of sigma_squared objects
+    // from doubles. (Sigma_squared should be MoveInsertable)
+    vector<sigma_squared> sigmas;
+    sigmas.emplace_back(1.0);
+    sigmas.emplace_back(2.0);
+    sigmas.emplace_back(3.0);
+    CHECK(true);
+
 }
