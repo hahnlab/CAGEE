@@ -93,7 +93,7 @@ void compute_node_probability(const clade* node,
             Eigen::VectorXd error_vector = p_error_model->get_error_vector(expression_value);
             probabilities[node].set(error_vector);
             //vlog_vector(taxon, gene_transcript.id(), error_vector, vector_fmt);
-            VLOG(9) << taxon << " | " << gene_transcript.id() << " >>> " << error_vector.transpose().format(vector_fmt);
+            VLOG(9) << taxon << "|" << gene_transcript.id() << "|" << expression_value << ": " << error_vector.transpose().format(vector_fmt);
             //TODO also print what VectorPos_bounds() would have assigned for comparison
         }
         else

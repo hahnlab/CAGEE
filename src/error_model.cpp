@@ -17,7 +17,9 @@ void error_model::set_elem_vals() {
 
 // current normal log counts variance fit = a * exp(r * log_counts)
 double error_model::calc_variance(double log_counts) const { 
-    return _a * exp(_r * log_counts);
+    double variance = _a * exp(_r * log_counts);
+    VLOG(9) << "calc_variance(" << log_counts << ") = " << variance;
+    return variance;
 }
 
 // normal pdf = (1 / s * sqrt(2 * pi)) * exp(-0.5 * ((x - mu) / s)^2)
@@ -32,7 +34,7 @@ double error_model::calc_density(double element_val, double log_counts) const {
 error_model::error_model(int vector_length, int upper_bound)
     : _vector_length{ vector_length }, _upper_bound{ upper_bound }
 {
-    cout << "initialized default parametric error model" << endl;
+    VLOG(INFO) << "initializing default parametric error model" << endl;
     set_elem_vals();
     print_info();
 }
@@ -42,7 +44,7 @@ error_model::error_model(int vector_length, int upper_bound, model_params model_
     : _vector_length{ vector_length }, _upper_bound{ upper_bound }
 {
     if(model_params.model_type == "normal") {
-        cout << "initializing parametric error model with custom parameters..." << endl;
+        VLOG(INFO) << "initializing parametric error model with custom parameters..." << endl;
         _model_type = model_params.model_type;
         _a = model_params.a;
         _r = model_params.r;
@@ -67,15 +69,16 @@ Eigen::VectorXd error_model::get_error_vector(double log_counts) const {
 }
 
 void error_model::print_info() {
-    cout << "initialized " << _model_type << " error model with parameters:" << endl;
-    cout << "  fitting variance = a * exp(r * log_counts)" << endl;
-    cout << "      a = " << _a << endl;
-    cout << "      r = " << _r << endl;
-    cout << "  likelihood vector length = " << _vector_length << endl;
-    cout << "  upper_bound = " << _upper_bound << endl;
-    cout << "  likelihood vector element width = " << _elem_width << endl;
-    cout << "  likelihood vector element values (for pdf):" << endl << "    ";
+    VLOG(INFO) << "initialized " << _model_type << " error model with parameters:";
+    VLOG(INFO) << "  fitting variance = a * exp(r * log_counts)";
+    VLOG(INFO) << "      a = " << _a;
+    VLOG(INFO) << "      r = " << _r;
+    VLOG(7) << "  likelihood vector length = " << _vector_length;
+    VLOG(7) << "  upper_bound = " << _upper_bound;
+    VLOG(7) << "  likelihood vector element width = " << _elem_width;
+    VLOG(7) << "  likelihood vector element values (for pdf):";
+    cout << "    ["
     cout.precision(4);
-    for(auto val : _elem_vals) cout << val << " | ";
-    cout << endl << endl;
+    for(auto val : _elem_vals) cout << val << ", ";
+    cout << "]" << endl << endl;
 }
