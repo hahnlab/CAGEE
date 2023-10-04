@@ -77,9 +77,9 @@ void DiffMat::create_or_read_eigenvectors()
     {
         create_eigenvectors();
     }
-    VLOG(MATRIX) << "Eigenvalues for Diff matrix";
-    VLOG(MATRIX) << eig;
-    VLOG(MATRIX) << "Eigenvalues end";
+    // VLOG(MATRIX) << "Eigenvalues for Diff matrix";
+    // VLOG(MATRIX) << eig;
+    // VLOG(MATRIX) << "Eigenvalues end";
 }
 
 void DiffMat::create_eigenvectors()
