@@ -61,26 +61,22 @@ root_equilibrium_distribution* create_rootdist(std::string param, const vector<p
 class binner
 {
     const int _Npts;
-    double _max_value;
+    boundaries _range;
 public:
 
-    binner(int Npts, double max_value) : _Npts(Npts), _max_value(max_value) {}
+    binner(int Npts, boundaries range) : _Npts(Npts), _range(range) {}
     int bin(double value) const
     {
-        return value / _max_value * (_Npts -1);
+        return _range.first + value / (_range.second - _range.first) * (_Npts -1);
     }
     double value(int bin) const
     {
-        double val = bin * _max_value / double(_Npts - 1);
+        double val = _range.first + bin * (_range.second - _range.first) / double(_Npts - 1);
 
         // subtract a small amount to deal with floating point inaccuracy
         // (The value was occasionally larger than max_value otherwise)
-        return val > _max_value ? _max_value - MATRIX_EPSILON : val;
+        return val > _range.second ? _range.second - MATRIX_EPSILON : val;
 
-    }
-    double max_value() const
-    {
-        return _max_value;
     }
 };
 
@@ -97,13 +93,12 @@ void simulator::execute(std::vector<model *>& models)
     simulate(models, _user_input);
 }
 
-simulated_family create_simulated_family(const clade *p_tree, const sigma_squared* p_sigsqrd, int upper_bound, double root_value, const matrix_cache& cache)
+simulated_family create_simulated_family(const clade *p_tree, const sigma_squared* p_sigsqrd, boundaries bounds, double root_value, const matrix_cache& cache)
 {
     simulated_family sim;
     sim.sigma = p_sigsqrd->get_named_value(p_tree, gene_transcript());
 
     sim.values[p_tree] = root_value;
-    boundaries bounds(pv::to_computational_space(0), upper_bound);
     std::function <void(const clade*)> get_child_value;
     get_child_value = [&](const clade* c) {
         auto m = cache.get_matrix(c->get_branch_length(), p_sigsqrd->get_named_value(c, gene_transcript()));
@@ -111,7 +106,7 @@ simulated_family create_simulated_family(const clade *p_tree, const sigma_square
         VectorPos_bounds(sim.values[c->get_parent()], bounds, v);
         VectorXd probs = m * v;
         std::discrete_distribution<int> distribution(probs.data(), probs.data() + probs.size());
-        binner b(m.cols(), upper_bound);
+        binner b(m.cols(), bounds);
         sim.values[c] = b.value(distribution(randomizer_engine));
         c->apply_to_descendants(get_child_value);
     };
@@ -121,7 +116,7 @@ simulated_family create_simulated_family(const clade *p_tree, const sigma_square
     return sim;
 }
 
-int upper_bound_from_root_values(const sigma_squared* p_sigsqrd, const clade* p_tree, const vector<double>& values)
+boundaries boundaries_from_root_values(const sigma_squared* p_sigsqrd, const clade* p_tree, const vector<double>& values, bool input_file_has_ratios)
 {
     double t = p_tree->distance_from_root_to_tip();
 
@@ -141,7 +136,15 @@ int upper_bound_from_root_values(const sigma_squared* p_sigsqrd, const clade* p_
         return val + multiple - remainder;
         });
 
-    return *max_element(bounds.begin(), bounds.end());
+    int upper = *max_element(bounds.begin(), bounds.end());
+    if (input_file_has_ratios)
+    {
+        return boundaries(-upper, upper);
+    }
+    else
+    {
+        return boundaries(pv::to_computational_space(0), upper);
+    }
 }
 
 std::vector<simulated_family> simulator::simulate_processes(model *p_model) {
@@ -168,14 +171,14 @@ std::vector<simulated_family> simulator::simulate_processes(model *p_model) {
 
     unique_ptr<sigma_squared> sim_sigsqd(p_model->get_simulation_sigma());
 
-    int upper_bound = upper_bound_from_root_values(sim_sigsqd.get(), data.p_tree, root_sizes);
-    LOG(DEBUG) << "Upper bound for discretization vector: " << upper_bound;
+    auto bounds = boundaries_from_root_values(sim_sigsqd.get(), data.p_tree, root_sizes, _user_input.input_file_has_ratios);
+    LOG(DEBUG) << "Upper bound for discretization vector: " << bounds.second;
 
     matrix_cache cache;
-    cache.precalculate_matrices(sim_sigsqd->get_values(), data.p_tree->get_branch_lengths(), boundaries(0,upper_bound));
+    cache.precalculate_matrices(sim_sigsqd->get_values(), data.p_tree->get_branch_lengths(), bounds);
 
-    transform(root_sizes.begin(), root_sizes.end(), results.begin(), [this, &sim_sigsqd, &cache, upper_bound](double root_size) {
-        return create_simulated_family(data.p_tree, sim_sigsqd.get(), upper_bound, root_size, cache);
+    transform(root_sizes.begin(), root_sizes.end(), results.begin(), [this, &sim_sigsqd, &cache, bounds](double root_size) {
+        return create_simulated_family(data.p_tree, sim_sigsqd.get(), bounds, root_size, cache);
         });
 
     return results;
@@ -283,28 +286,46 @@ void simulator::print_simulations(std::ostream& ost, bool include_internal_nodes
     }
 }
 
-TEST_CASE("create_trial")
+TEST_CASE("create_simulated_family")
 {
     randomizer_engine.seed(10);
 
     sigma_squared ss(0.25);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
-    const int ub = 5;
+    boundaries b(0,5);
 
     matrix_cache cache;
-    cache.precalculate_matrices(ss.get_values(), p_tree->get_branch_lengths(), boundaries(0,ub));
+    cache.precalculate_matrices(ss.get_values(), p_tree->get_branch_lengths(), b);
 
-    simulated_family actual = create_simulated_family(p_tree.get(), &ss, ub, 5.0, cache);
+    simulated_family actual = create_simulated_family(p_tree.get(), &ss, b, 5.0, cache);
 
     CHECK_EQ(doctest::Approx(5.0), actual.values.at(p_tree.get()));
     CHECK_EQ(doctest::Approx(4.497487), actual.values.at(p_tree->find_descendant("A")));
     CHECK_EQ(doctest::Approx(4.42211), actual.values.at(p_tree->find_descendant("B")));
 }
 
+TEST_CASE("create_simulated_family with negative lower bound")
+{
+    randomizer_engine.seed(10);
+
+    sigma_squared ss(0.25);
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    boundaries b(-5,5);
+
+    matrix_cache cache;
+    cache.precalculate_matrices(ss.get_values(), p_tree->get_branch_lengths(), b);
+
+    simulated_family actual = create_simulated_family(p_tree.get(), &ss, b, 5.0, cache);
+
+    CHECK_EQ(doctest::Approx(5.0), actual.values.at(p_tree.get()));
+    CHECK_EQ(doctest::Approx(4.497487), actual.values.at(p_tree->find_descendant("A")));
+    CHECK_EQ(doctest::Approx(4.44724), actual.values.at(p_tree->find_descendant("B")));
+}
 TEST_CASE("binner")
 {
-    binner b(200, 100);
+    binner b(200, boundaries(0, 100));
 
     CHECK_EQ(5, b.bin(2.7));
     CHECK_EQ(doctest::Approx(60.3015), b.value(120));
@@ -314,8 +335,14 @@ TEST_CASE("binner")
 
 TEST_CASE("binner unbins small values correctly")
 {
-    binner b(200, 20);
+    binner b(200, boundaries(0,20));
     CHECK_EQ(doctest::Approx(8.0402), b.value(80));
+}
+
+TEST_CASE("binner handles lower bounds correctly")
+{
+    binner b(200, boundaries(-10,10));
+    CHECK_EQ(doctest::Approx(-1.9598), b.value(80));
 }
 
 #define CHECK_STREAM_CONTAINS(x,y) CHECK_MESSAGE(x.str().find(y) != std::string::npos, x.str())
@@ -379,14 +406,14 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:1):1"));
     sigma_squared sim_sigsqd(actual_sigma);
     auto a = p_tree->find_descendant("A");
-    const int ub = 15;
+    boundaries b(0,15);
 
     matrix_cache cache;
-    cache.precalculate_matrices(vector<double>{10}, p_tree->get_branch_lengths(), boundaries(0,ub));
+    cache.precalculate_matrices(vector<double>{10}, p_tree->get_branch_lengths(), b);
     size_t sz = 3;
     vector<double> v(sz);
     generate(v.begin(), v.end(), [&]() {
-        auto sim = create_simulated_family(p_tree.get(), &sim_sigsqd, ub, 10, cache);
+        auto sim = create_simulated_family(p_tree.get(), &sim_sigsqd, b, 10, cache);
         return sim.values[a];
         });
 
@@ -503,30 +530,48 @@ TEST_CASE("Simulation, simulate_processes")
 
 
 
-TEST_CASE("get_upper_bound uses largest sigma if there are several")
+TEST_CASE("boundaries_from_root_values uses largest sigma if there are several")
 {
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):6"));
     unique_ptr<clade> p_sigma_tree(parse_newick("(A:1,B:2):1", true));
 
     unique_ptr<sigma_squared> ss(sigma_squared::create(p_sigma_tree.get(), { 4,16 }));
 
-    CHECK_EQ(55, upper_bound_from_root_values(ss.get(), p_tree.get(), {1.0}));
+    CHECK_EQ(boundaries(0,55), boundaries_from_root_values(ss.get(), p_tree.get(), {1.0}, false));
 }
 
-TEST_CASE("get_upper_bound get_max_bound")
+TEST_CASE("boundaries_from_root_values get_max_bound")
 {
     sigma_squared ss(0.25);
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
 
     vector<double> v(1);
     v[0] = 5;
-    CHECK_EQ(15, upper_bound_from_root_values(&ss, p_tree.get(), v));
+    CHECK_EQ(boundaries(0,15), boundaries_from_root_values(&ss, p_tree.get(), v, false));
 
     sigma_squared ss_zero(0.0);
     v[0] = 0;
-    CHECK_EQ(5, upper_bound_from_root_values(&ss_zero, p_tree.get(), v));
+    CHECK_EQ(boundaries(0,5), boundaries_from_root_values(&ss_zero, p_tree.get(), v, false));
 
     v[0] = 0.0000001;
-    CHECK_EQ(5, upper_bound_from_root_values(&ss_zero, p_tree.get(), v));
+    CHECK_EQ(boundaries(0,5), boundaries_from_root_values(&ss_zero, p_tree.get(), v, false));
+
+}
+
+TEST_CASE("boundaries_from_root_values with ratios")
+{
+    sigma_squared ss(0.25);
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+
+    vector<double> v(1);
+    v[0] = 5;
+    CHECK_EQ(boundaries(-15,15), boundaries_from_root_values(&ss, p_tree.get(), v, true));
+
+    sigma_squared ss_zero(0.0);
+    v[0] = 0;
+    CHECK_EQ(boundaries(-5,5), boundaries_from_root_values(&ss_zero, p_tree.get(), v, true));
+
+    v[0] = 0.0000001;
+    CHECK_EQ(boundaries(-5,5), boundaries_from_root_values(&ss_zero, p_tree.get(), v, true));
 
 }
