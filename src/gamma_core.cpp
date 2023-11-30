@@ -90,15 +90,6 @@ void gamma_model::write_extra_vital_statistics(std::ostream& ost)
     ost << "Alpha: " << _alpha << endl;
 }
 
-//! Set alpha for gamma distribution
-void gamma_model::set_alpha(double alpha) {
-
-    _alpha = alpha;
-    if (_gamma_cat_probs.size() > 1)
-        get_gamma(_gamma_cat_probs, _sigma_multipliers, alpha); // passing vectors by reference
-
-}
-
 string comma_separated(const std::vector<double>& items)
 {
     string s;
@@ -107,8 +98,17 @@ string comma_separated(const std::vector<double>& items)
     return s;
 }
 
+//! Set alpha for gamma distribution
+void gamma_model::set_alpha(double alpha) {
+
+    _alpha = alpha;
+    if (_gamma_cat_probs.size() > 1)
+        get_gamma(_gamma_cat_probs, _sigma_multipliers, alpha); // passing vectors by reference
+}
+
 void gamma_model::write_probabilities(ostream& ost)
 {
+    ost << "Alpha: " << _alpha << endl;
     ost << "Gamma cat probs are: " << comma_separated(_gamma_cat_probs) << endl;
     ost << "Sigma multipliers are: " << comma_separated(_sigma_multipliers) << endl;
 }
@@ -207,15 +207,12 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
         sigmas.emplace_back(*p_sigma, m);
     }
 
-    vector<vector<double>> vv;
-    transform(sigmas.begin(), sigmas.end(), back_inserter(vv), [](sigma_squared s) { return s.get_values(); });
-    vector<double> multipliers;
-    flatten_vector(vv, multipliers);
-
-    matrix_cache cache;
-    cache.precalculate_matrices(multipliers, ud.p_tree->get_branch_lengths(), ud.bounds);
-
-    auto v = cache.create_vector();
+    double final_likelihood = 0;
+    for (auto s: sigmas)
+    {
+    
+        matrix_cache calc;
+            auto v = calc.create_vector();
     vector<double> priors(v.size());
     copy(v.begin(), v.end(), priors.begin());
     try
@@ -232,40 +229,36 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
         LOG(WARNING) << "Prior not valid for this sigma and data set";
         return -log(0);
     }
+        std::vector<double> all_transcripts_likelihood(ud.gene_transcripts.size());
 
-    vector<inference_pruner> pruners;
-    pruners.reserve(ud.gene_transcripts.size() * sigmas.size());
+        calc.precalculate_matrices(s.get_values(),  ud.p_tree->get_branch_lengths(), ud.bounds);
 
-    for (auto& gt : ud.gene_transcripts)
-        for (auto& ss : sigmas)
-        {
-            pruners.push_back(inference_pruner(cache, &ss, _p_error_model, ud.p_replicate_model, ud.p_tree, ud.bounds));
+        vector<vector<double>> partial_likelihoods(ud.gene_transcripts.size());
+
+        vector<inference_pruner> pruners;
+        pruners.reserve(ud.gene_transcripts.size());
+        std::generate_n(std::back_inserter(pruners), ud.gene_transcripts.size(), [&]() {return inference_pruner(calc, &s, _p_error_model, ud.p_replicate_model, ud.p_tree, ud.bounds); });
+    #pragma omp parallel for
+        for (int i = 0; i < (int)ud.gene_transcripts.size(); ++i) {
+            if ((int)references[i] == i)
+                partial_likelihoods[i] = pruners[i].prune(ud.gene_transcripts.at(i));
         }
 
-    vector<vector<double>> partial_likelihoods(pruners.size());
-#pragma omp parallel for
-    for (size_t i = 0; i < pruners.size(); i++) {
+    #pragma omp parallel for
+        for (int i = 0; i < (int)ud.gene_transcripts.size(); ++i) {
 
-        partial_likelihoods[i] = pruners[i].prune(ud.gene_transcripts.at(i/sigmas.size()));
+            all_transcripts_likelihood[i] = compute_prior_likelihood(partial_likelihoods[references[i]], priors);
+            
+        }
+        double val = -std::accumulate(all_transcripts_likelihood.begin(), all_transcripts_likelihood.end(), 0.0);        
+        LOG(DEBUG) << "  Sub-sigma " << s << " -lnL: " << val;
+        final_likelihood += val;
     }
-
-    // for each gamma category
-        // multiply each partial likelihood by the associated prior
-        // find the max value and multiply by the gamma category probability
-        // add to the category likelihoods
-
-    vector<double> transcript_likelihoods(ud.gene_transcripts.size());
-    for (size_t i = 0; i < partial_likelihoods.size(); i++) {
-        double loglikelihood = compute_prior_likelihood(partial_likelihoods[i], priors)
-            + log(_gamma_cat_probs[i % _gamma_cat_probs.size()]);
-
-        transcript_likelihoods[i / _gamma_cat_probs.size()] += loglikelihood;
-    }
-
-    double final_likelihood = -accumulate(transcript_likelihoods.begin(), transcript_likelihoods.end(), 0.0);
 
     LOG(INFO) << "Score (-lnL): " << std::setw(15) << std::setprecision(14) << final_likelihood;
+
     return final_likelihood;
+
 }
 
 sigma_optimizer_scorer* gamma_model::get_sigma_optimizer(const user_data& data, const std::vector<string>& sample_groups)
@@ -603,6 +596,7 @@ TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade empty"
     CHECK_EQ(empty.str(), "#Taxon_ID\tIncrease\tDecrease\n");
 }
 
+#if 0
 TEST_CASE("gamma_model_prune_returns_false_if_saturated" * doctest::skip(true))
 {
     vector<gene_transcript> families(1);
@@ -618,6 +612,30 @@ TEST_CASE("gamma_model_prune_returns_false_if_saturated" * doctest::skip(true))
 
     CHECK(!model.prune(families[0], new prior("gamma", 0.0, 1600), cache, &lambda, p_tree.get(), cat_likelihoods, boundaries(0, 20)));
 }
+#endif
 
+inline void CHECK_SIGMA_VALUE(double val, const sigma_squared& sigma)
+{
+    CHECK_EQ(doctest::Approx(val), sigma.get_values()[0]);
+}
 
-
+TEST_CASE("Check sigma multipliers for a given alpha")
+{
+    vector<double> probs(3);
+    vector<double> multipliers(3);
+    double alpha = 0.635735;
+    sigma_squared sigma((double)0.613693);
+    get_gamma(probs, multipliers, alpha);
+    CHECK_EQ(doctest::Approx(0.0976623), multipliers[0]);
+    CHECK_EQ(doctest::Approx(0.653525), multipliers[1]);
+    CHECK_EQ(doctest::Approx(2.24881), multipliers[2]);
+    vector<sigma_squared> sigmas;
+    for (auto m : multipliers)
+    {
+        sigmas.emplace_back(sigma, m);
+    }
+    REQUIRE_EQ(3, sigmas.size());
+    CHECK_SIGMA_VALUE(0.0599347, sigmas[0]);
+    CHECK_SIGMA_VALUE(0.401064, sigmas[1]);
+    CHECK_SIGMA_VALUE(1.38008, sigmas[2]);
+}
