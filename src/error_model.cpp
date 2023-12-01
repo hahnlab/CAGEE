@@ -83,3 +83,20 @@ void error_model::print_info() {
     for(auto val : _elem_vals) cout << val << ", ";
     cout << "]" << endl << endl;
 }
+
+
+fixed_error::fixed_error(int vector_length, int upper_bound, double variance)
+    : error_model(vector_length, upper_bound), _variance{variance}
+{
+    print_info();
+}
+
+// override base class method and just return fixed variance
+double fixed_error::calc_variance(double log_counts) const { 
+    return(_variance);
+}
+
+void fixed_error::print_info() {
+    LOG(INFO) << "initialized fixed-variance gaussian error model" << endl;
+    LOG(INFO) << "    variance = " << _variance << endl;
+}

@@ -30,9 +30,22 @@ private:
 
 public:
 
-    error_model();
     error_model(int vector_length, int upper_bound);
     error_model(int vector_length, int upper_bound, model_params model_params);
     Eigen::VectorXd get_error_vector(double log_counts) const;
+    void print_info();
+};
+
+
+class fixed_error : public error_model {
+
+private:
+
+    double _variance;
+
+public:
+
+    fixed_error(int vector_length, int upper_bound, double variance);
+    double calc_variance(double log_counts) const;
     void print_info();
 };
