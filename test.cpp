@@ -235,24 +235,7 @@ TEST_CASE("Inference: branch_length_finder")
 
 #define CHECK_STREAM_CONTAINS(x,y) CHECK_MESSAGE(x.str().find(y) != std::string::npos, x.str())
 
-TEST_CASE_FIXTURE(Inference, "gamma_model_prune" * doctest::skip(true))
-{
-    vector<gene_transcript> families(1);
-    families[0].set_expression_value("A", 3);
-    families[0].set_expression_value("B", 6);
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-    sigma_squared lambda(0.005);
-    matrix_cache cache;
 
-    gamma_model model(&lambda, &families, { 0.01, 0.05 }, { 0.1, 0.5 }, NULL);
-
-    vector<double> cat_likelihoods;
-    CHECK(model.prune(families[0], new prior("gamma", 0.0, 1600), cache, &lambda, p_tree.get(), cat_likelihoods, boundaries(0, 20)));
-
-    CHECK_EQ(2, cat_likelihoods.size());
-    CHECK_EQ(doctest::Approx(-23.04433), log(cat_likelihoods[0]));
-    CHECK_EQ(doctest::Approx(-16.68005), log(cat_likelihoods[1]));
-}
 
 TEST_CASE("Inference: create_one_model_if_lambda_is_null")
 {
@@ -560,7 +543,7 @@ TEST_CASE("Clade: copy_constructor_modifying_branch")
 }
 
 
-TEST_CASE("Simulation: gamma_model_get_simulation_lambda_uses_multiplier_based_on_category_probability")
+TEST_CASE("get_simulation_sigma uses multiplier based on category probability")
 {
     vector<double> gamma_categories{ 0.3, 0.7 };
     vector<double> multipliers{ 0.5, 1.5 };

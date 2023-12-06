@@ -639,3 +639,38 @@ TEST_CASE("Check sigma multipliers for a given alpha")
     CHECK_SIGMA_VALUE(0.401064, sigmas[1]);
     CHECK_SIGMA_VALUE(1.38008, sigmas[2]);
 }
+
+TEST_CASE("gamma_model_prune" * doctest::skip(true))
+{
+    vector<gene_transcript> families(1);
+    families[0].set_expression_value("A", 3);
+    families[0].set_expression_value("B", 6);
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    sigma_squared lambda(0.005);
+    matrix_cache cache;
+
+    gamma_model model(&lambda, &families, { 0.01, 0.05 }, { 0.1, 0.5 }, NULL);
+
+    vector<double> cat_likelihoods;
+    CHECK(model.prune(families[0], new prior("gamma", 0.0, 1600), cache, &lambda, p_tree.get(), cat_likelihoods, boundaries(0, 20)));
+
+    CHECK_EQ(2, cat_likelihoods.size());
+    CHECK_EQ(doctest::Approx(-23.04433), log(cat_likelihoods[0]));
+    CHECK_EQ(doctest::Approx(-16.68005), log(cat_likelihoods[1]));
+}
+
+TEST_CASE("Simulation: gamma_model_get_simulation_lambda_uses_multiplier_based_on_category_probability")
+{
+    vector<double> gamma_categories{ 0.3, 0.7 };
+    vector<double> multipliers{ 0.5, 1.5 };
+    sigma_squared lam(0.05);
+    gamma_model m(&lam, NULL, gamma_categories, multipliers, NULL);
+    vector<double> results(100);
+    generate(results.begin(), results.end(), [&m]() {
+        unique_ptr<sigma_squared> new_lam(dynamic_cast<sigma_squared*>(m.get_simulation_sigma()));
+        return new_lam->get_values()[0];
+        });
+
+    CHECK_EQ(doctest::Approx(0.057), accumulate(results.begin(), results.end(), 0.0) / 100.0);
+
+}
