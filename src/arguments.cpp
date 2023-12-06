@@ -101,6 +101,7 @@ input_parameters read_arguments(int argc, char* const argv[])
         ("sigma_tree,y", po::value<string>(), "Path to sigma tree, for use with multiple sigmas")
         ("simulate,s", po::value<string>()->default_value("false"), "Simulate families. Optionally provide the number of simulations to generate")
         ("fixed_sigma,l", po::value<double>(), "Value for a single user provided sigma value, otherwise sigma is estimated.")
+        ("fixed_alpha", po::value<double>(), "Value for a single user provided alpha value, otherwise alpha is estimated.")
         ("count_all_changes", po::value<bool>()->implicit_value(true), "Reconstruction will count all changes rather than only credible changes")
         ("ratio", po::value<bool>()->implicit_value(true), "The input file contains ratios of gene expression values rather than absolute values")
         ;
@@ -177,6 +178,7 @@ input_parameters read_arguments(int argc, char* const argv[])
     maybe_set(vm, "ratio", my_input_parameters.input_file_has_ratios);
     maybe_set(vm, "replicate_map", my_input_parameters.replicate_model_file_path);
     maybe_set(vm, "n_gamma_cats", my_input_parameters.n_gamma_cats);
+    maybe_set(vm, "fixed_alpha", my_input_parameters.fixed_alpha);
 
     string simulate_string = vm["simulate"].as<string>();
     my_input_parameters.is_simulating = simulate_string != "false";
@@ -549,4 +551,15 @@ TEST_CASE("Options: n_gamma_cats")
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK_EQ(5, actual.n_gamma_cats);
+}
+
+TEST_CASE("Options: fixed_alpha")
+{
+    input_parameters by_default;
+    CHECK_EQ(-1, by_default.fixed_alpha);
+
+    option_test c({ "cagee", "--n_gamma_cats", "2", "--fixed_alpha", "5"});
+
+    auto actual = read_arguments(c.argc, c.values);
+    CHECK_EQ(5, actual.fixed_alpha);
 }
