@@ -21,9 +21,6 @@ public:
     //! Calculate gamma categories and lambda multipliers based on category count and a fixed alpha
     gamma_model(sigma_squared* p_sigma, std::vector<gene_transcript>* p_gene_transcripts, int n_gamma_cats, double fixed_alpha, error_model *p_error_model);
 
-    //! Specify gamma categories and lambda multipliers explicitly
-    gamma_model(sigma_squared* p_sigma, std::vector<gene_transcript>* p_gene_transcripts, std::vector<double> gamma_categories, std::vector<double> multipliers, error_model *p_error_model);
-
     void set_alpha(double alpha);
     double get_alpha() const { return _alpha; }
 

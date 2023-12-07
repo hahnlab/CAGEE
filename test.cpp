@@ -542,23 +542,6 @@ TEST_CASE("Clade: copy_constructor_modifying_branch")
     CHECK_EQ(14, copy->find_descendant("AB")->get_branch_length());
 }
 
-
-TEST_CASE("get_simulation_sigma uses multiplier based on category probability")
-{
-    vector<double> gamma_categories{ 0.3, 0.7 };
-    vector<double> multipliers{ 0.5, 1.5 };
-    sigma_squared lam(0.05);
-    gamma_model m(&lam, NULL, gamma_categories, multipliers, NULL);
-    vector<double> results(100);
-    generate(results.begin(), results.end(), [&m]() {
-        unique_ptr<sigma_squared> new_lam(dynamic_cast<sigma_squared*>(m.get_simulation_sigma()));
-        return new_lam->get_values()[0];
-        });
-
-    CHECK_EQ(doctest::Approx(0.057), accumulate(results.begin(), results.end(), 0.0) / 100.0);
-
-}
-
 class mock_scorer : public optimizer_scorer
 {
     // Inherited via optimizer_scorer

@@ -383,7 +383,7 @@ TEST_CASE("prepare_calculation sets sigma and gamma correctly ")
     ud.p_tree = parse_newick("(A:1,B:1);");
     vector<double> gamma_categories{ 0.3, 0.7 };
     vector<double> multipliers{ 0.5, 1.5 };
-    gamma_model model(ud.p_sigma, &ud.gene_transcripts, gamma_categories, multipliers, NULL);
+    gamma_model model(ud.p_sigma, &ud.gene_transcripts, 2, 1, NULL);
     sigma_squared sig(1);
     sigma_optimizer_scorer optimizer(&model, ud, &sig);
     optimizer.initial_guesses();
@@ -410,7 +410,7 @@ TEST_CASE("sigma_optimizer_scorer updates model alpha and sigma")
 
     vector<double> gamma_categories{ 0.3, 0.7 };
     vector<double> multipliers{ 0.5, 1.5 };
-    gamma_model m(&sig, &ud.gene_transcripts, gamma_categories, multipliers, NULL);
+    gamma_model m(&sig, &ud.gene_transcripts, 2, 1, NULL);
 
     sigma_optimizer_scorer optimizer(&m, ud, &sig);
     optimizer.force_distribution_mean(7, 1);

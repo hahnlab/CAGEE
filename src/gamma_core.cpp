@@ -76,15 +76,6 @@ gamma_model::gamma_model(sigma_squared* p_sigma, std::vector<gene_transcript>* p
     set_alpha(fixed_alpha);
 }
 
-gamma_model::gamma_model(sigma_squared* p_sigma, std::vector<gene_transcript>* p_gene_transcripts, std::vector<double> gamma_categories, std::vector<double> multipliers, error_model *p_error_model) :
-    model(p_sigma, p_gene_transcripts,  p_error_model)
-{
-    _gamma_cat_probs = gamma_categories;
-    _sigma_multipliers = multipliers;
-    if (p_gene_transcripts)
-        _category_likelihoods.resize(p_gene_transcripts->size());
-}
-
 void gamma_model::write_extra_vital_statistics(std::ostream& ost)
 {
     ost << "Alpha: " << _alpha << endl;
@@ -649,7 +640,7 @@ TEST_CASE("gamma_model_prune" * doctest::skip(true))
     sigma_squared lambda(0.005);
     matrix_cache cache;
 
-    gamma_model model(&lambda, &families, { 0.01, 0.05 }, { 0.1, 0.5 }, NULL);
+    gamma_model model(&lambda, &families, 1, 3, NULL);
 
     vector<double> cat_likelihoods;
     CHECK(model.prune(families[0], new prior("gamma", 0.0, 1600), cache, &lambda, p_tree.get(), cat_likelihoods, boundaries(0, 20)));
@@ -659,18 +650,18 @@ TEST_CASE("gamma_model_prune" * doctest::skip(true))
     CHECK_EQ(doctest::Approx(-16.68005), log(cat_likelihoods[1]));
 }
 
-TEST_CASE("Simulation: gamma_model_get_simulation_lambda_uses_multiplier_based_on_category_probability")
+TEST_CASE("Simulation: get_simulation_sigma uses multiplier based on category probability")
 {
     vector<double> gamma_categories{ 0.3, 0.7 };
     vector<double> multipliers{ 0.5, 1.5 };
     sigma_squared lam(0.05);
-    gamma_model m(&lam, NULL, gamma_categories, multipliers, NULL);
+    gamma_model m(&lam, NULL, 3, 1.0, NULL);
     vector<double> results(100);
     generate(results.begin(), results.end(), [&m]() {
         unique_ptr<sigma_squared> new_lam(dynamic_cast<sigma_squared*>(m.get_simulation_sigma()));
         return new_lam->get_values()[0];
         });
 
-    CHECK_EQ(doctest::Approx(0.057), accumulate(results.begin(), results.end(), 0.0) / 100.0);
+    CHECK_EQ(doctest::Approx(0.0426), accumulate(results.begin(), results.end(), 0.0) / 100.0);
 
 }
