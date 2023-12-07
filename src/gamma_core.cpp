@@ -34,20 +34,20 @@ extern mt19937 randomizer_engine;
 //! \ingroup gamma
 class gamma_model_reconstruction : public reconstruction
 {
-    const std::vector<double> _sigma_multipliers;
+    discretized_gamma _gamma;
     virtual void write_nexus_extensions(std::ostream& ost) override;
 
 public:
-    gamma_model_reconstruction(transcript_vector& transcripts, const std::vector<double>& sigma_multipliers) :
+    gamma_model_reconstruction(transcript_vector& transcripts, discretized_gamma gamma) :
         reconstruction(transcripts),
-        _sigma_multipliers(sigma_multipliers)
+        _gamma(gamma)
     {
 
     }
 
-    gamma_model_reconstruction(transcript_vector& transcripts, replicate_model* p_model, const std::vector<double>& sigma_multipliers) :
+    gamma_model_reconstruction(transcript_vector& transcripts, replicate_model* p_model, discretized_gamma gamma) :
         reconstruction(transcripts, p_model),
-        _sigma_multipliers(sigma_multipliers)
+        _gamma(gamma)
     {
     }
 
@@ -313,7 +313,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
 
     calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), ud.bounds);
 
-    gamma_model_reconstruction* result = new gamma_model_reconstruction(ud.gene_transcripts, ud.p_replicate_model, _sigma_multipliers);
+    gamma_model_reconstruction* result = new gamma_model_reconstruction(ud.gene_transcripts, ud.p_replicate_model, discretized_gamma(_alpha, _sigma_multipliers.size()));
     vector<gamma_model_reconstruction::gamma_reconstruction *> recs(ud.gene_transcripts.size());
     for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
     {
@@ -349,10 +349,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
 void gamma_model_reconstruction::write_nexus_extensions(std::ostream& ost)
 {
     ost << "\nBEGIN SIGMA_MULTIPLIERS;\n";
-    for (auto& lm : _sigma_multipliers)
-    {
-        ost << "  " << lm << ";\n";
-    }
+    _gamma.write_multipliers(ost, false);
     ost << "END;\n\n";
 }
 
@@ -369,8 +366,7 @@ node_reconstruction gamma_model_reconstruction::get_internal_node_value(const ge
 void gamma_model_reconstruction::print_category_likelihoods(std::ostream& ost)
 {
     ost << "Transcript ID\t";
-    ostream_iterator<double> lm(ost, "\t");
-    copy(_sigma_multipliers.begin(), _sigma_multipliers.end(), lm);
+    _gamma.write_multipliers(ost, true);
     ost << endl;
 
     for (auto& gf : _transcripts)
@@ -388,6 +384,41 @@ void gamma_model_reconstruction::print_additional_data(std::string output_prefix
     std::ofstream cat_likelihoods(filename("category_likelihoods", output_prefix));
     print_category_likelihoods(cat_likelihoods);
 
+}
+
+discretized_gamma::discretized_gamma(double alpha, int bins) : _alpha(alpha) 
+{
+    if (bins > 1)
+    {
+        _sigma_multipliers.resize(bins);
+        _gamma_cat_probs.resize(bins);
+        get_gamma(_gamma_cat_probs, _sigma_multipliers, alpha); // passing vectors by reference
+    }
+}
+
+sigma_squared* discretized_gamma::get_random_sigma(const sigma_squared& ss)
+{
+    discrete_distribution<int> dist(_gamma_cat_probs.begin(), _gamma_cat_probs.end());
+    return new sigma_squared(ss, _sigma_multipliers[dist(randomizer_engine)]);       
+}
+
+vector<sigma_squared> discretized_gamma::get_discrete_sigmas(const sigma_squared &ss)
+{
+    vector<sigma_squared> sigmas;
+    for (auto m : _sigma_multipliers)
+    {
+        sigmas.emplace_back(ss, m);
+    }
+
+    return sigmas;
+}
+
+void discretized_gamma::write_multipliers(std::ostream& ost, bool single_line) const
+{
+    for (auto& lm : _sigma_multipliers)
+    {
+        ost << (single_line ? "" : "  ") << lm << (single_line ? "\t" : ";\n");
+    }
 }
 
 TEST_CASE("Inference: gamma_model__creates sigma optimizer__if_alpha_provided")
@@ -488,7 +519,7 @@ public:
 
 TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction print_reconstructed_states")
 {
-    gamma_model_reconstruction gmr(*p_transcripts, vector<double>({ 1.0 }));
+    gamma_model_reconstruction gmr(*p_transcripts, discretized_gamma(0.5, 1));
 
     auto& rec = gmr._reconstructions["Family5"];
     rec.category_reconstruction.resize(1);
@@ -507,18 +538,17 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction print_reconstructe
 
 TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__print_additional_data__prints_likelihoods")
 {
-    gamma_model_reconstruction gmr(*p_transcripts, vector<double>({ 0.3, 0.9, 1.4, 2.0 }));
+    gamma_model_reconstruction gmr(*p_transcripts, discretized_gamma(0.5, 3));
     gmr._reconstructions["Family5"]._category_likelihoods = { 0.01, 0.03, 0.09, 0.07 };
     ostringstream ost;
     gmr.print_category_likelihoods(ost);
-    CHECK_STREAM_CONTAINS(ost, "Transcript ID\t0.3\t0.9\t1.4\t2\t\n");
+    CHECK_STREAM_CONTAINS(ost, "Transcript ID\t0.0550773\t0.565867\t2.37906\t\n");
     CHECK_STREAM_CONTAINS(ost, "Family5\t0.01\t0.03\0.09\t0.07");
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__prints_sigma_multipiers")
 {
-    vector<double> multipliers{ 0.13, 1.4 };
-    gamma_model_reconstruction gmr(*p_transcripts, multipliers);
+    gamma_model_reconstruction gmr(*p_transcripts, discretized_gamma(0.5, 2));
 
     auto& rec = gmr._reconstructions["Family5"];
     rec.category_reconstruction.resize(1);
@@ -534,15 +564,15 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__prints_sigma_mult
     gmr.print_reconstructed_states(ost, p_tree.get());
 
     CHECK_STREAM_CONTAINS(ost, "BEGIN SIGMA_MULTIPLIERS;");
-    CHECK_STREAM_CONTAINS(ost, "  0.13;");
-    CHECK_STREAM_CONTAINS(ost, "  1.4;");
+    CHECK_STREAM_CONTAINS(ost, "  0.142516;");
+    CHECK_STREAM_CONTAINS(ost, "  1.85748;");
     CHECK_STREAM_CONTAINS(ost, "END;");
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction get_internal_node_value returns reconstruction value for internal nodes")
 {
     auto node = p_tree->find_descendant("CD");
-    gamma_model_reconstruction gmr(*p_transcripts, { .5 });
+    gamma_model_reconstruction gmr(*p_transcripts, discretized_gamma(0.5, 1));
     gmr._reconstructions["Family5"].reconstruction[node] = 7;
 
     CHECK_EQ(7, gmr.get_internal_node_value(p_transcripts->at(0), node).most_likely_value);
@@ -560,7 +590,7 @@ TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade")
     gf.set_expression_value("A", 7);
     gf.set_expression_value("B", 2);
     transcript_vector transcripts{ gf };
-    gamma_model_reconstruction gmr(transcripts, em);
+    gamma_model_reconstruction gmr(transcripts, discretized_gamma(0.5, 2));
 
     gmr._reconstructions["myid"].reconstruction[p_tree->find_descendant("AB")] = 5;
 
@@ -581,7 +611,8 @@ TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade empty"
     vector<double> em;
 
     transcript_vector transcripts;
-    gamma_model_reconstruction gmr(transcripts, em);
+    //gamma_model_reconstruction gmr(transcripts, em);
+    gamma_model_reconstruction gmr(transcripts, discretized_gamma(0.5, 2));
 
     gmr.print_increases_decreases_by_clade(empty, p_tree.get(), true);
     CHECK_EQ(empty.str(), "#Taxon_ID\tIncrease\tDecrease\n");
