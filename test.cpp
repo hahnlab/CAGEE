@@ -214,7 +214,7 @@ TEST_CASE_FIXTURE(Inference, "base_model creates lambda_epsilon_optimizer if req
 
 TEST_CASE_FIXTURE(Inference, "gamma_model_creates__gamma_lambda_optimizer_if_nothing_provided")
 {
-    gamma_model model(NULL, NULL,4, -1, NULL);
+    gamma_model model(NULL, NULL, 4, -1, NULL);
     _user_data.p_sigma = nullptr;
 
     auto opt = model.get_sigma_optimizer(_user_data, vector<string>());

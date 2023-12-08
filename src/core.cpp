@@ -216,3 +216,16 @@ TEST_CASE("Inference, event_monitor_shows_poor_performing_families")
     CHECK_STREAM_CONTAINS(ost, "test had 1 failures");
 }
 
+TEST_CASE("Inference: create_gamma_model_if__n_gamma_cats__provided")
+{
+    input_parameters params;
+    params.input_file_path = "foo";
+    params.n_gamma_cats = 3;
+    params.fixed_alpha = 1.5;
+    user_data data;
+    auto models = build_models(params, data);
+    CHECK_EQ(1, models.size());
+    CHECK(dynamic_cast<gamma_model*>(models[0]));
+    for (auto m : models)
+        delete m;
+}
