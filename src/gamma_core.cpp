@@ -67,18 +67,17 @@ public:
 };
 
 gamma_model::gamma_model(sigma_squared* p_sigma, std::vector<gene_transcript>* p_gene_transcripts, int n_gamma_cats, double fixed_alpha, error_model* p_error_model) :
-    model(p_sigma, p_gene_transcripts, p_error_model) {
+    model(p_sigma, p_gene_transcripts, p_error_model),
+    _n_gamma_cats(n_gamma_cats) {
 
-    _gamma_cat_probs.resize(n_gamma_cats);
-    _sigma_multipliers.resize(n_gamma_cats);
+    _gamma = discretized_gamma(fixed_alpha, n_gamma_cats);
     if (p_gene_transcripts)
         _category_likelihoods.resize(p_gene_transcripts->size());
-    set_alpha(fixed_alpha);
 }
 
 void gamma_model::write_extra_vital_statistics(std::ostream& ost)
 {
-    ost << "Alpha: " << _alpha << endl;
+    ost << "Alpha: " << get_alpha() << endl;
 }
 
 string comma_separated(const std::vector<double>& items)
@@ -91,37 +90,22 @@ string comma_separated(const std::vector<double>& items)
 
 //! Set alpha for gamma distribution
 void gamma_model::set_alpha(double alpha) {
-
-    _alpha = alpha;
-    if (_gamma_cat_probs.size() > 1)
-        get_gamma(_gamma_cat_probs, _sigma_multipliers, alpha); // passing vectors by reference
+    _gamma = discretized_gamma(alpha, _n_gamma_cats);
 }
 
 void gamma_model::write_probabilities(ostream& ost)
 {
-    ost << "Alpha: " << _alpha << endl;
-    ost << "Gamma cat probs are: " << comma_separated(_gamma_cat_probs) << endl;
-    ost << "Sigma multipliers are: " << comma_separated(_sigma_multipliers) << endl;
+    ost << "Alpha: " << get_alpha() << endl;
+    ost << "Gamma cat probs are: ";
+    _gamma.write_probabilities(ost);
+    ost << endl << "Sigma multipliers are: ";
+    _gamma.write_multipliers(ost, true);
+    ost << endl;
 }
 
 sigma_squared* gamma_model::get_simulation_sigma()
 {
-    discrete_distribution<int> dist(_gamma_cat_probs.begin(), _gamma_cat_probs.end());
-    return new sigma_squared(*_p_sigma, _sigma_multipliers[dist(randomizer_engine)]);
-}
-
-std::vector<double> gamma_model::get_posterior_probabilities(std::vector<double> cat_likelihoods)
-{
-    size_t process_count = cat_likelihoods.size();
-
-    vector<double> numerators(process_count);
-    transform(cat_likelihoods.begin(), cat_likelihoods.end(), _gamma_cat_probs.begin(), numerators.begin(), multiplies<double>());
-
-    double denominator = accumulate(numerators.begin(), numerators.end(), 0.0);
-    vector<double> posterior_probabilities(process_count);
-    transform(numerators.begin(), numerators.end(), posterior_probabilities.begin(), [denominator](double d) { return d/denominator; });
-
-    return posterior_probabilities;
+    return _gamma.get_random_sigma(*_p_sigma);
 }
 
 bool gamma_model::can_infer() const
@@ -129,7 +113,7 @@ bool gamma_model::can_infer() const
     if (!_p_sigma->is_valid())
         return false;
 
-    if (_alpha < 0)
+    if (get_alpha() < 0)
         return false;
 
     return true;
@@ -192,11 +176,7 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
 
     vector<bool> failure(ud.gene_transcripts.size());
 
-    vector<sigma_squared> sigmas;
-    for (auto m : _sigma_multipliers)
-    {
-        sigmas.emplace_back(*p_sigma, m);
-    }
+    auto sigmas = _gamma.get_discrete_sigmas(*p_sigma);
 
     double final_likelihood = 0;
     for (auto s: sigmas)
@@ -255,7 +235,7 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
 sigma_optimizer_scorer* gamma_model::get_sigma_optimizer(const user_data& data, const std::vector<string>& sample_groups)
 {
     bool estimate_sigma = data.p_sigma == NULL;
-    bool estimate_alpha = _alpha <= 0.0;
+    bool estimate_alpha = get_alpha() <= 0.0;
 
     if (estimate_sigma && estimate_alpha)
     {
@@ -278,7 +258,7 @@ sigma_optimizer_scorer* gamma_model::get_sigma_optimizer(const user_data& data, 
     }
 }
 
-clademap<double> get_weighted_averages(const std::vector<clademap<node_reconstruction>>& m, const vector<double>& probabilities)
+clademap<double> get_weighted_averages(const std::vector<clademap<node_reconstruction>>& m, const discretized_gamma& gamma)
 {
     cladevector nodes(m[0].size());
     std::transform(m[0].begin(), m[0].end(), nodes.begin(), [](std::pair<const clade *, node_reconstruction> v) { return v.first;  });
@@ -286,12 +266,13 @@ clademap<double> get_weighted_averages(const std::vector<clademap<node_reconstru
     clademap<double> result;
     for (auto node : nodes)
     {
-        double val = 0.0;
+        vector<double> probabilities(m.size());
         for (size_t i = 0; i<probabilities.size(); ++i)
         {
-            val += probabilities[i] * double(m[i].at(node).most_likely_value);
+            probabilities[i] = double(m[i].at(node).most_likely_value);
         }
-        result[node] = val;
+        auto weighted = gamma.weight(probabilities);
+        result[node] = accumulate(weighted.begin(), weighted.end(), 0.0);
     }
 
     return result;
@@ -301,33 +282,34 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
 {
     LOG(INFO) << "Starting reconstruction processes for Gamma model";
 
-    auto values = _p_sigma->get_values();
     vector<double> all;
-    for (double multiplier : _sigma_multipliers)
+    auto ss = _gamma.get_discrete_sigmas(*_p_sigma);
+    for (auto& s : ss)
     {
-        for (double sigma : values)
+        for (auto t : s.get_values())
         {
-            all.push_back(sigma*multiplier);
+            all.push_back(t);
         }
     }
 
     calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), ud.bounds);
 
-    gamma_model_reconstruction* result = new gamma_model_reconstruction(ud.gene_transcripts, ud.p_replicate_model, discretized_gamma(_alpha, _sigma_multipliers.size()));
+    gamma_model_reconstruction* result = new gamma_model_reconstruction(ud.gene_transcripts, ud.p_replicate_model, _gamma);
     vector<gamma_model_reconstruction::gamma_reconstruction *> recs(ud.gene_transcripts.size());
     for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
     {
         recs[i] = &result->_reconstructions[ud.gene_transcripts[i].id()];
         result->_reconstructions[ud.gene_transcripts[i].id()]._category_likelihoods = _category_likelihoods[i];
-        result->_reconstructions[ud.gene_transcripts[i].id()].category_reconstruction.resize(_sigma_multipliers.size());
+        result->_reconstructions[ud.gene_transcripts[i].id()].category_reconstruction.resize(_n_gamma_cats);
     }
 
-    for (size_t k = 0; k < _gamma_cat_probs.size(); ++k)
-    {
-        VLOG(1) << "Reconstructing for multiplier " << _sigma_multipliers[k];
-        sigma_squared ml(*_p_sigma, _sigma_multipliers[k]);
+    auto sigmas = _gamma.get_discrete_sigmas(*_p_sigma);
 
-        inference_pruner tr(&ml, ud.p_tree, ud.p_replicate_model, calc, ud.bounds);
+    for (size_t k = 0; k<sigmas.size(); ++k)
+    {
+        VLOG(1) << "Reconstructing for multiplier " << sigmas[k];
+
+        inference_pruner tr(&sigmas[k], ud.p_tree, ud.p_replicate_model, calc, ud.bounds);
 
         for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
         {
@@ -338,7 +320,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
     for (auto reconstruction : recs)
     {
         // multiply every reconstruction by gamma_cat_prob
-        reconstruction->reconstruction = get_weighted_averages(reconstruction->category_reconstruction, _gamma_cat_probs);
+        reconstruction->reconstruction = get_weighted_averages(reconstruction->category_reconstruction, _gamma);
     }
 
     LOG(INFO) << "Done!\n";
@@ -413,9 +395,24 @@ vector<sigma_squared> discretized_gamma::get_discrete_sigmas(const sigma_squared
     return sigmas;
 }
 
+std::vector<double> discretized_gamma::weight( std::vector<double> likelihoods) const
+{
+    std::vector<double> result(likelihoods.size());
+    std::transform(likelihoods.begin(), likelihoods.end(), _gamma_cat_probs.begin(), result.begin(), std::multiplies<double>());
+    return result;
+}
+
 void discretized_gamma::write_multipliers(std::ostream& ost, bool single_line) const
 {
     for (auto& lm : _sigma_multipliers)
+    {
+        ost << (single_line ? "" : "  ") << lm << (single_line ? "\t" : ";\n");
+    }
+}
+
+void discretized_gamma::write_probabilities(std::ostream& ost, bool single_line) const
+{
+    for (auto& lm : _gamma_cat_probs)
     {
         ost << (single_line ? "" : "  ") << lm << (single_line ? "\t" : ";\n");
     }
@@ -489,9 +486,10 @@ TEST_CASE("get_weighted_averages")
     nr.most_likely_value = 8;
     rc2[&c2] = nr;
 
-    auto avg = get_weighted_averages({ rc1, rc2 }, { .25, .75 });
-    CHECK_EQ(17.5, avg[&c1]);
-    CHECK_EQ(6.5, avg[&c2]);
+    discretized_gamma gamma(0.5, 2);
+    auto avg = get_weighted_averages({ rc1, rc2 }, gamma);
+    CHECK_EQ(15.0, avg[&c1]);
+    CHECK_EQ(5.0, avg[&c2]);
 }
 
 class Reconstruction
