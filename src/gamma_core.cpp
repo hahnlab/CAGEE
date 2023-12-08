@@ -486,7 +486,7 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__print_additional_
     gmr._reconstructions["Family5"]._category_likelihoods = { 0.01, 0.03, 0.09, 0.07 };
     ostringstream ost;
     gmr.print_category_likelihoods(ost);
-    CHECK_STREAM_CONTAINS(ost, "Transcript ID\t0.0221401\t0.227468\t0.956336\t\n");
+    CHECK_STREAM_CONTAINS(ost, "Transcript ID\t0.0442801\t0.454936\t1.91267\t\n");
     CHECK_STREAM_CONTAINS(ost, "Family5\t0.01\t0.03\0.09\t0.07");
 }
 
@@ -508,8 +508,8 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__prints_sigma_mult
     gmr.print_reconstructed_states(ost, p_tree.get());
 
     CHECK_STREAM_CONTAINS(ost, "BEGIN SIGMA_MULTIPLIERS;");
-    CHECK_STREAM_CONTAINS(ost, "  0.0507655;");
-    CHECK_STREAM_CONTAINS(ost, "  0.661652;");
+    CHECK_STREAM_CONTAINS(ost, "  0.101531;");
+    CHECK_STREAM_CONTAINS(ost, "  1.3233;");
     CHECK_STREAM_CONTAINS(ost, "END;");
 }
 

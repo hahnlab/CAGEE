@@ -21,7 +21,7 @@ discretized_gamma::discretized_gamma(double alpha, int bins) : _alpha(alpha)
         _sigma_multipliers.resize(bins);
         _gamma_cat_probs.resize(bins);
         fill_n(_gamma_cat_probs.begin(), bins, 1.0 / bins);
-        boost::math::gamma_distribution<> gamma(alpha, 1.0);
+        boost::math::gamma_distribution<> gamma(alpha, 1/alpha);
 
         double probability = _gamma_cat_probs[0]/2.0;
         for (int i = 0; i < bins; ++i)
@@ -84,16 +84,16 @@ TEST_CASE("Check sigma multipliers for a given alpha")
 
     sigma_squared unit(1.0);
     auto multipliers = gamma.get_discrete_sigmas(unit);
-    CHECK_SIGMA_VALUE(0.0520289, multipliers[0]);
-    CHECK_SIGMA_VALUE(0.348161, multipliers[1]);
-    CHECK_SIGMA_VALUE(1.19804, multipliers[2]);
+    CHECK_SIGMA_VALUE(0.0818406, multipliers[0]);
+    CHECK_SIGMA_VALUE(0.547651, multipliers[1]);
+    CHECK_SIGMA_VALUE(1.88449, multipliers[2]);
 
     sigma_squared sigma((double)0.613693);
     auto sigmas = gamma.get_discrete_sigmas(sigma);
     REQUIRE_EQ(3, sigmas.size());
-    CHECK_SIGMA_VALUE( 0.0319298, sigmas[0]);
-    CHECK_SIGMA_VALUE(0.213664, sigmas[1]);
-    CHECK_SIGMA_VALUE(0.735228, sigmas[2]);
+    CHECK_SIGMA_VALUE( 0.050225, sigmas[0]);
+    CHECK_SIGMA_VALUE(0.336089, sigmas[1]);
+    CHECK_SIGMA_VALUE(1.1565, sigmas[2]);
  }
 
  
