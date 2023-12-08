@@ -16,7 +16,6 @@
 #include "sigma.h"
 #include "base_model.h"
 #include "gamma_core.h"
-#include "gamma.h"
 #include "error_model.h"
 #include "root_equilibrium_distribution.h"
 #include "gene_transcript.h"

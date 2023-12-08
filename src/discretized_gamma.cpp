@@ -2,11 +2,12 @@
 #include <ostream>
 #include <algorithm>
 
+#include <boost/math/distributions/gamma.hpp>
+
 #include "doctest.h"
 #include "easylogging++.h"
 
 #include "discretized_gamma.h"
-#include "gamma.h"
 #include "sigma.h"
 
 using namespace std;
@@ -15,11 +16,19 @@ extern mt19937 randomizer_engine;
 
 discretized_gamma::discretized_gamma(double alpha, int bins) : _alpha(alpha) 
 {
-    if (bins > 1)
+    if (bins > 1 && alpha > 0.0)
     {
         _sigma_multipliers.resize(bins);
         _gamma_cat_probs.resize(bins);
-        get_gamma(_gamma_cat_probs, _sigma_multipliers, alpha); // passing vectors by reference
+        fill_n(_gamma_cat_probs.begin(), bins, 1.0 / bins);
+        boost::math::gamma_distribution<> gamma(alpha, 1.0);
+
+        double probability = _gamma_cat_probs[0]/2.0;
+        for (int i = 0; i < bins; ++i)
+        {
+            _sigma_multipliers[i] = boost::math::quantile(gamma, probability);
+            probability += _gamma_cat_probs[i];
+        }
     }
 }
 
@@ -75,14 +84,29 @@ TEST_CASE("Check sigma multipliers for a given alpha")
 
     sigma_squared unit(1.0);
     auto multipliers = gamma.get_discrete_sigmas(unit);
-    CHECK_SIGMA_VALUE(0.0976623, multipliers[0]);
-    CHECK_SIGMA_VALUE(0.653525, multipliers[1]);
-    CHECK_SIGMA_VALUE(2.24881, multipliers[2]);
+    CHECK_SIGMA_VALUE(0.0520289, multipliers[0]);
+    CHECK_SIGMA_VALUE(0.348161, multipliers[1]);
+    CHECK_SIGMA_VALUE(1.19804, multipliers[2]);
 
     sigma_squared sigma((double)0.613693);
     auto sigmas = gamma.get_discrete_sigmas(sigma);
     REQUIRE_EQ(3, sigmas.size());
-    CHECK_SIGMA_VALUE(0.0599347, sigmas[0]);
-    CHECK_SIGMA_VALUE(0.401064, sigmas[1]);
-    CHECK_SIGMA_VALUE(1.38008, sigmas[2]);
+    CHECK_SIGMA_VALUE( 0.0319298, sigmas[0]);
+    CHECK_SIGMA_VALUE(0.213664, sigmas[1]);
+    CHECK_SIGMA_VALUE(0.735228, sigmas[2]);
+ }
+
+ 
+TEST_CASE("get_random_sigma uses multiplier based on category probability")
+{
+    discretized_gamma gamma(1.0, 3);
+
+    vector<double> results(100);
+    generate(results.begin(), results.end(), [&gamma]() {
+        unique_ptr<sigma_squared> new_lam(gamma.get_random_sigma(sigma_squared(1.2)));
+        return new_lam->get_values()[0];
+        });
+
+    CHECK_EQ(doctest::Approx(0.909111), accumulate(results.begin(), results.end(), 0.0) / 100.0);
+
 }

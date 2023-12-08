@@ -11,7 +11,6 @@
 #include "easylogging++.h"
 
 #include "gamma_core.h"
-#include "gamma.h"
 #include "reconstruction.h"
 #include "matrix_cache.h"
 #include "gene_transcript.h"
@@ -487,7 +486,7 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__print_additional_
     gmr._reconstructions["Family5"]._category_likelihoods = { 0.01, 0.03, 0.09, 0.07 };
     ostringstream ost;
     gmr.print_category_likelihoods(ost);
-    CHECK_STREAM_CONTAINS(ost, "Transcript ID\t0.0550773\t0.565867\t2.37906\t\n");
+    CHECK_STREAM_CONTAINS(ost, "Transcript ID\t0.0221401\t0.227468\t0.956336\t\n");
     CHECK_STREAM_CONTAINS(ost, "Family5\t0.01\t0.03\0.09\t0.07");
 }
 
@@ -509,8 +508,8 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__prints_sigma_mult
     gmr.print_reconstructed_states(ost, p_tree.get());
 
     CHECK_STREAM_CONTAINS(ost, "BEGIN SIGMA_MULTIPLIERS;");
-    CHECK_STREAM_CONTAINS(ost, "  0.142516;");
-    CHECK_STREAM_CONTAINS(ost, "  1.85748;");
+    CHECK_STREAM_CONTAINS(ost, "  0.0507655;");
+    CHECK_STREAM_CONTAINS(ost, "  0.661652;");
     CHECK_STREAM_CONTAINS(ost, "END;");
 }
 
@@ -602,18 +601,3 @@ TEST_CASE("gamma_model_prune" * doctest::skip(true))
     CHECK_EQ(doctest::Approx(-16.68005), log(cat_likelihoods[1]));
 }
 
-TEST_CASE("Simulation: get_simulation_sigma uses multiplier based on category probability")
-{
-    vector<double> gamma_categories{ 0.3, 0.7 };
-    vector<double> multipliers{ 0.5, 1.5 };
-    sigma_squared lam(0.05);
-    gamma_model m(&lam, NULL, 3, 1.0, NULL);
-    vector<double> results(100);
-    generate(results.begin(), results.end(), [&m]() {
-        unique_ptr<sigma_squared> new_lam(dynamic_cast<sigma_squared*>(m.get_simulation_sigma()));
-        return new_lam->get_values()[0];
-        });
-
-    CHECK_EQ(doctest::Approx(0.0426), accumulate(results.begin(), results.end(), 0.0) / 100.0);
-
-}
