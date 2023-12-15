@@ -252,7 +252,7 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
         all_transcripts_likelihood.add_sigma(&s);
     #pragma omp parallel for
         for (int i = 0; i < (int)ud.gene_transcripts.size(); ++i) {
-            all_transcripts_likelihood.set_value(&s, i, compute_prior_likelihood(partial_likelihoods[references[i]], priors));            
+            all_transcripts_likelihood.set_value(&s, i, log(compute_prior_likelihood(partial_likelihoods[references[i]], priors)));            
         }
     }
 

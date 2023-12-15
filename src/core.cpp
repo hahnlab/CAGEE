@@ -126,7 +126,7 @@ double compute_prior_likelihood(const vector<double>& partial_likelihood, const 
 #else
     double likelihood = accumulate(full.begin(), full.end(), 0.0, [](double a, double b) { return isinf(b) ? a : a+b; }); // sum over all sizes (Felsenstein's approach)
 #endif
-    return log(likelihood);
+    return likelihood;
 }
 
 
@@ -229,3 +229,22 @@ TEST_CASE("Inference: create_gamma_model_if__n_gamma_cats__provided")
     for (auto m : models)
         delete m;
 }
+
+TEST_CASE("compute_prior_likelihood combines prior and inference correctly")
+{
+    gene_transcript gt;
+    gt.set_expression_value("A", 12);
+    gt.set_expression_value("B", 24);
+
+    vector<double> inf{ 0.1, 0.2, 0.3};
+
+    vector<double> priors({ 1.43078e-15,    2.5363e-23,  5.65526e-35 });
+    double actual = log(compute_prior_likelihood(inf, priors));
+
+#ifdef USE_MAX_PROBABILITY
+    CHECK_EQ(doctest::Approx(-35.7683), actual);
+#else
+    CHECK_EQ(doctest::Approx(-36.4831), actual);
+#endif
+}
+

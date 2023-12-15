@@ -130,7 +130,7 @@ double base_model::infer_transcript_likelihoods(const user_data& ud, const sigma
 #pragma omp parallel for
     for (int i = 0; i < (int)ud.gene_transcripts.size(); ++i) {
 
-        all_transcripts_likelihood[i] = compute_prior_likelihood(partial_likelihoods[references[i]], priors);
+        all_transcripts_likelihood[i] = log(compute_prior_likelihood(partial_likelihoods[references[i]], priors));
         
     }
     double final_likelihood = -std::accumulate(all_transcripts_likelihood.begin(), all_transcripts_likelihood.end(), 0.0);
@@ -190,24 +190,6 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 sigma_squared* base_model::get_simulation_sigma()
 {
     return new sigma_squared(*_p_sigma, simulation_sigma_multiplier);
-}
-
-TEST_CASE("compute_prior_likelihood combines prior and inference correctly")
-{
-    gene_transcript gt;
-    gt.set_expression_value("A", 12);
-    gt.set_expression_value("B", 24);
-
-    vector<double> inf{ 0.1, 0.2, 0.3};
-
-    vector<double> priors({ 1.43078e-15,    2.5363e-23,  5.65526e-35 });
-    double actual = compute_prior_likelihood(inf, priors);
-
-#ifdef USE_MAX_PROBABILITY
-    CHECK_EQ(doctest::Approx(-35.7683), actual);
-#else
-    CHECK_EQ(doctest::Approx(-36.4831), actual);
-#endif
 }
 
 TEST_CASE("base optimizer guesses sigma only")
