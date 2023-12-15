@@ -155,6 +155,51 @@ void flatten_vector(const vector<vector<double>>& v, vector<double>& result)
     }
 }
 
+class likelihood_combiner
+{
+    std::map<const sigma_squared *, vector<double>> _likelihoods;
+    int _num_transcripts;
+public:
+    likelihood_combiner(int num_sigmas, int num_transcripts) : _num_transcripts(num_transcripts){
+    }
+
+    void add_sigma(const sigma_squared* p_sigma)
+    {
+        if (_likelihoods.find(p_sigma) == _likelihoods.end())
+        {
+            _likelihoods[p_sigma] = vector<double>(_num_transcripts);
+        }
+    }
+    void set_value(const sigma_squared* p_sigma, int transcript_index, double value)
+    {
+        _likelihoods[p_sigma][transcript_index] = value;
+    }
+
+    double final_value()
+    {
+        double final_likelihood = 0.0;
+        for (auto& v : _likelihoods)
+        {
+            double val = -std::accumulate(v.second.begin(), v.second.end(), 0.0);        
+            LOG(DEBUG) << "  Sub-sigma " << *v.first << " -lnL: " << val;
+            final_likelihood += val;
+        }
+        return final_likelihood;
+    }
+};
+
+vector<double> get_priors(const matrix_cache& calc, const user_data& ud)
+{
+    vector<double> priors(calc.create_vector().size());
+    for (size_t j = 0; j < priors.size(); ++j) {
+        double x = (double(j) + 0.5) * double(ud.bounds.second) / (priors.size() - 1);
+
+        priors[j] = computational_space_prior(x, ud.p_prior);
+    }
+
+    return priors;
+}
+
 //! Infer bundle
 double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigma_squared*p_sigma) {
 
@@ -174,29 +219,22 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
 
     auto sigmas = _gamma.get_discrete_sigmas(*p_sigma);
 
-    double final_likelihood = 0;
-    for (auto s: sigmas)
-    {
-    
-        matrix_cache calc;
-            auto v = calc.create_vector();
-    vector<double> priors(v.size());
-    copy(v.begin(), v.end(), priors.begin());
-    try
-    {
-        for (size_t j = 0; j < priors.size(); ++j) {
-            double x = (double(j) + 0.5) * double(ud.bounds.second) / (priors.size() - 1);
+    likelihood_combiner all_transcripts_likelihood(sigmas.size(), ud.gene_transcripts.size());
 
-            priors[j] = computational_space_prior(x, ud.p_prior);
+    for (auto& s: sigmas)
+    {    
+        matrix_cache calc;
+        vector<double> priors;
+        try
+        {
+            priors = get_priors(calc, ud);
         }
-    }
-    catch (std::domain_error& e)
-    {
-        LOG(DEBUG) << e.what();
-        LOG(WARNING) << "Prior not valid for this sigma and data set";
-        return -log(0);
-    }
-        std::vector<double> all_transcripts_likelihood(ud.gene_transcripts.size());
+        catch (std::domain_error& e)
+        {
+            LOG(DEBUG) << e.what();
+            LOG(WARNING) << "Prior not valid for this sigma and data set";
+            return -log(0);
+        }
 
         calc.precalculate_matrices(s.get_values(),  ud.p_tree->get_branch_lengths(), ud.bounds);
 
@@ -211,17 +249,14 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
                 partial_likelihoods[i] = pruners[i].prune(ud.gene_transcripts.at(i));
         }
 
+        all_transcripts_likelihood.add_sigma(&s);
     #pragma omp parallel for
         for (int i = 0; i < (int)ud.gene_transcripts.size(); ++i) {
-
-            all_transcripts_likelihood[i] = compute_prior_likelihood(partial_likelihoods[references[i]], priors);
-            
+            all_transcripts_likelihood.set_value(&s, i, compute_prior_likelihood(partial_likelihoods[references[i]], priors));            
         }
-        double val = -std::accumulate(all_transcripts_likelihood.begin(), all_transcripts_likelihood.end(), 0.0);        
-        LOG(DEBUG) << "  Sub-sigma " << s << " -lnL: " << val;
-        final_likelihood += val;
     }
 
+    double final_likelihood = all_transcripts_likelihood.final_value();
     LOG(INFO) << "Score (-lnL): " << std::setw(15) << std::setprecision(14) << final_likelihood;
 
     return final_likelihood;
@@ -601,3 +636,29 @@ TEST_CASE("gamma_model_prune" * doctest::skip(true))
     CHECK_EQ(doctest::Approx(-16.68005), log(cat_likelihoods[1]));
 }
 
+TEST_CASE("likelihood_combiner")
+{
+    sigma_squared s1(0.1);
+    likelihood_combiner lc(1, 5);
+    lc.add_sigma(&s1);
+    lc.set_value(&s1, 0, .1);
+    lc.set_value(&s1, 1, .1);
+    lc.set_value(&s1, 2, .1);
+    lc.set_value(&s1, 3, .1);
+    CHECK_EQ(-0.4, lc.final_value());
+}
+
+TEST_CASE("get_priors")
+{
+    sigma_squared s1(0.1);
+    matrix_cache calc;
+    user_data ud;
+    ud.p_prior = new prior("gamma", 1.0, 1600);
+    ud.bounds = boundaries(0, 20);
+    auto priors = get_priors(calc, ud);
+    REQUIRE_EQ(200, priors.size());
+    CHECK_EQ(doctest::Approx(-7.32816), log(priors[0]));
+    CHECK_EQ(doctest::Approx(-1.02372), log(priors[75]));
+    CHECK_EQ(doctest::Approx(-182.551), log(priors[125]));
+    CHECK_EQ(0, priors[199]);
+}
