@@ -177,14 +177,18 @@ public:
 
     double final_value()
     {
-        double final_likelihood = 0.0;
-        for (auto& v : _likelihoods)
+        // For each transcript, we add the likelihoods of all the categories, then take the log of that and add them all together
+        std::set<const sigma_squared *> keys;
+        for (auto &iter : _likelihoods)
         {
-            double val = -std::accumulate(v.second.begin(), v.second.end(), 0.0);        
-            LOG(DEBUG) << "  Sub-sigma " << *v.first << " -lnL: " << val;
-            final_likelihood += val;
+            keys.insert(iter.first);
         }
-        return final_likelihood;
+        double final_likelihood = 0.0;
+        for (int i = 0; i<_num_transcripts; ++i)
+        {
+            final_likelihood += log(accumulate(keys.begin(), keys.end(), 0.0, [&](double a, const sigma_squared* b) { return a + _likelihoods[b][i]; }));
+        }
+        return -final_likelihood;
     }
 };
 
@@ -252,7 +256,7 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
         all_transcripts_likelihood.add_sigma(&s);
     #pragma omp parallel for
         for (int i = 0; i < (int)ud.gene_transcripts.size(); ++i) {
-            all_transcripts_likelihood.set_value(&s, i, log(compute_prior_likelihood(partial_likelihoods[references[i]], priors)));            
+            all_transcripts_likelihood.set_value(&s, i, compute_prior_likelihood(partial_likelihoods[references[i]], priors));            
         }
     }
 
@@ -641,11 +645,55 @@ TEST_CASE("likelihood_combiner")
     sigma_squared s1(0.1);
     likelihood_combiner lc(1, 5);
     lc.add_sigma(&s1);
-    lc.set_value(&s1, 0, .1);
-    lc.set_value(&s1, 1, .1);
-    lc.set_value(&s1, 2, .1);
-    lc.set_value(&s1, 3, .1);
-    CHECK_EQ(-0.4, lc.final_value());
+    const double e1 = exp(0.1);
+    lc.set_value(&s1, 0, e1);
+    lc.set_value(&s1, 1, e1);
+    lc.set_value(&s1, 2, e1);
+    lc.set_value(&s1, 3, e1);
+    lc.set_value(&s1, 4, e1);
+    CHECK_EQ(doctest::Approx(-0.5), lc.final_value());
+}
+
+TEST_CASE("likelihood_combiner sums logs of each value with a single sigma")
+{
+    sigma_squared s1(1.0);
+    likelihood_combiner lc(1, 5);
+    lc.add_sigma(&s1);
+    const double e1 = exp(.1);
+    lc.set_value(&s1, 0, e1);
+    lc.set_value(&s1, 1, e1);
+    lc.set_value(&s1, 2, e1);
+    lc.set_value(&s1, 3, e1);
+    lc.set_value(&s1, 4, e1);
+    CHECK_EQ(doctest::Approx(-0.5), lc.final_value());
+}
+
+TEST_CASE("With multiple sigmas likelihood_combiner sums across sigmas then takes the logs")
+{
+    sigma_squared s1(1.0);
+    sigma_squared s2(2.0);  // values don't matter, they are used as keys
+
+    const double e1 = exp(.1) * .75; // cleverly choose some values that sum to a nice number
+    const double e2 = exp(.1) * .25;
+
+    const int num_bins = 2;
+    const int num_transcripts = 5;
+    likelihood_combiner lc(num_bins, num_transcripts);
+    lc.add_sigma(&s1);
+    lc.set_value(&s1, 0, e1);
+    lc.set_value(&s1, 1, e1);
+    lc.set_value(&s1, 2, e1);
+    lc.set_value(&s1, 3, e1);
+    lc.set_value(&s1, 4, e1);
+
+    lc.add_sigma(&s2);
+    lc.set_value(&s2, 0, e2);
+    lc.set_value(&s2, 1, e2);
+    lc.set_value(&s2, 2, e2);
+    lc.set_value(&s2, 3, e2);
+    lc.set_value(&s2, 4, e2);
+
+    CHECK_EQ(doctest::Approx(-0.5), lc.final_value());
 }
 
 TEST_CASE("get_priors")
