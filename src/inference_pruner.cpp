@@ -136,11 +136,11 @@ size_t adjust_for_error_model(size_t c, const error_model *p_error_model)
     return c;
 }
 
-node_reconstruction get_value(const VectorXd& likelihood, int upper_bound)
+node_reconstruction get_value(const VectorXd& likelihood, boundaries bounds)
 {
-    auto midpoint = [&likelihood, upper_bound](int idx) {
-        double bin_start = (double(idx) / likelihood.size()) * upper_bound;
-        double bin_width = double(upper_bound) / double(likelihood.size());
+    auto midpoint = [&likelihood, bounds](int idx) {
+        double bin_start = (double(idx) / likelihood.size()) * (bounds.second - bounds.first) + bounds.first;
+        double bin_width = double(bounds.second - bounds.first) / double(likelihood.size());
         return bin_start + bin_width / 2.0;
     };
     Index max_likelihood_index;
@@ -204,7 +204,7 @@ clademap<node_reconstruction> inference_pruner::reconstruct(const gene_transcrip
 
     for (auto& n : internal_nodes)
     {
-        reconstruction[n] = get_value(_probabilities[n].probabilities(), _bounds.second);
+        reconstruction[n] = get_value(_probabilities[n].probabilities(), _bounds);
     }
     return reconstruction;
 }
@@ -355,7 +355,18 @@ TEST_CASE("get_value most likely value")
     v(112) = 22;
     v(158) = 9;
 
-    CHECK_EQ(doctest::Approx(56.25), get_value(v, 100).most_likely_value);
+    CHECK_EQ(doctest::Approx(56.25), get_value(v, boundaries(0,100)).most_likely_value);
+}
+
+TEST_CASE("get_value most likely value with negative values")
+{
+    VectorXd v = VectorXd::Zero(200);
+    v(4) = 8;
+    v(6) = 12;
+    v(112) = 22;
+    v(158) = 9;
+
+    CHECK_EQ(doctest::Approx(6.25), get_value(v, boundaries(-50,50)).most_likely_value);
 }
 
 TEST_CASE("get_value credible interval")
@@ -364,12 +375,24 @@ TEST_CASE("get_value credible interval")
 
     VectorXd v(20);
     generate(v.begin(), v.end(), [&dist]() { return dist(randomizer_engine);  });
-    auto i = get_value(v, 20);
+    auto i = get_value(v, boundaries(0,20));
     CHECK_EQ(doctest::Approx(0.5), i.credible_interval.first);
     CHECK_EQ(doctest::Approx(19.5), i.credible_interval.second);
 
 }
 
+TEST_CASE("get_value credible interval with negative values")
+{
+    std::normal_distribution<float> dist(0.0, 3.0);
+
+    VectorXd v(20);
+    generate(v.begin(), v.end(), [&dist]() { return dist(randomizer_engine);  });
+    auto i = get_value(v, boundaries(-10,10));
+
+    CHECK_EQ(doctest::Approx(6.5), i.credible_interval.first);
+    CHECK_EQ(doctest::Approx(9.5), i.credible_interval.second);
+
+}
 TEST_CASE("verify a complex credible interval")
 {
     VectorXd v(100);
@@ -400,7 +423,7 @@ TEST_CASE("verify a complex credible interval")
         2.074271881760083713e-03,        1.556270993742921724e-03,        1.160028999668888915e-03,        8.590462575532045947e-04,
         6.320163806627504544e-04,        4.619598156723453268e-04,        3.354626279025118532e-04;
 
-    auto i = get_value(v, 1);    
+    auto i = get_value(v, boundaries(0,1));    
     
     CHECK_EQ(doctest::Approx(0.255), i.credible_interval.first);
     CHECK_EQ(doctest::Approx(0.745), i.credible_interval.second);
