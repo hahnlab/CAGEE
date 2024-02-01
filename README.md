@@ -14,13 +14,14 @@ The reconstructed distribution of counts and their inferred evolutionary rate $\
 
 ## Installation
 
-See the [**release**](https://github.com/hahnlab/CAGEE/releases/) page for the latest official build and precompiled binaries for your OS.
+```
+conda create -n cagee -c bioconda cagee
+```
 
-CAGEE has a few [**dependencies**](./docs/manual/cagee_manual.md#dependencies) which must be installed before building or running, including [Boost](https://www.boost.org/users/download/), [Eigen](https://eigen.tuxfamily.org/index.php?title=Main_Page), and a BLAS numeric library such as [MKL](https://software.intel.com/content/www/us/en/develop/tools/math-kernel-library.html)
+If you would like to build from source code, download the latest release from the [**release**](https://github.com/hahnlab/CAGEE/releases/) page, and see the [**manual**](./docs/manual/cagee_manual.md#Installation) for details. CAGEE depends on CMake, Boost, and Eigen for building.
 
-You can also install CAGEE via `conda`: [ command to be added once uploaded to bioconda ]
+There is also a Docker container available.
 
-See the [**manual**](./docs/manual/cagee_manual.md#Installation) for details, including building from source (not recommended)
 
 ## Usage
 

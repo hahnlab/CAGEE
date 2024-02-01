@@ -1,31 +1,36 @@
-# CAGEE v1.0 Manual
-
-Beta Release for Review, Nov 2022
+# CAGEE Manual
 
 ## (Brief) Description
 
 CAGEE is software for inferring rates of gene expression evolution (or any other continuous trait) across a phylogenetic tree using a bounded Brownian motion model. In addition to providing estimates for one or more evolutionary rates, $\sigma^2$, it provides ancestral state reconstruction and gene-wise  changes between nodes.
 
-See our publication [ add link to citation here ] for more details.
+See the CAGEE paper https://doi.org/10.1093/molbev/msad106 for more details.
 
 ## Quick Start
 
-1.  Download the appropriate pre-compiled CAGEE binary from the [release page](https://github.com/hahnlab/CAGEE/releases) and save it to your preferred installation directory.  Alternatively, you can install it with dependencies using the [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#regular-installation) environment and package manager (`conda install -n your_env -c bioconda cagee`)
+1.  Install CAGEE by using one of the methods below.
 2.  From the command line, make sure the CAGEE installation directory is in your `PATH`  or go to your installation directory and:
 3.  Run `cagee -t [path/to/your/newick_tree.nwk] -i [path/to/your/gene_expression_data.tsv]`. The two required inputs are an ultrametric species tree and a file containing the data. Further details on what is required for these are given below.
 4.  Review the output printed to the terminal and saved to files in `./results/` for this run with a single $\sigma^2$. Details on how to run models with multiple $\sigma^2$ values are described below.
 
 ## Installation
 
-Installation of CAGEE is possible through several avenues, including precompiled binaries, `conda` environments, and building from source.
+Installation of CAGEE is possible through several avenues, including Docker containers, `conda` environments, and building from source.
 
-### Precompiled binaries
+### Conda
 
-Executable files for several common systems are available on the [release page](https://github.com/hahnlab/CAGEE/releases), which will be updated periodically with official releases and patches.  Simply select the appropriate build for your operating system, download, and unpack it to your installation directory.
+```
+conda create -n cagee -c bioconda cagee
+```
 
-### `conda` / Anaconda
+For more information, see
 
-Using the `conda` environment and package manager included as part of the Anaconda software suite (and available as a standalone manager [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#regular-installation)), you can create your own CAGEE-specific software environment which automagically downloads and installs required dependencies.  To do so, simply run `conda create -n cagee -c bioconda cagee` [ NOTE make sure this actually works when Ben uploads it to bioconda] to install CAGEE from the [bioconda](https://bioconda.github.io/) channel into its own environment, then run `conda activate cagee` before running `cagee` itself.
+[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/cagee/README.html)
+
+### Docker
+```
+docker pull quay.io/biocontainers/cagee:<tag>
+```
 
 ### Building from source
 
@@ -41,15 +46,13 @@ CAGEE depends on a number of common libraries which must be installed before att
 
 #### Compilation
 
-1.  Download your desired source version [ add link to source releases ] or get the latest via `git clone https://github.com/hahnlab/CAGEE.git` (**NOTE** that the released versions contain tested and approved code, while the latest source code may contain experimental and untested features. *It is highly recommended to use a released version instead*)
+1.  Download the most recent release by going to https://github.com/hahnlab/CAGEE/releases/latest . (You can also get the most recent code by running `git clone https://github.com/hahnlab/CAGEE.git` . But the released versions contain tested and approved code, while the latest source code may contain experimental and untested features. *It is highly recommended to use a released version instead*)
+
 2. Go to the CAGEE source directory (`cd CAGEE/`), and build CAGEE with the following:
 	```
 	$ mkdir build
-	
 	$ cd build/
-	
 	$ cmake ..
-	
 	$ make
 	```
 4. You can then run `make install` to install the binary to the default location (or specify the installation prefix at the CMake step with `-DCMAKE_INSTALL_PREFIX=your/install/prefix/`).
@@ -126,6 +129,20 @@ Note that, unlike the `DESC` and `Gene_ID`, the column specifying sample members
 
 Given the above input, CAGEE will estimate two values of $\sigma^2$: one for all rows with SAMPLETYPE `sample_label_1` and one for all rows with SAMPLETYPE either `sample_label_2` or `sample_label_3` (since these are both assigned to the same sample group on the command-line). If one instead wanted to estimate a separate value of $\sigma^2$ for sample_label_3, you would simply add a third argument (`--sample_group sample_label_3`).
 
+### Unbounded Brownian Motion
+
+While a bounded Brownian motion model is best for the evolution of expression levels at a single gene (because these cannot be negative), for some purposes an unbounded model would be better. Although expression at a single gene cannot be below 0, for some types of data we may want to model the relative expression in two tissue or sample types. On a log scale a 1:1 ratio is 0, so an unbounded Brownian motion model allows us to model changes in the ratio of expression both lower and higher. For example, we might want to model the evolution of sex-biased gene expression, in which case we would use the ratio of male:female (or female:male) expression as the observed value at each tip of our tree. Using unbounded Brownian motion allows each gene to then become more or less male-biased.
+
+If your data consists of relative expressions, run a command like
+
+```
+cagee --tree path/to/your_tree.nwk --infile path/to/your_gene_values.tsv --ratio
+```
+
+In this case it is assumed that the the gene values provided are in fact ratios. If they are actual gene expression values nonsensical values may result.
+
+If a particular gene is not expressed, a ratio might not be calculable. To avoid this, we recommend adding a pseudocount of 1 to each expressed value.
+
 ### Output of a typical run
 
 CAGEE reports its estimates in the terminal and also writes several output files to the specified directory.  These include:
@@ -162,3 +179,8 @@ Other valid arguments for `--rootdist` include a fixed value at the root for all
 NOTE that `--rootdist` in simulation mode and `--prior` in inference mode are mutually exclusive: specifying both or the wrong one will return an error.
 
 To simulate multiple rates across your tree, you must include the `--sigma_tree` option as described above and a comma-separated list of rate values to `--fixed_multiple_sigmas / -m`, e.g. `--fixed_multiple_sigmas 1,3` to simulate rates of $\sigma^{2} = 1$ and $\sigma^{2} = 3$ to branches labeled 1 and 2, respectively.
+
+## Citing
+
+
+  Bertram J, Fulton B, Tourigny JP, Peña-Garcia Y, Moyle LC, Hahn MW. CAGEE: Computational Analysis of Gene Expression Evolution. Mol Biol Evol. 2023 May 2;40(5):msad106. doi: 10.1093/molbev/msad106. PMID: 37158385; PMCID: PMC10195155.
