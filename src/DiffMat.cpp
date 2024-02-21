@@ -147,6 +147,8 @@ void VectorPos_bounds(double x, boundaries bounds, VectorXd& result) {
         double ux = nx - ix;
         result[ix + 1] = ux;
         result[ix] = 1 - ux;
+        result /= result.sum();
+
     }
     transform(result.begin(), result.end(), result.begin(), [Npts, bounds](double x) {return x * (Npts - 1) / double(bounds.second - bounds.first); });
 }
