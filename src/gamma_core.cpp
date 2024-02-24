@@ -327,7 +327,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
         }
     }
 
-    calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), ud.bounds);
+    calc->precalculate_matrices(all, ud.p_tree->get_branch_lengths(), ud.bounds);
 
     gamma_model_reconstruction* result = new gamma_model_reconstruction(ud.gene_transcripts, ud.p_replicate_model, _gamma);
     vector<gamma_model_reconstruction::gamma_reconstruction *> recs(ud.gene_transcripts.size());

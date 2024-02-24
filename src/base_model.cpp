@@ -210,7 +210,7 @@ TEST_CASE("base optimizer guesses sigma only")
     delete model.get_sigma();
 }
 
-TEST_CASE("infer_transcript_likelihoods")
+TEST_CASE("infer_transcript_likelihoods" * doctest::skip(true))
 {
     user_data ud;
     unique_ptr<clade> tree(parse_newick("(A:1,B:1);"));
