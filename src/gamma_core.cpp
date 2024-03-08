@@ -67,8 +67,6 @@ gamma_model::gamma_model(sigma_squared* p_sigma, std::vector<gene_transcript>* p
     _n_gamma_cats(n_gamma_cats) {
 
     _gamma = discretized_gamma(fixed_alpha, n_gamma_cats);
-    if (p_gene_transcripts)
-        _category_likelihoods.resize(p_gene_transcripts->size());
 }
 
 void gamma_model::write_extra_vital_statistics(std::ostream& ost)
@@ -115,38 +113,6 @@ bool gamma_model::can_infer() const
     return true;
 }
 
-bool gamma_model::prune(const gene_transcript& transcript, const prior *p_prior, const matrix_cache& diff_mat, const sigma_squared*p_sigma,
-    const clade *p_tree, std::vector<double>& category_likelihoods, boundaries bounds) 
-{
-    #if 0
-    category_likelihoods.clear();
-
-    for (size_t k = 0; k < _gamma_cat_probs.size(); ++k)
-    {
-        inference_pruner pruner(diff_mat, p_sigma, _p_error_model, nullptr, p_tree, bounds);
-        auto partial_likelihood = pruner.prune(transcript);
-        if (accumulate(partial_likelihood.begin(), partial_likelihood.end(), 0.0) == 0.0)
-            return false;   // saturation
-
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-        throw std::runtime_error("Log values not implemented for gamma yet");
-#endif
-        std::vector<double> full(partial_likelihood.size());
-        for (size_t j = 0; j < partial_likelihood.size(); ++j) {
-            double eq_freq = p_prior->pdf(j);
-            full[j] = partial_likelihood[j] * eq_freq;
-        }
-
-#ifdef USE_MAX_PROBABILITY
-        category_likelihoods.push_back(*max_element(full.begin(), full.end()) * _gamma_cat_probs[k]); // get max (CAFE's approach)
-#else
-        category_likelihoods.push_back(accumulate(full.begin(), full.end(), 0.0) * _gamma_cat_probs[k]); // sum over all sizes (Felsenstein's approach)
-#endif
-    }
-#endif
-    return true;
-}
-
 void flatten_vector(const vector<vector<double>>& v, vector<double>& result)
 {
     for (auto& vv : v)
@@ -157,36 +123,50 @@ void flatten_vector(const vector<vector<double>>& v, vector<double>& result)
 
 class likelihood_combiner
 {
-    std::map<const sigma_squared *, vector<double>> _likelihoods;
+    typedef std::vector<double> v;
+    typedef const sigma_squared *k;
+
+    std::map<k,v> _likelihoods;
     int _num_transcripts;
 public:
-    likelihood_combiner(int num_sigmas, int num_transcripts) : _num_transcripts(num_transcripts){
+    likelihood_combiner(int num_transcripts) : _num_transcripts(num_transcripts){
     }
 
-    void add_sigma(const sigma_squared* p_sigma)
+    void add_sigma(k key)
     {
-        if (_likelihoods.find(p_sigma) == _likelihoods.end())
+        if (_likelihoods.find(key) == _likelihoods.end())
         {
-            _likelihoods[p_sigma] = vector<double>(_num_transcripts);
+            _likelihoods[key] = vector<double>(_num_transcripts);
         }
     }
-    void set_value(const sigma_squared* p_sigma, int transcript_index, double value)
+    void set_value(k key, int transcript_index, double value)
     {
-        _likelihoods[p_sigma][transcript_index] = value;
+        _likelihoods[key][transcript_index] = value;
+    }
+
+    vector<k> get_sigmas() const {
+        
+        vector<k> keys(_likelihoods.size());
+        std::transform(_likelihoods.begin(), _likelihoods.end(), keys.begin(),
+               [](const std::pair<k,v>& kv) { return kv.first; });
+
+        sort(keys.begin(), keys.end(), [](k a, k b) { return a->get_values()[0] < b->get_values()[0]; });
+        return keys;
+    }
+
+    double get_value(k key, int transcript_index) const
+    {
+        return _likelihoods.at(key)[transcript_index];
     }
 
     double final_value()
     {
         // For each transcript, we add the likelihoods of all the categories, then take the log of that and add them all together
-        std::set<const sigma_squared *> keys;
-        for (auto &iter : _likelihoods)
-        {
-            keys.insert(iter.first);
-        }
+        auto keys = get_sigmas();
         double final_likelihood = 0.0;
         for (int i = 0; i<_num_transcripts; ++i)
         {
-            final_likelihood += log(accumulate(keys.begin(), keys.end(), 0.0, [&](double a, const sigma_squared* b) { return a + _likelihoods[b][i]; }));
+            final_likelihood += log(accumulate(keys.begin(), keys.end(), 0.0, [&](double a, k b) { return a + _likelihoods[b][i]; }));
         }
         return -final_likelihood;
     }
@@ -202,6 +182,11 @@ vector<double> get_priors(const matrix_cache& calc, const user_data& ud)
     }
 
     return priors;
+}
+
+gamma_model::~gamma_model()
+{
+
 }
 
 //! Infer bundle
@@ -223,7 +208,7 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
 
     auto sigmas = _gamma.get_discrete_sigmas(*p_sigma);
 
-    likelihood_combiner all_transcripts_likelihood(sigmas.size(), ud.gene_transcripts.size());
+    _p_all_transcripts_likelihood.reset(new likelihood_combiner(ud.gene_transcripts.size()));
 
     for (auto& s: sigmas)
     {    
@@ -253,14 +238,14 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
                 partial_likelihoods[i] = pruners[i].prune(ud.gene_transcripts.at(i));
         }
 
-        all_transcripts_likelihood.add_sigma(&s);
+        _p_all_transcripts_likelihood->add_sigma(&s);
     #pragma omp parallel for
         for (int i = 0; i < (int)ud.gene_transcripts.size(); ++i) {
-            all_transcripts_likelihood.set_value(&s, i, compute_prior_likelihood(partial_likelihoods[references[i]], priors));            
+            _p_all_transcripts_likelihood->set_value(&s, i, compute_prior_likelihood(partial_likelihoods[references[i]], priors));            
         }
     }
 
-    double final_likelihood = all_transcripts_likelihood.final_value();
+    double final_likelihood = _p_all_transcripts_likelihood->final_value();
     LOG(INFO) << "Score (-lnL): " << std::setw(15) << std::setprecision(14) << final_likelihood;
 
     return final_likelihood;
@@ -331,20 +316,25 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
 
     gamma_model_reconstruction* result = new gamma_model_reconstruction(ud.gene_transcripts, ud.p_replicate_model, _gamma);
     vector<gamma_model_reconstruction::gamma_reconstruction *> recs(ud.gene_transcripts.size());
+
+    auto sigmas = _p_all_transcripts_likelihood->get_sigmas();
     for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
     {
-        recs[i] = &result->_reconstructions[ud.gene_transcripts[i].id()];
-        result->_reconstructions[ud.gene_transcripts[i].id()]._category_likelihoods = _category_likelihoods[i];
-        result->_reconstructions[ud.gene_transcripts[i].id()].category_reconstruction.resize(_n_gamma_cats);
+        auto id = ud.gene_transcripts[i].id();
+        recs[i] = &result->_reconstructions[id];
+        auto& cl = result->_reconstructions[id]._category_likelihoods;
+        cl.resize(_n_gamma_cats);
+        transform(sigmas.begin(), sigmas.end(), cl.begin(), [&](const sigma_squared* s) {
+            return _p_all_transcripts_likelihood->get_value(s, i);
+        });
+        result->_reconstructions[id].category_reconstruction.resize(_n_gamma_cats);
     }
-
-    auto sigmas = _gamma.get_discrete_sigmas(*_p_sigma);
 
     for (size_t k = 0; k<sigmas.size(); ++k)
     {
         VLOG(1) << "Reconstructing for multiplier " << sigmas[k];
 
-        inference_pruner tr(&sigmas[k], ud.p_tree, ud.p_replicate_model, calc, ud.bounds);
+        inference_pruner tr(sigmas[k], ud.p_tree, ud.p_replicate_model, calc, ud.bounds);
 
         for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
         {
@@ -389,9 +379,11 @@ void gamma_model_reconstruction::print_category_likelihoods(std::ostream& ost)
     for (auto& gf : _transcripts)
     {
         ost << gf.id() << '\t';
-        auto rc = _reconstructions[gf.id()];
+        auto& cat_l = _reconstructions[gf.id()]._category_likelihoods;
+        vector<double> log_likelihoods(cat_l.size());
+        transform(cat_l.begin(), cat_l.end(), log_likelihoods.begin(), [](double x) { return log(x); });
         ostream_iterator<double> ct(ost, "\t");
-        copy(rc._category_likelihoods.begin(), rc._category_likelihoods.end(), ct);
+        copy(log_likelihoods.begin(), log_likelihoods.end(), ct);
         ost << endl;
     }
 }
@@ -522,7 +514,7 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction print_reconstructe
 TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__print_additional_data__prints_likelihoods")
 {
     gamma_model_reconstruction gmr(*p_transcripts, discretized_gamma(0.5, 3));
-    gmr._reconstructions["Family5"]._category_likelihoods = { 0.01, 0.03, 0.09, 0.07 };
+    gmr._reconstructions["Family5"]._category_likelihoods = { exp(0.01), exp(0.03), exp(0.09), exp(0.07) };
     ostringstream ost;
     gmr.print_category_likelihoods(ost);
     CHECK_STREAM_CONTAINS(ost, "Transcript ID\t0.0442801\t0.454936\t1.91267\t\n");
@@ -601,49 +593,10 @@ TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade empty"
     CHECK_EQ(empty.str(), "#Taxon_ID\tIncrease\tDecrease\n");
 }
 
-#if 0
-TEST_CASE("gamma_model_prune_returns_false_if_saturated" * doctest::skip(true))
-{
-    vector<gene_transcript> families(1);
-    families[0].set_expression_value("A", 3);
-    families[0].set_expression_value("B", 6);
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-    sigma_squared lambda(0.9);
-    matrix_cache cache;
-
-    vector<double> cat_likelihoods;
-
-    gamma_model model(&lambda, &families, { 1.0,1.0 }, { 0.1, 0.5 }, NULL);
-
-    CHECK(!model.prune(families[0], new prior("gamma", 0.0, 1600), cache, &lambda, p_tree.get(), cat_likelihoods, boundaries(0, 20)));
-}
-#endif
-
-
-
-TEST_CASE("gamma_model_prune" * doctest::skip(true))
-{
-    vector<gene_transcript> families(1);
-    families[0].set_expression_value("A", 3);
-    families[0].set_expression_value("B", 6);
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
-    sigma_squared lambda(0.005);
-    matrix_cache cache;
-
-    gamma_model model(&lambda, &families, 1, 3, NULL);
-
-    vector<double> cat_likelihoods;
-    CHECK(model.prune(families[0], new prior("gamma", 0.0, 1600), cache, &lambda, p_tree.get(), cat_likelihoods, boundaries(0, 20)));
-
-    CHECK_EQ(2, cat_likelihoods.size());
-    CHECK_EQ(doctest::Approx(-23.04433), log(cat_likelihoods[0]));
-    CHECK_EQ(doctest::Approx(-16.68005), log(cat_likelihoods[1]));
-}
-
 TEST_CASE("likelihood_combiner")
 {
     sigma_squared s1(0.1);
-    likelihood_combiner lc(1, 5);
+    likelihood_combiner lc(5);
     lc.add_sigma(&s1);
     const double e1 = exp(0.1);
     lc.set_value(&s1, 0, e1);
@@ -657,7 +610,7 @@ TEST_CASE("likelihood_combiner")
 TEST_CASE("likelihood_combiner sums logs of each value with a single sigma")
 {
     sigma_squared s1(1.0);
-    likelihood_combiner lc(1, 5);
+    likelihood_combiner lc(5);
     lc.add_sigma(&s1);
     const double e1 = exp(.1);
     lc.set_value(&s1, 0, e1);
@@ -668,6 +621,32 @@ TEST_CASE("likelihood_combiner sums logs of each value with a single sigma")
     CHECK_EQ(doctest::Approx(-0.5), lc.final_value());
 }
 
+TEST_CASE("likelihood_combiner get_value")
+{
+    sigma_squared s1(1.0);
+    likelihood_combiner lc(5);
+    lc.add_sigma(&s1);
+    lc.set_value(&s1, 0, 1);
+    lc.set_value(&s1, 1, 2);
+    lc.set_value(&s1, 2, 3);
+    CHECK_EQ(1, lc.get_value(&s1, 0));
+    CHECK_EQ(2, lc.get_value(&s1, 1));
+    CHECK_EQ(3, lc.get_value(&s1, 2));
+}
+
+TEST_CASE("likelihood_combiner get_sigmas")
+{
+    sigma_squared s1(1.0);
+    likelihood_combiner lc(5);
+    lc.add_sigma(&s1);
+    lc.set_value(&s1, 0, 1);
+    lc.set_value(&s1, 1, 2);
+    lc.set_value(&s1, 2, 3);
+    CHECK_EQ(1, lc.get_value(&s1, 0));
+    CHECK_EQ(2, lc.get_value(&s1, 1));
+    CHECK_EQ(3, lc.get_value(&s1, 2));
+}
+
 TEST_CASE("With multiple sigmas likelihood_combiner sums across sigmas then takes the logs")
 {
     sigma_squared s1(1.0);
@@ -676,9 +655,8 @@ TEST_CASE("With multiple sigmas likelihood_combiner sums across sigmas then take
     const double e1 = exp(.1) * .75; // cleverly choose some values that sum to a nice number
     const double e2 = exp(.1) * .25;
 
-    const int num_bins = 2;
     const int num_transcripts = 5;
-    likelihood_combiner lc(num_bins, num_transcripts);
+    likelihood_combiner lc(num_transcripts);
     lc.add_sigma(&s1);
     lc.set_value(&s1, 0, e1);
     lc.set_value(&s1, 1, e1);

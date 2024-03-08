@@ -1,7 +1,13 @@
+#ifndef GAMMA_CORE_H
+#define GAMMA_CORE_H
+
+#include <memory>
+
 #include "core.h"
 #include "discretized_gamma.h"
 
 class prior;
+class likelihood_combiner;
 
 //! @brief Represents a model of species change in which lambda values are expected to belong to a gamma distribution
 //! \ingroup gamma
@@ -9,12 +15,12 @@ class gamma_model : public model {
 private:
     discretized_gamma _gamma;
     const int _n_gamma_cats;
-    std::vector<std::vector<double>> _category_likelihoods;
-
+    std::unique_ptr<likelihood_combiner> _p_all_transcripts_likelihood;
 public:
 
     //! Calculate gamma categories and lambda multipliers based on category count and a fixed alpha
     gamma_model(sigma_squared* p_sigma, std::vector<gene_transcript>* p_gene_transcripts, int n_gamma_cats, double fixed_alpha, error_model *p_error_model);
+    ~gamma_model();
 
     void set_alpha(double alpha);
     double get_alpha() const { return _gamma.get_alpha(); }
@@ -33,13 +39,6 @@ public:
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache *) override;
 
     bool can_infer() const;
-
-    bool prune(const gene_transcript& family, 
-        const prior* p_prior, 
-        const matrix_cache& calc, 
-        const sigma_squared*p_sigma,
-        const clade *p_tree, 
-        std::vector<double>& category_likelihoods, 
-        boundaries bounds);
 };
 
+#endif // GAMMA_CORE_H
