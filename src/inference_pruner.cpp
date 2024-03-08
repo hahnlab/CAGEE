@@ -212,7 +212,9 @@ clademap<node_reconstruction> inference_pruner::reconstruct(const gene_transcrip
 inline void CHECK_VECTORS_EQ(const std::vector<double>& expected, const VectorXd& actual)
 {
     CHECK_EQ(expected.size(), actual.size());
-    CHECK(mismatch(expected.begin(), expected.end(), actual.begin(), [](double a, double b) { return doctest::Approx(a) == b;  }).first == expected.end());
+    for (size_t i = 0; i < expected.size(); i++) {
+        CHECK_EQ(doctest::Approx(expected[i]), actual[i]);
+    }
 }
 
 std::map<const clade*, optional_probabilities> create_probability_map(const clade *p_tree, int Npts)
@@ -253,8 +255,8 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     }
     else
     {
-        expected[62] = 3.2448055556;
-        expected[63] = 0.0718611111;
+        expected[62] = 0.978333;
+        expected[63] = 0.0216667;
     }
 
     CHECK_VECTORS_EQ(expected, actual.probabilities());
@@ -272,8 +274,8 @@ TEST_CASE("Inference: likelihood_computer_sets_leaf_nodes_correctly")
     }
     else
     {
-        expected[57] = 2.0618611111;
-        expected[58] = 1.2548055556;
+        expected[57] = 0.621667;
+        expected[58] = 0.378333;
     }
 
     CHECK_VECTORS_EQ(expected, actual.probabilities());
@@ -341,9 +343,9 @@ TEST_CASE("inference_pruner: check stats of returned probabilities")
         });
     double max = *max_element(actual.begin(), actual.end());
 
-    CHECK_EQ(doctest::Approx(-5.542), log(mean));
-    CHECK_EQ(doctest::Approx(-10.62318), log(variance));
-    CHECK_EQ(doctest::Approx(-4.37886), log(max));
+    CHECK_EQ(doctest::Approx(-10.1371), log(mean));
+    CHECK_EQ(doctest::Approx(-19.8135), log(variance));
+    CHECK_EQ(doctest::Approx(-8.97401), log(max));
 
 }
 
@@ -492,7 +494,7 @@ TEST_CASE("compute_node_probablities computes a non-leaf value with a single chi
     compute_node_probability(p_tree->find_descendant("A"), onechild, NULL, NULL, probabilities, &ss, cache, bounds);
     compute_node_probability(p_tree.get(), onechild, NULL, NULL, probabilities, &ss, cache, bounds);
     auto& actual = probabilities[p_tree.get()];
-    vector<double> expected{ 0.14625,  0.30375, 0, 0, 0, 0, 0, 0, 0, 0 };
+    vector<double> expected{  0.65,  1.35, 0, 0, 0, 0, 0, 0, 0, 0 };
     CHECK_VECTORS_EQ(expected, actual.probabilities());
 }
 

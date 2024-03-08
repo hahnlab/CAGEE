@@ -109,7 +109,7 @@ TEST_CASE("replicate_model replaces leaf values by adding together the replicate
 	ostringstream ost;
 	const IOFormat fmt(2, DontAlignCols, " ", " ", "", "", "", "");
 	ost << result.probabilities().format(fmt) << endl;
-	CHECK_STREAM_CONTAINS(ost, "0 0 0 0 0.45 0.45 0.63 0.27 0 0");
+	CHECK_STREAM_CONTAINS(ost, "0 0 0 0 0.5 0.5 0.7 0.3 0 0");
 }
 
 TEST_CASE("verify_replicates ")

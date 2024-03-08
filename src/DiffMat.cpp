@@ -148,9 +148,7 @@ void VectorPos_bounds(double x, boundaries bounds, VectorXd& result) {
         result[ix + 1] = ux;
         result[ix] = 1 - ux;
         result /= result.sum();
-
     }
-    transform(result.begin(), result.end(), result.begin(), [Npts, bounds](double x) {return x * (Npts - 1) / double(bounds.second - bounds.first); });
 }
 
 vector<MatrixXd> eigen_multiplier::doit(const vector<MatrixXcd>& matrices, const MatrixXcd& transpose)
@@ -215,28 +213,28 @@ TEST_CASE("ConvProp_bounds returns different values for different values of sigm
     CHECK(actual != a2);
 }
 
+inline void CHECK_VECTORS_EQ(const std::vector<double>& expected, const VectorXd& actual)
+{
+    CHECK_EQ(expected.size(), actual.size());
+    for (size_t i = 0; i < expected.size(); i++) {
+        CHECK_EQ(doctest::Approx(expected[i]), actual[i]);
+    }
+}
+
 TEST_CASE("VectorPos_bounds")
 {
     VectorXd actual(20);
     VectorPos_bounds(7.0, pair<double, double>(0, 10), actual);
-    vector<double> expected{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.33, 0.57, 0, 0, 0, 0, 0 };
-    CHECK_EQ(expected.size(), actual.size());
-    for (size_t i = 0; i < expected.size(); ++i)
-    {
-        CHECK_EQ(doctest::Approx(expected[i]), actual[i]);
-    }
+    vector<double> expected{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.7, 0.3, 0, 0, 0, 0, 0 };
+    CHECK_VECTORS_EQ(expected, actual);
 }
 
 TEST_CASE("VectorPos_bounds at right edge")
 {
     VectorXd actual(20);
     VectorPos_bounds(10.0, pair<double, double>(0, 10), actual);
-    vector<double> expected{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.9 };
-    CHECK_EQ(expected.size(), actual.size());
-    for (size_t i = 0; i < expected.size(); ++i)
-    {
-        CHECK_EQ(doctest::Approx(expected[i]), actual[i]);
-    }
+    vector<double> expected{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0 };
+    CHECK_VECTORS_EQ(expected, actual);
 }
 
 
