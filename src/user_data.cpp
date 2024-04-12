@@ -105,12 +105,17 @@ void user_data::read_rootdist(string rootdist_file_path) {
         throw std::runtime_error("Failed to open file '" + rootdist_file_path + "'");
     string line;
     while (getline(rootdist_file, line)) {
+        if (line[0] == '#') continue;
+
         istringstream ist(line);
         pair<float, int> values;
         ist >> values.first >> values.second;
+        if (ist.fail())
+            throw std::runtime_error("Failed to parse line '" + line + "' in file '" + rootdist_file_path + "'");
         rootdist.push_back(values);
     }
 }
+
 
 
 void user_data::read_datafiles(const input_parameters& my_input_parameters)
@@ -161,8 +166,6 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
     }
 
     auto tokens = tokenize_str(my_input_parameters.prior_params_or_default(), ':');
-    if (tokens[0] != "gamma" && tokens[0] != "fisher")
-        throw std::runtime_error("Prior must be given in the form gamma:k:theta");
     auto k = stof(tokens[1]), theta = stof(tokens[2]);
     LOG(INFO) << "Prior: " << tokens[0] << "(" << k << "," << theta << ")";
     p_prior = new prior(tokens[0], k, theta);
