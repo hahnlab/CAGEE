@@ -76,7 +76,14 @@ public:
         // subtract a small amount to deal with floating point inaccuracy
         // (The value was occasionally larger than max_value otherwise)
         return val > _range.second ? _range.second - MATRIX_EPSILON : val;
+    }
 
+    double random_value_from_bin(int bin)
+    {
+        double bin_start = (double(bin) / _Npts) * (_range.second - _range.first) + _range.first;
+        double bin_end = bin_start + double(_range.second - _range.first) / double(_Npts);
+        std::uniform_real_distribution<double> distribution(bin_start, bin_end);
+        return distribution(randomizer_engine);
     }
 };
 
@@ -107,7 +114,7 @@ simulated_family create_simulated_family(const clade *p_tree, const sigma_square
         VectorXd probs = m * v;
         std::discrete_distribution<int> distribution(probs.data(), probs.data() + probs.size());
         binner b(m.cols(), bounds);
-        sim.values[c] = b.value(distribution(randomizer_engine));
+        sim.values[c] = b.random_value_from_bin(distribution(randomizer_engine));
         c->apply_to_descendants(get_child_value);
     };
 
@@ -301,8 +308,8 @@ TEST_CASE("create_simulated_family")
     simulated_family actual = create_simulated_family(p_tree.get(), &ss, b, 5.0, cache);
 
     CHECK_EQ(doctest::Approx(5.0), actual.values.at(p_tree.get()));
-    CHECK_EQ(doctest::Approx(4.497487), actual.values.at(p_tree->find_descendant("A")));
-    CHECK_EQ(doctest::Approx(4.42211), actual.values.at(p_tree->find_descendant("B")));
+    CHECK_EQ(doctest::Approx(4.48736), actual.values.at(p_tree->find_descendant("A")));
+    CHECK_EQ(doctest::Approx(4.3458), actual.values.at(p_tree->find_descendant("B")));
 }
 
 TEST_CASE("create_simulated_family with negative lower bound")
@@ -320,8 +327,8 @@ TEST_CASE("create_simulated_family with negative lower bound")
     simulated_family actual = create_simulated_family(p_tree.get(), &ss, b, 5.0, cache);
 
     CHECK_EQ(doctest::Approx(5.0), actual.values.at(p_tree.get()));
-    CHECK_EQ(doctest::Approx(4.497487), actual.values.at(p_tree->find_descendant("A")));
-    CHECK_EQ(doctest::Approx(4.44724), actual.values.at(p_tree->find_descendant("B")));
+    CHECK_EQ(doctest::Approx(4.47473), actual.values.at(p_tree->find_descendant("A")));
+    CHECK_EQ(doctest::Approx(4.3416), actual.values.at(p_tree->find_descendant("B")));
 }
 TEST_CASE("binner")
 {
@@ -343,6 +350,12 @@ TEST_CASE("binner handles lower bounds correctly")
 {
     binner b(200, boundaries(-10,10));
     CHECK_EQ(doctest::Approx(-1.9598), b.value(80));
+}
+
+TEST_CASE("binner can select random value from a bin")
+{
+    binner b(100, boundaries(-10,10));
+    CHECK_EQ(doctest::Approx(6.11666), b.random_value_from_bin(80));
 }
 
 #define CHECK_STREAM_CONTAINS(x,y) CHECK_MESSAGE(x.str().find(y) != std::string::npos, x.str())
@@ -423,7 +436,7 @@ TEST_CASE("Check mean and variance of a simulated family leaf")
      });
 
     CHECK_EQ(doctest::Approx(actual_sigma).epsilon(1), mean);
-    CHECK_EQ(doctest::Approx(1.28027), variance);
+    CHECK_EQ(doctest::Approx(1.98456), variance);
 }
 
 TEST_CASE("print_header")
