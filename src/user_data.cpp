@@ -1,5 +1,3 @@
-#include "user_data.h"
-
 #include <fstream>
 #include <cmath>
 #include <algorithm>
@@ -10,6 +8,7 @@
 #include "doctest.h"
 #include "easylogging++.h"
 
+#include "user_data.h"
 #include "arguments.h"
 #include "sigma.h"
 #include "clade.h"
@@ -173,13 +172,13 @@ void user_data::read_datafiles(const input_parameters& my_input_parameters)
 
 int upper_bound_from_transcript_values(const vector<gene_transcript>& transcripts)
 {
-    vector<int> bounds(transcripts.size());
+    vector<double> bounds(transcripts.size());
     transform(transcripts.begin(), transcripts.end(), bounds.begin(), [](const gene_transcript& gt) {
 
-        return max(1.0, ceil(gt.get_max_expression_value() + MATRIX_SIZE_MULTIPLIER));
-        });
+        return gt.get_max_expression_value();
+    });
 
-    return *max_element(bounds.begin(), bounds.end());
+    return upper_bound_from_values(bounds, MATRIX_SIZE_MULTIPLIER);
 }
 
 void user_data::update_boundaries(bool transcripts_are_ratios)
@@ -188,6 +187,16 @@ void user_data::update_boundaries(bool transcripts_are_ratios)
     bounds = boundaries(transcripts_are_ratios ? -upper_bound : 0, upper_bound);
     LOG(DEBUG) << "Boundaries for discretization vector: " << bounds.first << ", " << bounds.second;
 
+}
+
+int upper_bound_from_values(const vector<double>& values, double multiplier)
+{
+    vector<int> bounds(values.size());
+
+    transform(values.begin(), values.end(), bounds.begin(), [multiplier](double value) {
+        return max(1.0, ceil(value + multiplier));
+    });
+    return *max_element(bounds.begin(), bounds.end());
 }
 
 /// Bounds are next largest integer if in log space.

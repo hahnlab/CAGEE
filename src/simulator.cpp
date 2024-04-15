@@ -123,35 +123,14 @@ simulated_family create_simulated_family(const clade *p_tree, const sigma_square
     return sim;
 }
 
-boundaries boundaries_from_root_values(const sigma_squared* p_sigsqrd, const clade* p_tree, const vector<double>& values, bool input_file_has_ratios)
+double get_multiplier(const sigma_squared* p_sigsqrd, const clade* p_tree)
 {
     double t = p_tree->distance_from_root_to_tip();
 
     auto v = p_sigsqrd->get_values();
     double sigma = sqrt(*max_element(v.begin(), v.end()));
 
-    double multiplier = max(1.0, 4.5 * sigma * sqrt(t));
-    vector<int> bounds(values.size());
-
-    transform(values.begin(), values.end(), bounds.begin(), [multiplier](double value) {
-        int val = int(value + multiplier); // add rather than multiply since we are in log space
-
-        const int multiple = 5;
-        int remainder = val % multiple;
-        if (remainder == 0 && val > 0) return val;
-
-        return val + multiple - remainder;
-        });
-
-    int upper = *max_element(bounds.begin(), bounds.end());
-    if (input_file_has_ratios)
-    {
-        return boundaries(-upper, upper);
-    }
-    else
-    {
-        return boundaries(pv::to_computational_space(0), upper);
-    }
+    return max(1.0, 4.5 * sigma * sqrt(t));
 }
 
 std::vector<simulated_family> simulator::simulate_processes(model *p_model) {
@@ -178,8 +157,9 @@ std::vector<simulated_family> simulator::simulate_processes(model *p_model) {
 
     unique_ptr<sigma_squared> sim_sigsqd(p_model->get_simulation_sigma());
 
-    auto bounds = boundaries_from_root_values(sim_sigsqd.get(), data.p_tree, root_sizes, _user_input.input_file_has_ratios);
-    LOG(DEBUG) << "Upper bound for discretization vector: " << bounds.second;
+    int upper_bound = upper_bound_from_values(root_sizes, get_multiplier(sim_sigsqd.get(), data.p_tree));
+    auto bounds = boundaries(_user_input.input_file_has_ratios ? -upper_bound : 0, upper_bound);
+    LOG(DEBUG) << "Boundaries for discretization vector: " << bounds.first << ", " << bounds.second;
 
     matrix_cache cache;
     cache.precalculate_matrices(sim_sigsqd->get_values(), data.p_tree->get_branch_lengths(), bounds);
@@ -541,50 +521,33 @@ TEST_CASE("Simulation, simulate_processes")
     CHECK_EQ(100, sims.size());
 }
 
-
-
-TEST_CASE("boundaries_from_root_values uses largest sigma if there are several")
+TEST_CASE("get_multiplier uses largest sigma if there are several")
 {
     unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):6"));
     unique_ptr<clade> p_sigma_tree(parse_newick("(A:1,B:2):1", true));
 
     unique_ptr<sigma_squared> ss(sigma_squared::create(p_sigma_tree.get(), { 4,16 }));
 
-    CHECK_EQ(boundaries(0,55), boundaries_from_root_values(ss.get(), p_tree.get(), {1.0}, false));
+    CHECK_EQ(54, get_multiplier(ss.get(), p_tree.get()));
 }
 
-TEST_CASE("boundaries_from_root_values get_max_bound")
+TEST_CASE("get_multiplier returns 1 for small trees")
 {
-    sigma_squared ss(0.25);
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    unique_ptr<clade> p_tree(parse_newick("(A:.0001,B:.0001):.0001"));
+    unique_ptr<clade> p_sigma_tree(parse_newick("(A:1,B:2):1", true));
 
-    vector<double> v(1);
-    v[0] = 5;
-    CHECK_EQ(boundaries(0,15), boundaries_from_root_values(&ss, p_tree.get(), v, false));
+    unique_ptr<sigma_squared> ss(sigma_squared::create(p_sigma_tree.get(), { 4,16 }));
 
-    sigma_squared ss_zero(0.0);
-    v[0] = 0;
-    CHECK_EQ(boundaries(0,5), boundaries_from_root_values(&ss_zero, p_tree.get(), v, false));
-
-    v[0] = 0.0000001;
-    CHECK_EQ(boundaries(0,5), boundaries_from_root_values(&ss_zero, p_tree.get(), v, false));
-
+    CHECK_EQ(1, get_multiplier(ss.get(), p_tree.get()));
 }
 
-TEST_CASE("boundaries_from_root_values with ratios")
+TEST_CASE("get_multiplier returns 1 for small sigmas")
 {
-    sigma_squared ss(0.25);
-    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):7"));
+    unique_ptr<clade> p_tree(parse_newick("(A:1,B:3):6"));
+    unique_ptr<clade> p_sigma_tree(parse_newick("(A:1,B:2):1", true));
 
-    vector<double> v(1);
-    v[0] = 5;
-    CHECK_EQ(boundaries(-15,15), boundaries_from_root_values(&ss, p_tree.get(), v, true));
+    unique_ptr<sigma_squared> ss(sigma_squared::create(p_sigma_tree.get(), { .0001, .0002 }));
 
-    sigma_squared ss_zero(0.0);
-    v[0] = 0;
-    CHECK_EQ(boundaries(-5,5), boundaries_from_root_values(&ss_zero, p_tree.get(), v, true));
-
-    v[0] = 0.0000001;
-    CHECK_EQ(boundaries(-5,5), boundaries_from_root_values(&ss_zero, p_tree.get(), v, true));
-
+    CHECK_EQ(1, get_multiplier(ss.get(), p_tree.get()));
 }
+

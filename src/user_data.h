@@ -62,4 +62,6 @@ public:
     void update_boundaries(bool transcripts_are_ratios);
 };
 
+int upper_bound_from_values(const std::vector<double>& values, double multiplier);
+
 #endif
