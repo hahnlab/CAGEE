@@ -89,8 +89,6 @@ inline std::string filename(std::string base, std::string suffix)
     return filename(base, suffix, "txt");
 }
 
-double computational_space_prior(double val, const prior *p_prior);
-double compute_prior_likelihood(const std::vector<double>& partial_likelihood, const std::vector<double>& priors);
 
 #endif /* CORE_H */
 

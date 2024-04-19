@@ -2,6 +2,7 @@
 #define PRIOR_H
 
 #include <string>
+#include <vector>
 
 class prior
 {
@@ -12,5 +13,12 @@ public:
     prior() {}
     double pdf(double value) const;
 };
+
+class matrix_cache;
+using boundaries = std::pair<double, double>;
+
+double computational_space_prior(double val, const prior *p_prior);
+double compute_prior_likelihood(const std::vector<double>& partial_likelihood, const std::vector<double>& priors);
+std::vector<double> get_priors(const matrix_cache& calc, boundaries bounds, const prior *p_prior);
 
 #endif

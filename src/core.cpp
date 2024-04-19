@@ -103,33 +103,6 @@ void model::write_error_model(int max_transcript_size, std::ostream& ost) const
     write_error_model_file(ost, *em);
 }
 
-double computational_space_prior(double val, const prior *p_prior)
-{
-#ifdef MODEL_GENE_EXPRESSION_LOGS
-    return exp(val) * p_prior->pdf(exp(val));
-#else
-    return p_prior->pdf(val);
-#endif
-
-}
-
-double compute_prior_likelihood(const vector<double>& partial_likelihood, const vector<double>& priors)
-{
-    std::vector<double> full(partial_likelihood.size());
-    std::transform(partial_likelihood.begin(), partial_likelihood.end(), priors.begin(), full.begin(), std::multiplies<double>());
-    std::transform(full.begin(), full.end(), full.begin(), [](double d) {
-        return isnan(d) ? -numeric_limits<double>::infinity() : d;
-        });
-
-#ifdef USE_MAX_PROBABILITY
-    double likelihood = *max_element(full.begin(), full.end()); // get max (CAFE's approach)
-#else
-    double likelihood = accumulate(full.begin(), full.end(), 0.0, [](double a, double b) { return isinf(b) ? a : a+b; }); // sum over all sizes (Felsenstein's approach)
-#endif
-    return likelihood;
-}
-
-
 void event_monitor::Event_InferenceAttempt_Started() 
 { 
     attempts++;
@@ -230,21 +203,4 @@ TEST_CASE("Inference: create_gamma_model_if__n_gamma_cats__provided")
         delete m;
 }
 
-TEST_CASE("compute_prior_likelihood combines prior and inference correctly")
-{
-    gene_transcript gt;
-    gt.set_expression_value("A", 12);
-    gt.set_expression_value("B", 24);
-
-    vector<double> inf{ 0.1, 0.2, 0.3};
-
-    vector<double> priors({ 1.43078e-15,    2.5363e-23,  5.65526e-35 });
-    double actual = log(compute_prior_likelihood(inf, priors));
-
-#ifdef USE_MAX_PROBABILITY
-    CHECK_EQ(doctest::Approx(-35.7683), actual);
-#else
-    CHECK_EQ(doctest::Approx(-36.4831), actual);
-#endif
-}
 

@@ -8,6 +8,9 @@
 #include "easylogging++.h"
 
 #include "prior.h"
+#include "matrix_cache.h"
+
+using namespace std;
 
 prior::prior(std::string dist, double p1, double p2) : distribution(dist), param1(p1), param2(p2)
 {
@@ -40,6 +43,45 @@ double prior::pdf(double value) const
     }
 }
 
+vector<double> get_priors(const matrix_cache& calc, boundaries bounds, const prior *p_prior)
+{
+    vector<double> priors(calc.create_vector().size());
+    for (size_t j = 0; j < priors.size(); ++j) {
+        double x = (double(j) + 0.5) * double(bounds.second) / (priors.size() - 1);
+
+        priors[j] = computational_space_prior(x, p_prior);
+    }
+
+    return priors;
+}
+
+double computational_space_prior(double val, const prior *p_prior)
+{
+#ifdef MODEL_GENE_EXPRESSION_LOGS
+    return exp(val) * p_prior->pdf(exp(val));
+#else
+    return p_prior->pdf(val);
+#endif
+
+}
+
+double compute_prior_likelihood(const vector<double>& partial_likelihood, const vector<double>& priors)
+{
+    std::vector<double> full(partial_likelihood.size());
+    std::transform(partial_likelihood.begin(), partial_likelihood.end(), priors.begin(), full.begin(), std::multiplies<double>());
+    std::transform(full.begin(), full.end(), full.begin(), [](double d) {
+        return isnan(d) ? -numeric_limits<double>::infinity() : d;
+        });
+
+#ifdef USE_MAX_PROBABILITY
+    double likelihood = *max_element(full.begin(), full.end()); // get max (CAFE's approach)
+#else
+    double likelihood = accumulate(full.begin(), full.end(), 0.0, [](double a, double b) { return isinf(b) ? a : a+b; }); // sum over all sizes (Felsenstein's approach)
+#endif
+    return likelihood;
+}
+
+
 TEST_CASE("prior returns correct pdf values for gamma")
 {
     prior p("gamma", 0.375, 1600);
@@ -69,4 +111,31 @@ TEST_CASE("prior throws on unknown")
     CHECK_THROWS_AS(prior("", 0,0), std::domain_error);
     prior p;
     CHECK_THROWS_AS(p.pdf(3), std::domain_error);
+}
+
+TEST_CASE("get_priors")
+{
+    matrix_cache calc;
+    auto p_prior = new prior("gamma", 1.0, 1600);
+    auto bounds = boundaries(0, 20);
+    auto priors = get_priors(calc, bounds, p_prior);
+    REQUIRE_EQ(200, priors.size());
+    CHECK_EQ(doctest::Approx(-7.32816), log(priors[0]));
+    CHECK_EQ(doctest::Approx(-1.02372), log(priors[75]));
+    CHECK_EQ(doctest::Approx(-182.551), log(priors[125]));
+    CHECK_EQ(0, priors[199]);
+}
+
+TEST_CASE("compute_prior_likelihood combines prior and inference correctly")
+{
+    vector<double> inf{ 0.1, 0.2, 0.3};
+
+    vector<double> priors({ 1.43078e-15,    2.5363e-23,  5.65526e-35 });
+    double actual = log(compute_prior_likelihood(inf, priors));
+
+#ifdef USE_MAX_PROBABILITY
+    CHECK_EQ(doctest::Approx(-35.7683), actual);
+#else
+    CHECK_EQ(doctest::Approx(-36.4831), actual);
+#endif
 }

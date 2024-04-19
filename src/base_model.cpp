@@ -94,16 +94,11 @@ double base_model::infer_transcript_likelihoods(const user_data& ud, const sigma
     }
 
     matrix_cache calc;
-    auto v = calc.create_vector();
-    vector<double> priors(v.size());
-    copy(v.begin(), v.end(), priors.begin());
+
+    vector<double> priors;
     try
     {
-        for (size_t j = 0; j < priors.size(); ++j) {
-            double x = (double(j) + 0.5) * double(ud.bounds.second) / (priors.size() - 1);
-
-            priors[j] = computational_space_prior(x, ud.p_prior);
-        }
+        priors = get_priors(calc, ud.bounds, ud.p_prior);
     }
     catch (std::domain_error& e)
     {

@@ -172,18 +172,6 @@ public:
     }
 };
 
-vector<double> get_priors(const matrix_cache& calc, const user_data& ud)
-{
-    vector<double> priors(calc.create_vector().size());
-    for (size_t j = 0; j < priors.size(); ++j) {
-        double x = (double(j) + 0.5) * double(ud.bounds.second) / (priors.size() - 1);
-
-        priors[j] = computational_space_prior(x, ud.p_prior);
-    }
-
-    return priors;
-}
-
 gamma_model::~gamma_model()
 {
 
@@ -216,7 +204,7 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
         vector<double> priors;
         try
         {
-            priors = get_priors(calc, ud);
+            priors = get_priors(calc, ud.bounds, ud.p_prior);
         }
         catch (std::domain_error& e)
         {
@@ -674,17 +662,3 @@ TEST_CASE("With multiple sigmas likelihood_combiner sums across sigmas then take
     CHECK_EQ(doctest::Approx(-0.5), lc.final_value());
 }
 
-TEST_CASE("get_priors")
-{
-    sigma_squared s1(0.1);
-    matrix_cache calc;
-    user_data ud;
-    ud.p_prior = new prior("gamma", 1.0, 1600);
-    ud.bounds = boundaries(0, 20);
-    auto priors = get_priors(calc, ud);
-    REQUIRE_EQ(200, priors.size());
-    CHECK_EQ(doctest::Approx(-7.32816), log(priors[0]));
-    CHECK_EQ(doctest::Approx(-1.02372), log(priors[75]));
-    CHECK_EQ(doctest::Approx(-182.551), log(priors[125]));
-    CHECK_EQ(0, priors[199]);
-}
