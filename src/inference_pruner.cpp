@@ -175,8 +175,12 @@ inference_pruner::inference_pruner(const matrix_cache& cache,
 void inference_pruner::compute_all_probabilities(const gene_transcript& gf)
 {
     auto compute_func = [gf, this](const clade* c) { compute_node_probability(c, gf, _p_error_model, _p_replicate_model, _probabilities, _p_sigsqd, _cache, _bounds); };
-    for_each(_p_tree->reverse_level_begin(), _p_tree->reverse_level_end(), compute_func);
-
+    if (_p_tree->is_root())
+        for_each(_p_tree->reverse_level_begin(), _p_tree->reverse_level_end(), compute_func);
+    else
+    {
+        _p_tree->apply_prefix_order(compute_func);
+    }
 }
 
 //! Computes likelihoods for the given tree and a single family. Uses a lambda value based on the provided lambda

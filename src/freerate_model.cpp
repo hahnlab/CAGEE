@@ -24,9 +24,6 @@ double get_log_likelihood(matrix_cache& cache,
                             const boundaries& bounds,
                             double sigsqd)
 {
-    cout << "Candidate: " << sigsqd << "\n";
-    cout << "Log likelihood:" << -log(sigsqd) << "\n";
-    return log(sigsqd);
     std::vector<double> all_transcripts_likelihood(gene_transcripts.size());
     vector<vector<double>> partial_likelihoods(gene_transcripts.size());
     sigma_squared ss(sigsqd);
@@ -77,7 +74,7 @@ double freerate_model::infer_transcript_likelihoods(const user_data& ud, const s
             std::pair<double, double> r = brent_find_minima([&](double sigsqd) {
                 return -get_log_likelihood(cache, ud.gene_transcripts, priors, c, ud.bounds, sigsqd);
             }, 0.0, distmean*100, 5);
-            cout << "Optimal sigma^2 for clade " << c->get_taxon_name() << " is " << r.first << " with likelihood " << r.second;
+            LOG(DEBUG) << "Optimal sigma^2 for clade " << c->get_taxon_name() << " is " << r.first << " with likelihood " << r.second;
 
         }
     });
@@ -117,7 +114,19 @@ TEST_CASE("freerate_model optimizes a branch length")
     m.infer_transcript_likelihoods(ud, nullptr);
 }   
 
-TEST_CASE("sfdsf")
+TEST_CASE("get_log_likelihood")
 {
+    user_data ud;
+    ud.p_sigma = NULL;
+    ud.p_prior = new prior("uniform", 0.0, 100.0);
+    ud.p_tree = parse_newick("(A:1,B:1);");
+    ud.bounds = boundaries(0, 5);
+    ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.gene_transcripts[0].set_expression_value("A", 1);
+    ud.gene_transcripts[0].set_expression_value("B", 2);
 
+    matrix_cache cache;
+    auto priors = get_priors(cache, ud.bounds, ud.p_prior);
+    auto lnl = get_log_likelihood(cache, ud.gene_transcripts, priors, ud.p_tree, ud.bounds, 1.0);
+    CHECK_EQ(doctest::Approx(-7.98967), lnl);
 }
