@@ -110,6 +110,7 @@ input_parameters read_arguments(int argc, char* const argv[])
     rare.add_options()
         ("discretization_size,D", po::value<int>()->default_value(200), "Size (length) of the discretization vector, Default=200. Can increase resolution at the cost of computation time.")
         ("zero_root,z", po::value<bool>()->implicit_value(true), "Exclude gene families that don't exist at the root, not recommended.")
+        ("free_rate", po::value<bool>()->implicit_value(true), "Calculate values using Free Rate Model")
         ("optimizer_expansion,E", po::value<double>(), "Expansion parameter for Nelder-Mead optimizer, Default=2.")
         ("optimizer_reflection,R", po::value<double>(), "Reflection parameter for Nelder-Mead optimizer, Default=1.")
         ("optimizer_iterations,I", po::value<int>(), "Maximum number of iterations that will be performed in "
