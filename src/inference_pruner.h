@@ -73,4 +73,13 @@ public:
     clademap<node_reconstruction> reconstruct(const gene_transcript& gf);
 };
 
+void compute_node_probability(const clade* node,
+    const gene_transcript& gene_transcript,
+    const error_model* p_error_model,
+    const replicate_model* p_replicate_model,
+    std::map<const clade*, optional_probabilities>& probabilities,
+    const sigma_squared* p_sigma,
+    const matrix_cache& cache,
+    boundaries bounds);
+
 #endif
