@@ -18,6 +18,7 @@
 #include "arguments.h"
 #include "reconstruction.h"
 #include "prior.h"
+#include "freerate_model.h"
 
 using namespace std;
 
@@ -40,6 +41,10 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
             gmodel->write_probabilities(cout);
 #endif
         p_model = gmodel;
+    }
+    else if (user_input.free_rate)
+    {
+        p_model = new freerate_model();
     }
     else
     {
