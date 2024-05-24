@@ -180,6 +180,7 @@ input_parameters read_arguments(int argc, char* const argv[])
     maybe_set(vm, "replicate_map", my_input_parameters.replicate_model_file_path);
     maybe_set(vm, "n_gamma_cats", my_input_parameters.n_gamma_cats);
     maybe_set(vm, "fixed_alpha", my_input_parameters.fixed_alpha);
+    maybe_set(vm, "free_rate", my_input_parameters.free_rate);
 
     string simulate_string = vm["simulate"].as<string>();
     my_input_parameters.is_simulating = simulate_string != "false";

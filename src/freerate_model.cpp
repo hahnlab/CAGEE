@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <numeric>
+#include <iomanip>
 
 #include <boost/math/tools/minima.hpp>
 
@@ -30,20 +31,24 @@ double get_log_likelihood(matrix_cache& cache,
     sigma_squared ss(sigsqd);
     cache.precalculate_matrices(ss.get_values(),  c->get_branch_lengths(), bounds);
 
-    transform(gene_transcripts.begin(), gene_transcripts.end(), thing.begin(), partial_likelihoods.begin(), [&](const gene_transcript& gt, clademap<optional_probabilities>& probabilities) {
-        auto init_func = [&](const clade* node) { probabilities[node].reserve(cache.create_vector()); };
+    for(auto& m : thing) {
+        auto init_func = [&](const clade* node) { m[node].reserve(cache.create_vector()); };
         c->apply_to_descendants(init_func);
         init_func(c);
+    }
 
-        auto compute_func = [&](const clade* c) { compute_node_probability(c, gt, nullptr, nullptr, probabilities, &ss, cache, bounds); };
-        c->apply_to_descendants(compute_func);
-        compute_func(c);
-        auto& p = probabilities[c].probabilities();
-        return vector<double>(p.begin(), p.end());
-    }); 
+#pragma omp parallel for
+    for (int i = 0; i < (int)gene_transcripts.size(); ++i) {    
+        for_each(c->descendant_begin(), c->descendant_end(), [&](const clade* d) {
+            compute_node_probability(d, gene_transcripts[i], nullptr, nullptr, thing[i], &ss, cache, bounds);
+        });
+        compute_node_probability(c, gene_transcripts[i], nullptr, nullptr, thing[i], &ss, cache, bounds);
+        auto& p = thing[i][c].probabilities();
+        partial_likelihoods[i] = vector<double>(p.begin(), p.end());
+    }
     
     // At this point partial_likelihoods has all the data we need to compute the parent of c
-    transform(partial_likelihoods.begin(), partial_likelihoods.end(), all_transcripts_likelihood.begin(), [&priors](const vector<double>& a) {
+    std::transform(partial_likelihoods.begin(), partial_likelihoods.end(), all_transcripts_likelihood.begin(), [&priors](const vector<double>& a) {
         return log(compute_prior_likelihood(a, priors));
     });
 
@@ -76,6 +81,7 @@ double freerate_model::infer_transcript_likelihoods(const user_data& ud, const s
     
     vector<clademap<optional_probabilities>> thing(ud.gene_transcripts.size());
 
+    clademap<sigma_squared*> sigmas;
     for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade* c) {
         if (!c->is_leaf())
         {
@@ -84,11 +90,15 @@ double freerate_model::infer_transcript_likelihoods(const user_data& ud, const s
             std::pair<double, double> r = brent_find_minima([&](double sigsqd) {
                 return -get_log_likelihood(cache, ud.gene_transcripts, priors, thing, c, ud.bounds, sigsqd);
             }, 0.0, distmean*100, 5);
-            LOG(DEBUG) << "Optimal sigma^2 for clade " << c->get_taxon_name() << " is " << r.first << " with likelihood " << r.second;
 
+            LOG(INFO) << "Node " << c->get_ape_index() << " Sigma^2:" << r.first;
+            LOG(INFO) << "Score (-lnL): " << std::setw(15) << std::setprecision(14) << r.second;
+
+            sigmas[c] = new sigma_squared(r.first);
         }
     });
 
+    _p_sigma = sigmas[ud.p_tree];
     return 0.0;
 }
 
@@ -97,9 +107,21 @@ sigma_optimizer_scorer* freerate_model::get_sigma_optimizer(const user_data& dat
     return nullptr;
 }
 
+class freerate_reconstruction : public reconstruction
+{  
+public:
+    freerate_reconstruction(const user_data& ud, matrix_cache* p_calc) : reconstruction(ud.gene_transcripts) {};
+    virtual ~freerate_reconstruction() {};
+
+    virtual node_reconstruction get_internal_node_value(const gene_transcript& gf, const clade* c) const override
+    {
+        return node_reconstruction();
+    }
+};
+
 reconstruction* freerate_model::reconstruct_ancestral_states(const user_data& ud, matrix_cache *p_calc)
 {
-    return nullptr;
+    return new freerate_reconstruction(ud, p_calc);
 }
 
 
