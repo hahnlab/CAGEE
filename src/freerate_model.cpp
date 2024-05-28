@@ -18,10 +18,25 @@ using namespace std;
 
 double compute_distribution_mean(const user_data& user_data);
 
+void initialize_leaves(const user_data &ud, std::vector<clademap<optional_probabilities>> &thing, const matrix_cache &cache)
+{
+    for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade *c)
+             {
+        if (c->is_leaf())
+        {
+            for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
+            {
+                thing[i][c].reserve(cache.create_vector());
+                thing[i][c].initialize(ud.gene_transcripts[i].get_expression_value(c->get_taxon_name()), ud.bounds);
+            }
+        } });
+}
+
+
 double get_log_likelihood(matrix_cache& cache, 
                             const vector<gene_transcript>& gene_transcripts,
                             const vector<double>& priors, 
-                            vector<clademap<optional_probabilities>>& thing,
+                            vector<clademap<optional_probabilities>>& probs,
                             const clade* c, 
                             const boundaries& bounds,
                             double sigsqd)
@@ -29,21 +44,18 @@ double get_log_likelihood(matrix_cache& cache,
     std::vector<double> all_transcripts_likelihood(gene_transcripts.size());
     vector<vector<double>> partial_likelihoods(gene_transcripts.size());
     sigma_squared ss(sigsqd);
-    cache.precalculate_matrices(ss.get_values(),  c->get_branch_lengths(), bounds);
+    set<double> branch_lengths;
+    c->apply_to_descendants([&](const clade* d) { branch_lengths.insert(d->get_branch_length()); });
+    cache.precalculate_matrices(ss.get_values(),  branch_lengths, bounds);
 
-    for(auto& m : thing) {
-        auto init_func = [&](const clade* node) { m[node].reserve(cache.create_vector()); };
-        c->apply_to_descendants(init_func);
-        init_func(c);
+    for(auto& m : probs) {
+        m[c].reserve(cache.create_vector());
     }
 
 #pragma omp parallel for
     for (int i = 0; i < (int)gene_transcripts.size(); ++i) {    
-        for_each(c->descendant_begin(), c->descendant_end(), [&](const clade* d) {
-            compute_node_probability(d, gene_transcripts[i], nullptr, nullptr, thing[i], &ss, cache, bounds);
-        });
-        compute_node_probability(c, gene_transcripts[i], nullptr, nullptr, thing[i], &ss, cache, bounds);
-        auto& p = thing[i][c].probabilities();
+        compute_node_probability(c, gene_transcripts[i], nullptr, nullptr, probs[i], &ss, cache, bounds);
+        auto& p = probs[i][c].probabilities();
         partial_likelihoods[i] = vector<double>(p.begin(), p.end());
     }
     
@@ -79,7 +91,8 @@ double freerate_model::infer_transcript_likelihoods(const user_data& ud, const s
         return -log(0);
     }
     
-    vector<clademap<optional_probabilities>> thing(ud.gene_transcripts.size());
+    vector<clademap<optional_probabilities>> probs(ud.gene_transcripts.size());
+    initialize_leaves(ud, probs, cache);
 
     clademap<sigma_squared*> sigmas;
     for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade* c) {
@@ -88,7 +101,7 @@ double freerate_model::infer_transcript_likelihoods(const user_data& ud, const s
             using boost::math::tools::brent_find_minima;
 
             std::pair<double, double> r = brent_find_minima([&](double sigsqd) {
-                return -get_log_likelihood(cache, ud.gene_transcripts, priors, thing, c, ud.bounds, sigsqd);
+                return -get_log_likelihood(cache, ud.gene_transcripts, priors, probs, c, ud.bounds, sigsqd);
             }, 0.0, distmean*100, 5);
 
             LOG(INFO) << "Node " << c->get_ape_index() << " Sigma^2:" << r.first;
@@ -164,6 +177,7 @@ TEST_CASE("get_log_likelihood")
     ud.p_tree->apply_to_descendants(init_func);
     init_func(ud.p_tree);
 
+    initialize_leaves(ud, thing, cache);
     auto lnl = get_log_likelihood(cache, ud.gene_transcripts, priors, thing, ud.p_tree, ud.bounds, 1.0);
     CHECK_EQ(doctest::Approx(-7.98967), lnl);
 }
@@ -178,6 +192,8 @@ TEST_CASE("get_log_likelihood can calculate likelihoods for subtrees")
     ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
     ud.gene_transcripts[0].set_expression_value("A", 1);
     ud.gene_transcripts[0].set_expression_value("B", 2);
+    ud.gene_transcripts[0].set_expression_value("C", 3);
+    ud.gene_transcripts[0].set_expression_value("D", 4);
 
     matrix_cache cache;
     auto priors = get_priors(cache, ud.bounds, ud.p_prior);
@@ -185,6 +201,8 @@ TEST_CASE("get_log_likelihood can calculate likelihoods for subtrees")
     auto init_func = [&](const clade* node) { thing[0][node].reserve(cache.create_vector()); };
     ud.p_tree->apply_to_descendants(init_func);
     init_func(ud.p_tree);
+
+    initialize_leaves(ud, thing, cache);
 
     auto lnl = get_log_likelihood(cache, ud.gene_transcripts, priors, thing, ud.p_tree->find_descendant("AB"), ud.bounds, 1.0);
     CHECK_EQ(doctest::Approx(-8.21231), lnl);
