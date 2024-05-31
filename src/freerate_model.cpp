@@ -94,25 +94,26 @@ double freerate_model::infer_transcript_likelihoods(const user_data& ud, const s
     vector<clademap<optional_probabilities>> probs(ud.gene_transcripts.size());
     initialize_leaves(ud, probs, cache);
 
-    clademap<sigma_squared*> sigmas;
+    
     for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade* c) {
         if (!c->is_leaf())
         {
             using boost::math::tools::brent_find_minima;
 
             std::pair<double, double> r = brent_find_minima([&](double sigsqd) {
+                _monitor.Event_InferenceAttempt_Started();
                 return -get_log_likelihood(cache, ud.gene_transcripts, priors, probs, c, ud.bounds, sigsqd);
             }, 0.0, distmean*100, 5);
 
             LOG(INFO) << "Node " << c->get_ape_index() << " Sigma^2:" << r.first;
             LOG(INFO) << "Score (-lnL): " << std::setw(15) << std::setprecision(14) << r.second;
 
-            sigmas[c] = new sigma_squared(r.first);
+            _sigmas[c] = r;
         }
     });
 
-    _p_sigma = sigmas[ud.p_tree];
-    return 0.0;
+    _p_sigma = new sigma_squared(_sigmas[ud.p_tree].first);
+    return _sigmas[ud.p_tree].second;
 }
 
 sigma_optimizer_scorer* freerate_model::get_sigma_optimizer(const user_data& data, const std::vector<std::string>& sample_groups)
@@ -135,6 +136,18 @@ public:
 reconstruction* freerate_model::reconstruct_ancestral_states(const user_data& ud, matrix_cache *p_calc)
 {
     return new freerate_reconstruction(ud, p_calc);
+}
+
+void freerate_model::write_extra_vital_statistics(std::ostream& ost) 
+{
+    ost << "Computed sigma2 by node:\n";
+    vector<pair<int,double>> sorted;
+    transform(_sigmas.begin(), _sigmas.end(), back_inserter(sorted), [](const pair<const clade*, pair<double, double>>& a) { return make_pair(a.first->get_ape_index(), a.second.first); });
+    sort(sorted.begin(), sorted.end(), [](const pair<int, double>& a, const pair<int, double>& b) { return a.first < b.first; });
+    for (auto& a : sorted)
+    {
+        ost << a.first << ":" << a.second << "\n";
+    }
 }
 
 
@@ -211,6 +224,8 @@ TEST_CASE("get_log_likelihood can calculate likelihoods for subtrees")
     CHECK_EQ(doctest::Approx(-6.96722), lnl);
 }
 
+#define CHECK_STREAM_CONTAINS(x,y) CHECK_MESSAGE(x.str().find(y) != std::string::npos, x.str())
+
 TEST_CASE("get_log_likelihood can calculate likelihoods for subtrees with different priors")
 {
     user_data ud;
@@ -228,4 +243,31 @@ TEST_CASE("get_log_likelihood can calculate likelihoods for subtrees with differ
 
     freerate_model m;
     m.infer_transcript_likelihoods(ud, nullptr);
+}
+
+TEST_CASE("write_extra_vital_statistics writes a sigma for each internal node")
+{
+    user_data ud;
+    ud.p_sigma = NULL;
+    ud.p_prior = new prior("gamma", 0.375, 1600.0);
+    ud.p_tree = parse_newick("((E:0.36,D:0.30)H:1.00,(C:0.85,(A:0.59,B:0.35)F:0.42)G:0.45)I;");
+
+    ud.bounds = boundaries(0, 5);
+    ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.gene_transcripts[0].set_expression_value("A", 0.5);
+    ud.gene_transcripts[0].set_expression_value("B", 1);
+    ud.gene_transcripts[0].set_expression_value("C", 1.5);
+    ud.gene_transcripts[0].set_expression_value("D", 2);
+    ud.gene_transcripts[0].set_expression_value("E", 2.5);
+
+    freerate_model m;
+    m.infer_transcript_likelihoods(ud, nullptr);
+
+    ostringstream ost;
+    m.write_extra_vital_statistics(ost);
+    CHECK_STREAM_CONTAINS(ost, "Computed sigma2 by node:");
+    CHECK_STREAM_CONTAINS(ost, "6:42.8082");
+    CHECK_STREAM_CONTAINS(ost, "7:42.8082");
+    CHECK_STREAM_CONTAINS(ost, "8:42.8082");
+    CHECK_STREAM_CONTAINS(ost, "9:42.8082");
 }
