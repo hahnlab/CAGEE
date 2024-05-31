@@ -2,9 +2,11 @@
 #define FREERATE_MODEL_H
 
 #include "core.h"
+#include "clade.h"
 
 class freerate_model : public model {
 
+    clademap<std::pair<double, double>> _sigmas;
 public:
     //! Computation or estimation constructor
     freerate_model();
@@ -16,6 +18,8 @@ public:
     virtual sigma_optimizer_scorer *get_sigma_optimizer(const user_data &data, const std::vector<std::string> &sample_groups) override;
 
     virtual reconstruction *reconstruct_ancestral_states(const user_data &ud, matrix_cache *p_calc);
+
+    virtual void write_extra_vital_statistics(std::ostream& ost) override;
 };
 
 #endif
