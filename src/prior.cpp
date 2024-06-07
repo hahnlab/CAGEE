@@ -81,6 +81,27 @@ double compute_prior_likelihood(const vector<double>& partial_likelihood, const 
     return likelihood;
 }
 
+prior estimate_gamma_distribution(const std::vector<double>& data) {
+    if (data.size() < 2)    // if there is only one data point, return a weak prior
+        return prior("gamma", 0.375, 1600);
+
+    double sum = std::accumulate(data.begin(), data.end(), 0.0);
+    double mean = sum / data.size();
+
+    double sq_sum = std::inner_product(data.begin(), data.end(), data.begin(), 0.0);
+    double variance = sq_sum / data.size() - mean * mean;
+
+    double shape = mean * mean / variance; // k
+    double scale = variance / mean; // theta
+
+    return prior("gamma", shape, scale);
+}
+
+std::ostream& operator<<(std::ostream& ost, const prior& p)
+{
+    ost << p.distribution << ":" << p.param1 << ":" << p.param2;
+    return ost;
+}
 
 TEST_CASE("prior returns correct pdf values for gamma")
 {
