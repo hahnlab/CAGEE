@@ -13,10 +13,9 @@
 #include "matrix_cache.h"
 #include "prior.h"
 #include "sigma.h"
+#include "optimizer_scorer.h"   // for definition of compute_distribution_mean
 
 using namespace std;
-
-double compute_distribution_mean(const user_data& user_data);
 
 void initialize_leaves(const user_data &ud, std::vector<clademap<optional_probabilities>> &thing, const matrix_cache &cache)
 {
@@ -32,10 +31,44 @@ void initialize_leaves(const user_data &ud, std::vector<clademap<optional_probab
         } });
 }
 
+clademap<prior> node_priors(const clade* p_tree, const vector<gene_transcript>& gene_transcripts)
+{
+    clademap<vector<double>> averages;
+    for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), [&](const clade* c) {
+        if (!c->is_leaf())
+        {
+            averages[c] = vector<double>(gene_transcripts.size());
+            int child_count = 0;
+            c->apply_to_descendants([&](const clade* d) 
+            { 
+                if (averages.find(d) != averages.end())
+                {
+                    // child has already been processed, so add its (already averaged) values to the current node
+                    transform(averages[d].begin(), averages[d].end(), averages[c].begin(), averages[c].begin(), std::plus<double>());
+                }
+                else
+                {
+                    // child is a leaf, so add its transcript values to the current node
+                    transform(gene_transcripts.begin(), gene_transcripts.end(), averages[c].begin(), averages[c].begin(), [d](const gene_transcript &gf, double val) {
+                        return val + exp(gf.get_expression_value(d->get_taxon_name()));
+                    });
+                }
+                child_count++;  
+            });
+            transform(averages[c].begin(), averages[c].end(), averages[c].begin(), [child_count](double val) { return val / child_count; });  
+        }
+    });
+    clademap<prior> result;
+    for(auto& a : averages)
+    {
+        result[a.first] = estimate_gamma_distribution(a.second);
+    }
+    return result;
+}
 
 double get_log_likelihood(matrix_cache& cache, 
                             const vector<gene_transcript>& gene_transcripts,
-                            const vector<double>& priors, 
+                            prior p,
                             vector<clademap<optional_probabilities>>& probs,
                             const clade* c, 
                             const boundaries& bounds,
@@ -60,6 +93,8 @@ double get_log_likelihood(matrix_cache& cache,
     }
     
     // At this point partial_likelihoods has all the data we need to compute the parent of c
+    auto priors = get_priors(cache, bounds, &p);
+    
     std::transform(partial_likelihoods.begin(), partial_likelihoods.end(), all_transcripts_likelihood.begin(), [&priors](const vector<double>& a) {
         return log(compute_prior_likelihood(a, priors));
     });
@@ -77,24 +112,16 @@ freerate_model::freerate_model() :
 
 double freerate_model::infer_transcript_likelihoods(const user_data& ud, const sigma_squared*p_sigma)
 {
-    double distmean = compute_distribution_mean(ud);
     matrix_cache cache;
-    vector<double> priors;
-    try
-    {
-        priors = get_priors(cache, ud.bounds, ud.p_prior);
-    }
-    catch (std::domain_error& e)
-    {
-        LOG(DEBUG) << e.what();
-        LOG(WARNING) << "Prior not valid for this sigma and data set";
-        return -log(0);
-    }
     
     vector<clademap<optional_probabilities>> probs(ud.gene_transcripts.size());
     initialize_leaves(ud, probs, cache);
-
-    
+    auto priors = node_priors(ud.p_tree, ud.gene_transcripts);
+    for (auto& a : priors)
+    {
+        LOG(DEBUG) << "Node " << a.first->get_ape_index() << " Prior: " << a.second;
+    }   
+    double distmean = compute_distribution_mean(ud);
     for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade* c) {
         if (!c->is_leaf())
         {
@@ -102,7 +129,7 @@ double freerate_model::infer_transcript_likelihoods(const user_data& ud, const s
 
             std::pair<double, double> r = brent_find_minima([&](double sigsqd) {
                 _monitor.Event_InferenceAttempt_Started();
-                return -get_log_likelihood(cache, ud.gene_transcripts, priors, probs, c, ud.bounds, sigsqd);
+                return -get_log_likelihood(cache, ud.gene_transcripts, priors[c], probs, c, ud.bounds, sigsqd);
             }, 0.0, distmean*100, 5);
 
             LOG(INFO) << "Node " << c->get_ape_index() << " Sigma^2:" << r.first;
@@ -191,7 +218,7 @@ TEST_CASE("get_log_likelihood")
     init_func(ud.p_tree);
 
     initialize_leaves(ud, thing, cache);
-    auto lnl = get_log_likelihood(cache, ud.gene_transcripts, priors, thing, ud.p_tree, ud.bounds, 1.0);
+    auto lnl = get_log_likelihood(cache, ud.gene_transcripts, *ud.p_prior, thing, ud.p_tree, ud.bounds, 1.0);
     CHECK_EQ(doctest::Approx(-7.98967), lnl);
 }
 
@@ -217,10 +244,10 @@ TEST_CASE("get_log_likelihood can calculate likelihoods for subtrees")
 
     initialize_leaves(ud, thing, cache);
 
-    auto lnl = get_log_likelihood(cache, ud.gene_transcripts, priors, thing, ud.p_tree->find_descendant("AB"), ud.bounds, 1.0);
+    auto lnl = get_log_likelihood(cache, ud.gene_transcripts, *ud.p_prior, thing, ud.p_tree->find_descendant("AB"), ud.bounds, 1.0);
     CHECK_EQ(doctest::Approx(-8.21231), lnl);
 
-    lnl = get_log_likelihood(cache, ud.gene_transcripts, priors, thing, ud.p_tree, ud.bounds, 1.0);
+    lnl = get_log_likelihood(cache, ud.gene_transcripts, *ud.p_prior, thing, ud.p_tree, ud.bounds, 1.0);
     CHECK_EQ(doctest::Approx(-6.96722), lnl);
 }
 
@@ -270,4 +297,35 @@ TEST_CASE("write_extra_vital_statistics writes a sigma for each internal node")
     CHECK_STREAM_CONTAINS(ost, "7:42.8082");
     CHECK_STREAM_CONTAINS(ost, "8:42.8082");
     CHECK_STREAM_CONTAINS(ost, "9:42.8082");
+}
+
+TEST_CASE("node_priors")
+{
+    unique_ptr<clade> t(parse_newick("((E:0.36,D:0.30)H:1.00,(C:0.85,(A:0.59,B:0.35)F:0.42)G:0.45)I;"));
+
+    vector<gene_transcript> gene_transcripts;
+    gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
+    gene_transcripts.push_back(gene_transcript("TestFamily2", "", ""));
+    gene_transcripts[0].set_expression_value("A", 0.5);
+    gene_transcripts[0].set_expression_value("B", 1);
+    gene_transcripts[0].set_expression_value("C", 1.5);
+    gene_transcripts[0].set_expression_value("D", 2);
+    gene_transcripts[0].set_expression_value("E", 3);
+    gene_transcripts[1].set_expression_value("A", 8);
+    gene_transcripts[1].set_expression_value("B", 4);
+    gene_transcripts[1].set_expression_value("C", 4.5);
+    gene_transcripts[1].set_expression_value("D", 3.5);
+    gene_transcripts[1].set_expression_value("E", 2.5);
+
+    auto result = node_priors(t.get(), gene_transcripts);
+    CHECK_EQ(4, result.size());
+    ostringstream ost;
+    for(auto& a : result)
+    {
+        ost << a.first->get_ape_index() << ":" << a.second << "|";
+    }   
+    CHECK_STREAM_CONTAINS(ost, "6:gamma:1.08613:194.18");
+    CHECK_STREAM_CONTAINS(ost, "7:gamma:16.6708:1.09132");
+    CHECK_STREAM_CONTAINS(ost, "8:gamma:1.01672:396.977");
+    CHECK_STREAM_CONTAINS(ost, "9:gamma:1.00577:755.62");
 }
