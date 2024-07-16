@@ -132,7 +132,7 @@ double freerate_model::infer_transcript_likelihoods(const user_data& ud, const s
             std::pair<double, double> r = brent_find_minima([&](double sigsqd) {
                 _monitor.Event_InferenceAttempt_Started();
                 return -get_log_likelihood(cache, ud.gene_transcripts, priors[c], probs, c, ud.bounds, sigsqd);
-            }, 0.0, distmean*100, 5);
+            }, 0.0, distmean*100, 10);
 
             LOG(INFO) << "Node " << c->get_ape_index() << " Sigma^2:" << r.first;
             LOG(INFO) << "Score (-lnL): " << std::setw(15) << std::setprecision(14) << r.second;
