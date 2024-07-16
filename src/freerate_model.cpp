@@ -31,7 +31,7 @@ void initialize_leaves(const user_data &ud, std::vector<clademap<optional_probab
         } });
 }
 
-clademap<prior> node_priors(const clade* p_tree, const vector<gene_transcript>& gene_transcripts)
+clademap<prior> node_priors(const clade* p_tree, const vector<gene_transcript>& gene_transcripts, bool ratios)
 {
     clademap<vector<double>> averages;
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), [&](const clade* c) {
@@ -49,8 +49,9 @@ clademap<prior> node_priors(const clade* p_tree, const vector<gene_transcript>& 
                 else
                 {
                     // child is a leaf, so add its transcript values to the current node
-                    transform(gene_transcripts.begin(), gene_transcripts.end(), averages[c].begin(), averages[c].begin(), [d](const gene_transcript &gf, double val) {
-                        return val + exp(gf.get_expression_value(d->get_taxon_name()));
+                    transform(gene_transcripts.begin(), gene_transcripts.end(), averages[c].begin(), averages[c].begin(), [d, ratios](const gene_transcript &gf, double val) {
+                        double newval = gf.get_expression_value(d->get_taxon_name());
+                        return val + (ratios ? newval : exp(newval));
                     });
                 }
                 child_count++;  
@@ -61,7 +62,8 @@ clademap<prior> node_priors(const clade* p_tree, const vector<gene_transcript>& 
     clademap<prior> result;
     for(auto& a : averages)
     {
-        result[a.first] = estimate_gamma_distribution(a.second);
+        string dist = ratios ? "normal" : "gamma";
+        result[a.first] = estimate_distribution(dist, a.second);
     }
     return result;
 }
@@ -105,8 +107,8 @@ double get_log_likelihood(matrix_cache& cache,
     return result;
 }
 
-freerate_model::freerate_model() :
-    model(nullptr, nullptr, nullptr)
+freerate_model::freerate_model(bool values_are_ratios) :
+    model(nullptr, nullptr, nullptr), _values_are_ratios(values_are_ratios)
 {
 }
 
@@ -116,7 +118,7 @@ double freerate_model::infer_transcript_likelihoods(const user_data& ud, const s
     
     vector<clademap<optional_probabilities>> probs(ud.gene_transcripts.size());
     initialize_leaves(ud, probs, cache);
-    auto priors = node_priors(ud.p_tree, ud.gene_transcripts);
+    auto priors = node_priors(ud.p_tree, ud.gene_transcripts, _values_are_ratios);
     for (auto& a : priors)
     {
         LOG(DEBUG) << "Node " << a.first->get_ape_index() << " Prior: " << a.second;
@@ -180,12 +182,12 @@ void freerate_model::write_extra_vital_statistics(std::ostream& ost)
 
 TEST_CASE("freerate_model")
 {
-    new freerate_model();
+    new freerate_model(false);
 }   
 
 TEST_CASE("freerate_model optimizes a branch length")
 {
-    freerate_model m;
+    freerate_model m(false);
 
     user_data ud;
     ud.p_sigma = NULL;
@@ -268,7 +270,7 @@ TEST_CASE("get_log_likelihood can calculate likelihoods for subtrees with differ
     ud.gene_transcripts[0].set_expression_value("D", 2);
     ud.gene_transcripts[0].set_expression_value("E", 2.5);
 
-    freerate_model m;
+    freerate_model m(false);
     m.infer_transcript_likelihoods(ud, nullptr);
 }
 
@@ -287,7 +289,7 @@ TEST_CASE("write_extra_vital_statistics writes a sigma for each internal node")
     ud.gene_transcripts[0].set_expression_value("D", 2);
     ud.gene_transcripts[0].set_expression_value("E", 2.5);
 
-    freerate_model m;
+    freerate_model m(false);
     m.infer_transcript_likelihoods(ud, nullptr);
 
     ostringstream ost;
@@ -317,7 +319,7 @@ TEST_CASE("node_priors")
     gene_transcripts[1].set_expression_value("D", 3.5);
     gene_transcripts[1].set_expression_value("E", 2.5);
 
-    auto result = node_priors(t.get(), gene_transcripts);
+    auto result = node_priors(t.get(), gene_transcripts, false);
     CHECK_EQ(4, result.size());
     ostringstream ost;
     for(auto& a : result)

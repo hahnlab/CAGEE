@@ -44,7 +44,7 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
     }
     else if (user_input.free_rate)
     {
-        p_model = new freerate_model();
+        p_model = new freerate_model(user_input.input_file_has_ratios);
     }
     else
     {

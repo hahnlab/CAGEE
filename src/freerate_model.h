@@ -7,9 +7,10 @@
 class freerate_model : public model {
 
     clademap<std::pair<double, double>> _sigmas;
+    bool _values_are_ratios;
 public:
     //! Computation or estimation constructor
-    freerate_model();
+    freerate_model(bool values_are_ratios);
     
     virtual ~freerate_model() {}
 

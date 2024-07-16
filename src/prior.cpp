@@ -3,6 +3,7 @@
 #include <boost/math/distributions/gamma.hpp>
 #include <boost/math/distributions/fisher_f.hpp>
 #include <boost/math/distributions/uniform.hpp>
+#include <boost/math/distributions/normal.hpp>
 
 #include "doctest.h"
 #include "easylogging++.h"
@@ -14,7 +15,7 @@ using namespace std;
 
 prior::prior(std::string dist, double p1, double p2) : distribution(dist), param1(p1), param2(p2)
 {
-    auto supported_distributions = {"gamma", "fisher", "uniform"};
+    auto supported_distributions = {"gamma", "fisher", "uniform", "normal"};
     if (std::find(supported_distributions.begin(), supported_distributions.end(), dist) == supported_distributions.end())
         throw std::domain_error("Prior must be given in the form dist:param1:param2");
 }
@@ -35,6 +36,11 @@ double prior::pdf(double value) const
     else if (distribution == "uniform")
     {
         boost::math::uniform_distribution<double> f(param1, param2);
+        return boost::math::pdf(f, value);
+    }
+    else if (distribution == "normal")
+    {
+        boost::math::normal_distribution<double> f(param1, param2);
         return boost::math::pdf(f, value);
     }
     else
@@ -81,9 +87,14 @@ double compute_prior_likelihood(const vector<double>& partial_likelihood, const 
     return likelihood;
 }
 
-prior estimate_gamma_distribution(const std::vector<double>& data) {
+prior estimate_distribution(string dist, const std::vector<double>& data) {
     if (data.size() < 2)    // if there is only one data point, return a weak prior
-        return prior("gamma", 0.375, 1600);
+    {
+        if (dist == "gamma")
+            return prior("gamma", 0.375, 1600);
+        else if (dist == "normal")
+            return prior("normal", 1.0, 1.0);
+    }
 
     double sum = std::accumulate(data.begin(), data.end(), 0.0);
     double mean = sum / data.size();
@@ -91,10 +102,20 @@ prior estimate_gamma_distribution(const std::vector<double>& data) {
     double sq_sum = std::inner_product(data.begin(), data.end(), data.begin(), 0.0);
     double variance = sq_sum / data.size() - mean * mean;
 
-    double shape = mean * mean / variance; // k
-    double scale = variance / mean; // theta
-
-    return prior("gamma", shape, scale);
+    if (dist == "gamma")
+    {
+        double shape = mean * mean / variance; // k
+        double scale = variance / mean; // theta
+        return prior("gamma", shape, scale);
+    }
+    else if (dist == "normal")
+    {
+        return prior("normal", mean, sqrt(variance));
+    }
+    else
+    {
+        throw std::domain_error("Unknown distribution type");
+    }   
 }
 
 std::ostream& operator<<(std::ostream& ost, const prior& p)
@@ -159,4 +180,30 @@ TEST_CASE("compute_prior_likelihood combines prior and inference correctly")
 #else
     CHECK_EQ(doctest::Approx(-36.4831), actual);
 #endif
+}
+
+TEST_CASE("prior to string")
+{
+    prior p("gamma", 0.375, 1600);
+    ostringstream ost;
+    ost << p;
+    CHECK_EQ("gamma:0.375:1600", ost.str());
+}
+
+TEST_CASE("estimate_distribution returns correct gamma prior")
+{
+    vector<double> data{ 0.1, 0.2, 0.3, 0.4, 0.5 };
+    auto p = estimate_distribution("gamma", data);
+    ostringstream ost;
+    ost << p;
+    CHECK_EQ("gamma:4.5:0.0666667", ost.str());
+}
+
+TEST_CASE("estimate_distribution returns correct normal prior")
+{
+    vector<double> data{ 0.1, 0.2, 0.3, 0.4, 0.5 };
+    auto p = estimate_distribution("normal", data);
+    ostringstream ost;
+    ost << p;
+    CHECK_EQ("normal:0.3:0.141421", ost.str());
 }

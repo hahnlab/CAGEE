@@ -23,7 +23,7 @@ using boundaries = std::pair<double, double>;
 double computational_space_prior(double val, const prior *p_prior);
 double compute_prior_likelihood(const std::vector<double>& partial_likelihood, const std::vector<double>& priors);
 std::vector<double> get_priors(const matrix_cache& calc, boundaries bounds, const prior *p_prior);
-prior estimate_gamma_distribution(const std::vector<double>& data);
+prior estimate_distribution(std::string dist, const std::vector<double>& data);
 
 std::ostream& operator<<(std::ostream& ost, const prior& p);
 #endif
