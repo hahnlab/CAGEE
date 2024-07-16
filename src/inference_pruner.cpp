@@ -187,6 +187,9 @@ std::vector<double> inference_pruner::prune(const gene_transcript& gf)
 {
     compute_all_probabilities(gf);
 
+    if (!_probabilities[_p_tree].hasValue())
+        return vector<double>();
+        
     auto& p = _probabilities[_p_tree].probabilities();
     return vector<double>(p.begin(), p.end());
 }
