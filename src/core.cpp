@@ -132,6 +132,18 @@ void event_monitor::log(el::base::type::ostream_t& ost) const
     }
 }
 
+bool verify_results(const std::vector<size_t>& references, const std::vector<std::vector<double>>& partial_likelihoods, int& error)
+{
+    for (size_t i = 0; i < references.size(); ++i)
+    {
+        if (references[i] == i && partial_likelihoods[i].empty())
+        {
+            error = i;
+            return false;
+        }
+    }
+    return true;
+}
 
 
 #define CHECK_STREAM_CONTAINS(x,y) CHECK_MESSAGE(x.str().find(y) != std::string::npos, x.str())
@@ -202,5 +214,40 @@ TEST_CASE("Inference: create_gamma_model_if__n_gamma_cats__provided")
     for (auto m : models)
         delete m;
 }
+
+TEST_CASE("verify_results fails if empty partial likelihoods")
+{
+    std::vector<size_t> references = {0, 1, 2, 3};
+    std::vector<std::vector<double>> partial_likelihoods = {{1.0, 2.0}, {}, {4.0, 5.0, 6.0}, {}};
+
+    int error = -1;
+    bool result = verify_results(references, partial_likelihoods, error);
+
+    CHECK_FALSE(result);
+    CHECK_EQ(error, 1);
+}
+
+TEST_CASE("verify_results succeeds if empty partial likelihoods are referenced")
+{
+    std::vector<size_t> references = {0, 0, 2, 3};
+    std::vector<std::vector<double>> partial_likelihoods = {{1.0, 2.0}, {}, {3.0}, {4.0, 5.0, 6.0}};
+
+    int error = -1;
+    bool result = verify_results(references, partial_likelihoods, error);
+
+    CHECK(result);
+}
+
+TEST_CASE("verify_results succeeds if no empty partial likelihoods")
+{
+    std::vector<size_t> references = {0, 1, 2, 3};
+    std::vector<std::vector<double>> partial_likelihoods = {{1.0, 2.0}, {7.0}, {3.0}, {4.0, 5.0, 6.0}};
+
+    int error = -1;
+    bool result = verify_results(references, partial_likelihoods, error);
+
+    CHECK(result);
+}
+
 
 

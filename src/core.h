@@ -76,6 +76,7 @@ public:
 };
 
 std::vector<size_t> build_reference_list(const std::vector<gene_transcript>& transcripts);
+bool verify_results(const std::vector<size_t>& references, const std::vector<std::vector<double>>& partial_likelihoods, int& error);
 
 std::vector<model *> build_models(const input_parameters& my_input_parameters, user_data& user_data);
 

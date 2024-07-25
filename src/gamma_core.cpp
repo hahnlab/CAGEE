@@ -226,11 +226,11 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
                 partial_likelihoods[i] = pruners[i].prune(ud.gene_transcripts.at(i));
         }
 
-    auto failed = find(partial_likelihoods.begin(), partial_likelihoods.end(), vector<double>());   
-    if (failed != partial_likelihoods.end())
+
+    int error = -1;
+    if (!verify_results(references, partial_likelihoods, error))
     {
-        string id = ud.gene_transcripts[distance(partial_likelihoods.begin(), failed)].id();
-        LOG(WARNING) << "Transcript " << id << " could not be pruned";
+        LOG(WARNING) << "Transcript " << ud.gene_transcripts[error].id() << " could not be pruned";
         return -log(0);
     }
 
@@ -377,9 +377,9 @@ void gamma_model_reconstruction::print_category_likelihoods(std::ostream& ost)
         ost << gf.id() << '\t';
         auto& cat_l = _reconstructions[gf.id()]._category_likelihoods;
         vector<double> log_likelihoods(cat_l.size());
-        transform(cat_l.begin(), cat_l.end(), log_likelihoods.begin(), [](double x) { return log(x); });
+        transform(cat_l.begin(), cat_l.end(), log_likelihoods.begin(), [](double x) { return -log(x); });
         ostream_iterator<double> ct(ost, "\t");
-        copy(log_likelihoods.begin(), log_likelihoods.end(), ct);
+         copy(log_likelihoods.begin(), log_likelihoods.end(), ct);
         ost << endl;
     }
 }
@@ -514,7 +514,7 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__print_additional_
     ostringstream ost;
     gmr.print_category_likelihoods(ost);
     CHECK_STREAM_CONTAINS(ost, "Transcript ID\t0.0442801\t0.454936\t1.91267\t\n");
-    CHECK_STREAM_CONTAINS(ost, "Family5\t0.01\t0.03\0.09\t0.07");
+    CHECK_STREAM_CONTAINS(ost, "Family5\t-0.01\t-0.03\t-0.09\t-0.07");
 }
 
 TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__prints_sigma_multipiers")

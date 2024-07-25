@@ -122,11 +122,10 @@ double base_model::infer_transcript_likelihoods(const user_data& ud, const sigma
             partial_likelihoods[i] = pruners[i].prune(ud.gene_transcripts.at(i));
     }
 
-    auto failed = find(partial_likelihoods.begin(), partial_likelihoods.end(), vector<double>());   
-    if (failed != partial_likelihoods.end())
+    int error = -1;
+    if (!verify_results(references, partial_likelihoods, error))
     {
-        string id = ud.gene_transcripts[distance(partial_likelihoods.begin(), failed)].id();
-        LOG(WARNING) << "Transcript " << id << " could not be pruned";
+        LOG(WARNING) << "Transcript " << ud.gene_transcripts[error].id() << " could not be pruned";
         return -log(0);
     }
 
