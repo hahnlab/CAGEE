@@ -16,7 +16,6 @@
 #include "error_model.h"
 #include "sigma.h"
 #include "arguments.h"
-#include "reconstruction.h"
 #include "prior.h"
 
 using namespace std;

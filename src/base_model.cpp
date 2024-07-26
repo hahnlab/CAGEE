@@ -43,9 +43,13 @@ public:
     node_reconstruction get_internal_node_value(const gene_transcript& transcript, const clade* c) const
     {
         if (_reconstructions.find(&transcript) == _reconstructions.end())
-            throw runtime_error("Transcript " + transcript.id() + " not found in reconstruction");
+            throw missing_expression_value(transcript.id(), "");
 
-        return _reconstructions.at(&transcript).at(c);
+        auto& transcript_reconstructions = _reconstructions.at(&transcript);
+        if (transcript_reconstructions.find(c) == transcript_reconstructions.end())
+            throw missing_expression_value(transcript.id(), "");
+
+        return transcript_reconstructions.at(c);
     }
 
 };

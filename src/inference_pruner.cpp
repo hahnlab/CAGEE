@@ -199,15 +199,15 @@ clademap<node_reconstruction> inference_pruner::reconstruct(const gene_transcrip
     compute_all_probabilities(gf);
 
     clademap<node_reconstruction> reconstruction;
-    cladevector internal_nodes;
-    copy_if(_p_tree->reverse_level_begin(), _p_tree->reverse_level_end(), back_inserter(internal_nodes), [](const clade* c)
+    cladevector internal_nodes_with_values;
+    copy_if(_p_tree->reverse_level_begin(), _p_tree->reverse_level_end(), back_inserter(internal_nodes_with_values), [this](const clade* c)
         {
-            return !c->is_leaf();
+            return !c->is_leaf() && _probabilities[c].hasValue();
         });
 
-    for (auto& n : internal_nodes)
+    for (auto& c : internal_nodes_with_values)
     {
-        reconstruction[n] = get_value(_probabilities[n].probabilities(), _bounds);
+        reconstruction[c] = get_value(_probabilities[c].probabilities(), _bounds);
     }
     return reconstruction;
 }
