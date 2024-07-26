@@ -59,7 +59,7 @@ public:
         std::vector<double> _category_likelihoods;
     };
 
-    std::map<std::string, gamma_reconstruction> _reconstructions;
+    std::map<const gene_transcript*, gamma_reconstruction> _reconstructions;
 };
 
 gamma_model::gamma_model(sigma_squared* p_sigma, std::vector<gene_transcript>* p_gene_transcripts, int n_gamma_cats, double fixed_alpha, error_model* p_error_model) :
@@ -316,7 +316,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
     auto sigmas = _p_all_transcripts_likelihood->get_sigmas();
     for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
     {
-        auto id = ud.gene_transcripts[i].id();
+        auto id = &ud.gene_transcripts[i];
         recs[i] = &result->_reconstructions[id];
         auto& cl = result->_reconstructions[id]._category_likelihoods;
         cl.resize(_n_gamma_cats);
@@ -359,7 +359,7 @@ void gamma_model_reconstruction::write_nexus_extensions(std::ostream& ost)
 node_reconstruction gamma_model_reconstruction::get_internal_node_value(const gene_transcript& transcript, const clade* c) const
 {
     node_reconstruction nr;
-    nr.most_likely_value = _reconstructions.at(transcript.id()).reconstruction.at(c);
+    nr.most_likely_value = _reconstructions.at(&transcript).reconstruction.at(c);
     nr.credible_interval.first = nr.most_likely_value;
     nr.credible_interval.second = nr.most_likely_value;
     return nr;
@@ -375,7 +375,7 @@ void gamma_model_reconstruction::print_category_likelihoods(std::ostream& ost)
     for (auto& gf : _transcripts)
     {
         ost << gf.id() << '\t';
-        auto& cat_l = _reconstructions[gf.id()]._category_likelihoods;
+        auto& cat_l = _reconstructions[&gf]._category_likelihoods;
         vector<double> log_likelihoods(cat_l.size());
         transform(cat_l.begin(), cat_l.end(), log_likelihoods.begin(), [](double x) { return -log(x); });
         ostream_iterator<double> ct(ost, "\t");
@@ -492,7 +492,7 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction print_reconstructe
 {
     gamma_model_reconstruction gmr(*p_transcripts, discretized_gamma(0.5, 1));
 
-    auto& rec = gmr._reconstructions["Family5"];
+    auto& rec = gmr._reconstructions[&p_transcripts->at(0)];
     rec.category_reconstruction.resize(1);
     rec.category_reconstruction[0][p_tree.get()].most_likely_value = 7;
     rec.category_reconstruction[0][p_tree->find_descendant("AB")].most_likely_value = 0;
@@ -510,7 +510,7 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction print_reconstructe
 TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__print_additional_data__prints_likelihoods")
 {
     gamma_model_reconstruction gmr(*p_transcripts, discretized_gamma(0.5, 3));
-    gmr._reconstructions["Family5"]._category_likelihoods = { exp(0.01), exp(0.03), exp(0.09), exp(0.07) };
+    gmr._reconstructions[&p_transcripts->at(0)]._category_likelihoods = { exp(0.01), exp(0.03), exp(0.09), exp(0.07) };
     ostringstream ost;
     gmr.print_category_likelihoods(ost);
     CHECK_STREAM_CONTAINS(ost, "Transcript ID\t0.0442801\t0.454936\t1.91267\t\n");
@@ -521,7 +521,7 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction__prints_sigma_mult
 {
     gamma_model_reconstruction gmr(*p_transcripts, discretized_gamma(0.5, 2));
 
-    auto& rec = gmr._reconstructions["Family5"];
+    auto& rec = gmr._reconstructions[&p_transcripts->at(0)];
     rec.category_reconstruction.resize(1);
     rec.category_reconstruction[0][p_tree.get()].most_likely_value = 7;
     rec.category_reconstruction[0][p_tree->find_descendant("AB")].most_likely_value = 8;
@@ -544,7 +544,7 @@ TEST_CASE_FIXTURE(Reconstruction, "gamma_model_reconstruction get_internal_node_
 {
     auto node = p_tree->find_descendant("CD");
     gamma_model_reconstruction gmr(*p_transcripts, discretized_gamma(0.5, 1));
-    gmr._reconstructions["Family5"].reconstruction[node] = 7;
+    gmr._reconstructions[&p_transcripts->at(0)].reconstruction[node] = 7;
 
     CHECK_EQ(7, gmr.get_internal_node_value(p_transcripts->at(0), node).most_likely_value);
 
@@ -563,7 +563,7 @@ TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade")
     transcript_vector transcripts{ gf };
     gamma_model_reconstruction gmr(transcripts, discretized_gamma(0.5, 2));
 
-    gmr._reconstructions["myid"].reconstruction[p_tree->find_descendant("AB")] = 5;
+    gmr._reconstructions[&transcripts[0]].reconstruction[p_tree->find_descendant("AB")] = 5;
 
     ostringstream ost;
     gmr.print_increases_decreases_by_clade(ost, p_tree.get(), true);
