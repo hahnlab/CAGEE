@@ -136,7 +136,7 @@ While a bounded Brownian motion model is best for the evolution of expression le
 If your data consists of relative expressions, run a command like
 
 ```
-cagee --tree path/to/your_tree.nwk --infile path/to/your_gene_values.tsv --ratio
+cagee --tree path/to/your_tree.nwk --infile path/to/your_gene_values.tsv --unbounded
 ```
 
 In this case it is assumed that the the gene values provided are in fact ratios. If they are actual gene expression values nonsensical values may result.

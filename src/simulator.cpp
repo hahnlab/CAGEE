@@ -158,7 +158,7 @@ std::vector<simulated_family> simulator::simulate_processes(model *p_model) {
     unique_ptr<sigma_squared> sim_sigsqd(p_model->get_simulation_sigma());
 
     int upper_bound = upper_bound_from_values(root_sizes, get_multiplier(sim_sigsqd.get(), data.p_tree));
-    auto bounds = boundaries(_user_input.input_file_has_ratios ? -upper_bound : 0, upper_bound);
+    auto bounds = boundaries(_user_input.unbounded ? -upper_bound : 0, upper_bound);
     LOG(DEBUG) << "Boundaries for discretization vector: " << bounds.first << ", " << bounds.second;
 
     matrix_cache cache;

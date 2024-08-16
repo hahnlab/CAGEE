@@ -103,7 +103,7 @@ input_parameters read_arguments(int argc, char* const argv[])
         ("fixed_sigma,l", po::value<double>(), "Value for a single user provided sigma value, otherwise sigma is estimated.")
         ("fixed_alpha", po::value<double>(), "Value for a single user provided alpha value, otherwise alpha is estimated.")
         ("count_all_changes", po::value<bool>()->implicit_value(true), "Reconstruction will count all changes rather than only credible changes")
-        ("ratio", po::value<bool>()->implicit_value(true), "The input file contains ratios of gene expression values rather than absolute values")
+        ("unbounded", po::value<bool>()->implicit_value(true), "Do not impose a minimum of zero on estimated sigma values")
         ;
     
     po::options_description rare("Less Common Options");
@@ -175,7 +175,7 @@ input_parameters read_arguments(int argc, char* const argv[])
     maybe_set(vm, "prior", my_input_parameters.prior);
     maybe_set(vm, "discretization_size", my_input_parameters.discretization_size);
     maybe_set(vm, "count_all_changes", my_input_parameters.count_all_changes);
-    maybe_set(vm, "ratio", my_input_parameters.input_file_has_ratios);
+    maybe_set(vm, "unbounded", my_input_parameters.unbounded);
     maybe_set(vm, "replicate_map", my_input_parameters.replicate_model_file_path);
     maybe_set(vm, "n_gamma_cats", my_input_parameters.n_gamma_cats);
     maybe_set(vm, "fixed_alpha", my_input_parameters.fixed_alpha);
@@ -538,7 +538,7 @@ TEST_CASE("Prior params defaults to gamma if not unbounded")
 TEST_CASE("Prior params defaults to fisher if unbounded")
 {
     input_parameters params;
-    params.input_file_has_ratios = true;
+    params.unbounded = true;
     CHECK_EQ("fisher:0.75:0.75", params.prior_params_or_default());
 }
 

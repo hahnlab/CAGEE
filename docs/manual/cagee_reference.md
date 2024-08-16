@@ -63,9 +63,6 @@ Default is ```gamma:0.375:1600.0``` or ```fisher:0.75:0.75``` if the ratio flag 
 
 Note: The *uniform* distribution has no basis in biology but is available for testing and verifying simulated data.
 
-### --ratio [=arg(=1)]
- The input file contains ratios of gene expression values rather than absolute values
-
 ### --replicate_map <arg>
  Filename of a file containing a list of specie replicates to be combined into a single species
 
@@ -84,6 +81,9 @@ Note: The *uniform* distribution has no basis in biology but is available for te
 
 ### -t, --tree <arg>
  Path to file containing newick formatted tree (Required for estimation)
+
+### --unbounded [=arg(=1)]
+ The input file contains ratios of gene expression values rather than absolute values
 
 ### -v, --version
 Print version string
