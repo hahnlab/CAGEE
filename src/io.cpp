@@ -91,6 +91,8 @@ void read_gene_transcripts(std::istream& input_file, clade *p_tree, std::vector<
                 try
                 {
                     double val = pv::to_computational_space(stod(tokens[i]));
+                    if (::isnan(val))
+                        throw std::invalid_argument("NaN");
                     gt.set_expression_value(sp_name, val);
                 }
                 catch (const invalid_argument& e)
