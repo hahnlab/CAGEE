@@ -23,7 +23,7 @@ extern std::mt19937 randomizer_engine;
 
 void user_data::read_gene_transcript_data(const input_parameters &my_input_parameters, clade *p_tree, std::vector<gene_transcript> *p_transcripts) {
 
-    LOG_IF(my_input_parameters.unbounded, INFO) << "Expecting ratios in input file";
+    LOG_IF(my_input_parameters.input_file_has_ratios, INFO) << "Expecting ratios in input file";
     
     try
     {
@@ -40,7 +40,7 @@ void user_data::read_gene_transcript_data(const input_parameters &my_input_param
     
     LOG(DEBUG) << "Read input file " << my_input_parameters.input_file_path << ".";
 
-    update_boundaries(my_input_parameters.unbounded);
+    update_boundaries(my_input_parameters.input_file_has_ratios);
 }
 
 //! Read user provided error model file (whose path is stored in input_parameters instance)
@@ -181,10 +181,10 @@ int upper_bound_from_transcript_values(const vector<gene_transcript>& transcript
     return upper_bound_from_values(bounds, MATRIX_SIZE_MULTIPLIER);
 }
 
-void user_data::update_boundaries(bool unbounded)
+void user_data::update_boundaries(bool transcripts_are_ratios)
 {
     int upper_bound = upper_bound_from_transcript_values(gene_transcripts);
-    bounds = boundaries(unbounded ? -upper_bound : 0, upper_bound);
+    bounds = boundaries(transcripts_are_ratios ? -upper_bound : 0, upper_bound);
     LOG(DEBUG) << "Boundaries for discretization vector: " << bounds.first << ", " << bounds.second;
 
 }

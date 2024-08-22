@@ -29,7 +29,7 @@ public:
     std::string prior;
     bool help = false;
     int discretization_size = 200;
-    bool unbounded = false;
+    bool input_file_has_ratios = false;
 
     //! Check calls
     void check_input();
@@ -44,7 +44,7 @@ public:
         if (!prior.empty())
             return prior;
 
-        return unbounded ? "fisher:0.75:0.75" : "gamma:0.375:1600.0";
+        return input_file_has_ratios ? "fisher:0.75:0.75" : "gamma:0.375:1600.0";
     }
 };
 
