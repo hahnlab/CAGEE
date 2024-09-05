@@ -7,7 +7,7 @@ RUN set -ex;                                                                    
     apt-get install -y g++ curl cmake libboost-all-dev libgsl-dev zlib1g-dev; \
     mkdir -p /usr/src;                                                              \
     cd /usr/src;                                                                    \
-    curl -L https://github.com/hahnlab/CAGEE/releases/download/1.1/CAGEE1.1.tar.gz | tar -zxf -; \
+    curl -L https://github.com/hahnlab/CAGEE/releases/download/1.2/CAGEE1.2.tar.gz | tar -zxf -; \
     curl -L https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz | tar -zxf -;
 
 RUN set -ex;              \

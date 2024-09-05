@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.13)
 include(CheckIncludeFile)
 
 # set the project name
-project(CAGEE VERSION 1.1)
+project(CAGEE VERSION 1.2)
 
 set (CMAKE_PREFIX_PATH      "${PROJECT_SOURCE_DIR}/cmake")
 
@@ -145,7 +145,7 @@ install(TARGETS cagee DESTINATION bin)
 install(TARGETS diffmat_precalc DESTINATION bin)
 install(DIRECTORY examples DESTINATION .)
 install(DIRECTORY docs/manual DESTINATION .)
-install(FILES README.md LICENSE CHANGELOG.md DESTINATION .)
+install(FILES README.md LICENSE DESTINATION .)
 
 include(CPack)
 
