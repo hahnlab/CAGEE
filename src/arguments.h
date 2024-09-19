@@ -30,6 +30,7 @@ public:
     bool help = false;
     int discretization_size = 200;
     bool input_file_has_ratios = false;
+    std::string free_rate;
 
     //! Check calls
     void check_input();

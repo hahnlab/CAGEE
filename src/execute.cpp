@@ -129,8 +129,12 @@ void estimator::execute(std::vector<model *>& models)
             /// instead
             matrix_cache cache;
 
+            LOG(INFO) << "Starting reconstruction processes for " << p_model->get_name() << " model";
+
             std::unique_ptr<reconstruction> rec(p_model->reconstruct_ancestral_states(data, &cache));
 
+            LOG(INFO) << "Done!";
+            
             rec->write_results(_user_input.output_prefix, data.p_tree, _user_input.count_all_changes);
         }
     }

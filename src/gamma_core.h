@@ -39,6 +39,8 @@ public:
     virtual reconstruction* reconstruct_ancestral_states(const user_data& ud, matrix_cache *) override;
 
     bool can_infer() const;
+
+    virtual std::string get_name() const override { return "Gamma"; }
 };
 
 #endif // GAMMA_CORE_H

@@ -73,6 +73,8 @@ public:
     virtual void write_extra_vital_statistics(std::ostream& ost) {}
 
     const event_monitor& get_monitor() { return _monitor;  }
+
+    virtual std::string get_name() const = 0;
 };
 
 std::vector<size_t> build_reference_list(const std::vector<gene_transcript>& transcripts);

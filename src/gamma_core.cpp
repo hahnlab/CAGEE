@@ -260,8 +260,6 @@ clademap<double> get_weighted_averages(const std::vector<clademap<node_reconstru
 
 reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, matrix_cache *calc)
 {
-    LOG(INFO) << "Starting reconstruction processes for Gamma model";
-
     vector<double> all;
     auto sigmas = _gamma.get_discrete_sigmas(*_p_sigma);
     for (auto& s : sigmas)
@@ -307,8 +305,6 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
         // multiply every reconstruction by gamma_cat_prob
         reconstruction->reconstruction = get_weighted_averages(reconstruction->category_reconstruction, _gamma);
     }
-
-    LOG(INFO) << "Done!\n";
 
     return result;
 }

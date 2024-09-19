@@ -266,6 +266,8 @@ public:
         return _invalid_likelihood ? nan("") : 0.0;
     }
     void set_invalid_likelihood() { _invalid_likelihood = true; }
+
+    virtual std::string get_name() const override { return "MockScorerModel"; }
 };
 
 TEST_CASE("sigma_epsilon_optimizer guesses sigma and unique epsilons")

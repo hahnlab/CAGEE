@@ -460,4 +460,16 @@ TEST_CASE("Newick tree is recoverable at the root")
     CHECK_EQ(nwk, p_tree->get_source_newick());
 }
 
+TEST_CASE("Reverse Level Order touches lowest nodes before parent nodes")
+{
+    string nwk = "((E:0.36,D:0.30)H:1.00,(C:0.85,(A:0.59,B:0.35)F:0.42)G:0.45)I;";
+
+    unique_ptr<clade> p_tree(parse_newick(nwk));
+    string seq;
+    for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), [&seq](const clade* c) {
+        seq += c->get_taxon_name();
+        });
+    CHECK_EQ("BAFCDEGHI", seq);
+}
+
 

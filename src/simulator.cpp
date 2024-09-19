@@ -500,6 +500,8 @@ class mock_model : public model {
 public:
     mock_model(sigma_squared* s) : model(s, NULL, NULL) {}
     virtual double infer_transcript_likelihoods(const user_data& ud, const sigma_squared* p_sigma) override { return 0; }
+
+    virtual std::string get_name() const override { return "Mock"; }
 };
 
 TEST_CASE("Simulation, simulate_processes")

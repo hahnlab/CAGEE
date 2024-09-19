@@ -167,8 +167,6 @@ sigma_optimizer_scorer* base_model::get_sigma_optimizer(const user_data& data, c
 
 reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, matrix_cache *p_calc)
 {
-    LOG(INFO) << "Starting reconstruction processes for Base model";
-
     auto result = new base_model_reconstruction(ud.gene_transcripts, ud.p_replicate_model);
 
     p_calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), ud.bounds);
@@ -187,8 +185,6 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
     {
         result->_reconstructions[&ud.gene_transcripts[i]] = tr.reconstruct(ud.gene_transcripts[i]);
     }
-
-    LOG(INFO) << "Done!\n";
 
     return result;
 }

@@ -17,6 +17,8 @@
 #include "sigma.h"
 #include "arguments.h"
 #include "prior.h"
+#include "freerate_paired_model.h"
+#include "freerate_global_model.h"
 
 using namespace std;
 
@@ -39,6 +41,13 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
             gmodel->write_probabilities(cout);
 #endif
         p_model = gmodel;
+    }
+    else if (!user_input.free_rate.empty())
+    {
+        if (user_input.free_rate == "global")
+            p_model = new freerate_global_model(user_input.input_file_has_ratios);
+        else
+            p_model = new freerate_paired_model(user_input.input_file_has_ratios);
     }
     else
     {
@@ -155,6 +164,8 @@ class mock_model : public model {
 public:
     mock_model(sigma_squared*s) : model(s, NULL, NULL) {}
     virtual double infer_transcript_likelihoods(const user_data& ud, const sigma_squared* p_ss) override { return 0;  }
+
+    virtual std::string get_name() const override { return "Mock"; }
 };
 
 TEST_CASE("Model: write_vital_statistics")
@@ -214,6 +225,30 @@ TEST_CASE("Inference: create_gamma_model_if__n_gamma_cats__provided")
         delete m;
 }
 
+TEST_CASE("build_models creates a freerate model")
+{
+    input_parameters params;
+    params.free_rate = "paired";
+    user_data data;
+    auto models = build_models(params, data);
+    CHECK_EQ(1, models.size());
+    CHECK(dynamic_cast<freerate_paired_model*>(models[0]));
+    for (auto m : models)
+        delete m;
+}
+
+TEST_CASE("build_models creates a global freerate model")
+{
+    input_parameters params;
+    params.free_rate = "global";
+    user_data data;
+    auto models = build_models(params, data);
+    CHECK_EQ(1, models.size());
+    CHECK(dynamic_cast<freerate_global_model*>(models[0]));
+    for (auto m : models)
+        delete m;
+}
+
 TEST_CASE("verify_results fails if empty partial likelihoods")
 {
     std::vector<size_t> references = {0, 1, 2, 3};
@@ -247,6 +282,5 @@ TEST_CASE("verify_results succeeds if no empty partial likelihoods")
 
     CHECK(result);
 }
-
 
 

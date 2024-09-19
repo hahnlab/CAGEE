@@ -28,6 +28,8 @@ public:
 
     virtual sigma_squared* get_simulation_sigma();
 
+    virtual std::string get_name() const override { return "Base"; }
+
 };
 
 

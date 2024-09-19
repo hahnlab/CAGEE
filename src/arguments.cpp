@@ -110,6 +110,7 @@ input_parameters read_arguments(int argc, char* const argv[])
     rare.add_options()
         ("discretization_size,D", po::value<int>()->default_value(200), "Size (length) of the discretization vector, Default=200. Can increase resolution at the cost of computation time.")
         ("zero_root,z", po::value<bool>()->implicit_value(true), "Exclude gene families that don't exist at the root, not recommended.")
+        ("free_rate", po::value<string>()->default_value("")->implicit_value("global"), "Calculate values using Free Rate Model")
         ("optimizer_expansion,E", po::value<double>(), "Expansion parameter for Nelder-Mead optimizer, Default=2.")
         ("optimizer_reflection,R", po::value<double>(), "Reflection parameter for Nelder-Mead optimizer, Default=1.")
         ("optimizer_iterations,I", po::value<int>(), "Maximum number of iterations that will be performed in "
@@ -179,6 +180,7 @@ input_parameters read_arguments(int argc, char* const argv[])
     maybe_set(vm, "replicate_map", my_input_parameters.replicate_model_file_path);
     maybe_set(vm, "n_gamma_cats", my_input_parameters.n_gamma_cats);
     maybe_set(vm, "fixed_alpha", my_input_parameters.fixed_alpha);
+    maybe_set(vm, "free_rate", my_input_parameters.free_rate);
 
     string simulate_string = vm["simulate"].as<string>();
     my_input_parameters.is_simulating = simulate_string != "false";
@@ -562,4 +564,26 @@ TEST_CASE("Options: fixed_alpha")
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK_EQ(5, actual.fixed_alpha);
+}
+
+TEST_CASE("Options: freerate_model")
+{
+    input_parameters by_default;
+    CHECK_EQ("", by_default.free_rate);
+
+    option_test c({ "cagee", "--free_rate"});
+
+    auto actual = read_arguments(c.argc, c.values);
+    CHECK_EQ("global", actual.free_rate);
+}
+
+TEST_CASE("Options: freerate paired model")
+{
+    input_parameters by_default;
+    CHECK_EQ("", by_default.free_rate);
+
+    option_test c({ "cagee", "--free_rate", "paired"});
+
+    auto actual = read_arguments(c.argc, c.values);
+    CHECK_EQ("paired", actual.free_rate);
 }
