@@ -75,7 +75,6 @@ double compute_node_likelihood(const clade* d,
     cache.precalculate_matrices({ sigsqd, sigmas[sib].first }, { d->get_branch_length(), sib->get_branch_length() }, ud.bounds);
 
     probs[p] = ASV(ud.gene_transcripts.size());
-    LOG(DEBUG) << "  Node " << d->get_taxon_name() << " optimizing with sigma^2 " << sigsqd << " and sibling " << sib->get_taxon_name() << " with sigma^2 " << sigmas[sib].first;
 
     for (int i = 0; i < (int)ud.gene_transcripts.size(); ++i)
     {
@@ -104,10 +103,23 @@ double compute_node_likelihood(const clade* d,
         }
     }
 
-    LOG(DEBUG) << "    Node " << p->get_taxon_name() << " ASV updated from children";
     auto lnl = get_log_likelihood(probs[p], priors_by_bin);
-    LOG(DEBUG) << "  Score (-lnL): " << std::setw(15) << std::setprecision(14) << -lnl;
     return -lnl;
+}
+
+void optimize_root_sigma(const user_data& ud, const clademap<ASV>& probs, const clademap<prior>& priors, 
+    clademap<std::pair<double, double>>& _sigmas, matrix_cache& cache)
+{
+    using boost::math::tools::brent_find_minima;
+
+    auto priors_by_bin = get_priors(cache, ud.bounds, &priors.at(ud.p_tree));
+    std::pair<double, double> r = brent_find_minima([&](double sigsqd) {
+        return -get_log_likelihood(probs.at(ud.p_tree), priors_by_bin);
+
+    }, 0.0, _sigmas[ud.p_tree].first*100.0, 10);
+    _sigmas[ud.p_tree] = r;
+    LOG(INFO) << "Node " << ud.p_tree->get_ape_index() << " Sigma^2:" << r.first;
+    LOG(INFO) << "Score (-lnL): " << std::setw(15) << std::setprecision(14) << r.second;
 }
 
 /* Init all branches with a sigma
@@ -144,19 +156,17 @@ void freerate_global_model::optimize_sigmas(const user_data& ud, const clademap<
             for_each(p->descendant_begin(), p->descendant_end(), [&](const clade* d) {
                 using boost::math::tools::brent_find_minima;
 
-                LOG(DEBUG) << "Optimizing!";
                 std::pair<double, double> r = brent_find_minima([&](double sigsqd) {
                     return compute_node_likelihood(d, probs, _sigmas, priors_by_bin, sigsqd, cache, ud);
                 }, 0.0, _sigmas[p].first*100.0, 10);
-                LOG(DEBUG) << "Optimized!";
                 _sigmas[d] = r;
                 LOG(INFO) << "Node " << d->get_ape_index() << " Sigma^2:" << r.first;
                 LOG(INFO) << "Score (-lnL): " << std::setw(15) << std::setprecision(14) << r.second;
             });
-
-            //probs[p] = get_ASV(p->get_branch_length(), distmean, probs[p], cache);
         }
     });
+
+    optimize_root_sigma(ud, probs, priors, _sigmas, cache);
 }
 
 double freerate_global_model::infer_transcript_likelihoods(const user_data& ud, const sigma_squared*p_sigma)
@@ -173,9 +183,15 @@ double freerate_global_model::infer_transcript_likelihoods(const user_data& ud, 
     });
     LOG(DEBUG) << "Initial sigmas set to " << distmean;
 
-    for (int i = 0; i < 3; ++i)
+    double score = 100;
+    for (int i = 0; i<20; ++i)
+    {
+        LOG(INFO) << "Iteration " << i+1;
         optimize_sigmas(ud, priors);
-
+        if (abs(score - _sigmas[ud.p_tree].second) < 10)
+            break;
+        score = _sigmas[ud.p_tree].second;
+    }
     _p_sigma = new sigma_squared(_sigmas[ud.p_tree].first);
     return _sigmas[ud.p_tree].second;
 }
@@ -273,10 +289,10 @@ TEST_CASE("write_extra_vital_statistics writes a sigma for each internal node")
     ostringstream ost;
     m.write_extra_vital_statistics(ost);
     CHECK_STREAM_CONTAINS(ost, "Computed sigma2 by node:");
-    CHECK_STREAM_CONTAINS(ost, "6:0.428082");
-    CHECK_STREAM_CONTAINS(ost, "7:39.1313");
-    CHECK_STREAM_CONTAINS(ost, "8:42.8082");
-    CHECK_STREAM_CONTAINS(ost, "9:0.595238");
+    CHECK_STREAM_CONTAINS(ost, "6:0.000766305");
+    CHECK_STREAM_CONTAINS(ost, "7:0.0590542");
+    CHECK_STREAM_CONTAINS(ost, "8:0.0590542");
+    CHECK_STREAM_CONTAINS(ost, "9:0.595233");
     //el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToStandardOutput, "false");
 }
 
