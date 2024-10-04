@@ -9,7 +9,7 @@ class freerate_global_model : public model {
     clademap<std::pair<double, double>> _sigmas;
     bool _values_are_ratios;
 
-    void optimize_sigmas(const user_data &ud, const clademap<prior>& priors);
+    double optimize_sigmas(const user_data &ud, const clademap<prior>& priors);
 public:
     //! Computation or estimation constructor
     freerate_global_model(bool values_are_ratios);
