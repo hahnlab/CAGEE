@@ -10,6 +10,7 @@ class freerate_global_model : public model {
     bool _values_are_ratios;
 
     double optimize_sigmas(const user_data &ud, const clademap<prior>& priors);
+    int _root_ape_index = -1;
 public:
     //! Computation or estimation constructor
     freerate_global_model(bool values_are_ratios);

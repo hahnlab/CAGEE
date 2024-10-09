@@ -105,6 +105,7 @@ double compute_node_likelihood(const clade* d,
     }
 
     auto lnl = get_log_likelihood(probs[p], priors_by_bin);
+    //LOG(DEBUG) << "Node " << d->get_ape_index() << " Sigma^2:" << sigsqd << " Score (-lnL): " << lnl;
     return -lnl;
 }
 
@@ -160,6 +161,8 @@ double freerate_global_model::optimize_sigmas(const user_data& ud, const cladema
 
 double freerate_global_model::infer_transcript_likelihoods(const user_data& ud, const sigma_squared*p_sigma)
 {
+    _root_ape_index = ud.p_tree->get_ape_index();
+
     auto priors = compute_tree_priors(ud.p_tree, ud.gene_transcripts, _values_are_ratios);
     for (auto& a : priors)
     {
@@ -216,6 +219,9 @@ void freerate_global_model::write_extra_vital_statistics(std::ostream& ost)
     sort(sorted.begin(), sorted.end(), [](const pair<int, double>& a, const pair<int, double>& b) { return a.first < b.first; });
     for (auto& a : sorted)
     {
+        if (a.first == _root_ape_index)
+            continue;
+
         ost << a.first << ":" << a.second << "\n";
     }
 }
@@ -277,10 +283,12 @@ TEST_CASE("write_extra_vital_statistics writes a sigma for each internal node")
     ostringstream ost;
     m.write_extra_vital_statistics(ost);
     CHECK_STREAM_CONTAINS(ost, "Computed sigma2 by node:");
-    CHECK_STREAM_CONTAINS(ost, "6:0.428082");
     CHECK_STREAM_CONTAINS(ost, "7:0.000817127");
     CHECK_STREAM_CONTAINS(ost, "8:2.23993");
     CHECK_STREAM_CONTAINS(ost, "9:0.595146");
+
+    // Check that the root is not included
+    CHECK_MESSAGE(ost.str().find("6:") == std::string::npos, ost.str());
     //el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToStandardOutput, "false");
 }
 
