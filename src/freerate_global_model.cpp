@@ -63,7 +63,6 @@ double get_log_likelihood(const ASV& partial_likelihoods, const std::vector<doub
 freerate_global_model::freerate_global_model(bool values_are_ratios) :
     model(nullptr, nullptr, nullptr), _values_are_ratios(values_are_ratios)
 {
-    _p_sigma = new sigma_squared(-1);
 }
 
 // This has a lot of elements in common with compute_node_probability. Can they be refactored?
@@ -179,6 +178,7 @@ double freerate_global_model::infer_transcript_likelihoods(const user_data& ud, 
     for (int i = 0; i<20; ++i)
     {
         LOG(INFO) << "Iteration " << i+1;
+        _monitor.Event_InferenceAttempt_Started();
         double lnl = optimize_sigmas(ud, priors);
         if (abs(score - lnl) < 10)
             break;

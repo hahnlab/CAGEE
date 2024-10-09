@@ -79,7 +79,10 @@ void model::write_vital_statistics(std::ostream& ost, const clade *p_tree, doubl
     ost << PROJECT_NAME " " PROJECT_VER << endl;
     ost << "Command line: " << p.command_line << endl;
     ost << "Final Likelihood (-lnL): " << final_likelihood << endl;
-    ost << "Sigma2: " << *get_sigma() << endl;
+
+    auto p_sigma = get_sigma();
+    if (p_sigma)
+        ost << "Sigma2: " << *p_sigma << endl;
     
     ost << "IDs of Nodes: ";
     p_tree->write_newick(ost, [](std::ostream& ost, const clade*c) {
