@@ -72,21 +72,20 @@ void compute_node_probability(const clade* node,
     boundaries bounds)
 {
     if (node->is_leaf()) {
-        if (p_replicate_model)
+        try
         {
-            p_replicate_model->apply(node, gene_transcript, bounds, probabilities[node]);
-            string taxon = node->get_taxon_name();
+            if (p_replicate_model)
+            {
+                p_replicate_model->apply(node, gene_transcript, bounds, probabilities[node]);
+            }
+            else
+            {
+               probabilities[node].initialize(gene_transcript.get_expression_value(node->get_taxon_name()), bounds);
+            }
         }
-        else
+        catch(const missing_expression_value& e)
         {
-            try
-            {
-                // TODO: initialize values from error model if it exists
-                probabilities[node].initialize(gene_transcript.get_expression_value(node->get_taxon_name()), bounds);
-            }
-            catch (missing_expression_value& mev)
-            {
-            }
+                
         }
     }
     else  {
