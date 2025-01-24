@@ -60,8 +60,8 @@ double get_log_likelihood(const ASV& partial_likelihoods, const std::vector<doub
 }
 
 
-freerate_global_model::freerate_global_model(bool values_are_ratios) :
-    model(nullptr, nullptr, nullptr), _values_are_ratios(values_are_ratios)
+freerate_global_model::freerate_global_model(bool values_are_ratios, std::string initial_weights) :
+    model(nullptr, nullptr, nullptr), _values_are_ratios(values_are_ratios), _initial_weights(initial_weights)
 {
 }
 
@@ -169,8 +169,23 @@ double freerate_global_model::infer_transcript_likelihoods(const user_data& ud, 
     }
     double distmean = compute_distribution_mean(ud);
 
+    string weights_nwk = "((((sp1:0.11400,sp2:0.11400):0.10018,(((sp3:0.05150,sp4:0.05150):0.05500,sp5:0.10650):0.04143,sp6:0.14793):0.06625):0.01760,sp7:0.23178):0.05041,sp8:0.28218);";
+
+    unique_ptr<clade> p_weight_tree;
+    if (!_initial_weights.empty())
+        p_weight_tree.reset(parse_newick(_initial_weights));
+
     for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade* p) {
-        _sigmas[p] = pair<double,double>(distmean,-1);
+        if (p->is_root() || !p_weight_tree)
+            _sigmas[p] = pair<double,double>(distmean,-1);
+        else 
+        {
+            auto weight = p_weight_tree->find_descendant(p->get_taxon_name())->get_branch_length();
+            _sigmas[p] =  pair<double,double>(weight,-1);  
+        }
+        LOG(DEBUG) << "Initial sigma for " << p->get_ape_index() << " set to " << _sigmas[p].first;
+
+//        _sigmas[p] = pair<double,double>(distmean,-1);
     });
     LOG(DEBUG) << "Initial sigmas set to " << distmean;
 
@@ -229,12 +244,12 @@ void freerate_global_model::write_extra_vital_statistics(std::ostream& ost)
 
 TEST_CASE("freerate_model")
 {
-    new freerate_global_model(false);
+    new freerate_global_model(false, "");
 }
 
 TEST_CASE("freerate_model optimizes a branch length")
 {
-    freerate_global_model m(false);
+    freerate_global_model m(false, "");
 
     user_data ud;
     ud.p_sigma = NULL;
@@ -277,7 +292,7 @@ TEST_CASE("write_extra_vital_statistics writes a sigma for each internal node")
     ud.gene_transcripts[0].set_expression_value("D", 2);
     ud.gene_transcripts[0].set_expression_value("E", 2.5);
 
-    freerate_global_model m(false);
+    freerate_global_model m(false, "");
     m.infer_transcript_likelihoods(ud, nullptr);
 
     ostringstream ost;
