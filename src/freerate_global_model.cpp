@@ -60,8 +60,8 @@ double get_log_likelihood(const ASV& partial_likelihoods, const std::vector<doub
 }
 
 
-freerate_global_model::freerate_global_model(bool values_are_ratios, std::string initial_weights) :
-    model(nullptr, nullptr, nullptr), _values_are_ratios(values_are_ratios), _initial_weights(initial_weights)
+freerate_global_model::freerate_global_model(bool values_are_ratios, std::string initial_values, bool initial_values_are_weights) :
+    model(nullptr, nullptr, nullptr), _values_are_ratios(values_are_ratios), _initial_values(initial_values), _initial_values_are_weights(initial_values_are_weights)
 {
 }
 
@@ -168,24 +168,42 @@ double freerate_global_model::infer_transcript_likelihoods(const user_data& ud, 
         LOG(DEBUG) << "Node " << a.first->get_ape_index() << " Prior: " << a.second;
     }
     double distmean = compute_distribution_mean(ud);
-
-    string weights_nwk = "((((sp1:0.11400,sp2:0.11400):0.10018,(((sp3:0.05150,sp4:0.05150):0.05500,sp5:0.10650):0.04143,sp6:0.14793):0.06625):0.01760,sp7:0.23178):0.05041,sp8:0.28218);";
-
+    LOG(DEBUG) << "Distribution mean: " << distmean;
+    
     unique_ptr<clade> p_weight_tree;
-    if (!_initial_weights.empty())
-        p_weight_tree.reset(parse_newick(_initial_weights));
+    if (!_initial_values.empty())
+        p_weight_tree.reset(parse_newick(_initial_values));
 
     for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade* p) {
         if (p->is_root() || !p_weight_tree)
             _sigmas[p] = pair<double,double>(distmean,-1);
         else 
         {
-            auto weight = p_weight_tree->find_descendant(p->get_taxon_name())->get_branch_length();
+            auto weight = 0.0;
+            auto matched_clade = p_weight_tree->find_descendant(p->get_taxon_name());
+            if (matched_clade)
+            {   
+                weight = matched_clade->get_branch_length();
+            }
+            else
+            {
+                // matching clade ended up as root; find its descendant that is 
+                // not a descendant of p
+                vector<string> descendants(distance(p->descendant_begin(), p->descendant_end()));
+                transform(p->descendant_begin(), p->descendant_end(), descendants.begin(), [](const clade* c) { return c->get_taxon_name(); });
+                auto it = std::find_if(p_weight_tree->descendant_begin(), p_weight_tree->descendant_end(), [&](clade *c) {
+                    return std::find(descendants.begin(), descendants.end(), c->get_taxon_name()) == descendants.end();
+                });
+                if (it != p_weight_tree->descendant_end())
+                    weight = (*it)->get_branch_length();
+            }
+            if (_initial_values_are_weights)
+                weight = distmean * weight;
             _sigmas[p] =  pair<double,double>(weight,-1);  
         }
-        LOG(DEBUG) << "Initial sigma for " << p->get_ape_index() << " set to " << _sigmas[p].first;
+        string name = p->is_leaf() ? " (" + p->get_taxon_name() + ")" : "";
+        LOG(DEBUG) << "Initial sigma for Node " << p->get_ape_index() << name << " set to " << _sigmas[p].first;
 
-//        _sigmas[p] = pair<double,double>(distmean,-1);
     });
     LOG(DEBUG) << "Initial sigmas set to " << distmean;
 
@@ -244,12 +262,12 @@ void freerate_global_model::write_extra_vital_statistics(std::ostream& ost)
 
 TEST_CASE("freerate_model")
 {
-    new freerate_global_model(false, "");
+    new freerate_global_model(false, "", false);
 }
 
 TEST_CASE("freerate_model optimizes a branch length")
 {
-    freerate_global_model m(false, "");
+    freerate_global_model m(false, "", false);
 
     user_data ud;
     ud.p_sigma = NULL;
@@ -292,7 +310,7 @@ TEST_CASE("write_extra_vital_statistics writes a sigma for each internal node")
     ud.gene_transcripts[0].set_expression_value("D", 2);
     ud.gene_transcripts[0].set_expression_value("E", 2.5);
 
-    freerate_global_model m(false, "");
+    freerate_global_model m(false, "", false);
     m.infer_transcript_likelihoods(ud, nullptr);
 
     ostringstream ost;

@@ -139,7 +139,7 @@ vector<const clade*> clade::find_internal_nodes() const {
   /* Recursively find pointer to clade with provided taxon name */
 const clade *clade::find_descendant(string some_taxon_name) const {
 
-    const clade *p_descendant;
+    const clade *p_descendant = nullptr;
     auto descendant_finder = [some_taxon_name, &p_descendant](const clade *clade) {
         if (clade->get_taxon_name() == some_taxon_name)
             p_descendant = clade;
