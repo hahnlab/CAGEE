@@ -8,13 +8,14 @@ class freerate_global_model : public model {
 
     clademap<std::pair<double, double>> _sigmas;
     bool _values_are_ratios;
-    std::string _initial_weights;
+    std::string _initial_values;
+    bool _initial_values_are_weights;
 
     double optimize_sigmas(const user_data &ud, const clademap<prior>& priors);
     int _root_ape_index = -1;
 public:
     //! Computation or estimation constructor
-    freerate_global_model(bool values_are_ratios, std::string initial_weights);
+    freerate_global_model(bool values_are_ratios, std::string initial_values, bool initial_values_are_weights);
     
     virtual ~freerate_global_model() {}
 
