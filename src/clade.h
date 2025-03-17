@@ -134,6 +134,7 @@ using cladevector = std::vector<const clade *>;
 
 clade* parse_newick(std::string newick_string, bool parse_sigmas);
 inline clade* parse_newick(std::string newick_string) { return parse_newick(newick_string, false); }
-
+double distance(const clade* c1, const clade* c2);
+const clade* common_ancestor(const clade* c1, const clade *c2);
 
 #endif

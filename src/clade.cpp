@@ -310,6 +310,41 @@ void clade::apply_prefix_order(const cladefunc& f) const {
     }
 }
 
+const clade* common_ancestor(const clade* c1, const clade *c2)
+{
+    cladevector path;
+    while (c1)
+    {
+        path.push_back(c1);
+        c1 = c1->get_parent();
+    }
+    while (c2)
+    {
+        if (find(path.begin(), path.end(), c2) != path.end())
+            return c2;
+        c2 = c2->get_parent();
+    }
+
+    return nullptr;
+}
+
+double distance(const clade* c1, const clade* c2)
+{
+    double dist = 0;
+    auto p = common_ancestor(c1, c2);
+    while (c1 != p)
+    {
+        dist += c1->get_branch_length();
+        c1 = c1->get_parent();
+    }
+    while (c2 != p)
+    {
+        dist += c2->get_branch_length();
+        c2 = c2->get_parent();
+    }
+    return dist;
+}
+
 clade* parse_newick(std::string newick_string, bool parse_to_sigmas) {
 
     std::regex tokenizer("\\(|\\)|[^\\s\\(\\)\\:\\;\\,]+|\\:[+-]?[0-9]*\\.?[0-9]+([eE][+-]?[0-9]+)?|\\,|\\;");
@@ -472,4 +507,18 @@ TEST_CASE("Reverse Level Order touches lowest nodes before parent nodes")
     CHECK_EQ("BAFCDEGHI", seq);
 }
 
+TEST_CASE("common_ancestor")
+{
+    string nwk = "((E:0.36,D:0.30)H:1.00,(C:0.85,(A:0.59,B:0.35)F:0.42)G:0.45)I;";
+    unique_ptr<clade> p_tree(parse_newick(nwk));
+    CHECK_EQ("G", common_ancestor(p_tree->find_descendant("A"), p_tree->find_descendant("C"))->get_taxon_name());
+}
+
+
+TEST_CASE("distance")
+{
+    string nwk = "((E:0.36,D:0.30)H:1.00,(C:0.85,(A:0.59,B:0.35)F:0.42)G:0.45)I;";
+    unique_ptr<clade> p_tree(parse_newick(nwk));
+    CHECK_EQ( doctest::Approx(1.86), distance(p_tree->find_descendant("A"), p_tree->find_descendant("C")));
+}
 
