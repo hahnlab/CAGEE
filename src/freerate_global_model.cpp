@@ -184,18 +184,17 @@ double freerate_global_model::infer_transcript_likelihoods(const user_data& ud, 
             if (matched_clade)
             {   
                 weight = matched_clade->get_branch_length();
+                LOG(DEBUG) << "Found a weight for " << p->get_taxon_name() << ". It is " << weight;
             }
             else
             {
-                // matching clade ended up as root; find its descendant that is 
-                // not a descendant of p
                 vector<string> descendants(distance(p->descendant_begin(), p->descendant_end()));
                 transform(p->descendant_begin(), p->descendant_end(), descendants.begin(), [](const clade* c) { return c->get_taxon_name(); });
-                auto it = std::find_if(p_weight_tree->descendant_begin(), p_weight_tree->descendant_end(), [&](clade *c) {
-                    return std::find(descendants.begin(), descendants.end(), c->get_taxon_name()) == descendants.end();
-                });
-                if (it != p_weight_tree->descendant_end())
-                    weight = (*it)->get_branch_length();
+                auto d1 = p_weight_tree->find_descendant(descendants[0]);
+                auto d2 = p_weight_tree->find_descendant(descendants[1]);
+                weight = distance(d1, d2);
+
+                LOG(DEBUG) << "There is no weight for " << p->get_taxon_name() << ". Computed distance between " << descendants[0] << " and " << descendants[1] << " is " << weight;
             }
             if (_initial_values_are_weights)
                 weight = distmean * weight;
