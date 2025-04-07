@@ -86,7 +86,7 @@ A minimal command of:
 
     cagee --tree path/to/your_tree.nwk --infile path/to/your_gene_values.tsv
     
-... will estimate a single $\sigma^2$ across your tree as well as ancestral states and changes along each branch. This minimal input will use one thread, the default gamma root distribution paramters ($k = 0.375$, $\theta$ = 1600), and write the inference output files to `results/` in the current working directory.
+... will estimate a single $\sigma^2$ across your tree as well as ancestral states and changes along each branch. This minimal input will use one thread, the default gamma root distribution paramaters ($k = 0.375$, $\theta$ = 1600), and write the inference output files to `results/` in the current working directory.
 
 Optionally, you can also specify the number of cores / threads to use (`--cores / -@`) for increased performance, the parameters of the expected gamma root distribution (`--prior gamma:[k]:[theta]`), and the output directory (`--output_prefix / -o`):
 
@@ -128,6 +128,10 @@ Note that, unlike the `DESC` and `Gene_ID`, the column specifying sample members
     ```
 
 Given the above input, CAGEE will estimate two values of $\sigma^2$: one for all rows with SAMPLETYPE `sample_label_1` and one for all rows with SAMPLETYPE either `sample_label_2` or `sample_label_3` (since these are both assigned to the same sample group on the command-line). If one instead wanted to estimate a separate value of $\sigma^2$ for sample_label_3, you would simply add a third argument (`--sample_group sample_label_3`).
+
+### Inferring a gamma curve as input
+
+Provide the `-k` parameter to use a discrete gamma model with a jointly optimized alpha shape parameter. Along with estimating a rate of evolution, CAGEE will estimate an alpha value representing a gamma curve that best reflects the values. The curve will be estimated from K distinct points on the curve, so a higher value of K should provide a greater accuracy but also take longer to run.
 
 ### Unbounded Brownian Motion
 
@@ -179,6 +183,10 @@ Other valid arguments for `--rootdist` include a fixed value at the root for all
 NOTE that `--rootdist` in simulation mode and `--prior` in inference mode are mutually exclusive: specifying both or the wrong one will return an error.
 
 To simulate multiple rates across your tree, you must include the `--sigma_tree` option as described above and a comma-separated list of rate values to `--fixed_multiple_sigmas / -m`, e.g. `--fixed_multiple_sigmas 1,3` to simulate rates of $\sigma^{2} = 1$ and $\sigma^{2} = 3$ to branches labeled 1 and 2, respectively.
+
+**Simulating unbounded Brownian motion**
+
+Simulating UBB can be done by adding the `--ratio` flag when simulating. In this case the simulation consists of relative expressions in two tissues or sample types, and thus some of the simulated values may be negative. Attempting to infer values from this type of simulation must also be flagged as ratios - otherwise CAGEE will create nonsensical values.
 
 ## Citing
 
