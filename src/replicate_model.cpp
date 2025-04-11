@@ -12,6 +12,8 @@
 using namespace Eigen;
 using namespace std;
 
+Eigen::IOFormat vector_fmt{Eigen::IOFormat(3, 0, ", ", "", "[ ", " ]", "", "", (char)32)};
+
 void replicate_model::apply(const clade* node, const gene_transcript& gene_transcript, boundaries bounds, optional_probabilities& result) const
 {
 	int Npts = result.capacity();
@@ -36,7 +38,8 @@ void replicate_model::apply(const clade* node, const gene_transcript& gene_trans
 	}
 	if (rep_found)
 	{
-		result.set(values);
+		VLOG_N_TIMES(9, 1) << node->get_taxon_name() << "|" << gene_transcript.id() << ": " << values.transpose().format(vector_fmt);
+		result.set(values);		
 	}
 	else
 	{

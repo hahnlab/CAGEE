@@ -115,7 +115,8 @@ input_parameters read_arguments(int argc, char* const argv[])
         ("optimizer_expansion,E", po::value<double>(), "Expansion parameter for Nelder-Mead optimizer, Default=2.")
         ("optimizer_reflection,R", po::value<double>(), "Reflection parameter for Nelder-Mead optimizer, Default=1.")
         ("optimizer_iterations,I", po::value<int>(), "Maximum number of iterations that will be performed in "
-            "sigma search.Default = 300 (increase this number if likelihood is still improving when limit is hit).");
+            "sigma search.Default = 300 (increase this number if likelihood is still improving when limit is hit).")
+        ("log_config", po::value<string>(), "Logging config file");
 
     po::options_description config_file_options;
     config_file_options.add(required).add(common).add(rare);
@@ -183,6 +184,7 @@ input_parameters read_arguments(int argc, char* const argv[])
     maybe_set(vm, "fixed_alpha", my_input_parameters.fixed_alpha);
     maybe_set(vm, "free_rate", my_input_parameters.free_rate);
     maybe_set(vm, "initial_weights", my_input_parameters.initial_weights);
+    maybe_set(vm, "log_config", my_input_parameters.log_config_file);
 
     string simulate_string = vm["simulate"].as<string>();
     my_input_parameters.is_simulating = simulate_string != "false";
