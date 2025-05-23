@@ -82,4 +82,24 @@ void compute_node_probability(const clade* node,
     const matrix_cache& cache,
     boundaries bounds);
 
+    
+template <typename T>
+class transcript_clade_map
+{
+    std::map<std::pair<const gene_transcript *, const clade *>, T> _map;
+    public:
+        void set(const gene_transcript* transcript, const clade* c, const T& value) {
+            _map[std::make_pair(transcript, c)] = value;
+        }
+        const T& get(const gene_transcript* transcript, const clade* c) const {
+            return _map.at(std::make_pair(transcript, c));
+        }
+        bool find(const gene_transcript* transcript, const clade* c) const {
+            return _map.find(std::make_pair(transcript, c)) != _map.end();
+        }
+
+        size_t count() const {
+            return _map.size();
+        }
+};
 #endif

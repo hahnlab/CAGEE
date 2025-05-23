@@ -28,6 +28,7 @@ namespace pv = proportional_variance;
 
 extern mt19937 randomizer_engine;
 
+
 //! \ingroup base Base Model
 class base_model_reconstruction : public reconstruction
 {
@@ -38,18 +39,14 @@ public:
 
     }
 
-    std::map<const gene_transcript*, clademap<node_reconstruction>> _reconstructions;
+    transcript_clade_map<node_reconstruction> _reconstructions;
 
     node_reconstruction get_internal_node_value(const gene_transcript& transcript, const clade* c) const
     {
-        if (_reconstructions.find(&transcript) == _reconstructions.end())
+        if (!_reconstructions.find(&transcript, c))
             throw missing_expression_value(transcript.id(), "");
 
-        auto& transcript_reconstructions = _reconstructions.at(&transcript);
-        if (transcript_reconstructions.find(c) == transcript_reconstructions.end())
-            throw missing_expression_value(transcript.id(), "");
-
-        return transcript_reconstructions.at(c);
+        return _reconstructions.get(&transcript, c);
     }
 
 };
@@ -171,19 +168,23 @@ reconstruction* base_model::reconstruct_ancestral_states(const user_data& ud, ma
 
     p_calc->precalculate_matrices(_p_sigma->get_values(), ud.p_tree->get_branch_lengths(), ud.bounds);
 
-    for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
+    node_reconstruction rc;
+    rc.most_likely_value = 0;
+    for (auto& transcript : ud.gene_transcripts)
     {
-        auto &rc = result->_reconstructions[&ud.gene_transcripts[i]];
-        ud.p_tree->apply_prefix_order([&rc](const clade* c) {
-            rc[c].most_likely_value = 0;
-            });
+        ud.p_tree->apply_prefix_order([&rc, &result, transcript](const clade* c) {
+            result->_reconstructions.set(&transcript, c, rc);
+        });
     }
 
     inference_pruner tr(_p_sigma, ud.p_tree, ud.p_replicate_model, p_calc, ud.bounds);
 
-    for (size_t i = 0; i< ud.gene_transcripts.size(); ++i)
+    for (auto& transcript : ud.gene_transcripts)
     {
-        result->_reconstructions[&ud.gene_transcripts[i]] = tr.reconstruct(ud.gene_transcripts[i]);
+        auto rc = tr.reconstruct(transcript);
+        for (const auto& kv : rc) {
+            result->_reconstructions.set(&transcript, kv.first, kv.second);
+        }
     }
 
     return result;
@@ -290,11 +291,16 @@ TEST_CASE("base_model_reconstruction__print_reconstructed_states")
     transform(nodes.begin(), nodes.end(), order.begin(), [t](string s) { return t->find_descendant(s); });
 
     base_model_reconstruction bmr(transcripts, nullptr);
-    auto& values = bmr._reconstructions[&transcripts[0]];
 
-    values[p_tree.get()].most_likely_value = pv::to_computational_space(7);
-    values[p_tree->find_descendant("AB")].most_likely_value = pv::to_computational_space(8);
-    values[p_tree->find_descendant("CD")].most_likely_value = pv::to_computational_space(6);
+    node_reconstruction rc;
+    rc.most_likely_value = pv::to_computational_space(7);
+    bmr._reconstructions.set(&transcripts[0], p_tree.get(), rc); 
+
+    rc.most_likely_value = pv::to_computational_space(8);
+    bmr._reconstructions.set(&transcripts[0],p_tree->find_descendant("AB"), rc); 
+
+    rc.most_likely_value = pv::to_computational_space(6);
+    bmr._reconstructions.set(&transcripts[0], p_tree->find_descendant("CD"), rc); 
 
     ostringstream ost;
 
@@ -322,8 +328,10 @@ TEST_CASE("increase_decrease")
     auto ab = p_tree->find_descendant("AB");
     auto abcd = p_tree->find_descendant("ABCD");
 
-    bmr._reconstructions[&transcripts[0]][ab].most_likely_value = pv::to_computational_space(3);
-    bmr._reconstructions[&transcripts[0]][abcd].most_likely_value = pv::to_computational_space(3);
+    node_reconstruction rc{pv::to_computational_space(3)};
+
+    bmr._reconstructions.set(&transcripts[0], ab, rc);
+    bmr._reconstructions.set(&transcripts[0], abcd, rc);
 
     CHECK_EQ(doctest::Approx(1.0), bmr.get_difference_from_parent(transcripts[0], a));
     CHECK_EQ(doctest::Approx(-1.0), bmr.get_difference_from_parent(transcripts[0], b));
@@ -353,8 +361,7 @@ TEST_CASE("base_model_reconstruction")
 
     std::unique_ptr<base_model_reconstruction> rec(dynamic_cast<base_model_reconstruction*>(model.reconstruct_ancestral_states(ud, &calc)));
 
-    CHECK_EQ(1, rec->_reconstructions.size());
-
+    CHECK_EQ(4, rec->_reconstructions.count());
 }
 
 TEST_CASE("build_reference_list")
