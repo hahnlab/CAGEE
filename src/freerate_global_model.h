@@ -28,6 +28,8 @@ public:
     virtual void write_extra_vital_statistics(std::ostream& ost) override;
 
     virtual std::string get_name() const override { return "FreeRateGlobal"; }
+
+    void initialize_sigmas(const clade* p_tree, double distmean);
 };
 
 #endif
