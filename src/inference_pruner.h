@@ -94,10 +94,19 @@ class transcript_clade_map
         const T& get(const gene_transcript* transcript, const clade* c) const {
             return _map.at(std::make_pair(transcript, c));
         }
+        T& get(const gene_transcript* transcript, const clade* c) {
+            return _map[std::make_pair(transcript, c)];
+        }
+
         bool find(const gene_transcript* transcript, const clade* c) const {
             return _map.find(std::make_pair(transcript, c)) != _map.end();
         }
 
+        void apply(const std::function<void(T&)>& func) {
+            for (auto& kv : _map) {
+                func(kv.second);
+            }
+        }
         size_t count() const {
             return _map.size();
         }
