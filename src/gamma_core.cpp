@@ -121,15 +121,13 @@ void flatten_vector(const vector<vector<double>>& v, vector<double>& result)
     }
 }
 
-double final_value(const vector<std::vector<double>> &_likelihoods, int _num_transcripts)
+double final_value(const std::map<const gene_transcript*, std::vector<double>>& map_l)
 {
     // For each transcript, we add the likelihoods of all the categories, then take the log of that and add them all together
-    vector<int> keys(_likelihoods.size());
-    iota(keys.begin(), keys.end(), 0);
     double final_likelihood = 0.0;
-    for (int i = 0; i<_num_transcripts; ++i)
+    for(const auto& kv : map_l)
     {
-        final_likelihood += log(accumulate(keys.begin(), keys.end(), 0.0, [&](double a, int b) { return a + _likelihoods[b][i]; }));
+        final_likelihood += log(accumulate(kv.second.begin(), kv.second.end(), 0.0));
     }
     return -final_likelihood;
 }
@@ -159,10 +157,14 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
 
     auto sigmas = _gamma.get_discrete_sigmas(*p_sigma);
 
-    _likelihoods.clear();
+    for (auto& transcript : ud.gene_transcripts)
+    {
+        _transcript_category_likelihoods[&transcript] = vector<double>(sigmas.size(), 0.0);
+    }
 
-    for (auto& s: sigmas)
-    {    
+    int s_idx = 0;
+    for (auto& s : sigmas)
+    {
         matrix_cache calc;
         vector<double> priors;
         try
@@ -176,7 +178,7 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
             return -log(0);
         }
 
-        calc.precalculate_matrices(s.get_values(),  ud.p_tree->get_branch_lengths(), ud.bounds);
+        calc.precalculate_matrices(s.get_values(), ud.p_tree->get_branch_lengths(), ud.bounds);
 
         vector<vector<double>> partial_likelihoods(num_transcripts);
 
@@ -199,13 +201,13 @@ double gamma_model::infer_transcript_likelihoods(const user_data& ud, const sigm
         auto values = vector<double>(num_transcripts);
     #pragma omp parallel for
         for (int i = 0; i < (int)num_transcripts; ++i) {
-            values[i] = compute_prior_likelihood(partial_likelihoods[references[i]], priors);
+            _transcript_category_likelihoods[&ud.gene_transcripts[i]][s_idx] = compute_prior_likelihood(partial_likelihoods[references[i]], priors);
         }
 
-        _likelihoods.push_back(values);
+        ++s_idx;
     }
 
-    double final_likelihood = final_value(_likelihoods, num_transcripts);
+    double final_likelihood = final_value(_transcript_category_likelihoods);
     LOG(INFO) << "Score (-lnL): " << std::setw(15) << std::setprecision(14) << final_likelihood;
 
     return final_likelihood;
@@ -283,7 +285,7 @@ reconstruction* gamma_model::reconstruct_ancestral_states(const user_data& ud, m
         cl.resize(_n_gamma_cats);
         for (int j = 0; j < _n_gamma_cats; ++j)
         {
-            cl[j] = _likelihoods.at(j)[i];
+            cl[j] = _transcript_category_likelihoods.at(id)[j];
         }
         result->_reconstructions[id].category_reconstruction.resize(_n_gamma_cats);
     }
@@ -549,58 +551,32 @@ TEST_CASE("Reconstruction: gamma_model_print_increases_decreases_by_clade empty"
     CHECK_EQ(empty.str(), "#Taxon_ID\tIncrease\tDecrease\n");
 }
 
-TEST_CASE("likelihood_combiner")
-{
-    int s1 = 0;
-    std::vector<std::vector<double>> likelihoods;
-    likelihoods.push_back(vector<double>(5));
-    const double e1 = exp(0.1);
-    likelihoods[s1][0] = e1;
-    likelihoods[s1][1] = e1;
-    likelihoods[s1][2] = e1;
-    likelihoods[s1][3] = e1;
-    likelihoods[s1][4] = e1;
-    CHECK_EQ(doctest::Approx(-0.5), final_value(likelihoods, 5));
-}
-
 TEST_CASE("likelihood_combiner sums logs of each value with a single sigma")
 {
-    int s1 = 0;
-    std::vector<std::vector<double>> likelihoods;
-    likelihoods.push_back(vector<double>(5));
+    std::map<const gene_transcript*, std::vector<double>> likelihoods;
+    gene_transcript keys[5];
     const double e1 = exp(.1);
-    likelihoods[s1][0] = e1;
-    likelihoods[s1][1] = e1;
-    likelihoods[s1][2] = e1;
-    likelihoods[s1][3] = e1;
-    likelihoods[s1][4] = e1;
-    CHECK_EQ(doctest::Approx(-0.5), final_value(likelihoods, 5));
+    likelihoods[&keys[0]] = vector<double>{e1};
+    likelihoods[&keys[1]] = vector<double>{e1};
+    likelihoods[&keys[2]] = vector<double>{e1};
+    likelihoods[&keys[3]] = vector<double>{e1};
+    likelihoods[&keys[4]] = vector<double>{e1};
+    CHECK_EQ(doctest::Approx(-0.5), final_value(likelihoods));
 }
 
 TEST_CASE("With multiple sigmas likelihood_combiner sums across sigmas then takes the logs")
 {
-    int s1 = 0;
-    int s2 = 1;
-
     const double e1 = exp(.1) * .75; // cleverly choose some values that sum to a nice number
     const double e2 = exp(.1) * .25;
 
-    const int num_transcripts = 5;
-    std::vector<std::vector<double>> likelihoods;
-    likelihoods.push_back(vector<double>(num_transcripts));
-    likelihoods[s1][0] = e1;
-    likelihoods[s1][1] = e1;
-    likelihoods[s1][2] = e1;
-    likelihoods[s1][3] = e1;
-    likelihoods[s1][4] = e1;
+    std::map<const gene_transcript*, std::vector<double>> likelihoods;
+    gene_transcript keys[5];
+    likelihoods[&keys[0]] = vector<double>{e1, e2};
+    likelihoods[&keys[1]] = vector<double>{e1, e2};
+    likelihoods[&keys[2]] = vector<double>{e1, e2};
+    likelihoods[&keys[3]] = vector<double>{e1, e2};
+    likelihoods[&keys[4]] = vector<double>{e1, e2};
 
-    likelihoods.push_back(vector<double>(num_transcripts));
-    likelihoods[s2][0] = e2;
-    likelihoods[s2][1] = e2;
-    likelihoods[s2][2] = e2;
-    likelihoods[s2][3] = e2;
-    likelihoods[s2][4] = e2;
-
-    CHECK_EQ(doctest::Approx(-0.5), final_value(likelihoods, 5));
+    CHECK_EQ(doctest::Approx(-0.5), final_value(likelihoods));
 }
 

@@ -15,7 +15,7 @@ class gamma_model : public model {
 private:
     discretized_gamma _gamma;
     const int _n_gamma_cats;
-    std::vector<std::vector<double>> _likelihoods;
+    std::map<const gene_transcript*, std::vector<double>> _transcript_category_likelihoods;
 public:
 
     //! Calculate gamma categories and lambda multipliers based on category count and a fixed alpha
