@@ -67,43 +67,45 @@ freerate_global_model::freerate_global_model(bool values_are_ratios, std::string
 
 // This has a lot of elements in common with compute_node_probability. Can they be refactored?
 double compute_node_likelihood(const clade* d,
-                    clademap<ASV>& probs, clademap<std::pair<double, double>>& sigmas,
+                    transcript_clade_map<optional_probabilities>& probs, clademap<std::pair<double, double>>& sigmas,
                     const vector<double>& priors_by_bin, double sigsqd, matrix_cache& cache, const user_data& ud)
 {
     auto p = d->get_parent();
     auto sib = get_sibling(d);
     cache.precalculate_matrices({ sigsqd, sigmas[sib].first }, { d->get_branch_length(), sib->get_branch_length() }, ud.bounds);
 
-    probs[p] = ASV(ud.gene_transcripts.size());
-
-    for (int i = 0; i < (int)ud.gene_transcripts.size(); ++i)
+    for (auto& transcript : ud.gene_transcripts)
     {
-        probs[p][i].reserve(cache.create_vector());
+        probs.get(&transcript, p).reserve(cache.create_vector());
     }
 
 #pragma omp parallel for
     for (int i = 0; i < (int)ud.gene_transcripts.size(); ++i)
     {
-        if (probs[d][i].hasValue() || probs[sib][i].hasValue())
+        auto& transcript = ud.gene_transcripts[i];
+        auto& node_probs = probs.get(&transcript, d);
+        auto& parent_probs = probs.get(&transcript, p);
+        auto& sib_probs = probs.get(&transcript, sib);
+        if (node_probs.hasValue() || sib_probs.hasValue())
         {
-            probs[p][i].setOne();
+            parent_probs.setOne();
         }
 
-        if (probs[d][i].hasValue())
+        if (node_probs.hasValue())
         {
             const MatrixXd& m = cache.get_matrix(d->get_branch_length(), sigsqd);
-            VectorXd result = m * probs[d][i].probabilities();
-            probs[p][i].multiply_elements(result);
+            VectorXd result = m * node_probs.probabilities();
+            parent_probs.multiply_elements(result);
         }
-        if (probs[sib][i].hasValue())
+        if (sib_probs.hasValue())
         {
             const MatrixXd& m = cache.get_matrix(sib->get_branch_length(), sigmas[sib].first);
-            VectorXd result = m * probs[sib][i].probabilities();
-            probs[p][i].multiply_elements(result);
+            VectorXd result = m * sib_probs.probabilities();
+            parent_probs.multiply_elements(result);
         }
     }
 
-    auto lnl = get_log_likelihood(probs[p], priors_by_bin);
+    auto lnl = get_log_likelihood(probs.get_all(p), priors_by_bin);
     LOG(DEBUG) << "Node " << d->get_ape_index() << " Sigma^2:" << sigsqd << " Score (-lnL): " << lnl;
     return -lnl;
 }
@@ -127,12 +129,16 @@ double freerate_global_model::optimize_sigmas(const user_data& ud, const cladema
 {
     matrix_cache cache;
 
-    clademap<ASV> probs;
+    transcript_clade_map<optional_probabilities> probs;
 
     for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade* p) {
         if (p->is_leaf())
         {
-            probs[p] = get_taxon_asv(p->get_taxon_name(), ud, cache);
+            for (auto& transcript : ud.gene_transcripts)
+            {
+                probs.get(&transcript, p).reserve(cache.create_vector());
+                probs.get(&transcript, p).initialize(transcript.get_expression_value(p->get_taxon_name()), ud.bounds);
+            }
         }
     });
     for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade* p) {
@@ -153,7 +159,7 @@ double freerate_global_model::optimize_sigmas(const user_data& ud, const cladema
     });
 
     auto root_priors = get_priors(cache, ud.bounds, &priors.at(ud.p_tree));
-    auto result = -get_log_likelihood(probs.at(ud.p_tree), root_priors);
+    auto result = -get_log_likelihood(probs.get_all(ud.p_tree), root_priors);
     LOG(INFO) << "Final tree score (-lnL): " << std::setw(15) << std::setprecision(14) << result;
     return result;
 }
@@ -281,6 +287,13 @@ extern node_reconstruction get_value(const VectorXd& likelihood, boundaries boun
 
 reconstruction* freerate_global_model::reconstruct_ancestral_states(const user_data& ud, matrix_cache *p_calc)
 {
+    std::vector<double> sigma_values;
+    sigma_values.reserve(_sigmas.size());
+    for (const auto& kv : _sigmas) {
+        sigma_values.push_back(kv.second.first);
+    }
+    p_calc->precalculate_matrices(sigma_values, ud.p_tree->get_branch_lengths(), ud.bounds);
+
     auto result = new freerate_global_reconstruction(ud, p_calc);
 
     clademap<ASV> probs;
@@ -416,12 +429,16 @@ TEST_CASE("get_parent_likelihood")
     ud.gene_transcripts[0].set_expression_value("B", 2);
 
     matrix_cache cache;
-    clademap<ASV> probs;
+    transcript_clade_map<optional_probabilities> probs;
     const clade* p = ud.p_tree;
     const clade* sib = get_sibling(*p->descendant_begin());
     const clade* d = *p->descendant_begin();
-    probs[d] = get_taxon_asv(d->get_taxon_name(), ud, cache);
-    probs[sib] = get_taxon_asv(sib->get_taxon_name(), ud, cache);
+    auto transcript = &ud.gene_transcripts[0];
+    probs.get(transcript, d).reserve(cache.create_vector());
+    probs.get(transcript, d).initialize(transcript->get_expression_value("A"), ud.bounds);
+    probs.get(transcript, sib).reserve(cache.create_vector());
+    probs.get(transcript, sib).initialize(transcript->get_expression_value("B"), ud.bounds);
+
     vector<double> priors_by_bin = get_priors(cache, ud.bounds, ud.p_prior);
     double sigsqd = 1.0;
     clademap<std::pair<double, double>> sigmas;
@@ -504,7 +521,6 @@ TEST_CASE("reconstruct_ancestral_states")
     model.initialize_sigmas(ud.p_tree, 0.5);
 
     matrix_cache calc;
-    calc.precalculate_matrices({1,.5}, ud.p_tree->get_branch_lengths(), ud.bounds);
 
     auto rec = dynamic_cast<freerate_global_reconstruction*>(model.reconstruct_ancestral_states(ud, &calc));
 

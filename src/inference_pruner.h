@@ -107,6 +107,16 @@ class transcript_clade_map
                 func(kv.second);
             }
         }
+
+        std::vector<T> get_all(const clade* clade) const {
+            std::vector<T> result;
+            for (const auto& kv : _map) {
+                if (kv.first.second == clade) {
+                    result.push_back(kv.second);
+                }
+            }
+            return result;
+        }
         size_t count() const {
             return _map.size();
         }
