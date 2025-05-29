@@ -11,7 +11,7 @@ class freerate_global_model : public model {
     std::string _initial_values;
     bool _initial_values_are_weights;
 
-    double optimize_sigmas(const user_data &ud, const clademap<prior>& priors);
+    double optimize_sigmas(const user_data &ud, const clademap<prior> &priors);
     int _root_ape_index = -1;
 public:
     //! Computation or estimation constructor

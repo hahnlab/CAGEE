@@ -59,6 +59,20 @@ double get_log_likelihood(const ASV& partial_likelihoods, const std::vector<doub
     return result;
 }
 
+void init_tips(const user_data &ud, transcript_clade_map<optional_probabilities> &probs, const matrix_cache &cache)
+{
+    for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade *p)
+             {
+        if (p->is_leaf())
+        {
+            for (auto& transcript : ud.gene_transcripts)
+            {
+                probs.get(&transcript, p).reserve(cache.create_vector());
+                probs.get(&transcript, p).initialize(transcript.get_expression_value(p->get_taxon_name()), ud.bounds);
+            }
+        } });
+}
+
 
 freerate_global_model::freerate_global_model(bool values_are_ratios, std::string initial_values, bool initial_values_are_weights) :
     model(nullptr, nullptr, nullptr), _values_are_ratios(values_are_ratios), _initial_values(initial_values), _initial_values_are_weights(initial_values_are_weights)
@@ -131,16 +145,7 @@ double freerate_global_model::optimize_sigmas(const user_data& ud, const cladema
 
     transcript_clade_map<optional_probabilities> probs;
 
-    for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade* p) {
-        if (p->is_leaf())
-        {
-            for (auto& transcript : ud.gene_transcripts)
-            {
-                probs.get(&transcript, p).reserve(cache.create_vector());
-                probs.get(&transcript, p).initialize(transcript.get_expression_value(p->get_taxon_name()), ud.bounds);
-            }
-        }
-    });
+    init_tips(ud, probs, cache);
     for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade* p) {
         if (!p->is_leaf())
         {
@@ -242,44 +247,47 @@ public:
     freerate_global_reconstruction(const user_data& ud, matrix_cache* p_calc) : reconstruction(ud.gene_transcripts) {};
     virtual ~freerate_global_reconstruction() {};
 
-    std::map<const gene_transcript*, clademap<node_reconstruction>> _reconstructions;
+    transcript_clade_map<node_reconstruction> _reconstructions;
 
-    virtual node_reconstruction get_internal_node_value(const gene_transcript& gf, const clade* c) const override
+    virtual node_reconstruction get_internal_node_value(const gene_transcript& transcript, const clade* c) const override
     {
-        return node_reconstruction();
+        if (!_reconstructions.find(&transcript, c))
+            throw missing_expression_value(transcript.id(), "");
+
+        return _reconstructions.get(&transcript, c);
     }
 };
 
-void compute_transcript_likelihoods(const clade* c, int i, const matrix_cache& cache, clademap<ASV>& probs, const clademap<std::pair<double, double>>& sigmas, size_t transcript_count)
+void compute_transcript_likelihoods(const clade* d, const gene_transcript& transcript, const matrix_cache& cache, transcript_clade_map<optional_probabilities>& probs, const clademap<std::pair<double, double>>& sigmas)
 {
-    if (c->is_root())
+    if (d->is_root())
         return;
 
-    auto p = c->get_parent();
-    probs[p] = ASV(transcript_count);
-    for (int i = 0; i < (int)transcript_count; ++i)
+    auto p = d->get_parent();
+    probs.get(&transcript, p).reserve(cache.create_vector());
+
+    auto sib = get_sibling(d);
+
+    auto& node_probs = probs.get(&transcript, d);
+    auto& parent_probs = probs.get(&transcript, p);
+    auto& sib_probs = probs.get(&transcript, sib);
+
+    if (node_probs.hasValue() || sib_probs.hasValue())
     {
-        probs[p][i].reserve(cache.create_vector());
+        parent_probs.setOne();
     }
 
-    auto sib = get_sibling(c);
-
-    if (probs[c][i].hasValue() || probs[sib][i].hasValue())
+    if (node_probs.hasValue())
     {
-        probs[p][i].setOne();
+        const MatrixXd& m = cache.get_matrix(d->get_branch_length(), sigmas.at(d).first);
+        VectorXd result = m * node_probs.probabilities();
+        parent_probs.multiply_elements(result);
     }
-
-    if (probs[c][i].hasValue())
-    {
-        const MatrixXd& m = cache.get_matrix(c->get_branch_length(), sigmas.at(c).first);
-        VectorXd result = m * probs[c][i].probabilities();
-        probs[p][i].multiply_elements(result);
-    }
-    if (probs[sib][i].hasValue())
+    if (sib_probs.hasValue())
     {
         const MatrixXd& m = cache.get_matrix(sib->get_branch_length(), sigmas.at(sib).first);
-        VectorXd result = m * probs[sib][i].probabilities();
-        probs[p][i].multiply_elements(result);
+        VectorXd result = m * sib_probs.probabilities();
+        parent_probs.multiply_elements(result);
     }
 }
 
@@ -296,42 +304,30 @@ reconstruction* freerate_global_model::reconstruct_ancestral_states(const user_d
 
     auto result = new freerate_global_reconstruction(ud, p_calc);
 
-    clademap<ASV> probs;
-    for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade* p) {
-        if (p->is_leaf())
-        {
-            probs[p] = get_taxon_asv(p->get_taxon_name(), ud, *p_calc);
-        }
-    });
+    transcript_clade_map<optional_probabilities> probs;
 
-    for (size_t i = 0; i< ud.gene_transcripts.size(); ++i)
+    init_tips(ud, probs, *p_calc);
+
+    for (auto& transcript : ud.gene_transcripts)
     {
-        auto compute_func = [&](const clade* c) { compute_transcript_likelihoods(c, i, *p_calc, probs, _sigmas, ud.gene_transcripts.size()); };
+        auto compute_func = [&](const clade* c) { compute_transcript_likelihoods(c, transcript, *p_calc, probs, _sigmas); };
         for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), compute_func);
     }
 
-    for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
+    for (auto& transcript : ud.gene_transcripts)
     {
-        auto &rc = result->_reconstructions[&ud.gene_transcripts[i]];
-        ud.p_tree->apply_prefix_order([&rc](const clade* c) {
-            rc[c].most_likely_value = 0;
-            });
+        ud.p_tree->apply_prefix_order([transcript, result](const clade* c) {
+            result->_reconstructions.get(&transcript, c).most_likely_value = 0;
+        });
     }
 
-    clademap<node_reconstruction> reconstruction;
     for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
     {
         cladevector internal_nodes_with_values;
-        copy_if(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), back_inserter(internal_nodes_with_values), [this, &probs, i](const clade* c)
-        {
-            return !c->is_leaf() && probs.at(c)[i].hasValue();
+        for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade* c) {
+            if (!c->is_leaf() && probs.get(&ud.gene_transcripts[i], c).hasValue())
+                result->_reconstructions.set(&ud.gene_transcripts[i], c, get_value(probs.get(&ud.gene_transcripts[i], c).probabilities(), ud.bounds));
         });
-
-        for (auto& c : internal_nodes_with_values)
-        {
-            reconstruction[c] = get_value(probs[c][i].probabilities(), ud.bounds);
-        }
-        result->_reconstructions[&ud.gene_transcripts[i]] = reconstruction;
     }
     return result;
 }
@@ -466,17 +462,17 @@ TEST_CASE("compute_transcript_likelihoods")
     // Prepare matrix_cache and ASV probabilities
     matrix_cache cache;
     cache.precalculate_matrices({1,1}, ud.p_tree->get_branch_lengths(), ud.bounds);
-    clademap<ASV> probs;
+    transcript_clade_map<optional_probabilities> probs;
     const clade* p = ud.p_tree;
     const clade* d = *p->descendant_begin();
     const clade* sib = get_sibling(d);
 
-    probs[d] = get_taxon_asv(d->get_taxon_name(), ud, cache);
-    probs[sib] = get_taxon_asv(sib->get_taxon_name(), ud, cache);
-    probs[p] = ASV(ud.gene_transcripts.size());
-    for (int i = 0; i < (int)ud.gene_transcripts.size(); ++i)
+    for (const auto& transcript : ud.gene_transcripts)
     {
-        probs[p][i].reserve(cache.create_vector());
+        probs.get(&transcript, d).reserve(cache.create_vector());
+        probs.get(&transcript, d).initialize(transcript.get_expression_value("A"), ud.bounds);
+        probs.get(&transcript, sib).reserve(cache.create_vector());
+        probs.get(&transcript, sib).initialize(transcript.get_expression_value("B"), ud.bounds);
     }
     
     // Setup sigmas for both children
@@ -485,12 +481,13 @@ TEST_CASE("compute_transcript_likelihoods")
     sigmas[sib] = std::make_pair(1.0, -1.0);
 
     // Compute transcript likelihoods for gene 0
-    compute_transcript_likelihoods(d, 0, cache, probs, sigmas, ud.gene_transcripts.size());
+    auto t = &ud.gene_transcripts[0];
+    compute_transcript_likelihoods(d, *t, cache, probs, sigmas);
 
     // Check that parent probabilities are set (should not be empty)
-    CHECK(probs[p][0].hasValue());
+    CHECK(probs.get(t,p).hasValue());
     // Optionally, check that the probabilities vector is not all zeros
-    auto v = probs[p][0].probabilities();
+    auto v = probs.get(t,p).probabilities();
     bool nonzero = false;
     for (int i = 0; i < v.size(); ++i) {
         if (v[i] != 0.0) {
@@ -522,7 +519,9 @@ TEST_CASE("reconstruct_ancestral_states")
 
     matrix_cache calc;
 
-    auto rec = dynamic_cast<freerate_global_reconstruction*>(model.reconstruct_ancestral_states(ud, &calc));
+    std::unique_ptr<freerate_global_reconstruction> rec(
+        dynamic_cast<freerate_global_reconstruction*>(model.reconstruct_ancestral_states(ud, &calc))
+    );
 
-    CHECK_EQ(1, rec->_reconstructions.size());
+    CHECK_EQ(4, rec->_reconstructions.count());
 }
