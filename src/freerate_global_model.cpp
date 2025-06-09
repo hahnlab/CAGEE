@@ -20,18 +20,6 @@ using namespace Eigen;
 
 typedef vector<optional_probabilities> ASV;
 
-ASV get_taxon_asv(std::string taxon, const user_data &ud, const matrix_cache &cache)
-{
-    ASV result;
-    result.resize(ud.gene_transcripts.size());
-    for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
-    {
-        result[i].reserve(cache.create_vector());
-        result[i].initialize(ud.gene_transcripts[i].get_expression_value(taxon), ud.bounds);
-    }
-    return result;
-}
-
 const clade * get_sibling(const clade *c)
 {
     if (c->is_root())
@@ -124,6 +112,32 @@ double compute_node_likelihood(const clade* d,
     return -lnl;
 }
 
+/**
+ * @brief Returns the maximum value to be used for sigma^2 optimization.
+ *
+ * This function iterates through the provided map of sigma values for each clade,
+ * finds the maximum sigma^2 value, and returns either 100 times this value or 20.0,
+ * whichever is smaller. This is used to set an upper bound for the optimizer when
+ * searching for the optimal sigma^2 for a branch.
+ *
+ * @param sigmas A map from clade pointers to pairs of (sigma^2, auxiliary value).
+ * @return The maximum allowed value for sigma^2 during optimization.
+ */
+double get_optimizer_max(clademap<std::pair<double, double>>& sigmas)
+{
+    const double default_max = 20.0;
+    double max_sigma = 0.0;
+    for (const auto& kv : sigmas) {
+        if (kv.second.first > max_sigma) {
+            max_sigma = kv.second.first;
+        }
+    }
+    if (max_sigma == 0.0) {
+        return default_max;
+    }
+    return std::min(max_sigma * 100.0, default_max);
+}
+
 /* Init all branches with a sigma
 To calculate AF:
         ASV[B] = get_ASV(childB branch length, sigma[B], childB init)
@@ -145,6 +159,7 @@ double freerate_global_model::optimize_sigmas(const user_data& ud, const cladema
 
     transcript_clade_map<optional_probabilities> probs;
 
+    const double optimizer_max = get_optimizer_max(_sigmas);
     init_tips(ud, probs, cache);
     for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade* p) {
         if (!p->is_leaf())
@@ -156,7 +171,7 @@ double freerate_global_model::optimize_sigmas(const user_data& ud, const cladema
                 LOG(DEBUG) << "Optimizing node " << d->get_ape_index() << " with sibling sigma^2 " << _sigmas[get_sibling(d)].first;
                 std::pair<double, double> r = brent_find_minima([&](double sigsqd) {
                     return compute_node_likelihood(d, probs, _sigmas, priors_by_bin, sigsqd, cache, ud);
-                }, 0.0, 20.0, 10);
+                }, 0.0, optimizer_max, 15);
                 _sigmas[d] = r;
                 LOG(INFO) << "Sigma^2:" << r.first << "Score (-lnL): " << std::setw(15) << std::setprecision(14) << r.second;
             });
@@ -310,25 +325,14 @@ reconstruction* freerate_global_model::reconstruct_ancestral_states(const user_d
 
     for (auto& transcript : ud.gene_transcripts)
     {
-        auto compute_func = [&](const clade* c) { compute_transcript_likelihoods(c, transcript, *p_calc, probs, _sigmas); };
-        for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), compute_func);
-    }
-
-    for (auto& transcript : ud.gene_transcripts)
-    {
-        ud.p_tree->apply_prefix_order([transcript, result](const clade* c) {
-            result->_reconstructions.get(&transcript, c).most_likely_value = 0;
-        });
-    }
-
-    for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
-    {
-        cladevector internal_nodes_with_values;
         for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade* c) {
-            if (!c->is_leaf() && probs.get(&ud.gene_transcripts[i], c).hasValue())
-                result->_reconstructions.set(&ud.gene_transcripts[i], c, get_value(probs.get(&ud.gene_transcripts[i], c).probabilities(), ud.bounds));
+            compute_transcript_likelihoods(c, transcript, *p_calc, probs, _sigmas);
+            auto& p = probs.get(&transcript, c);
+            if (!c->is_leaf() && p.hasValue())
+                result->_reconstructions.set(&transcript, c, get_value(p.probabilities(), ud.bounds));
         });
     }
+
     return result;
 }
 
@@ -404,9 +408,9 @@ TEST_CASE("write_extra_vital_statistics writes a sigma for each internal node")
     ostringstream ost;
     m.write_extra_vital_statistics(ost);
     CHECK_STREAM_CONTAINS(ost, "Computed sigma2 by node:");
-    CHECK_STREAM_CONTAINS(ost, "7:0.000817127");
-    CHECK_STREAM_CONTAINS(ost, "8:2.23993");
-    CHECK_STREAM_CONTAINS(ost, "9:0.595146");
+    CHECK_STREAM_CONTAINS(ost, "7:2.81434e-05");
+    CHECK_STREAM_CONTAINS(ost, "8:2.24044");
+    CHECK_STREAM_CONTAINS(ost, "9:0.595961");
 
     // Check that the root is not included
     CHECK_MESSAGE(ost.str().find("6:") == std::string::npos, ost.str());
@@ -502,18 +506,21 @@ TEST_CASE("compute_transcript_likelihoods")
 TEST_CASE("reconstruct_ancestral_states")
 {
     user_data ud;
-    ud.p_tree = parse_newick("(A:1,B:1);");
+    ud.p_tree = parse_newick("((A:1,B:1):1,(C:1,D:1):1);");
     ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
     ud.gene_transcripts[0].set_expression_value("A", 1);
     ud.gene_transcripts[0].set_expression_value("B", 2);
+    ud.gene_transcripts[0].set_expression_value("C", 5);
+    ud.gene_transcripts[0].set_expression_value("D", 6);
+    ud.gene_transcripts.push_back(gene_transcript("TestFamily2", "", ""));
+    ud.gene_transcripts[1].set_expression_value("A", 3);
+    ud.gene_transcripts[1].set_expression_value("B", 4);
+    ud.gene_transcripts[1].set_expression_value("C", 7);
+    ud.gene_transcripts[1].set_expression_value("D", 8);
     ud.bounds = boundaries(0, 20);
     sigma_squared sl(0.05);
     ud.p_sigma = &sl;
 
-    std::vector<gene_transcript> families(1);
-    families[0].set_expression_value("A", 3);
-    families[0].set_expression_value("B", 4);
-    
     freerate_global_model model(false,"", false);
     model.initialize_sigmas(ud.p_tree, 0.5);
 
@@ -523,5 +530,28 @@ TEST_CASE("reconstruct_ancestral_states")
         dynamic_cast<freerate_global_reconstruction*>(model.reconstruct_ancestral_states(ud, &calc))
     );
 
-    CHECK_EQ(4, rec->_reconstructions.count());
+    // Two families * threee internal nodes = 6 reconstructions
+    CHECK_EQ(6, rec->_reconstructions.count());
+}
+
+TEST_CASE("get_optimizer_max returns 20 if 100 * largest sigma is above that")
+{
+    clade a,b,c;
+    clademap<std::pair<double, double>> sigmas;
+    sigmas[&a] = std::make_pair(0.2, -1);
+    sigmas[&b] = std::make_pair(0.3, -1);
+    sigmas[&c] = std::make_pair(0.4, -1);
+
+    CHECK_EQ(doctest::Approx(20.0), get_optimizer_max(sigmas));
+}
+
+TEST_CASE("get_optimizer_max returns 100 * largest sigma if that is below 20")
+{
+    clade a,b,c;
+    clademap<std::pair<double, double>> sigmas;
+    sigmas[&a] = std::make_pair(0.02, -1);
+    sigmas[&b] = std::make_pair(0.03, -1);
+    sigmas[&c] = std::make_pair(0.04, -1);
+
+    CHECK_EQ(doctest::Approx(4.0), get_optimizer_max(sigmas));
 }
