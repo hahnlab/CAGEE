@@ -1,4 +1,4 @@
-#ifndef clade_h
+    #ifndef clade_h
 #define clade_h
 
 #include <map>
@@ -13,6 +13,7 @@ class newick_parser; // actual declaration in utils.h
 
 class clade;
 using cladefunc = std::function<void(const clade*)>;
+class fitch_margoliash;
 
 /*! \brief A Clade represents a node in a tree
 *
@@ -23,6 +24,7 @@ using cladefunc = std::function<void(const clade*)>;
 class clade {
 
     friend clade* parse_newick(std::string newick_string, bool parse_sigmas); // allows newick_parser to set parameter values
+    friend class fitch_margoliash; // allows fitch_margoliash to access private members
 
 private:
     clade *_p_parent; // needs to be pointer; instance creates infinite loop
@@ -125,6 +127,9 @@ public:
     int get_ape_index() const {
         return _ape_index;
     }
+
+    // Divide all nodes by the mean branch length    
+    void normalize();
 };
 
 template<typename T>

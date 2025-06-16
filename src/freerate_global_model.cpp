@@ -14,6 +14,8 @@
 #include "prior.h"
 #include "sigma.h"
 #include "optimizer_scorer.h"   // for definition of compute_distribution_mean
+#include "spearman.h"
+#include "fitch_margoliash.h"
 
 using namespace std;
 using namespace Eigen;
@@ -63,8 +65,16 @@ void init_tips(const user_data &ud, transcript_clade_map<optional_probabilities>
 
 
 freerate_global_model::freerate_global_model(bool values_are_ratios, std::string initial_values, bool initial_values_are_weights) :
-    model(nullptr, nullptr, nullptr), _values_are_ratios(values_are_ratios), _initial_values(initial_values), _initial_values_are_weights(initial_values_are_weights)
+    model(nullptr, nullptr, nullptr), _values_are_ratios(values_are_ratios), _initial_values(initial_values)
 {
+    if (initial_values_are_weights)
+        _initialization_mode = INITIALIZE_WEIGHTS;
+    else if (initial_values.empty())
+        _initialization_mode = INITIALIZE_CONSTANT;
+    else if (initial_values == "fitch")
+        _initialization_mode = INITIALIZE_FITCH;
+    else
+        _initialization_mode = INITIALIZE_VALUES;
 }
 
 // This has a lot of elements in common with compute_node_probability. Can they be refactored?
@@ -184,12 +194,22 @@ double freerate_global_model::optimize_sigmas(const user_data& ud, const cladema
     return result;
 }
 
-void freerate_global_model::initialize_sigmas(const clade* p_tree, double distmean)
+void freerate_global_model::initialize_sigmas(const clade* p_tree, double distmean, const transcript_vector& transcripts)
 {
     unique_ptr<clade> p_weight_tree;
-    if (!_initial_values.empty())
-        p_weight_tree.reset(parse_newick(_initial_values));
+    if (_initialization_mode == INITIALIZE_FITCH)
+    {
+        auto correlation = spearman_correlation_by_species(transcripts);
+        fitch_margoliash fm(correlation, transcripts[0].get_species());
 
+        auto p = fm.build_tree();
+        p->normalize();
+        p_weight_tree.reset(p);
+    }
+    else if (!_initial_values.empty())
+    {    
+        p_weight_tree.reset(parse_newick(_initial_values));
+    }
 
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), [&](const clade* p) {
         if (p->is_root() || !p_weight_tree)
@@ -213,7 +233,7 @@ void freerate_global_model::initialize_sigmas(const clade* p_tree, double distme
 
                 LOG(DEBUG) << "There is no weight for " << p->get_taxon_name() << ". Computed distance between " << descendants[0] << " and " << descendants[1] << " is " << weight;
             }
-            if (_initial_values_are_weights)
+            if (_initialization_mode == INITIALIZE_WEIGHTS || _initialization_mode == INITIALIZE_FITCH)
                 weight = distmean * weight;
             _sigmas[p] =  pair<double,double>(weight,-1);  
         }
@@ -234,9 +254,10 @@ double freerate_global_model::infer_transcript_likelihoods(const user_data& ud, 
         LOG(DEBUG) << "Node " << a.first->get_ape_index() << " Prior: " << a.second;
     }
     double distmean = compute_distribution_mean(ud);
+    //_initial_values_are_weights = false;
     LOG(DEBUG) << "Distribution mean: " << distmean;
     
-    initialize_sigmas(ud.p_tree, distmean);
+    initialize_sigmas(ud.p_tree, distmean, ud.gene_transcripts);
 
     double score = 100;
     for (int i = 0; i<20; ++i)
@@ -387,8 +408,6 @@ TEST_CASE("get_log_likelihood")
 
 TEST_CASE("write_extra_vital_statistics writes a sigma for each internal node")
 {
-//    el::Loggers::addFlag(el::LoggingFlag::ImmediateFlush);
-//    el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToStandardOutput, "true");
     user_data ud;
     ud.p_sigma = NULL;
     ud.p_prior = new prior("gamma", 0.375, 1600.0);
@@ -403,18 +422,14 @@ TEST_CASE("write_extra_vital_statistics writes a sigma for each internal node")
     ud.gene_transcripts[0].set_expression_value("E", 2.5);
 
     freerate_global_model m(false, "", false);
-    m.infer_transcript_likelihoods(ud, nullptr);
+    m.initialize_sigmas(ud.p_tree, 0.5, ud.gene_transcripts);
 
     ostringstream ost;
     m.write_extra_vital_statistics(ost);
     CHECK_STREAM_CONTAINS(ost, "Computed sigma2 by node:");
-    CHECK_STREAM_CONTAINS(ost, "7:2.81434e-05");
-    CHECK_STREAM_CONTAINS(ost, "8:2.24044");
-    CHECK_STREAM_CONTAINS(ost, "9:0.595961");
-
-    // Check that the root is not included
-    CHECK_MESSAGE(ost.str().find("6:") == std::string::npos, ost.str());
-    //el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToStandardOutput, "false");
+    CHECK_STREAM_CONTAINS(ost, "7:0.5");
+    CHECK_STREAM_CONTAINS(ost, "8:0.5");
+    CHECK_STREAM_CONTAINS(ost, "9:0.5");
 }
 
 TEST_CASE("get_parent_likelihood")
@@ -522,7 +537,7 @@ TEST_CASE("reconstruct_ancestral_states")
     ud.p_sigma = &sl;
 
     freerate_global_model model(false,"", false);
-    model.initialize_sigmas(ud.p_tree, 0.5);
+    model.initialize_sigmas(ud.p_tree, 0.5, ud.gene_transcripts);
 
     matrix_cache calc;
 

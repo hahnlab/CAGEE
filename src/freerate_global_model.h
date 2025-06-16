@@ -4,15 +4,20 @@
 #include "core.h"
 #include "clade.h"
 
+class gene_transcript;
+typedef const std::vector<gene_transcript> transcript_vector;
+
 class freerate_global_model : public model {
 
     clademap<std::pair<double, double>> _sigmas;
     bool _values_are_ratios;
     std::string _initial_values;
-    bool _initial_values_are_weights;
+    enum initialize_mode { INITIALIZE_CONSTANT, INITIALIZE_VALUES, INITIALIZE_WEIGHTS, INITIALIZE_FITCH };
 
     double optimize_sigmas(const user_data &ud, const clademap<prior> &priors);
     int _root_ape_index = -1;
+
+    initialize_mode _initialization_mode = INITIALIZE_CONSTANT;
 public:
     //! Computation or estimation constructor
     freerate_global_model(bool values_are_ratios, std::string initial_values, bool initial_values_are_weights);
@@ -29,7 +34,7 @@ public:
 
     virtual std::string get_name() const override { return "FreeRateGlobal"; }
 
-    void initialize_sigmas(const clade* p_tree, double distmean);
+    void initialize_sigmas(const clade* p_tree, double distmean, const transcript_vector& transcripts);
 };
 
 #endif

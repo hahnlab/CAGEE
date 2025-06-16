@@ -310,6 +310,28 @@ void clade::apply_prefix_order(const cladefunc& f) const {
     }
 }
 
+void clade::normalize()
+{
+    double sum = 0.0;
+    int count = 0;
+    for_each(reverse_level_begin(), reverse_level_end(), [&](const clade* node) {
+        sum += node->get_branch_length();
+        ++count;
+    });
+    double mean_weight = (count > 0) ? sum / count : 0.0;
+
+    auto recursive_normalize = [&](const clade* c, double mean_weight, auto&& recursive_ref) -> void {
+        if (c->is_leaf())
+            return;
+        for (auto d : c->_descendants) {
+            d->_branch_length = d->_branch_length / mean_weight;
+            recursive_ref(d, mean_weight, recursive_ref);
+        }
+    };
+    recursive_normalize(this, mean_weight, recursive_normalize);
+    LOG(DEBUG) << "Mean branch length in weight tree: " << mean_weight;
+}
+
 const clade* common_ancestor(const clade* c1, const clade *c2)
 {
     cladevector path;
@@ -522,3 +544,14 @@ TEST_CASE("distance")
     CHECK_EQ( doctest::Approx(1.86), distance(p_tree->find_descendant("A"), p_tree->find_descendant("C")));
 }
 
+TEST_CASE("normalize")
+{
+    string nwk = "((E:1,D:2)H:3,(C:4,(A:5,B:6)F:7)G:8)I;";
+    unique_ptr<clade> p_tree(parse_newick(nwk));
+    p_tree->normalize();
+    ostringstream ost;
+    p_tree->write_newick(ost, [](ostream& ost, const clade* c) {
+        ost << c->get_taxon_name() << ":" << c->get_branch_length();
+    } );
+    CHECK_EQ( "((E:0.25,D:0.5)H:0.75,(C:1,(A:1.25,B:1.5)F:1.75)G:2)I:0", ost.str());
+}
