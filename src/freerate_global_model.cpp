@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <numeric>
 #include <iomanip>
+#include <random>
 
 #include <boost/math/tools/minima.hpp>
 
@@ -20,6 +21,7 @@
 using namespace std;
 using namespace Eigen;
 
+extern std::mt19937 randomizer_engine; // seeding random number engine
 typedef vector<optional_probabilities> ASV;
 
 const clade * get_sibling(const clade *c)
@@ -175,7 +177,10 @@ double freerate_global_model::optimize_sigmas(const user_data& ud, const cladema
         if (!p->is_leaf())
         {
             auto priors_by_bin = get_priors(cache, ud.bounds, &priors.at(p));
-            for_each(p->descendant_begin(), p->descendant_end(), [&](const clade* d) {
+            cladevector descendants(p->descendant_begin(), p->descendant_end());
+            shuffle(descendants.begin(), descendants.end(), randomizer_engine);  
+            for (auto d : descendants)
+            {
                 using boost::math::tools::brent_find_minima;
 
                 LOG(DEBUG) << "Optimizing node " << d->get_ape_index() << " with sibling sigma^2 " << _sigmas[get_sibling(d)].first;
@@ -184,7 +189,7 @@ double freerate_global_model::optimize_sigmas(const user_data& ud, const cladema
                 }, 0.0, optimizer_max, 15);
                 _sigmas[d] = r;
                 LOG(INFO) << "Sigma^2:" << r.first << "Score (-lnL): " << std::setw(15) << std::setprecision(14) << r.second;
-            });
+            }
         }
     });
 
