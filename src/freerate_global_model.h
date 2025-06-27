@@ -31,7 +31,13 @@ public:
 
     virtual std::string get_name() const override { return "FreeRateGlobal"; }
 
-    void initialize_sigmas(const clade* p_tree, double distmean, const transcript_vector& transcripts);
+    /// @brief Select initial values for sigmas at each node in the tree.
+    /// @details This function initializes the sigma values for each node in the tree. It calculates
+    /// a tree using the Fitch-Margoliash algorithm, basing the distance matrix on the Spearman
+    /// correlation between the expression values of the transcripts across species.
+    /// @param p_tree The tree for which to compute sigma values
+    /// @param transcripts The transcripts used to compute the sigma values
+    void initialize_sigmas(const clade* p_tree, const transcript_vector& transcripts);
 };
 
 #endif

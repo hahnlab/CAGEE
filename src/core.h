@@ -19,6 +19,8 @@ struct input_parameters;
 
 using boundaries = std::pair<double, double>;
 
+typedef const std::vector<gene_transcript> transcript_vector;
+
 class event_monitor : public el::Loggable
 {
     std::map<std::string, int> failure_count;
@@ -92,6 +94,6 @@ inline std::string filename(std::string base, std::string suffix)
     return filename(base, suffix, "txt");
 }
 
-
+double compute_distribution_mean(const clade* p_tree, const transcript_vector& transcripts);
 #endif /* CORE_H */
 

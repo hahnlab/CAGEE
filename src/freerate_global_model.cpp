@@ -191,7 +191,7 @@ double freerate_global_model::optimize_sigmas(const user_data& ud, const cladema
     return result;
 }
 
-void freerate_global_model::initialize_sigmas(const clade* p_tree, double distmean, const transcript_vector& transcripts)
+void freerate_global_model::initialize_sigmas(const clade* p_tree, const transcript_vector& transcripts)
 {
     unique_ptr<clade> p_weight_tree;
     if (transcripts.size() > 1)
@@ -204,6 +204,9 @@ void freerate_global_model::initialize_sigmas(const clade* p_tree, double distme
         p_weight_tree.reset(p);
     }
 
+    double distmean = compute_distribution_mean(p_tree, transcripts);
+    LOG(DEBUG) << "Distribution mean: " << distmean;
+    
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), [&](const clade* p) {
         if (p->is_root() || !p_weight_tree)
             _sigmas[p] = pair<double,double>(distmean,-1);
@@ -246,11 +249,7 @@ double freerate_global_model::infer_transcript_likelihoods(const user_data& ud, 
     {
         LOG(DEBUG) << "Node " << a.first->get_ape_index() << " Prior: " << a.second;
     }
-    double distmean = compute_distribution_mean(ud);
-    //_initial_values_are_weights = false;
-    LOG(DEBUG) << "Distribution mean: " << distmean;
-    
-    initialize_sigmas(ud.p_tree, distmean, ud.gene_transcripts);
+    initialize_sigmas(ud.p_tree, ud.gene_transcripts);
 
     double score = 100;
     for (int i = 0; i<20; ++i)
@@ -415,14 +414,14 @@ TEST_CASE("write_extra_vital_statistics writes a sigma for each internal node")
     ud.gene_transcripts[0].set_expression_value("E", 2.5);
 
     freerate_global_model m(false);
-    m.initialize_sigmas(ud.p_tree, 0.5, ud.gene_transcripts);
+    m.initialize_sigmas(ud.p_tree, ud.gene_transcripts);
 
     ostringstream ost;
     m.write_extra_vital_statistics(ost);
     CHECK_STREAM_CONTAINS(ost, "Computed sigma2 by node:");
-    CHECK_STREAM_CONTAINS(ost, "7:0.5");
-    CHECK_STREAM_CONTAINS(ost, "8:0.5");
-    CHECK_STREAM_CONTAINS(ost, "9:0.5");
+    CHECK_STREAM_CONTAINS(ost, "7:0.428082");
+    CHECK_STREAM_CONTAINS(ost, "8:0.428082");
+    CHECK_STREAM_CONTAINS(ost, "9:0.428082");
 }
 
 TEST_CASE("get_parent_likelihood")
@@ -530,7 +529,7 @@ TEST_CASE("reconstruct_ancestral_states")
     ud.p_sigma = &sl;
 
     freerate_global_model model(false);
-    model.initialize_sigmas(ud.p_tree, 0.5, ud.gene_transcripts);
+    model.initialize_sigmas(ud.p_tree, ud.gene_transcripts);
 
     matrix_cache calc;
 

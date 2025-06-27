@@ -86,7 +86,7 @@ double freerate_paired_model::infer_transcript_likelihoods(const user_data& ud, 
     {
         LOG(DEBUG) << "Node " << a.first->get_ape_index() << " Prior: " << a.second;
     }   
-    double distmean = compute_distribution_mean(ud);
+    double distmean = compute_distribution_mean(ud.p_tree, ud.gene_transcripts);
     for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade* c) {
         if (!c->is_leaf())
         {

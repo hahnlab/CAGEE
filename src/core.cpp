@@ -156,6 +156,31 @@ bool verify_results(const std::vector<size_t>& references, const std::vector<std
     return true;
 }
 
+double compute_distribution_mean(const clade* p_tree, const transcript_vector& transcripts)
+{
+    if (transcripts.empty()) throw runtime_error("No gene transcripts provided");
+    if (!p_tree) throw runtime_error("No tree provided");
+
+    vector<double> variances;
+    for (auto& tt : transcripts)
+    {
+        auto species = tt.get_species();
+        if (species.size() < 2) continue;
+
+        vector<double> v(species.size());
+        transform(species.begin(), species.end(), v.begin(), [&tt](string s) {return tt.get_expression_value(s);  });
+        double sz = v.size();
+        
+        auto mean = std::accumulate(v.begin(), v.end(), 0.0) / sz;
+        variances.push_back(std::accumulate(v.begin(), v.end(), 0.0, [&mean, &sz](double accumulator, const double& val) {
+            return accumulator + ((val - mean) * (val - mean) / (sz - 1));
+            }));
+    }
+
+    double species_variance = std::accumulate(variances.begin(), variances.end(), 0.0) / double(variances.size());
+    return species_variance / p_tree->distance_from_root_to_tip();
+}
+
 
 #define CHECK_STREAM_CONTAINS(x,y) CHECK_MESSAGE(x.str().find(y) != std::string::npos, x.str())
 
@@ -286,4 +311,28 @@ TEST_CASE("verify_results succeeds if no empty partial likelihoods")
     CHECK(result);
 }
 
+TEST_CASE("compute_distribution_mean")
+{
+    vector<gene_transcript> transcripts;
+    transcripts.push_back(gene_transcript("TestFamily1", "", ""));
+    transcripts[0].set_expression_value("A", 1);
+    transcripts[0].set_expression_value("B", 2);
 
+    unique_ptr<clade> tree(parse_newick("(A:1,B:1);"));
+
+    CHECK_EQ(0.5, compute_distribution_mean(tree.get(), transcripts));
+}
+
+TEST_CASE("compute_distribution_mean skips transcripts with less than two values")
+{
+    vector<gene_transcript> transcripts;
+    transcripts.push_back(gene_transcript("TestFamily1", "", ""));
+    transcripts.push_back(gene_transcript("TestFamily2", "", ""));
+    transcripts[0].set_expression_value("A", 5);
+    transcripts[1].set_expression_value("A", 1);
+    transcripts[1].set_expression_value("B", 2);
+
+    unique_ptr<clade> tree(parse_newick("(A:1,B:1);"));
+
+    CHECK_EQ(0.5, compute_distribution_mean(tree.get(), transcripts));
+}
