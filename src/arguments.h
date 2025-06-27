@@ -31,8 +31,6 @@ public:
     int discretization_size = 200;
     bool input_file_has_ratios = false;
     std::string free_rate;
-    std::string initial_weights;
-    std::string initial_values;
 
     //! Check calls
     void check_input();

@@ -31,6 +31,9 @@ std::vector<double> compute_ranks(const std::vector<double>& values) {
 map<pair<string, string>, double> spearman_correlation_by_species(const std::vector<gene_transcript>& transcripts) {
     std::map<std::string, std::vector<double>> species_to_values;
 
+    if (transcripts.size() < 2) {
+        throw std::runtime_error("At least two transcripts are required to compute Spearman correlation.");
+    }
     // Gather expression values for each species
     for (const auto& transcript : transcripts) {
         for (const auto& species : transcript.get_species()) {
@@ -87,11 +90,14 @@ TEST_CASE("spearman correlation_by_species computes correct correlations")
     CHECK_EQ(doctest::Approx(0.766667), result[make_pair("species1","species2")]); 
 }
 
-TEST_CASE("spearman_correlation_by_species handles empty input")
+TEST_CASE("spearman_correlation_by_species throws when less than two transcripts")
 {
+    string msg("At least two transcripts are required to compute Spearman correlation.");
     std::vector<gene_transcript> transcripts;
-    auto result = spearman_correlation_by_species(transcripts);
-    CHECK(result.empty());
+    CHECK_THROWS_WITH(spearman_correlation_by_species(transcripts), msg.c_str());
+
+    transcripts.push_back(gene_transcript("transcript1", "", ""));
+    CHECK_THROWS_WITH(spearman_correlation_by_species(transcripts), msg.c_str());
 }
 
 TEST_CASE("compute_ranks")

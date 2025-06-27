@@ -11,16 +11,13 @@ class freerate_global_model : public model {
 
     clademap<std::pair<double, double>> _sigmas;
     bool _values_are_ratios;
-    std::string _initial_values;
-    enum initialize_mode { INITIALIZE_CONSTANT, INITIALIZE_VALUES, INITIALIZE_WEIGHTS, INITIALIZE_FITCH };
 
     double optimize_sigmas(const user_data &ud, const clademap<prior> &priors);
     int _root_ape_index = -1;
 
-    initialize_mode _initialization_mode = INITIALIZE_CONSTANT;
 public:
     //! Computation or estimation constructor
-    freerate_global_model(bool values_are_ratios, std::string initial_values, bool initial_values_are_weights);
+    freerate_global_model(bool values_are_ratios);
     
     virtual ~freerate_global_model() {}
 

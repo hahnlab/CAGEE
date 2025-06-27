@@ -44,9 +44,8 @@ std::vector<model *> build_models(const input_parameters& user_input, user_data&
     }
     else if (!user_input.free_rate.empty())
     {
-        string weights = user_input.initial_weights.empty() ? user_input.initial_values : user_input.initial_weights;
         if (user_input.free_rate == "global")
-            p_model = new freerate_global_model(user_input.input_file_has_ratios, weights, user_input.initial_values.empty());
+            p_model = new freerate_global_model(user_input.input_file_has_ratios);
         else
             p_model = new freerate_paired_model(user_input.input_file_has_ratios);
     }

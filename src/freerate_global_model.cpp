@@ -66,17 +66,9 @@ void init_tips(const user_data &ud, transcript_clade_map<optional_probabilities>
 }
 
 
-freerate_global_model::freerate_global_model(bool values_are_ratios, std::string initial_values, bool initial_values_are_weights) :
-    model(nullptr, nullptr, nullptr), _values_are_ratios(values_are_ratios), _initial_values(initial_values)
+freerate_global_model::freerate_global_model(bool values_are_ratios) :
+    model(nullptr, nullptr, nullptr), _values_are_ratios(values_are_ratios)
 {
-    if (initial_values_are_weights)
-        _initialization_mode = INITIALIZE_WEIGHTS;
-    else if (initial_values.empty())
-        _initialization_mode = INITIALIZE_CONSTANT;
-    else if (initial_values == "fitch")
-        _initialization_mode = INITIALIZE_FITCH;
-    else
-        _initialization_mode = INITIALIZE_VALUES;
 }
 
 // This has a lot of elements in common with compute_node_probability. Can they be refactored?
@@ -202,7 +194,7 @@ double freerate_global_model::optimize_sigmas(const user_data& ud, const cladema
 void freerate_global_model::initialize_sigmas(const clade* p_tree, double distmean, const transcript_vector& transcripts)
 {
     unique_ptr<clade> p_weight_tree;
-    if (_initialization_mode == INITIALIZE_FITCH)
+    if (transcripts.size() > 1)
     {
         auto correlation = spearman_correlation_by_species(transcripts);
         fitch_margoliash fm(correlation, transcripts[0].get_species());
@@ -210,10 +202,6 @@ void freerate_global_model::initialize_sigmas(const clade* p_tree, double distme
         auto p = fm.build_tree();
         p->normalize();
         p_weight_tree.reset(p);
-    }
-    else if (!_initial_values.empty())
-    {    
-        p_weight_tree.reset(parse_newick(_initial_values));
     }
 
     for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), [&](const clade* p) {
@@ -238,8 +226,8 @@ void freerate_global_model::initialize_sigmas(const clade* p_tree, double distme
 
                 LOG(DEBUG) << "There is no weight for " << p->get_taxon_name() << ". Computed distance between " << descendants[0] << " and " << descendants[1] << " is " << weight;
             }
-            if (_initialization_mode == INITIALIZE_WEIGHTS || _initialization_mode == INITIALIZE_FITCH)
-                weight = distmean * weight;
+
+            weight = distmean * weight;
             _sigmas[p] =  pair<double,double>(weight,-1);  
         }
         string name = p->is_leaf() ? " (" + p->get_taxon_name() + ")" : "";
@@ -380,12 +368,12 @@ void freerate_global_model::write_extra_vital_statistics(std::ostream& ost)
 
 TEST_CASE("freerate_model")
 {
-    new freerate_global_model(false, "", false);
+    new freerate_global_model(false);
 }
 
 TEST_CASE("freerate_model optimizes a branch length")
 {
-    freerate_global_model m(false, "", false);
+    freerate_global_model m(false);
 
     user_data ud;
     ud.p_sigma = NULL;
@@ -426,7 +414,7 @@ TEST_CASE("write_extra_vital_statistics writes a sigma for each internal node")
     ud.gene_transcripts[0].set_expression_value("D", 2);
     ud.gene_transcripts[0].set_expression_value("E", 2.5);
 
-    freerate_global_model m(false, "", false);
+    freerate_global_model m(false);
     m.initialize_sigmas(ud.p_tree, 0.5, ud.gene_transcripts);
 
     ostringstream ost;
@@ -541,7 +529,7 @@ TEST_CASE("reconstruct_ancestral_states")
     sigma_squared sl(0.05);
     ud.p_sigma = &sl;
 
-    freerate_global_model model(false,"", false);
+    freerate_global_model model(false);
     model.initialize_sigmas(ud.p_tree, 0.5, ud.gene_transcripts);
 
     matrix_cache calc;
