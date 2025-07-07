@@ -69,6 +69,4 @@ public:
 #endif
 };
 
-double compute_distribution_mean(const user_data& user_data);
-
 #endif

@@ -386,14 +386,16 @@ TEST_CASE("get_value credible interval")
 
 TEST_CASE("get_value credible interval with negative values")
 {
+    randomizer_engine.seed(10);
+
     std::normal_distribution<float> dist(0.0, 3.0);
 
     VectorXd v(20);
     generate(v.begin(), v.end(), [&dist]() { return dist(randomizer_engine);  });
     auto i = get_value(v, boundaries(-10,10));
 
-    CHECK_EQ(doctest::Approx(6.5), i.credible_interval.first);
-    CHECK_EQ(doctest::Approx(9.5), i.credible_interval.second);
+    CHECK_EQ(doctest::Approx(-8.5), i.credible_interval.first);
+    CHECK_EQ(doctest::Approx(8.5), i.credible_interval.second);
 
 }
 TEST_CASE("verify a complex credible interval")

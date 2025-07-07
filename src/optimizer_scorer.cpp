@@ -27,31 +27,6 @@ extern std::mt19937 randomizer_engine;
 using namespace std;
 namespace pv = proportional_variance;
 
-double compute_distribution_mean(const user_data& user_data)
-{
-    if (user_data.gene_transcripts.empty()) throw runtime_error("No gene transcripts provided");
-    if (!user_data.p_tree) throw runtime_error("No tree provided");
-
-    vector<double> variances;
-    for (auto& tt : user_data.gene_transcripts)
-    {
-        auto species = tt.get_species();
-        if (species.size() < 2) continue;
-
-        vector<double> v(species.size());
-        transform(species.begin(), species.end(), v.begin(), [&tt](string s) {return tt.get_expression_value(s);  });
-        double sz = v.size();
-        
-        auto mean = std::accumulate(v.begin(), v.end(), 0.0) / sz;
-        variances.push_back(std::accumulate(v.begin(), v.end(), 0.0, [&mean, &sz](double accumulator, const double& val) {
-            return accumulator + ((val - mean) * (val - mean) / (sz - 1));
-            }));
-    }
-
-    double species_variance = std::accumulate(variances.begin(), variances.end(), 0.0) / double(variances.size());
-    return species_variance / user_data.p_tree->distance_from_root_to_tip();
-}
-
 // sigma only
 sigma_optimizer_scorer::sigma_optimizer_scorer(model* p_model, const user_data& user_data, sigma_squared* p_sigma) :
     _p_model(p_model), _user_data(user_data), _p_sigma(p_sigma),
@@ -87,7 +62,7 @@ std::vector<double> sigma_optimizer_scorer::initial_guesses()
     if (optimize_sigma)
     {
         if (!_distribution_mean)
-            _distribution_mean = new double(compute_distribution_mean(_user_data));
+            _distribution_mean = new double(compute_distribution_mean(_user_data.p_tree, _user_data.gene_transcripts));
 
         guesses.resize(_p_sigma->count());
         for (auto& i : guesses)
@@ -436,30 +411,3 @@ TEST_CASE("calculate_score translates nan to inf")
     CHECK(std::isinf(opt.calculate_score(&val)));
 }
 
-TEST_CASE("compute_distribution_mean")
-{
-    user_data ud;
-
-    ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
-    ud.gene_transcripts[0].set_expression_value("A", 1);
-    ud.gene_transcripts[0].set_expression_value("B", 2);
-
-    ud.p_tree = parse_newick("(A:1,B:1);");
-
-    CHECK_EQ(0.5, compute_distribution_mean(ud));
-}
-
-TEST_CASE("compute_distribution_mean skips transcripts with less than two values")
-{
-    user_data ud;
-
-    ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
-    ud.gene_transcripts.push_back(gene_transcript("TestFamily2", "", ""));
-    ud.gene_transcripts[0].set_expression_value("A", 5);
-    ud.gene_transcripts[1].set_expression_value("A", 1);
-    ud.gene_transcripts[1].set_expression_value("B", 2);
-
-    ud.p_tree = parse_newick("(A:1,B:1);");
-
-    CHECK_EQ(0.5, compute_distribution_mean(ud));
-}

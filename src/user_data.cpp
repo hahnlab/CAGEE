@@ -175,7 +175,8 @@ int upper_bound_from_transcript_values(const vector<gene_transcript>& transcript
     vector<double> bounds(transcripts.size());
     transform(transcripts.begin(), transcripts.end(), bounds.begin(), [](const gene_transcript& gt) {
 
-        return gt.get_max_expression_value();
+        auto bounds = gt.get_expression_boundaries();
+        return max(abs(bounds.first), abs(bounds.second));
     });
 
     return upper_bound_from_values(bounds, MATRIX_SIZE_MULTIPLIER);
@@ -238,3 +239,16 @@ TEST_CASE("upper_bound_from_transcript_values returns MATRIX_SIZE_MULTIPLIER if 
     CHECK_EQ(MATRIX_SIZE_MULTIPLIER, upper_bound_from_transcript_values({ gt }));
 }
 
+TEST_CASE("upper_bound_from_transcript_values tests absolute values")
+{
+    gene_transcript gt;
+    gt.set_expression_value("A", -0.3);
+    gt.set_expression_value("B", 0.8);
+    CHECK_EQ(4, upper_bound_from_transcript_values({ gt }));
+
+    gt.set_expression_value("A", 1.1);
+    CHECK_EQ(5, upper_bound_from_transcript_values({ gt }));
+
+    gt.set_expression_value("B", -7.3);
+    CHECK_EQ(11, upper_bound_from_transcript_values({ gt }));
+}

@@ -63,7 +63,9 @@ public:
 
     std::vector<std::string> get_species() const;
 
-    double get_max_expression_value() const;
+    /// @brief Returns the minimum and maximum expression values for this transcript.
+    /// @details If no values are set, returns (0.0, 0.0).
+    std::pair<double, double> get_expression_boundaries() const;
 
     std::string id() const { return _id; }
     std::string tissue() const { return _tissue; }

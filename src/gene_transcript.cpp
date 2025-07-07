@@ -22,19 +22,20 @@ bool max_key(const std::pair<T, U>& p1, const std::pair<T, U>& p2) {
 }
 
 template <typename T, typename U>
-bool max_value(const std::pair<T, U>& p1, const std::pair<T, U>& p2) {
+bool lesser(const std::pair<T, U>& p1, const std::pair<T, U>& p2) {
 	return p1.second < p2.second;
 }
 
-double gene_transcript::get_max_expression_value() const {
+std::pair<double, double> gene_transcript::get_expression_boundaries() const
+{
     // Max family size can only be found if there is data inside the object in the first place
-    double max_family_size = 0.0;
+    pair<double, double> boundaries(0.0, 0.0);
     if (!_species_size_map.empty()) {
-        max_family_size = (*max_element(_species_size_map.begin(), _species_size_map.end(), max_value<string, double>)).second;
+        boundaries.first = (*min_element(_species_size_map.begin(), _species_size_map.end(), lesser<string, double>)).second;
+        boundaries.second = (*max_element(_species_size_map.begin(), _species_size_map.end(), lesser<string, double>)).second;
     }
-    return max_family_size;
+    return boundaries;
 }
-
 
 double gene_transcript::get_expression_value(std::string species) const {
     // First checks if species data has been entered (i.e., is key in map?)
@@ -245,4 +246,24 @@ TEST_CASE("expand_sample_groups")
     auto actual = expand_sample_groups(sample_groups);
     vector<string> expected({ "heart" , "lungs", "brain", "kidneys", "liver", "spleen" });
     CHECK_EQ(expected, actual);
+}
+
+TEST_CASE("gene_transcript::get_expression_boundaries returns 0.0, 0.0 if no values set")
+{
+    gene_transcript gt;
+    auto boundaries = gt.get_expression_boundaries();
+    CHECK_EQ(0.0, boundaries.first);
+    CHECK_EQ(0.0, boundaries.second);
+}
+
+TEST_CASE("gene_transcript::get_expression_boundaries returns min and max values")
+{
+    gene_transcript gt;
+    gt.set_expression_value("A", 1.0);
+    gt.set_expression_value("B", 3.0);
+    gt.set_expression_value("C", 2.0);
+
+    auto boundaries = gt.get_expression_boundaries();
+    CHECK_EQ(1.0, boundaries.first);
+    CHECK_EQ(3.0, boundaries.second);
 }

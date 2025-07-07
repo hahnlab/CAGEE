@@ -13,6 +13,7 @@ class newick_parser; // actual declaration in utils.h
 
 class clade;
 using cladefunc = std::function<void(const clade*)>;
+class fitch_margoliash;
 
 /*! \brief A Clade represents a node in a tree
 *
@@ -23,6 +24,7 @@ using cladefunc = std::function<void(const clade*)>;
 class clade {
 
     friend clade* parse_newick(std::string newick_string, bool parse_sigmas); // allows newick_parser to set parameter values
+    friend class fitch_margoliash; // allows fitch_margoliash to access private members
 
 private:
     clade *_p_parent; // needs to be pointer; instance creates infinite loop
@@ -125,6 +127,9 @@ public:
     int get_ape_index() const {
         return _ape_index;
     }
+
+    // Divide all nodes by the mean branch length    
+    void normalize();
 };
 
 template<typename T>
@@ -135,5 +140,19 @@ using cladevector = std::vector<const clade *>;
 clade* parse_newick(std::string newick_string, bool parse_sigmas);
 inline clade* parse_newick(std::string newick_string) { return parse_newick(newick_string, false); }
 
+/// @brief Computes the distance between two clades.
+/// The distance is defined as the sum of branch lengths from the first clade to the common 
+/// ancestor and from the second clade to the common ancestor.
+/// @param c1 
+/// @param c2 
+/// @return distance between c1 and c2
+double distance(const clade* c1, const clade* c2);
+
+/// @brief Finds the common ancestor of two clades.
+/// @param c1 
+/// @param c2
+/// @return pointer to the common ancestor clade, or nullptr if no common ancestor is found
+/// Note: This function traverses the parent chain of both clades to find the common ancestor
+const clade* common_ancestor(const clade* c1, const clade *c2);
 
 #endif

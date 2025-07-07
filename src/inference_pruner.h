@@ -107,6 +107,21 @@ class transcript_clade_map
                 func(kv.second);
             }
         }
+
+        /// @brief Gets all values from the map that match the given clade.
+        /// @details This function iterates through the map and collects all 
+        /// values associated with the specified
+        /// @param clade 
+        /// @return A vector containing all values associated with the specified clade.
+        std::vector<T> get_all(const clade* clade) const {
+            std::vector<T> result;
+            for (const auto& kv : _map) {
+                if (kv.first.second == clade) {
+                    result.push_back(kv.second);
+                }
+            }
+            return result;
+        }
         size_t count() const {
             return _map.size();
         }

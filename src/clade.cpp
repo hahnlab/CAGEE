@@ -139,7 +139,7 @@ vector<const clade*> clade::find_internal_nodes() const {
   /* Recursively find pointer to clade with provided taxon name */
 const clade *clade::find_descendant(string some_taxon_name) const {
 
-    const clade *p_descendant;
+    const clade *p_descendant = nullptr;
     auto descendant_finder = [some_taxon_name, &p_descendant](const clade *clade) {
         if (clade->get_taxon_name() == some_taxon_name)
             p_descendant = clade;
@@ -310,6 +310,63 @@ void clade::apply_prefix_order(const cladefunc& f) const {
     }
 }
 
+void clade::normalize()
+{
+    double sum = 0.0;
+    int count = 0;
+    for_each(reverse_level_begin(), reverse_level_end(), [&](const clade* node) {
+        sum += node->get_branch_length();
+        ++count;
+    });
+    double mean_weight = (count > 0) ? sum / count : 0.0;
+
+    auto recursive_normalize = [&](const clade* c, double mean_weight, auto&& recursive_ref) -> void {
+        if (c->is_leaf())
+            return;
+        for (auto d : c->_descendants) {
+            d->_branch_length = d->_branch_length / mean_weight;
+            recursive_ref(d, mean_weight, recursive_ref);
+        }
+    };
+    recursive_normalize(this, mean_weight, recursive_normalize);
+    LOG(DEBUG) << "Mean branch length in weight tree: " << mean_weight;
+}
+
+const clade* common_ancestor(const clade* c1, const clade *c2)
+{
+    cladevector path;
+    while (c1)
+    {
+        path.push_back(c1);
+        c1 = c1->get_parent();
+    }
+    while (c2)
+    {
+        if (find(path.begin(), path.end(), c2) != path.end())
+            return c2;
+        c2 = c2->get_parent();
+    }
+
+    return nullptr;
+}
+
+double distance(const clade* c1, const clade* c2)
+{
+    double dist = 0;
+    auto p = common_ancestor(c1, c2);
+    while (c1 != p)
+    {
+        dist += c1->get_branch_length();
+        c1 = c1->get_parent();
+    }
+    while (c2 != p)
+    {
+        dist += c2->get_branch_length();
+        c2 = c2->get_parent();
+    }
+    return dist;
+}
+
 clade* parse_newick(std::string newick_string, bool parse_to_sigmas) {
 
     std::regex tokenizer("\\(|\\)|[^\\s\\(\\)\\:\\;\\,]+|\\:[+-]?[0-9]*\\.?[0-9]+([eE][+-]?[0-9]+)?|\\,|\\;");
@@ -472,4 +529,29 @@ TEST_CASE("Reverse Level Order touches lowest nodes before parent nodes")
     CHECK_EQ("BAFCDEGHI", seq);
 }
 
+TEST_CASE("common_ancestor")
+{
+    string nwk = "((E:0.36,D:0.30)H:1.00,(C:0.85,(A:0.59,B:0.35)F:0.42)G:0.45)I;";
+    unique_ptr<clade> p_tree(parse_newick(nwk));
+    CHECK_EQ("G", common_ancestor(p_tree->find_descendant("A"), p_tree->find_descendant("C"))->get_taxon_name());
+}
 
+
+TEST_CASE("distance")
+{
+    string nwk = "((E:0.36,D:0.30)H:1.00,(C:0.85,(A:0.59,B:0.35)F:0.42)G:0.45)I;";
+    unique_ptr<clade> p_tree(parse_newick(nwk));
+    CHECK_EQ( doctest::Approx(1.86), distance(p_tree->find_descendant("A"), p_tree->find_descendant("C")));
+}
+
+TEST_CASE("normalize")
+{
+    string nwk = "((E:1,D:2)H:3,(C:4,(A:5,B:6)F:7)G:8)I;";
+    unique_ptr<clade> p_tree(parse_newick(nwk));
+    p_tree->normalize();
+    ostringstream ost;
+    p_tree->write_newick(ost, [](ostream& ost, const clade* c) {
+        ost << c->get_taxon_name() << ":" << c->get_branch_length();
+    } );
+    CHECK_EQ( "((E:0.25,D:0.5)H:0.75,(C:1,(A:1.25,B:1.5)F:1.75)G:2)I:0", ost.str());
+}

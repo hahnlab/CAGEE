@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <numeric>
 #include <iomanip>
+#include <random>
 
 #include <boost/math/tools/minima.hpp>
 
@@ -14,23 +15,14 @@
 #include "prior.h"
 #include "sigma.h"
 #include "optimizer_scorer.h"   // for definition of compute_distribution_mean
+#include "spearman.h"
+#include "fitch_margoliash.h"
 
 using namespace std;
 using namespace Eigen;
 
+extern std::mt19937 randomizer_engine; // seeding random number engine
 typedef vector<optional_probabilities> ASV;
-
-ASV get_taxon_asv(std::string taxon, const user_data &ud, const matrix_cache &cache)
-{
-    ASV result;
-    result.resize(ud.gene_transcripts.size());
-    for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
-    {
-        result[i].reserve(cache.create_vector());
-        result[i].initialize(ud.gene_transcripts[i].get_expression_value(taxon), ud.bounds);
-    }
-    return result;
-}
 
 const clade * get_sibling(const clade *c)
 {
@@ -59,53 +51,95 @@ double get_log_likelihood(const ASV& partial_likelihoods, const std::vector<doub
     return result;
 }
 
+void init_tips(const user_data &ud, transcript_clade_map<optional_probabilities> &probs, const matrix_cache &cache)
+{
+    for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade *p)
+             {
+        if (p->is_leaf())
+        {
+            for (auto& transcript : ud.gene_transcripts)
+            {
+                probs.get(&transcript, p).reserve(cache.create_vector());
+                probs.get(&transcript, p).initialize(transcript.get_expression_value(p->get_taxon_name()), ud.bounds);
+            }
+        } });
+}
 
-freerate_global_model::freerate_global_model(bool values_are_ratios, std::string initial_weights) :
-    model(nullptr, nullptr, nullptr), _values_are_ratios(values_are_ratios), _initial_weights(initial_weights)
+
+freerate_global_model::freerate_global_model(bool values_are_ratios) :
+    model(nullptr, nullptr, nullptr), _values_are_ratios(values_are_ratios)
 {
 }
 
 // This has a lot of elements in common with compute_node_probability. Can they be refactored?
 double compute_node_likelihood(const clade* d,
-                    clademap<ASV>& probs, clademap<std::pair<double, double>>& sigmas,
+                    transcript_clade_map<optional_probabilities>& probs, clademap<std::pair<double, double>>& sigmas,
                     const vector<double>& priors_by_bin, double sigsqd, matrix_cache& cache, const user_data& ud)
 {
     auto p = d->get_parent();
     auto sib = get_sibling(d);
     cache.precalculate_matrices({ sigsqd, sigmas[sib].first }, { d->get_branch_length(), sib->get_branch_length() }, ud.bounds);
 
-    probs[p] = ASV(ud.gene_transcripts.size());
-
-    for (int i = 0; i < (int)ud.gene_transcripts.size(); ++i)
+    for (auto& transcript : ud.gene_transcripts)
     {
-        probs[p][i].reserve(cache.create_vector());
+        probs.get(&transcript, p).reserve(cache.create_vector());
     }
 
 #pragma omp parallel for
     for (int i = 0; i < (int)ud.gene_transcripts.size(); ++i)
     {
-        if (probs[d][i].hasValue() || probs[sib][i].hasValue())
+        auto& transcript = ud.gene_transcripts[i];
+        auto& node_probs = probs.get(&transcript, d);
+        auto& parent_probs = probs.get(&transcript, p);
+        auto& sib_probs = probs.get(&transcript, sib);
+        if (node_probs.hasValue() || sib_probs.hasValue())
         {
-            probs[p][i].setOne();
+            parent_probs.setOne();
         }
 
-        if (probs[d][i].hasValue())
+        if (node_probs.hasValue())
         {
             const MatrixXd& m = cache.get_matrix(d->get_branch_length(), sigsqd);
-            VectorXd result = m * probs[d][i].probabilities();
-            probs[p][i].multiply_elements(result);
+            VectorXd result = m * node_probs.probabilities();
+            parent_probs.multiply_elements(result);
         }
-        if (probs[sib][i].hasValue())
+        if (sib_probs.hasValue())
         {
             const MatrixXd& m = cache.get_matrix(sib->get_branch_length(), sigmas[sib].first);
-            VectorXd result = m * probs[sib][i].probabilities();
-            probs[p][i].multiply_elements(result);
+            VectorXd result = m * sib_probs.probabilities();
+            parent_probs.multiply_elements(result);
         }
     }
 
-    auto lnl = get_log_likelihood(probs[p], priors_by_bin);
-    //LOG(DEBUG) << "Node " << d->get_ape_index() << " Sigma^2:" << sigsqd << " Score (-lnL): " << lnl;
+    auto lnl = get_log_likelihood(probs.get_all(p), priors_by_bin);
+    LOG(DEBUG) << "Node " << d->get_ape_index() << " Sigma^2:" << sigsqd << " Score (-lnL): " << lnl;
     return -lnl;
+}
+
+/**
+ * @brief Returns the maximum value to be used for sigma^2 optimization.
+ *
+ * This function iterates through the provided map of sigma values for each clade,
+ * finds the maximum sigma^2 value, and returns either 100 times this value or 20.0,
+ * whichever is smaller. This is used to set an upper bound for the optimizer when
+ * searching for the optimal sigma^2 for a branch.
+ *
+ * @param sigmas A map from clade pointers to pairs of (sigma^2, auxiliary value).
+ * @return The maximum allowed value for sigma^2 during optimization.
+ */
+double get_optimizer_max(clademap<std::pair<double, double>>& sigmas)
+{
+    const double default_max = 20.0;
+    double max_sigma = 0.0;
+    for (const auto& kv : sigmas) {
+        if (kv.second.first > max_sigma) {
+            max_sigma = kv.second.first;
+        }
+    }
+    if (max_sigma == 0.0) {
+        return default_max;
+    }
+    return std::min(max_sigma * 100.0, default_max);
 }
 
 /* Init all branches with a sigma
@@ -127,35 +161,83 @@ double freerate_global_model::optimize_sigmas(const user_data& ud, const cladema
 {
     matrix_cache cache;
 
-    clademap<ASV> probs;
+    transcript_clade_map<optional_probabilities> probs;
 
-    for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade* p) {
-        if (p->is_leaf())
-        {
-            probs[p] = get_taxon_asv(p->get_taxon_name(), ud, cache);
-        }
-    });
+    const double optimizer_max = get_optimizer_max(_sigmas);
+    init_tips(ud, probs, cache);
     for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade* p) {
         if (!p->is_leaf())
         {
             auto priors_by_bin = get_priors(cache, ud.bounds, &priors.at(p));
-            for_each(p->descendant_begin(), p->descendant_end(), [&](const clade* d) {
+            cladevector descendants(p->descendant_begin(), p->descendant_end());
+            shuffle(descendants.begin(), descendants.end(), randomizer_engine);  
+            for (auto d : descendants)
+            {
                 using boost::math::tools::brent_find_minima;
 
+                LOG(DEBUG) << "Optimizing node " << d->get_ape_index() << " with sibling sigma^2 " << _sigmas[get_sibling(d)].first;
                 std::pair<double, double> r = brent_find_minima([&](double sigsqd) {
                     return compute_node_likelihood(d, probs, _sigmas, priors_by_bin, sigsqd, cache, ud);
-                }, 0.0, 20.0, 10);
+                }, 0.0, optimizer_max, 15);
                 _sigmas[d] = r;
-                LOG(INFO) << "Node " << d->get_ape_index() << " Sigma^2:" << r.first;
-                LOG(INFO) << "Score (-lnL): " << std::setw(15) << std::setprecision(14) << r.second;
-            });
+                LOG(INFO) << "Sigma^2:" << r.first << "Score (-lnL): " << std::setw(15) << std::setprecision(14) << r.second;
+            }
         }
     });
 
     auto root_priors = get_priors(cache, ud.bounds, &priors.at(ud.p_tree));
-    auto result = -get_log_likelihood(probs.at(ud.p_tree), root_priors);
+    auto result = -get_log_likelihood(probs.get_all(ud.p_tree), root_priors);
     LOG(INFO) << "Final tree score (-lnL): " << std::setw(15) << std::setprecision(14) << result;
     return result;
+}
+
+void freerate_global_model::initialize_sigmas(const clade* p_tree, const transcript_vector& transcripts)
+{
+    unique_ptr<clade> p_weight_tree;
+    if (transcripts.size() > 1)
+    {
+        auto correlation = spearman_correlation_by_species(transcripts);
+        fitch_margoliash fm(correlation, transcripts[0].get_species());
+
+        auto p = fm.build_tree();
+        p->normalize();
+        p_weight_tree.reset(p);
+    }
+
+    double distmean = compute_distribution_mean(p_tree, transcripts);
+    LOG(DEBUG) << "Distribution mean: " << distmean;
+    
+    for_each(p_tree->reverse_level_begin(), p_tree->reverse_level_end(), [&](const clade* p) {
+        if (p->is_root() || !p_weight_tree)
+            _sigmas[p] = pair<double,double>(distmean,-1);
+        else 
+        {
+            auto weight = 0.0;
+            auto matched_clade = p_weight_tree->find_descendant(p->get_taxon_name());
+            if (matched_clade)
+            {   
+                weight = matched_clade->get_branch_length();
+                LOG(DEBUG) << "Found a weight for " << p->get_taxon_name() << ". It is " << weight;
+            }
+            else
+            {
+                vector<string> descendants(distance(p->descendant_begin(), p->descendant_end()));
+                transform(p->descendant_begin(), p->descendant_end(), descendants.begin(), [](const clade* c) { return c->get_taxon_name(); });
+                auto d1 = p_weight_tree->find_descendant(descendants[0]);
+                auto d2 = p_weight_tree->find_descendant(descendants[1]);
+                weight = distance(d1, d2);
+
+                LOG(DEBUG) << "There is no weight for " << p->get_taxon_name() << ". Computed distance between " << descendants[0] << " and " << descendants[1] << " is " << weight;
+            }
+
+            weight = distmean * weight;
+            _sigmas[p] =  pair<double,double>(weight,-1);  
+        }
+        string name = p->is_leaf() ? " (" + p->get_taxon_name() + ")" : "";
+        LOG(DEBUG) << "Initial sigma for Node " << p->get_ape_index() << name << " set to " << _sigmas[p].first;
+
+    });
+    LOG(DEBUG) << "Initial sigmas set to " << distmean;
 }
 
 double freerate_global_model::infer_transcript_likelihoods(const user_data& ud, const sigma_squared*p_sigma)
@@ -167,27 +249,7 @@ double freerate_global_model::infer_transcript_likelihoods(const user_data& ud, 
     {
         LOG(DEBUG) << "Node " << a.first->get_ape_index() << " Prior: " << a.second;
     }
-    double distmean = compute_distribution_mean(ud);
-
-    string weights_nwk = "((((sp1:0.11400,sp2:0.11400):0.10018,(((sp3:0.05150,sp4:0.05150):0.05500,sp5:0.10650):0.04143,sp6:0.14793):0.06625):0.01760,sp7:0.23178):0.05041,sp8:0.28218);";
-
-    unique_ptr<clade> p_weight_tree;
-    if (!_initial_weights.empty())
-        p_weight_tree.reset(parse_newick(_initial_weights));
-
-    for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade* p) {
-        if (p->is_root() || !p_weight_tree)
-            _sigmas[p] = pair<double,double>(distmean,-1);
-        else 
-        {
-            auto weight = p_weight_tree->find_descendant(p->get_taxon_name())->get_branch_length();
-            _sigmas[p] =  pair<double,double>(weight,-1);  
-        }
-        LOG(DEBUG) << "Initial sigma for " << p->get_ape_index() << " set to " << _sigmas[p].first;
-
-//        _sigmas[p] = pair<double,double>(distmean,-1);
-    });
-    LOG(DEBUG) << "Initial sigmas set to " << distmean;
+    initialize_sigmas(ud.p_tree, ud.gene_transcripts);
 
     double score = 100;
     for (int i = 0; i<20; ++i)
@@ -207,21 +269,82 @@ sigma_optimizer_scorer* freerate_global_model::get_sigma_optimizer(const user_da
     return nullptr;
 }
 
-class freerate_reconstruction : public reconstruction
+class freerate_global_reconstruction : public reconstruction
 {
 public:
-    freerate_reconstruction(const user_data& ud, matrix_cache* p_calc) : reconstruction(ud.gene_transcripts) {};
-    virtual ~freerate_reconstruction() {};
+    freerate_global_reconstruction(const user_data& ud, matrix_cache* p_calc) : reconstruction(ud.gene_transcripts) {};
+    virtual ~freerate_global_reconstruction() {};
 
-    virtual node_reconstruction get_internal_node_value(const gene_transcript& gf, const clade* c) const override
+    transcript_clade_map<node_reconstruction> _reconstructions;
+
+    virtual node_reconstruction get_internal_node_value(const gene_transcript& transcript, const clade* c) const override
     {
-        return node_reconstruction();
+        if (!_reconstructions.find(&transcript, c))
+            throw missing_expression_value(transcript.id(), "");
+
+        return _reconstructions.get(&transcript, c);
     }
 };
 
+void compute_transcript_likelihoods(const clade* d, const gene_transcript& transcript, const matrix_cache& cache, transcript_clade_map<optional_probabilities>& probs, const clademap<std::pair<double, double>>& sigmas)
+{
+    if (d->is_root())
+        return;
+
+    auto p = d->get_parent();
+    probs.get(&transcript, p).reserve(cache.create_vector());
+
+    auto sib = get_sibling(d);
+
+    auto& node_probs = probs.get(&transcript, d);
+    auto& parent_probs = probs.get(&transcript, p);
+    auto& sib_probs = probs.get(&transcript, sib);
+
+    if (node_probs.hasValue() || sib_probs.hasValue())
+    {
+        parent_probs.setOne();
+    }
+
+    if (node_probs.hasValue())
+    {
+        const MatrixXd& m = cache.get_matrix(d->get_branch_length(), sigmas.at(d).first);
+        VectorXd result = m * node_probs.probabilities();
+        parent_probs.multiply_elements(result);
+    }
+    if (sib_probs.hasValue())
+    {
+        const MatrixXd& m = cache.get_matrix(sib->get_branch_length(), sigmas.at(sib).first);
+        VectorXd result = m * sib_probs.probabilities();
+        parent_probs.multiply_elements(result);
+    }
+}
+
+extern node_reconstruction get_value(const VectorXd& likelihood, boundaries bounds);
+
 reconstruction* freerate_global_model::reconstruct_ancestral_states(const user_data& ud, matrix_cache *p_calc)
 {
-    auto result = new freerate_reconstruction(ud, p_calc);
+    std::vector<double> sigma_values;
+    sigma_values.reserve(_sigmas.size());
+    for (const auto& kv : _sigmas) {
+        sigma_values.push_back(kv.second.first);
+    }
+    p_calc->precalculate_matrices(sigma_values, ud.p_tree->get_branch_lengths(), ud.bounds);
+
+    auto result = new freerate_global_reconstruction(ud, p_calc);
+
+    transcript_clade_map<optional_probabilities> probs;
+
+    init_tips(ud, probs, *p_calc);
+
+    for (auto& transcript : ud.gene_transcripts)
+    {
+        for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade* c) {
+            compute_transcript_likelihoods(c, transcript, *p_calc, probs, _sigmas);
+            auto& p = probs.get(&transcript, c);
+            if (!c->is_leaf() && p.hasValue())
+                result->_reconstructions.set(&transcript, c, get_value(p.probabilities(), ud.bounds));
+        });
+    }
 
     return result;
 }
@@ -244,12 +367,12 @@ void freerate_global_model::write_extra_vital_statistics(std::ostream& ost)
 
 TEST_CASE("freerate_model")
 {
-    new freerate_global_model(false, "");
+    new freerate_global_model(false);
 }
 
 TEST_CASE("freerate_model optimizes a branch length")
 {
-    freerate_global_model m(false, "");
+    freerate_global_model m(false);
 
     user_data ud;
     ud.p_sigma = NULL;
@@ -277,8 +400,6 @@ TEST_CASE("get_log_likelihood")
 
 TEST_CASE("write_extra_vital_statistics writes a sigma for each internal node")
 {
-//    el::Loggers::addFlag(el::LoggingFlag::ImmediateFlush);
-//    el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToStandardOutput, "true");
     user_data ud;
     ud.p_sigma = NULL;
     ud.p_prior = new prior("gamma", 0.375, 1600.0);
@@ -292,19 +413,15 @@ TEST_CASE("write_extra_vital_statistics writes a sigma for each internal node")
     ud.gene_transcripts[0].set_expression_value("D", 2);
     ud.gene_transcripts[0].set_expression_value("E", 2.5);
 
-    freerate_global_model m(false, "");
-    m.infer_transcript_likelihoods(ud, nullptr);
+    freerate_global_model m(false);
+    m.initialize_sigmas(ud.p_tree, ud.gene_transcripts);
 
     ostringstream ost;
     m.write_extra_vital_statistics(ost);
     CHECK_STREAM_CONTAINS(ost, "Computed sigma2 by node:");
-    CHECK_STREAM_CONTAINS(ost, "7:0.000817127");
-    CHECK_STREAM_CONTAINS(ost, "8:2.23993");
-    CHECK_STREAM_CONTAINS(ost, "9:0.595146");
-
-    // Check that the root is not included
-    CHECK_MESSAGE(ost.str().find("6:") == std::string::npos, ost.str());
-    //el::Loggers::reconfigureAllLoggers(el::ConfigurationType::ToStandardOutput, "false");
+    CHECK_STREAM_CONTAINS(ost, "7:0.428082");
+    CHECK_STREAM_CONTAINS(ost, "8:0.428082");
+    CHECK_STREAM_CONTAINS(ost, "9:0.428082");
 }
 
 TEST_CASE("get_parent_likelihood")
@@ -319,12 +436,16 @@ TEST_CASE("get_parent_likelihood")
     ud.gene_transcripts[0].set_expression_value("B", 2);
 
     matrix_cache cache;
-    clademap<ASV> probs;
+    transcript_clade_map<optional_probabilities> probs;
     const clade* p = ud.p_tree;
     const clade* sib = get_sibling(*p->descendant_begin());
     const clade* d = *p->descendant_begin();
-    probs[d] = get_taxon_asv(d->get_taxon_name(), ud, cache);
-    probs[sib] = get_taxon_asv(sib->get_taxon_name(), ud, cache);
+    auto transcript = &ud.gene_transcripts[0];
+    probs.get(transcript, d).reserve(cache.create_vector());
+    probs.get(transcript, d).initialize(transcript->get_expression_value("A"), ud.bounds);
+    probs.get(transcript, sib).reserve(cache.create_vector());
+    probs.get(transcript, sib).initialize(transcript->get_expression_value("B"), ud.bounds);
+
     vector<double> priors_by_bin = get_priors(cache, ud.bounds, ud.p_prior);
     double sigsqd = 1.0;
     clademap<std::pair<double, double>> sigmas;
@@ -333,4 +454,111 @@ TEST_CASE("get_parent_likelihood")
     double likelihood = compute_node_likelihood(d, probs, sigmas, priors_by_bin, sigsqd, cache, ud);
 
     CHECK_EQ(doctest::Approx(8.07594), likelihood);
+}
+
+TEST_CASE("compute_transcript_likelihoods")
+{
+    // Setup user_data and tree
+    user_data ud;
+    ud.p_sigma = nullptr;
+    ud.p_prior = new prior("uniform", 0.0, 10.0);
+    ud.p_tree = parse_newick("(A:1,B:1);");
+    ud.bounds = boundaries(0, 5);
+
+    // Add a gene transcript with values for A and B
+    ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.gene_transcripts[0].set_expression_value("A", 1.0);
+    ud.gene_transcripts[0].set_expression_value("B", 2.0);
+
+    // Prepare matrix_cache and ASV probabilities
+    matrix_cache cache;
+    cache.precalculate_matrices({1,1}, ud.p_tree->get_branch_lengths(), ud.bounds);
+    transcript_clade_map<optional_probabilities> probs;
+    const clade* p = ud.p_tree;
+    const clade* d = *p->descendant_begin();
+    const clade* sib = get_sibling(d);
+
+    for (const auto& transcript : ud.gene_transcripts)
+    {
+        probs.get(&transcript, d).reserve(cache.create_vector());
+        probs.get(&transcript, d).initialize(transcript.get_expression_value("A"), ud.bounds);
+        probs.get(&transcript, sib).reserve(cache.create_vector());
+        probs.get(&transcript, sib).initialize(transcript.get_expression_value("B"), ud.bounds);
+    }
+    
+    // Setup sigmas for both children
+    clademap<std::pair<double, double>> sigmas;
+    sigmas[d] = std::make_pair(1.0, -1.0);
+    sigmas[sib] = std::make_pair(1.0, -1.0);
+
+    // Compute transcript likelihoods for gene 0
+    auto t = &ud.gene_transcripts[0];
+    compute_transcript_likelihoods(d, *t, cache, probs, sigmas);
+
+    // Check that parent probabilities are set (should not be empty)
+    CHECK(probs.get(t,p).hasValue());
+    // Optionally, check that the probabilities vector is not all zeros
+    auto v = probs.get(t,p).probabilities();
+    bool nonzero = false;
+    for (int i = 0; i < v.size(); ++i) {
+        if (v[i] != 0.0) {
+            nonzero = true;
+            break;
+        }
+    }
+    CHECK(nonzero);
+
+}
+
+TEST_CASE("reconstruct_ancestral_states")
+{
+    user_data ud;
+    ud.p_tree = parse_newick("((A:1,B:1):1,(C:1,D:1):1);");
+    ud.gene_transcripts.push_back(gene_transcript("TestFamily1", "", ""));
+    ud.gene_transcripts[0].set_expression_value("A", 1);
+    ud.gene_transcripts[0].set_expression_value("B", 2);
+    ud.gene_transcripts[0].set_expression_value("C", 5);
+    ud.gene_transcripts[0].set_expression_value("D", 6);
+    ud.gene_transcripts.push_back(gene_transcript("TestFamily2", "", ""));
+    ud.gene_transcripts[1].set_expression_value("A", 3);
+    ud.gene_transcripts[1].set_expression_value("B", 4);
+    ud.gene_transcripts[1].set_expression_value("C", 7);
+    ud.gene_transcripts[1].set_expression_value("D", 8);
+    ud.bounds = boundaries(0, 20);
+    sigma_squared sl(0.05);
+    ud.p_sigma = &sl;
+
+    freerate_global_model model(false);
+    model.initialize_sigmas(ud.p_tree, ud.gene_transcripts);
+
+    matrix_cache calc;
+
+    std::unique_ptr<freerate_global_reconstruction> rec(
+        dynamic_cast<freerate_global_reconstruction*>(model.reconstruct_ancestral_states(ud, &calc))
+    );
+
+    // Two families * threee internal nodes = 6 reconstructions
+    CHECK_EQ(6, rec->_reconstructions.count());
+}
+
+TEST_CASE("get_optimizer_max returns 20 if 100 * largest sigma is above that")
+{
+    clade a,b,c;
+    clademap<std::pair<double, double>> sigmas;
+    sigmas[&a] = std::make_pair(0.2, -1);
+    sigmas[&b] = std::make_pair(0.3, -1);
+    sigmas[&c] = std::make_pair(0.4, -1);
+
+    CHECK_EQ(doctest::Approx(20.0), get_optimizer_max(sigmas));
+}
+
+TEST_CASE("get_optimizer_max returns 100 * largest sigma if that is below 20")
+{
+    clade a,b,c;
+    clademap<std::pair<double, double>> sigmas;
+    sigmas[&a] = std::make_pair(0.02, -1);
+    sigmas[&b] = std::make_pair(0.03, -1);
+    sigmas[&c] = std::make_pair(0.04, -1);
+
+    CHECK_EQ(doctest::Approx(4.0), get_optimizer_max(sigmas));
 }
