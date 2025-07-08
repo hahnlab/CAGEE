@@ -191,13 +191,23 @@ double freerate_global_model::optimize_sigmas(const user_data& ud, const cladema
     return result;
 }
 
+fitch_margoliash::distance_matrix invert_matrix(const fitch_margoliash::distance_matrix& distance_matrix)
+{
+    fitch_margoliash::distance_matrix inverted;
+    for (const auto& kv : distance_matrix) {
+        inverted[std::make_pair(kv.first.first, kv.first.second)] = 1.0 - kv.second;
+    }
+    return inverted;
+}
+
 void freerate_global_model::initialize_sigmas(const clade* p_tree, const transcript_vector& transcripts)
 {
     unique_ptr<clade> p_weight_tree;
     if (transcripts.size() > 1)
     {
         auto correlation = spearman_correlation_by_species(transcripts);
-        fitch_margoliash fm(correlation, transcripts[0].get_species());
+        auto distance = invert_matrix(correlation);
+        fitch_margoliash fm(distance, transcripts[0].get_species());
 
         auto p = fm.build_tree();
         p->normalize();
@@ -561,4 +571,49 @@ TEST_CASE("get_optimizer_max returns 100 * largest sigma if that is below 20")
     sigmas[&c] = std::make_pair(0.04, -1);
 
     CHECK_EQ(doctest::Approx(4.0), get_optimizer_max(sigmas));
+}
+
+TEST_CASE("invert_matrix")
+{
+    fitch_margoliash::distance_matrix matrix;
+    matrix[std::make_pair("A", "B")] = 0.1;
+    matrix[std::make_pair("A", "C")] = 0.2;
+    matrix[std::make_pair("B", "C")] = 0.3;
+
+    fitch_margoliash::distance_matrix inverted = invert_matrix(matrix);
+
+    CHECK_EQ(inverted[std::make_pair("A", "B")], 0.9);
+    CHECK_EQ(inverted[std::make_pair("A", "C")], 0.8);
+    CHECK_EQ(inverted[std::make_pair("B", "C")], 0.7);
+}
+
+TEST_CASE("initialize_sigmas sets initial sigma values based on distance matrix")
+{
+    unique_ptr<clade> tree(parse_newick("((A:1,B:1):1,(C:1,D:1):1);"));
+    vector<gene_transcript> transcripts;
+
+    gene_transcript t1("Gene1", "", "");
+    t1.set_expression_value("A", 1.0);
+    t1.set_expression_value("B", 2.0);
+    t1.set_expression_value("C", 3.0);
+    t1.set_expression_value("D", 4.0);
+    transcripts.push_back(t1);  
+
+    gene_transcript t2("Gene2", "", "");
+    t2.set_expression_value("A", 2.0);
+    t2.set_expression_value("B", 3.0);
+    t2.set_expression_value("C", 0.5);
+    t2.set_expression_value("D", 2.5);
+    transcripts.push_back(t2);
+
+    freerate_global_model m(false);
+    m.initialize_sigmas(tree.get(), transcripts);
+
+    ostringstream ost;
+    m.write_extra_vital_statistics(ost);
+    CHECK_STREAM_CONTAINS(ost, "Computed sigma2 by node:");
+    CHECK_STREAM_CONTAINS(ost, "5:0.708333");
+    CHECK_STREAM_CONTAINS(ost, "6:4.95833");
+    CHECK_STREAM_CONTAINS(ost, "7:4.95833");
+
 }
