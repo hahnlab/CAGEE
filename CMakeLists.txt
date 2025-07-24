@@ -44,6 +44,10 @@ if (MODEL_GENE_EXPRESSION_LOGS)
   add_definitions(-DMODEL_GENE_EXPRESSION_LOGS)
 endif()
 
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  add_definitions(-DELPP_DISABLE_DEBUG_LOGS)
+endif()
+
 if (USE_MAX_PROBABILITY)
   add_definitions(-DUSE_MAX_PROBABILITY)
 endif()
