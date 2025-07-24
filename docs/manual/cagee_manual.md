@@ -147,6 +147,22 @@ In this case it is assumed that the the gene values provided are in fact ratios.
 
 If a particular gene is not expressed, a ratio might not be calculable. To avoid this, we recommend adding a pseudocount of 1 to each expressed value.
 
+### Global Free Rates
+
+On a large tree, it may be more efficient to optimize a rate of evolution for each branch separately, rather
+than to calculate a single rate across the entire tree. CAGEE supports two methods of doing this, both expressed
+in the free_rate flag.
+
+```
+cagee --tree path/to/your_tree.nwk --infile path/to/your_gene_values.tsv --free_rate=paired
+cagee --tree path/to/your_tree.nwk --infile path/to/your_gene_values.tsv --free_rate=global
+```
+
+With the first option, an optimization is performed on each pair of sibling nodes simultaneously. With
+the second, each node is optimized by itself. This may be particularly sensitive to the value initially
+assigned to its sibling node, so some effort is made to find a good estimate for that using a 
+Fitch-Margoliash algorithm implementation.
+
 ### Output of a typical run
 
 CAGEE reports its estimates in the terminal and also writes several output files to the specified directory.  These include:
