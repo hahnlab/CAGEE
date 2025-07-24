@@ -3,6 +3,7 @@
 
 #include "core.h"
 #include "clade.h"
+#include "optimizer.h"
 
 class gene_transcript;
 typedef const std::vector<gene_transcript> transcript_vector;
@@ -15,9 +16,10 @@ class freerate_global_model : public model {
     double optimize_sigmas(const user_data &ud, const clademap<prior> &priors);
     int _root_ape_index = -1;
 
+    optimizer_parameters _optimizer_params;
 public:
     //! Computation or estimation constructor
-    freerate_global_model(bool values_are_ratios);
+    freerate_global_model(bool values_are_ratios, optimizer_parameters params);
     
     virtual ~freerate_global_model() {}
 

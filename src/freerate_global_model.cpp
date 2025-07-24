@@ -66,8 +66,8 @@ void init_tips(const user_data &ud, transcript_clade_map<optional_probabilities>
 }
 
 
-freerate_global_model::freerate_global_model(bool values_are_ratios) :
-    model(nullptr, nullptr, nullptr), _values_are_ratios(values_are_ratios)
+freerate_global_model::freerate_global_model(bool values_are_ratios, optimizer_parameters params) :
+    model(nullptr, nullptr, nullptr), _values_are_ratios(values_are_ratios), _optimizer_params(params)
 {
 }
 
@@ -262,7 +262,7 @@ double freerate_global_model::infer_transcript_likelihoods(const user_data& ud, 
     initialize_sigmas(ud.p_tree, ud.gene_transcripts);
 
     double score = 100;
-    for (int i = 0; i<20; ++i)
+    for (int i = 0; i<_optimizer_params.max_iterations; ++i)
     {
         LOG(INFO) << "Iteration " << i+1;
         _monitor.Event_InferenceAttempt_Started();
@@ -377,12 +377,12 @@ void freerate_global_model::write_extra_vital_statistics(std::ostream& ost)
 
 TEST_CASE("freerate_model")
 {
-    new freerate_global_model(false);
+    new freerate_global_model(false, optimizer_parameters());
 }
 
 TEST_CASE("freerate_model optimizes a branch length")
 {
-    freerate_global_model m(false);
+    freerate_global_model m(false, optimizer_parameters());
 
     user_data ud;
     ud.p_sigma = NULL;
@@ -423,7 +423,7 @@ TEST_CASE("write_extra_vital_statistics writes a sigma for each internal node")
     ud.gene_transcripts[0].set_expression_value("D", 2);
     ud.gene_transcripts[0].set_expression_value("E", 2.5);
 
-    freerate_global_model m(false);
+    freerate_global_model m(false, optimizer_parameters());
     m.initialize_sigmas(ud.p_tree, ud.gene_transcripts);
 
     ostringstream ost;
@@ -538,7 +538,7 @@ TEST_CASE("reconstruct_ancestral_states")
     sigma_squared sl(0.05);
     ud.p_sigma = &sl;
 
-    freerate_global_model model(false);
+    freerate_global_model model(false, optimizer_parameters());
     model.initialize_sigmas(ud.p_tree, ud.gene_transcripts);
 
     matrix_cache calc;
@@ -606,7 +606,7 @@ TEST_CASE("initialize_sigmas sets initial sigma values based on distance matrix"
     t2.set_expression_value("D", 2.5);
     transcripts.push_back(t2);
 
-    freerate_global_model m(false);
+    freerate_global_model m(false, optimizer_parameters());
     m.initialize_sigmas(tree.get(), transcripts);
 
     ostringstream ost;

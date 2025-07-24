@@ -167,7 +167,7 @@ input_parameters read_arguments(int argc, char* const argv[])
     maybe_set(vm, "cores", my_input_parameters.cores);
     maybe_set(vm, "optimizer_expansion", my_input_parameters.optimizer_params.neldermead_expansion);
     maybe_set(vm, "optimizer_reflection", my_input_parameters.optimizer_params.neldermead_reflection);
-    maybe_set(vm, "optimizer_iterations", my_input_parameters.optimizer_params.neldermead_iterations);
+    maybe_set(vm, "optimizer_iterations", my_input_parameters.optimizer_params.max_iterations);
     maybe_set(vm, "fixed_multiple_sigmas", my_input_parameters.fixed_multiple_sigmas);
     maybe_set(vm, "sigma_tree", my_input_parameters.sigma_tree_file_path);
     maybe_set(vm, "verbose", my_input_parameters.verbose_logging_level);
@@ -197,6 +197,10 @@ input_parameters read_arguments(int argc, char* const argv[])
     if (my_input_parameters.use_error_model && error != "true")
     {
         my_input_parameters.error_model_file_path = error;
+    }
+
+    if (!my_input_parameters.free_rate.empty() && vm.find("optimizer_iterations") == vm.end()) {
+        my_input_parameters.optimizer_params.max_iterations = 2;
     }
 
     my_input_parameters.check_input(); // seeing if options are not mutually exclusive              
@@ -343,7 +347,7 @@ TEST_CASE("Options, optimizer_long")
     auto actual = read_arguments(c.argc, c.values);
     CHECK_EQ(0.05, actual.optimizer_params.neldermead_expansion);
     CHECK_EQ(3.2, actual.optimizer_params.neldermead_reflection);
-    CHECK_EQ(5, actual.optimizer_params.neldermead_iterations);
+    CHECK_EQ(5, actual.optimizer_params.max_iterations);
 }
 
 TEST_CASE("Options, optimizer_short")
@@ -353,7 +357,7 @@ TEST_CASE("Options, optimizer_short")
     auto actual = read_arguments(c.argc, c.values);
     CHECK_EQ(0.05, actual.optimizer_params.neldermead_expansion);
     CHECK_EQ(3.2, actual.optimizer_params.neldermead_reflection);
-    CHECK_EQ(5, actual.optimizer_params.neldermead_iterations);
+    CHECK_EQ(5, actual.optimizer_params.max_iterations);
 }
 
 TEST_CASE("Options, cores_long")
@@ -586,4 +590,26 @@ TEST_CASE("Options: freerate paired model")
 
     auto actual = read_arguments(c.argc, c.values);
     CHECK_EQ("paired", actual.free_rate);
+}
+
+TEST_CASE("Options: If Freerate is set, max_iterations defaults to 2")
+{
+    input_parameters by_default;
+    CHECK_EQ(300, by_default.optimizer_params.max_iterations);
+
+    option_test c({ "cagee", "--free_rate", "paired"});
+
+    auto actual = read_arguments(c.argc, c.values);
+    CHECK_EQ(2, actual.optimizer_params.max_iterations);
+}
+
+TEST_CASE("Options: If Freerate is set, user can still set max iterations")
+{
+    input_parameters by_default;
+    CHECK_EQ(300, by_default.optimizer_params.max_iterations);
+
+    option_test c({ "cagee", "--free_rate", "paired", "--optimizer_iterations", "10"});
+
+    auto actual = read_arguments(c.argc, c.values);
+    CHECK_EQ(10, actual.optimizer_params.max_iterations);
 }

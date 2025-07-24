@@ -25,7 +25,7 @@ class optimizer_scorer;
 struct optimizer_parameters {
     double neldermead_expansion;
     double neldermead_reflection;
-    int neldermead_iterations = 300;
+    int max_iterations = 300;
     optimizer_parameters();
 };
 

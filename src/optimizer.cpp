@@ -605,7 +605,7 @@ optimizer::result optimizer::optimize(const optimizer_parameters& params)
     if (!quiet)
     {
         LOG(INFO) << "\nOptimizer strategy: " << strat->Description();
-        LOG(INFO) << "Iterations: " << params.neldermead_iterations;
+        LOG(INFO) << "Iterations: " << params.max_iterations;
         LOG(INFO) << "Expansion: " << params.neldermead_expansion;
         LOG(INFO) << "Reflection: " << params.neldermead_reflection;
     }
@@ -659,7 +659,7 @@ OptimizerStrategy *optimizer::get_strategy(const optimizer_parameters& params)
 
     pfm->chi = params.neldermead_expansion;
     pfm->rho = params.neldermead_reflection;
-    pfm->maxiters = params.neldermead_iterations;
+    pfm->maxiters = params.max_iterations;
 
     enum strategies { NelderMead, LBFGS, RangeWidely, InitialVariants, PerturbWhenClose, SimilarityCutoff };
     switch (OPTIMIZER_STRATEGY)
@@ -743,7 +743,7 @@ TEST_CASE("Warning logged if iteration max is hit")
     mock_scorer scorer;
     optimizer opt(&scorer);
     optimizer_parameters p;
-    p.neldermead_iterations = 2;
+    p.max_iterations = 2;
     opt.optimize(p);
     auto log = get_test_log();
     REQUIRE_EQ(3, log.size());
