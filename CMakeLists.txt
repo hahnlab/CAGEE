@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.13)
 include(CheckIncludeFile)
 
 # set the project name
-project(CAGEE VERSION 1.2)
+project(CAGEE VERSION 1.3)
 
 set (CMAKE_PREFIX_PATH      "${PROJECT_SOURCE_DIR}/cmake")
 
