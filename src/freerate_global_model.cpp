@@ -180,7 +180,7 @@ double freerate_global_model::optimize_sigmas(const user_data& ud, const cladema
                     return compute_node_likelihood(d, probs, _sigmas, priors_by_bin, sigsqd, cache, ud);
                 }, 0.0, optimizer_max, 15);
                 _sigmas[d] = r;
-                LOG(INFO) << "Sigma^2:" << r.first << " Score (-lnL): " << std::setw(15) << std::setprecision(14) << r.second;
+                LOG(INFO) << "Node " << d->get_ape_index() << " Sigma^2:" << r.first << " Score (-lnL): " << std::setw(15) << std::setprecision(14) << r.second;
             }
         }
     });
