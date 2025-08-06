@@ -25,6 +25,9 @@ Here is a list of commands that can be used with the CAGEE tool:
 ### --fixed_alpha <arg>
  Value for a single user provided alpha value, otherwise alpha is estimated.
 
+### --free_rate=global
+ Indicates that a separate sigma<sup>2</sup> value should be calculated for each branch.
+
 ### -m, --fixed_multiple_sigmas <arg>
  Multiple sigma values, comma separated.
 
@@ -36,6 +39,9 @@ Produce help message
 
 ### -i, --infile <arg>
  Path to tab delimited gene families file to be analyzed (Required for estimation)
+
+### --log_config <arg>
+ The name of a file containing configuration information for the logger. See log.config in the examples directory
 
 ### -@, --n_gamma_cats <arg>
  Number of gamma categories to use, requires an integer argument. Default=1 (No gamma modelling)

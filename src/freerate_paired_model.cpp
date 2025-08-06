@@ -119,15 +119,47 @@ public:
     freerate_reconstruction(const user_data& ud, matrix_cache* p_calc) : reconstruction(ud.gene_transcripts) {};
     virtual ~freerate_reconstruction() {};
 
-    virtual node_reconstruction get_internal_node_value(const gene_transcript& gf, const clade* c) const override
+    transcript_clade_map<node_reconstruction> _reconstructions;
+
+    virtual node_reconstruction get_internal_node_value(const gene_transcript& transcript, const clade* c) const override
     {
-        return node_reconstruction();
+        if (!_reconstructions.find(&transcript, c))
+            throw missing_expression_value(transcript.id(), "");
+
+        return _reconstructions.get(&transcript, c);
     }
 };
 
+extern node_reconstruction get_value(const Eigen::VectorXd& likelihood, boundaries bounds);
+
 reconstruction* freerate_paired_model::reconstruct_ancestral_states(const user_data& ud, matrix_cache *p_calc)
 {
-    return new freerate_reconstruction(ud, p_calc);
+    std::vector<double> sigma_values;
+    sigma_values.reserve(_sigmas.size());
+    for (const auto& kv : _sigmas) {
+        sigma_values.push_back(kv.second.first);
+    }
+    p_calc->precalculate_matrices(sigma_values, ud.p_tree->get_branch_lengths(), ud.bounds);
+
+    auto priors = get_priors(*p_calc, ud.bounds, ud.p_prior);
+    auto result = new freerate_reconstruction(ud, p_calc);
+
+    vector<clademap<optional_probabilities>> probs(ud.gene_transcripts.size());
+
+    initialize_leaves(ud, probs, *p_calc);
+
+    for (size_t i = 0; i < ud.gene_transcripts.size(); ++i)
+    {
+        for_each(ud.p_tree->reverse_level_begin(), ud.p_tree->reverse_level_end(), [&](const clade* c) {
+            //compute_transcript_likelihoods(c, transcript, *p_calc, probs, _sigmas);
+            get_log_likelihood(*p_calc, ud.gene_transcripts, *ud.p_prior, probs, c, ud.bounds, _sigmas[c].first);
+            auto& p = probs[i].at(c);
+            if (!c->is_leaf() && p.hasValue())
+                result->_reconstructions.set(&ud.gene_transcripts[i], c, get_value(p.probabilities(), ud.bounds));
+        });
+    }
+
+    return result;
 }
 
 void freerate_paired_model::write_extra_vital_statistics(std::ostream& ost) 
