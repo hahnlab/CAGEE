@@ -86,7 +86,7 @@ void model::write_vital_statistics(std::ostream& ost, const clade *p_tree, doubl
     
     ost << "IDs of Nodes: ";
     p_tree->write_newick(ost, [](std::ostream& ost, const clade*c) {
-        ost << "<" << c->get_ape_index() << ">";
+        ost << "<" << c->get_ape_index() << ">:" << c->get_branch_length();
         });
     ost << endl;
 
@@ -221,7 +221,7 @@ TEST_CASE("write_vital_statistics writes node IDs")
     std::ostringstream ost;
     input_parameters p;
     model.write_vital_statistics(ost, p_tree.get(), 0.01, p);
-    CHECK_STREAM_CONTAINS(ost, "IDs of Nodes: ((((<1>,<2>)<16>,<3>)<15>,(((((<4>,<5>)<21>,<6>)<20>,<7>)<19>,(<8>,<9>)<22>)<18>,<10>)<17>)<14>,(<11>,<12>)<23>)<13>\n");
+    CHECK_STREAM_CONTAINS(ost, "IDs of Nodes: ((((<1>:1,<2>:1)<16>:1,<3>:1)<15>:1,(((((<4>:2,<5>:2)<21>:2,<6>:1)<20>:1,<7>:1)<19>:1,(<8>:1,<9>:1)<22>:1)<18>:1,<10>:1)<17>:1)<14>:1,(<11>:1,<12>:1)<23>:1)<13>:0\n");
 }
 
 TEST_CASE("Inference, event_monitor_shows_poor_performing_families")
