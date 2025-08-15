@@ -202,7 +202,7 @@ input_parameters read_arguments(int argc, char* const argv[])
     }
 
     if (!my_input_parameters.free_rate.empty() && vm.find("optimizer_iterations") == vm.end()) {
-        my_input_parameters.optimizer_params.max_iterations = 2;
+        my_input_parameters.optimizer_params.max_iterations = 3;
     }
 
     my_input_parameters.check_input(); // seeing if options are not mutually exclusive              
