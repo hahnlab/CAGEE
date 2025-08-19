@@ -372,7 +372,22 @@ void freerate_global_model::write_extra_vital_statistics(std::ostream& ost)
 
         ost << a.first << ":" << a.second << "\n";
     }
+
+    if (!sorted.empty()) {
+        // Find minimum value
+        double min_sigma = sorted[0].second;
+        for (const auto& a : sorted) {
+            if (a.second < min_sigma) min_sigma = a.second;
+        }
+        // Count occurrences
+        int count = 0;
+        for (const auto& a : sorted) {
+            if (a.second == min_sigma) ++count;
+        }
+        ost << "Minimum sigma2: " << min_sigma << " occurred " << count << " times\n";
+    }
 }
+
 
 
 TEST_CASE("freerate_model")
