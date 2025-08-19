@@ -6,21 +6,67 @@
     "configurations": [
 
         {
-            "name": "CAGEE",
+            "name": "Estimate",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/cagee",
+            "args": ["-c", "cagee_estimate.cfg", "-o", "${workspaceFolder}/data/results", "--cores", "1", "--log_config", "log.config", "--verbose", "9"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/examples",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Global Free Rate",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/cagee",
             "args": [
-                "--tree",
-                "cagee_tree.nwk",
-                "--infile",
-                "simulation.txt",
-                "--free_rate=global",
-                "--initial_weights",
-                "(B:1.53638,(C:0.80048,D:1.36759):0.85612,A:0.43943):0.00000"
+                "-c", "cagee_estimate_global_freerates.cfg",
+                "--cores", "1"
             ],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/data",
+            "cwd": "${workspaceFolder}/examples",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Paired Free Rate",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/cagee",
+            "args": [
+                "-c", "cagee_estimate_paired_freerates.cfg",
+                "--cores", "1"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/examples",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
@@ -107,6 +153,30 @@
                     "ignoreFailures": true
                 }
             ]
-        }
-    ]
+        },
+        {
+            "name": "Ratio",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/cagee",
+            "args": ["--infile", "cagee_traits.csv", "--tree", "temp_tree.nwk", "--ratio", "-o", "results_0"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/data/matt_request",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+   ]
 }
