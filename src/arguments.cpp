@@ -594,7 +594,7 @@ TEST_CASE("Options: freerate paired model")
     CHECK_EQ("paired", actual.free_rate);
 }
 
-TEST_CASE("Options: If Freerate is set, max_iterations defaults to 2")
+TEST_CASE("Options: If Freerate is set, max_iterations defaults to 3")
 {
     input_parameters by_default;
     CHECK_EQ(300, by_default.optimizer_params.max_iterations);
@@ -602,7 +602,7 @@ TEST_CASE("Options: If Freerate is set, max_iterations defaults to 2")
     option_test c({ "cagee", "--free_rate", "paired"});
 
     auto actual = read_arguments(c.argc, c.values);
-    CHECK_EQ(2, actual.optimizer_params.max_iterations);
+    CHECK_EQ(3, actual.optimizer_params.max_iterations);
 }
 
 TEST_CASE("Options: If Freerate is set, user can still set max iterations")
