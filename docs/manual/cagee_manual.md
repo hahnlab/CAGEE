@@ -4,7 +4,7 @@
 
 CAGEE is software for inferring rates of gene expression evolution (or any other continuous trait) across a phylogenetic tree. The main model uses bounded Brownian motion, but unbounded models are also now available. In addition to providing estimates for one or more evolutionary rates, $\sigma^2$, it provides ancestral state reconstruction and gene-wise changes between nodes.
 
-See the CAGEE paper https://doi.org/10.1093/molbev/msad106 for more details.
+See the CAGEE v1.1 paper (https://doi.org/10.1093/molbev/msad106) or the v1.2 paper (https://www.biorxiv.org/content/10.1101/2025.08.21.671601v1) for more details.
 
 ## Quick Start
 
