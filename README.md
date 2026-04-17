@@ -7,8 +7,8 @@ Software for <bold>C</bold>omputational <bold>A</bold>nalysis of <bold>G</bold>e
 </div>
 
 CAGEE analyzes changes in global or sample- or clade-specific gene expression taking into account phylogenetic history, and provides a statistical foundation for evolutionary inferences.
-The program (v1.0) uses Brownian motion to model gene expression changes across a user-specified phylogenetic tree.
-The reconstructed distribution of counts and their inferred evolutionary rate $\sigma^2$ generated under this model provides a basis for assessing the significance of the observed differences among taxa.
+The program (v1.2) uses either bounded or unbounded Brownian motion to model gene expression changes across a user-specified phylogenetic tree.
+The reconstructed distribution of counts and their inferred evolutionary rate, $\sigma^2$, generated under this model provides a basis for assessing the biological significance of the observed differences among taxa.
 
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 
