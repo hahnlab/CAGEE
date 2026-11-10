@@ -129,6 +129,36 @@ Note that, unlike the `DESC` and `Gene_ID`, the column specifying sample members
 
 Given the above input, CAGEE will estimate two values of $\sigma^2$: one for all rows with SAMPLETYPE `sample_label_1` and one for all rows with SAMPLETYPE either `sample_label_2` or `sample_label_3` (since these are both assigned to the same sample group on the command-line). If one instead wanted to estimate a separate value of $\sigma^2$ for sample_label_3, you would simply add a third argument (`--sample_group sample_label_3`).
 
+### Gamma-distributed rates: 3. Allowing $\sigma^2$ to vary across genes 
+
+CAGEE can estimate multiple $\sigma^2$ across genes instead of a single average rate. These gamma-distributed rates can be useful for identifying genes that are evolving relatively faster or slower. 
+
+When using the discrete gamma model in CAGEE, the user must specify the number of discrete categories, k. Unfortunately, there is no statistical method for determining the optimal k, so users must choose a reasonable value.  
+
+The number of categories can be set with the flag '--n_gamma_cats'. For example, to run this mode in CAGEE with k = 10 groups, use: 
+
+    ```
+    cagee --cores [your # threads] --tree path/to/your_tree.nwk --infile path/to/your_gene_values_with_SAMPLETYPE.tsv \
+        --n_gamma_cats 10 --output_prefix path/to/output-dir/
+    ```
+
+
+The 'results.txt' will provide the $\sigma^2$ for the entire tree, as well as the 'Alpha' parameter for the gamma distribution fit to the groups of genes. (In the discrete gamma model we assume the alpha and beta parameters are equal.)
+
+CAGEE produces a 'category_likelihoods.txt' file in addition to the standard 'ancestral_states.tab', 'ancestral_states.tre',  'change.tab', 'clade_results.tab', 'credible_intervals.tab', and 'results.txt'. The ‘category_likelihoods.txt’ provides for each gene (rows) the likelihood (-lnl) for the gene in each of the k groups (columns). Importantly, column names are the multiplier for $\sigma^2$ for that group. A gene can be assigned to its most probable rate category by finding the column with the highest likelihood (i.e. the lowest -lnl score). 
+
+For example, the output of the 'category_likelihoods.txt' for k = 4: 
+
+		Transcript ID	0.133345	0.469741	0.980675	2.0798	
+		A2M	37.7538	30.7531	31.1554	33.1259	
+		AAAS	43.6823	32.5952	32.0947	33.6181	
+		AACS	26.5735	27.1794	29.3049	32.1227	
+		AADAT	55.302	37.3681	34.4826	34.742	
+		AAGAB	58.5491	38.0693	34.5994	34.5882	
+		...
+
+Therefore, in this example, the estimated rate category for the gene 'AAGAB' would '0.469741', with an estimated value of 0.469741*$\sigma^2$, using the $\sigma^2$ output in 'results.txt'.
+
 ### Inferring a gamma curve as input
 
 Provide the `-k` parameter to use a discrete gamma model with a jointly optimized alpha shape parameter. Along with estimating a rate of evolution, CAGEE will estimate an alpha value representing a gamma curve that best reflects the values. The curve will be estimated from K distinct points on the curve, so a higher value of K should provide a greater accuracy but also take longer to run.
