@@ -138,7 +138,7 @@ When using the discrete gamma model in CAGEE, the user must specify the number o
 The number of categories can be set with the flag '--n_gamma_cats'. For example, to run this mode in CAGEE with k = 10 groups, use: 
 
     ```
-    cagee --cores [your # threads] --tree path/to/your_tree.nwk --infile path/to/your_gene_values_with_SAMPLETYPE.tsv \
+    cagee --cores [your # threads] --tree path/to/your_tree.nwk --infile path/to/your_gene_values.tsv \
         --n_gamma_cats 10 --output_prefix path/to/output-dir/
     ```
 
