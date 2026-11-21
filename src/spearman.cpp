@@ -21,9 +21,18 @@ std::vector<double> compute_ranks(const std::vector<double>& values) {
     std::vector<double> ranks(values.size());
     std::sort(idx.begin(), idx.end(), [&](size_t i, size_t j) { return values[i] < values[j]; });
 
-    transform(idx.begin(), idx.end(), ranks.begin(), [&](size_t i) {
-        return i+1;
-    });
+    for (size_t first = 0; first < idx.size();) {
+        size_t last = first + 1;
+        while (last < idx.size() && values[idx[last]] == values[idx[first]]) {
+            ++last;
+        }
+
+        const double average_rank = (static_cast<double>(first + 1) + static_cast<double>(last)) / 2.0;
+        for (size_t i = first; i < last; ++i) {
+            ranks[idx[i]] = average_rank;
+        }
+        first = last;
+    }
     return ranks;
 }
 
@@ -56,13 +65,22 @@ map<pair<string, string>, double> spearman_correlation_by_species(const std::vec
         auto ranks1 = compute_ranks(species_to_values[sp1]);
         auto ranks2 = compute_ranks(species_to_values[sp2]);
         if (ranks1.size() != ranks2.size()) continue;
-        double sum_d_squared = 0.0;
+        const double mean1 = accumulate(ranks1.begin(), ranks1.end(), 0.0) / ranks1.size();
+        const double mean2 = accumulate(ranks2.begin(), ranks2.end(), 0.0) / ranks2.size();
+        double covariance = 0.0;
+        double variance1 = 0.0;
+        double variance2 = 0.0;
         for (size_t i = 0; i < ranks1.size(); ++i) {
-            double d = ranks1[i] - ranks2[i];
-            sum_d_squared += d * d;
+            const double centered1 = ranks1[i] - mean1;
+            const double centered2 = ranks2[i] - mean2;
+            covariance += centered1 * centered2;
+            variance1 += centered1 * centered1;
+            variance2 += centered2 * centered2;
         }
-        double n = static_cast<double>(ranks1.size());
-        double spearman_corr = 1.0 - (6.0 * sum_d_squared) / (n * (n * n - 1));
+        const double denominator = sqrt(variance1 * variance2);
+        const double spearman_corr = denominator == 0.0
+            ? numeric_limits<double>::quiet_NaN()
+            : covariance / denominator;
         
         spearman_correlations[species_pair] = spearman_corr;
     }
@@ -87,7 +105,23 @@ TEST_CASE("spearman correlation_by_species computes correct correlations")
      
     auto result = spearman_correlation_by_species(transcripts);
     CHECK_EQ(1, result.size());
-    CHECK_EQ(doctest::Approx(0.766667), result[make_pair("species1","species2")]); 
+    CHECK_EQ(doctest::Approx(0.9), result[make_pair("species1","species2")]); 
+}
+
+TEST_CASE("spearman correlation_by_species handles tied values")
+{
+    std::vector<double> sp1 = {1, 1, 2, 3};
+    std::vector<double> sp2 = {4, 3, 2, 1};
+
+    std::vector<gene_transcript> transcripts(sp1.size());
+    for (size_t i = 0; i < sp1.size(); i++)
+    {
+        transcripts[i].set_expression_value("species1", sp1[i]);
+        transcripts[i].set_expression_value("species2", sp2[i]);
+    }
+
+    auto result = spearman_correlation_by_species(transcripts);
+    CHECK_EQ(doctest::Approx(-0.9486832980505138), result[make_pair("species1", "species2")]);
 }
 
 TEST_CASE("spearman_correlation_by_species throws when less than two transcripts")
@@ -106,9 +140,19 @@ TEST_CASE("compute_ranks")
     auto ranks = compute_ranks(values);
     CHECK_EQ(ranks.size(), values.size());
     CHECK_EQ(ranks[0], 1); 
-    CHECK_EQ(ranks[1], 5); 
-    CHECK_EQ(ranks[2], 2); 
+    CHECK_EQ(ranks[1], 3); 
+    CHECK_EQ(ranks[2], 5); 
     CHECK_EQ(ranks[3], 4); 
-    CHECK_EQ(ranks[4], 3); 
+    CHECK_EQ(ranks[4], 2); 
+}
+
+TEST_CASE("compute_ranks assigns average ranks to ties")
+{
+    std::vector<double> values = {10, 20, 20, 40};
+    auto ranks = compute_ranks(values);
+    CHECK_EQ(ranks[0], 1);
+    CHECK_EQ(ranks[1], 2.5);
+    CHECK_EQ(ranks[2], 2.5);
+    CHECK_EQ(ranks[3], 4);
 }
 
